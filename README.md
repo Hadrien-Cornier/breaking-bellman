@@ -1,6 +1,6 @@
 # Breaking Bellman
 
-A small browser game for learning reinforcement learning. You watch RL algorithms fail, work out why, and fix them by changing one word of their update rule. Then the game tells you which paper you just reinvented.
+A small browser game for learning reinforcement learning (RL). You watch RL algorithms fail, work out why, and fix them by changing one word of their update rule. Then the game tells you which paper you just reinvented.
 
 **[Play it in your browser](https://hadrien-cornier.github.io/breaking-bellman/)** · [Download the HTML file](https://github.com/Hadrien-Cornier/breaking-bellman/releases/latest/download/breaking-bellman.html) · [Blog post](https://hadrien-cornier.github.io/robotics/breaking-bellman/)
 
@@ -8,14 +8,14 @@ A small browser game for learning reinforcement learning. You watch RL algorithm
 
 ## What you do
 
-There are 17 levels. Each one hands you a learner that is broken in an educational way. A few of them:
+There are 17 levels. Each one hands you a learner that's broken in an educational way. A few of them:
 
 - A robot in a casino finds one decent slot machine and never looks at the others again.
 - A robot explores a cliff edge by falling off it. A lot.
 - A DQN's value estimate climbs to 4.7 million on a task where the best possible score is 100.
 - A dog learns that staring at the stick pays better than fetching it.
 
-You guess what will happen, press Run, and real training runs in your browser in a few seconds. Then you read the autopsy and change a word. For example, "move the estimate toward *the payout*" becomes "toward *the payout plus the best next estimate*". If that works, congratulations: you invented Q-learning (Watkins got there in 1989). Keep going and you end up at DQN, PPO, GRPO, SAC, IQL and a few robot-learning tricks.
+You guess what will happen and press Run. Real training takes a few seconds in your browser. Then you read the autopsy and change a word. For example, "move the estimate toward *the payout*" becomes "toward *the payout plus the best next estimate*". If that works, congratulations: you invented Q-learning (Watkins got there in 1989). Keep going and you end up at DQN, PPO, GRPO, SAC, IQL and a few robot-learning tricks.
 
 | Cliff walking | CartPole |
 |---|---|
@@ -38,7 +38,7 @@ Every level is open, so play them in any order. Your progress saves in your brow
 
 ## Bring your own AI (optional)
 
-The game does not need AI. If you want help:
+You don't need an AI assistant to play. If you want help:
 
 - **Chat tab:** paste your own key (Anthropic, OpenAI or OpenRouter), or use a model on your machine with Ollama. The key stays in your browser and goes straight to that provider. There is no Breaking Bellman server, so nobody else sees your key or spends it.
 - **Your own assistant:** click **Copy for your AI** and paste the brief into whatever you use. It says which level you are on and which words you can change.
@@ -56,7 +56,7 @@ Plain JavaScript with no dependencies: small neural networks with Adam on typed 
 | `src/sim` | Training runs and the autopsy |
 | `web` | The page, the levels, and `scenes.js`, which draws the robot |
 
-`npm test` runs the engine tests. `npm run smoke` plays the page in a headless browser. [`ENGINE.md`](ENGINE.md) describes the interfaces, so adding a world is one file.
+`npm test` runs the engine tests. `npm run smoke` plays the page in a headless browser. [`ENGINE.md`](ENGINE.md) describes the interfaces, so you can add a world in one file.
 
 **Does it use my GPU?** No, on purpose. The networks have two layers of 32 units, and each step waits for the one before it. Shipping that to a GPU and waiting for the answer costs more than the math itself. On a CPU a training step takes 0.1 to 3 milliseconds.
 
