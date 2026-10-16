@@ -44,7 +44,7 @@
     try {
       localStorage.setItem(LS, JSON.stringify({ found: S.found, given: S.given, seen: S.seen, done: S.done, answers: S.answers, missions: S.missions,
         saved: S.saved, mode: S.mode, level: S.level, lstep: S.lstep, made: S.made, reviews: S.reviews, unlockAll: S.unlockAll,
-        discoveries: S.discoveries, notion: S.notion, notionAuto: S.notionAuto }));
+        discoveries: S.discoveries, notion: S.notion, notionAuto: S.notionAuto, wondered: S.wondered, intro: S.intro }));
     } catch (e) { /* storage blocked */ }
   }
 
@@ -69,6 +69,8 @@
     pinA: null,
     mission: null,
     unlockAll: !!saved.unlockAll,
+    wondered: saved.wondered || {},        // surprise id -> times shown ("Did you notice?")
+    intro: saved.intro || 0,               // 1 after the first-visit welcome
     discoveries: saved.discoveries || {},  // card id -> what the discovery looked like (time, world, sentence, result, level answers)
     notion: saved.notion || {},            // card id -> { state: 'saved' | 'unsure' | 'error', url, code }
     notionAuto: saved.notionAuto !== false, // snapshot each new discovery to Notion
@@ -83,6 +85,36 @@
     window.claude.use('sample').then((s) => { SAMPLE = s; if (S.mode === 'chat') render(); }).catch(() => {});
   }
   const safeId = (s) => s.replace(/[^\w-]/g, '_');
+
+  // ---------------------------------------------------------------- bring your own AI key (optional)
+  // The key stays in this browser. By default it lives in sessionStorage (gone when the tab closes); the player can
+  // choose localStorage. The page sends it only to the provider the player picks (web/llm.js). There is no server.
+  const AIK = 'breaking-bellman-ai';
+  function loadAI() {
+    for (const store of ['localStorage', 'sessionStorage']) {
+      try { const v = JSON.parse(window[store].getItem(AIK)); if (v && v.provider) return Object.assign(v, { remember: store === 'localStorage' }); } catch (e) { /* storage blocked */ }
+    }
+    return { provider: '', apiKey: '', model: '', baseUrl: '', remember: false };
+  }
+  function saveAI(v) {
+    try { localStorage.removeItem(AIK); sessionStorage.removeItem(AIK); } catch (e) { /* storage blocked */ }
+    if (!v.provider) return;
+    try { (v.remember ? localStorage : sessionStorage).setItem(AIK, JSON.stringify({ provider: v.provider, apiKey: v.apiKey, model: v.model, baseUrl: v.baseUrl })); } catch (e) { /* storage blocked */ }
+  }
+  let AI = loadAI();
+  const aiReady = () => !!(AI.provider && window.BB && BB.llm && BB.llm.PROVIDERS[AI.provider] && (AI.apiKey || !BB.llm.PROVIDERS[AI.provider].needsKey) && (AI.model || BB.llm.PROVIDERS[AI.provider].defaultModel));
+  // the chat calls this; it has the same shape as the claude.ai sample capability
+  function tutorSampler() {
+    if (SAMPLE) return { fn: SAMPLE, viaClaude: true };
+    if (!aiReady()) return null;
+    return { fn: BB.llm.makeSampler(AI), viaClaude: false };
+  }
+  function aiLabel() {
+    if (SAMPLE) return 'Claude (claude.ai)';
+    if (!aiReady()) return 'off';
+    const p = BB.llm.PROVIDERS[AI.provider];
+    return p.label + ', ' + (AI.model || p.defaultModel);
+  }
   function recordAnswer(qid, choice, correct) {
     if (S.answers[qid]) return; // first attempt only
     S.answers[qid] = { choice, correct, ts: new Date().toISOString() };
@@ -729,6 +761,34 @@
     card.hidden = false;
     card.open = S.mode !== 'campaign';
   }
+  // "Did you notice?": ask the player to read one chart before the page explains the surprise
+  function renderWonder(cfg, a) {
+    const box = $('#wonder');
+    const wq = C.wonderPick ? C.wonderPick(cfg, a, S.wondered) : null;
+    if (!wq) { box.hidden = true; return; }
+    S.wondered[wq.id] = (S.wondered[wq.id] || 0) + 1; save();
+    const chartEl = wq.charts.map((id) => document.getElementById(id)).find(Boolean);
+    const box2 = chartEl ? chartEl.closest('.chart-wrap') || chartEl.parentNode : null;
+    const look = () => { if (!box2) return; box2.classList.remove('look'); void box2.offsetWidth; box2.classList.add('look'); box2.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+    const opts = wq.options.map(([t, ok], i) => [t, ok, i]).sort((x, y) => ((x[2] * 7 + S.found.length) % 3) - ((y[2] * 7 + S.found.length) % 3));
+    const reveal = h('div.stack', { hidden: true });
+    const btns = opts.map(([t, ok]) => h('button.btn.ghost.wopt', { type: 'button', onclick: (e) => {
+      for (const b of btns) { b.disabled = true; }
+      e.currentTarget.classList.add(ok ? 'right' : 'wrong');
+      if (!ok) btns[opts.findIndex((o) => o[1])].classList.add('right');
+      recordAnswer('wonder:' + wq.id + ':' + S.wondered[wq.id], t, ok);
+      reveal.hidden = false;
+    } }, t));
+    reveal.append(
+      h('p', { html: '<b>What your run shows:</b> ' + wq.evidence }),
+      h('p', { html: '<b>Why:</b> ' + wq.why }),
+      $('#expert-card').hidden ? null : h('div.row', null, [h('button.btn.ghost.tiny', { type: 'button', onclick: openExpert }, 'Read the expert notes on this run')]));
+    box.replaceChildren(
+      h('div.row', { style: 'justify-content:space-between' }, [h('div.eyebrow', { text: 'Did you notice?' }), box2 ? h('button.btn.ghost.tiny', { type: 'button', onclick: look }, 'Show me the chart') : null]),
+      h('h3', { text: 'Something surprising happened in this run' }),
+      h('p', { text: wq.ask }), h('div.wopts', null, btns), reveal);
+    box.hidden = false;
+  }
   function openExpert() {
     const d = $('#expert-card');
     if (d.hidden) { toast('Run a sentence first: the expert reads a finished run.'); return; }
@@ -766,7 +826,7 @@
     const nSeeds = +$('#seeds').value, steps = +$('#budget').value;
     const cfg = { world: S.world, knobs: Object.assign({}, S.knobs), parts: Object.assign({}, S.parts), hyper: hyperNow(), steps };
     S.lastCfg = cfg;
-    $('#expert-card').hidden = true;
+    $('#expert-card').hidden = true; $('#wonder').hidden = true;
     const seeds = range(1, nSeeds).map((i) => i * 101);
     $('#charts').replaceChildren(); const prog = $('#prog'); prog.style.width = '2%';
     S.results = [];
@@ -782,6 +842,7 @@
       const a = renderAutopsy();
       S.lastA = a;
       renderExpert(cfg, a);
+      renderWonder(cfg, a);
       const rec = recognize(cfg.parts, cfg.world);
       if (rec && !S.seen.includes(rec.id)) S.seen.push(rec.id);
       const works = C.works[cfg.world](a);
@@ -943,12 +1004,27 @@
     notionViews.add(draw); draw();
     return el;
   }
+  // ranks: one per stretch of the campaign (levels done)
+  const RANKS = [[0, 'Newcomer'], [1, 'Bandit tamer'], [3, 'Cliff walker'], [5, 'Value wrangler'], [7, 'Policy climber'], [9, 'Gradient pilot'],
+    [11, 'Swing-up artist'], [13, 'Offline archivist'], [15, 'Frontier roboticist'], [17, 'Bellman breaker']];
+  function rankOf(n) { let r = RANKS[0][1]; for (const [k, name] of RANKS) if (n >= k) r = name; return r; }
   function updateScore() {
     const q = Object.values(S.answers), right = q.filter((x) => x.correct).length;
     const rv = Object.values(S.reviews).reduce((s, r) => s + r.right, 0);
     const ms = allMethodCards(), fs = failCards();
-    $('#score').textContent = ms.filter((id) => S.found.includes(id)).length + ' of ' + ms.length + ' methods · ' + fs.filter((id) => S.found.includes(id)).length + ' of ' + fs.length + ' failures · predictions ' + right + '/' + q.length + ' right first time · ' + rv + ' rebuilt from memory';
+    const nm = ms.filter((id) => S.found.includes(id)).length, nf = fs.filter((id) => S.found.includes(id)).length;
+    const done = S.done.filter((id) => C.levels.some((l) => l.id === id)).length;
+    const pill = (label, value, title) => h('span.pill', { title }, [h('b', { text: value }), ' ' + label]);
+    $('#score').replaceChildren(
+      h('span.rank', { title: 'Your rank grows with the campaign levels you finish' }, rankOf(done)),
+      pill('levels', done + '/' + C.levels.length, 'Campaign levels finished'),
+      pill('methods', nm + '/' + ms.length, 'Methods you built and saw work'),
+      pill('failures', nf + '/' + fs.length, 'Failures you caused and saw'),
+      pill('predictions', right + '/' + q.length, 'Predictions right on the first try'),
+      ...(rv ? [pill('rebuilt', String(rv), 'Methods rebuilt from memory in Review')] : []));
+    $('#xp').style.width = (100 * done / Math.max(1, C.levels.length)).toFixed(1) + '%';
   }
+
 
   // ---------------------------------------------------------------- how many discoveries are left: a map by group
   function methodCards(family, world) {
@@ -2030,6 +2106,11 @@
   }
 
   // --- Codex: the family tree fills in as you discover
+  function paperLinks(id) {
+    const ls = (C.paperLinks || {})[id];
+    if (!ls || !ls.length) return null;
+    return h('span.plinks', null, ls.map((l) => h('a.plink', { href: l.u, target: '_blank', rel: 'noopener' }, l.t)));
+  }
   function cardView(id, open) {
     const c = C.cards[id], known = S.found.includes(id) || S.given.includes(id);
     const kindName = c.kind === 'failure' ? 'Failure' : c.kind === 'frontier' ? 'Frontier model' : 'Method';
@@ -2040,7 +2121,7 @@
       h('div.row', { style: 'justify-content:space-between' }, [h('div.eyebrow', { text: c.kind ? kindName : S.found.includes(id) ? 'Method, built by you' : 'Method, given by a level' }), tag]),
       h('h3', { text: c.name }),
       h('dl', null, [
-        h('dt', { text: 'Source' }), h('dd', { html: c.paper }),
+        h('dt', { text: 'Source' }), h('dd', null, [h('span', { html: c.paper }), paperLinks(id)]),
         rec ? h('dt', { text: 'Words' }) : null, rec ? h('dd', { text: Object.keys(rec.keys).map((k) => wordText(k, rec.keys[k])).join(' · ') }) : null,
         h('dt', { text: c.kind === 'failure' ? 'What' : c.kind === 'frontier' ? 'What it adds' : 'Fixes' }), h('dd', { html: c.fixes }),
         h('dt', { text: c.kind === 'failure' ? 'Measured' : c.kind === 'frontier' ? 'Limits' : 'Still fails' }), h('dd', { html: c.stillWrong }),
@@ -2093,6 +2174,7 @@
   const chatLog = [];
   MODES.chat = function (pane) {
     S.focus = [];
+    const tutor = tutorSampler();
     const msgs = h('div.msgs', { id: 'msgs' });
     const drawMsgs = () => msgs.replaceChildren(...(chatLog.length ? chatLog : [{ role: 'assistant', text: C.chatHello }]).map((m) => h('div.msg' + (m.role === 'user' ? '.me' : m.role === 'tool' ? '.tool' : ''), { text: m.text })));
     drawMsgs();
@@ -2100,28 +2182,36 @@
     const send = h('button.btn', { type: 'button' }, 'Send');
     const stopB = h('button.btn.ghost', { type: 'button', hidden: true }, 'Stop');
     let ctl = null;
-    send.addEventListener('click', async () => {
-      const text = ta.value.trim(); if (!text || !SAMPLE) return;
+    const go = async () => {
+      const text = ta.value.trim(); if (!text || !tutor) return;
       ta.value = ''; chatLog.push({ role: 'user', text }); const reply = { role: 'assistant', text: '…' }; chatLog.push(reply); drawMsgs();
       send.disabled = true; stopB.hidden = false; ctl = new AbortController();
       const history = chatLog.filter((m) => m.role !== 'tool' && m !== reply).map((m) => ({ role: m.role, content: m.text }));
-      history[0] = { role: 'user', content: chatSystem() + '\n\n---\n\n' + history[0].content };
+      const opts = { signal: ctl.signal, cache: false, tools: chatTools(drawMsgs), onText: ({ text }) => { reply.text = text; drawMsgs(); msgs.scrollTop = msgs.scrollHeight; } };
+      if (tutor.viaClaude) history[0] = { role: 'user', content: chatSystem() + '\n\n---\n\n' + history[0].content };
+      else opts.system = chatSystem();
       try {
-        const out = await SAMPLE(history, { signal: ctl.signal, cache: false, tools: chatTools(drawMsgs), onText: ({ text }) => { reply.text = text; drawMsgs(); msgs.scrollTop = msgs.scrollHeight; } });
-        reply.text = out.text;
+        const out = await tutor.fn(history, opts);
+        reply.text = out.text || '(no text)';
       } catch (e) {
-        reply.text = e && e.code === 'not_granted' ? 'Chat is not allowed in this view. Use the comments on the artifact instead.' : e && e.code === 'rate_limited' ? 'Too many messages. Wait a minute and try again.' : 'The chat stopped: ' + (e && (e.message || e.code));
+        const code = e && e.code;
+        reply.text = code === 'not_granted' ? 'Chat is not allowed in this view.' : code === 'rate_limited' ? 'Too many messages. Wait a minute and try again.'
+          : code === 'auth' ? 'The provider refused the key. Check it in Settings.' : code === 'aborted' ? 'Stopped.' : 'The chat stopped: ' + (e && (e.message || code));
       }
       send.disabled = false; stopB.hidden = true; drawMsgs(); msgs.scrollTop = msgs.scrollHeight;
-    });
+    };
+    send.addEventListener('click', go);
+    ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) go(); });
     stopB.addEventListener('click', () => ctl && ctl.abort());
     pane.append(h('div.card.chat', null, [
-      h('div.eyebrow', { text: 'Chat with the lab' }), h('h2', { text: 'Ask, and let Claude change the words' }),
-      SAMPLE ? h('p.small', { text: 'Claude sees the sentence, the knobs and the last autopsy. It can change words, set knobs and start runs. It will ask you to predict before it explains. The first message asks for your consent.' })
-        : h('p.small', { text: 'Chat is not available in this view (it needs the claude.ai viewer and your consent). Fallback: leave a comment on the artifact, or export the sentence JSON from the Workbench and paste it to Claude.' }),
-      msgs, ta, h('div.row', null, [send, stopB]),
+      h('div.eyebrow', { text: 'Chat with the lab' }), h('h2', { text: 'Ask a tutor that can change the words and run experiments' }),
+      tutor ? h('p.small', { text: 'Tutor: ' + aiLabel() + '. It sees the sentence, the knobs and the last autopsy. It can change words, set knobs and start runs. It asks you to predict before it explains.' })
+        : h('div.stack', null, [
+          h('p.small', { text: 'The tutor is optional. It needs your own AI key (Anthropic, OpenAI, OpenRouter) or a model on your computer (Ollama). The key stays in this browser and goes only to the provider you pick.' }),
+          h('div.row', null, [h('button.btn', { type: 'button', onclick: openSettings }, 'Set up the tutor')])]),
+      msgs, ta, h('div.row', null, [send, stopB, tutor ? h('span.small', { text: 'Ctrl+Enter sends.' }) : null]),
     ]));
-    if (!SAMPLE) { send.disabled = true; ta.disabled = true; }
+    if (!tutor) { send.disabled = true; ta.disabled = true; }
   };
   function labState() {
     const a = S.results.length ? RLA.autopsy(S.results) : null;
@@ -2166,6 +2256,140 @@
     ];
   }
 
+  // ---------------------------------------------------------------- settings: the AI tutor and your learning log
+  function download(name, text, type) {
+    const a = h('a', { href: URL.createObjectURL(new Blob([text], { type })), download: name });
+    document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+  function learningLogMarkdown() {
+    const day = new Date().toISOString().slice(0, 10);
+    const q = Object.values(S.answers), right = q.filter((x) => x.correct).length;
+    const lines = ['# My Breaking Bellman learning log', '', 'Exported ' + day + '. Every result is a toy simulation that ran in the page.', '',
+      '## Summary', '', '- Methods and failures discovered: ' + S.found.length, '- Campaign levels done: ' + S.done.length + ' of ' + C.levels.length,
+      '- Predictions right on the first try: ' + right + ' of ' + q.length, '', '## Discoveries', ''];
+    const ids = S.found.filter((id) => C.cards[id]).sort((x, y) => String((S.discoveries[x] || {}).ts || '').localeCompare(String((S.discoveries[y] || {}).ts || '')));
+    for (const id of ids) {
+      const c = C.cards[id], d = S.discoveries[id] || {};
+      lines.push('### ' + c.name + (c.kind === 'failure' ? ' (failure)' : ''), '');
+      if (d.ts) lines.push('- When: ' + d.ts.slice(0, 16).replace('T', ' ') + ' UTC');
+      if (d.where) lines.push('- Where: ' + d.where);
+      if (d.world) lines.push('- World: ' + d.world);
+      if (d.sentence) lines.push('- My sentence: ' + d.sentence);
+      if (d.result) lines.push('- Result: ' + d.result);
+      if (d.predictions) lines.push('- Level questions: ' + d.predictions);
+      lines.push('- ' + (c.kind === 'failure' ? 'What it is' : 'What it fixes') + ': ' + plainText(c.fixes));
+      lines.push('- ' + (c.kind === 'failure' ? 'Measured' : 'How it still fails') + ': ' + plainText(c.stillWrong));
+      const ls = (C.paperLinks || {})[id] || [];
+      lines.push('- Source: ' + plainText(c.paper) + (ls.length ? ' ' + ls.map((l) => '[' + l.t + '](' + l.u + ')').join(', ') : ''), '');
+    }
+    if (!ids.length) lines.push('Nothing yet. Play the first level.', '');
+    lines.push('## Levels done', '', ...(S.done.length ? S.done.map((id) => '- ' + ((C.levels.find((l) => l.id === id) || {}).title || id)) : ['None yet.']), '');
+    return lines.join('\n');
+  }
+  function progressJSON() {
+    let raw = {}; try { raw = JSON.parse(localStorage.getItem(LS)) || {}; } catch (e) { /* storage blocked */ }
+    return JSON.stringify({ app: 'breaking-bellman', version: 1, exported: new Date().toISOString(), progress: raw }, null, 2);
+  }
+  function importProgress(file) {
+    file.text().then((t) => {
+      const v = JSON.parse(t);
+      if (!v || v.app !== 'breaking-bellman' || !v.progress) throw new Error('not a Breaking Bellman progress file');
+      localStorage.setItem(LS, JSON.stringify(v.progress)); location.reload();
+    }).catch((e) => toast('Import failed: ' + e.message));
+  }
+  let settingsDlg = null;
+  function openSettings() {
+    if (settingsDlg) settingsDlg.remove();
+    const P = window.BB && BB.llm ? BB.llm.PROVIDERS : {};
+    const v = Object.assign({}, AI);
+    const prov = h('select', { id: 'ai-provider', 'aria-label': 'AI provider' }, [h('option', { value: '' }, 'No tutor (the game works without one)'), ...Object.keys(P).map((k) => h('option', { value: k, selected: v.provider === k }, P[k].label))]);
+    const key = h('input', { id: 'ai-key', type: 'password', autocomplete: 'off', spellcheck: 'false', placeholder: 'Paste your API key', value: v.apiKey || '' });
+    const showKey = h('button.btn.ghost.tiny', { type: 'button', onclick: () => { key.type = key.type === 'password' ? 'text' : 'password'; } }, 'Show');
+    const model = h('input', { id: 'ai-model', list: 'ai-models', autocomplete: 'off', spellcheck: 'false', value: v.model || '' });
+    const models = h('datalist', { id: 'ai-models' });
+    const base = h('input', { id: 'ai-base', autocomplete: 'off', spellcheck: 'false', value: v.baseUrl || '' });
+    const remember = h('input', { type: 'checkbox', id: 'ai-remember', checked: !!v.remember });
+    const status = h('p.small', { id: 'ai-status', 'aria-live': 'polite' });
+    const read = () => ({ provider: prov.value, apiKey: key.value.trim(), model: model.value.trim(), baseUrl: base.value.trim(), remember: remember.checked });
+    const sync = () => {
+      const p = P[prov.value];
+      for (const el of settingsDlg.querySelectorAll('.ai-only')) el.hidden = !p;
+      if (!p) return;
+      key.closest('.field').hidden = !p.needsKey && prov.value !== 'custom';
+      model.placeholder = p.defaultModel ? 'Default: ' + p.defaultModel : 'Model name, for example from "List models"';
+      base.placeholder = p.baseUrl || 'https://your-server/v1';
+      base.closest('.field').hidden = !(prov.value === 'ollama' || prov.value === 'custom' || base.value);
+    };
+    const listBtn = h('button.btn.ghost.tiny', { type: 'button', onclick: async () => {
+      status.textContent = 'Asking the provider for its models…';
+      try { const ids = await BB.llm.listModels(read()); models.replaceChildren(...ids.map((id) => h('option', { value: id }))); status.textContent = ids.length + ' models. Click the model box to pick one.'; }
+      catch (e) { status.textContent = 'Could not list models: ' + e.message; }
+    } }, 'List models');
+    const testBtn = h('button.btn.ghost', { type: 'button', onclick: async () => {
+      const t = read(); status.textContent = 'Sending one short test message…';
+      try { const out = await BB.llm.makeSampler(Object.assign({}, t, { maxTokens: 20 }))('Reply with the single word OK.', {}); status.textContent = 'It works. The model said: ' + String(out.text).slice(0, 80); }
+      catch (e) { status.textContent = 'It did not work: ' + e.message; }
+    } }, 'Test');
+    const field = (label, input, extra, cls) => h('label.field' + (cls ? '.' + cls : ''), null, [h('span.small', { text: label }), h('div.row', null, [input, extra || null])]);
+    const fileIn = h('input', { type: 'file', accept: 'application/json,.json', hidden: true, onchange: (e) => e.target.files[0] && importProgress(e.target.files[0]) });
+    settingsDlg = h('dialog.settings', { id: 'settings-dlg', 'aria-label': 'Settings' }, [
+      h('form', { method: 'dialog', class: 'stack' }, [
+        h('div.row', { style: 'justify-content:space-between' }, [h('h2', { text: 'Settings' }), h('button.btn.ghost.tiny', { value: 'close', 'aria-label': 'Close' }, 'Close')]),
+        h('section.stack', null, [
+          h('h3', { text: 'AI tutor (optional)' }),
+          h('p.small', { text: 'Every level, run and chart works without AI. The tutor only powers the Chat tab. Bring your own key: it stays in this browser and the page sends it only to the provider you pick. There is no Breaking Bellman server, so nobody else sees it and nobody else spends it.' }),
+          field('Provider', prov),
+          field('API key', key, showKey, 'ai-only'),
+          field('Model', model, listBtn, 'ai-only'), models,
+          field('Server address', base, null, 'ai-only'),
+          h('label.small.ai-only', null, [remember, ' Remember the key on this computer (off: it is forgotten when you close the tab)']),
+          h('p.small.ai-only', { text: 'Ollama runs a model on your own computer, with no key and no cost per message. Start it with OLLAMA_ORIGINS=* so this page may call it.' }),
+          h('div.row.ai-only', null, [testBtn]), status,
+          h('div.row', null, [
+            h('button.btn', { type: 'button', onclick: () => { AI = read(); saveAI(AI); toast(AI.provider ? 'Tutor saved: ' + aiLabel() : 'Tutor off'); settingsDlg.close(); if (S.mode === 'chat') render(); } }, 'Save'),
+            h('button.btn.ghost', { type: 'button', onclick: () => { AI = { provider: '', apiKey: '', model: '', baseUrl: '', remember: false }; saveAI(AI); key.value = ''; prov.value = ''; sync(); toast('Key forgotten'); if (S.mode === 'chat') render(); } }, 'Forget the key'),
+          ]),
+        ]),
+        h('section.stack', null, [
+          h('h3', { text: 'Your learning log' }),
+          h('p.small', { text: 'Your progress lives in this browser only. Export it to keep a record of what you discovered, or to move it to another computer.' }),
+          h('div.row', null, [
+            h('button.btn.ghost', { type: 'button', onclick: () => download('breaking-bellman-log-' + new Date().toISOString().slice(0, 10) + '.md', learningLogMarkdown(), 'text/markdown') }, 'Export the log (Markdown)'),
+            h('button.btn.ghost', { type: 'button', onclick: () => download('breaking-bellman-progress.json', progressJSON(), 'application/json') }, 'Export progress (JSON)'),
+            h('button.btn.ghost', { type: 'button', onclick: () => fileIn.click() }, 'Import progress'), fileIn,
+          ]),
+          h('div.row', null, [h('button.btn.ghost.tiny.danger', { type: 'button', onclick: () => { if (confirm('Erase all progress in this browser? This cannot be undone.')) { try { localStorage.removeItem(LS); } catch (e) { /* storage blocked */ } location.reload(); } } }, 'Erase my progress')]),
+        ]),
+        h('p.small', null, ['Breaking Bellman is open source (MIT). ', h('a', { href: 'https://github.com/Hadrien-Cornier/breaking-bellman', target: '_blank', rel: 'noopener' }, 'Source code and how it works'), '.']),
+      ]),
+    ]);
+    document.body.append(settingsDlg);
+    prov.addEventListener('change', () => { const p = P[prov.value]; if (p && !model.value) model.value = ''; base.value = ''; models.replaceChildren(); sync(); });
+    sync();
+    settingsDlg.showModal();
+  }
+  $('#settings-btn').addEventListener('click', openSettings);
+
+  // first visit: what this is, in four lines
+  function showIntro() {
+    const close = (mode) => { S.intro = 1; save(); dlg.close(); dlg.remove(); if (mode && mode !== S.mode) { S.mode = mode; save(); if (mode === 'campaign') enterLevel(C.levels.find((l) => l.id === S.level) || C.levels[0]); render(); } };
+    const step = (n, t, d) => h('li', null, [h('span.num', { text: n }), h('div', null, [h('b', { text: t }), h('p.small', { text: d })])]);
+    const dlg = h('dialog.intro', { 'aria-label': 'Welcome' }, [h('div.stack', null, [
+      h('div.eyebrow', { text: 'A reinforcement learning sandbox' }),
+      h('h1', { text: 'Breaking Bellman' }),
+      h('p.lead', { text: 'Learn reinforcement learning by breaking it. Real algorithms train in this page, in seconds, and fail in front of you. You find out why, and you fix them.' }),
+      h('ol.steps', null, [
+        step('1', 'Predict', 'Each level shows a learner and a world. Say what you think will happen.'),
+        step('2', 'Run', 'Real training runs in your browser. Every curve comes from code that just ran.'),
+        step('3', 'Fix', 'Change one word of the update rule. When your sentence works, you have rediscovered a published method, from Q-learning to PPO, SAC and robot learning.'),
+      ]),
+      h('p.small', { text: 'No account and no server: your progress stays in this browser. An AI tutor is optional (bring your own key in Settings).' }),
+      h('div.row', null, [h('button.btn', { type: 'button', onclick: () => close('campaign') }, 'Start level 1'), h('button.btn.ghost', { type: 'button', onclick: () => close('workbench') }, 'Open the workbench')]),
+    ])]);
+    dlg.addEventListener('cancel', () => { S.intro = 1; save(); });
+    document.body.append(dlg); dlg.showModal();
+  }
+
   // ---------------------------------------------------------------- top level
   function render() {
     $$('#tabs button').forEach((b) => b.setAttribute('aria-selected', b.dataset.mode === S.mode ? 'true' : 'false'));
@@ -2196,4 +2420,5 @@
   else setWorld(S.world);
   renderStage(); drawCompare();
   render();
+  if (!S.intro) showIntro();
 })();

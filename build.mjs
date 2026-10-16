@@ -16,7 +16,7 @@ export const ENGINE_FILES = [
   'src/agents/value.js', 'src/agents/pg.js', 'src/agents/ac.js',
   'src/sim/run.js', 'src/sim/autopsy.js',
 ];
-const CONTENT_FILES = ['web/content.js', 'web/content2.js', 'web/measured.js', 'web/content3.js', 'web/expert.js', 'web/papers.js'];
+const CONTENT_FILES = ['web/content.js', 'web/content2.js', 'web/measured.js', 'web/content3.js', 'web/expert.js', 'web/papers.js', 'web/wonder.js'];
 const APP_FILES = ['web/llm.js', 'web/app.js'];
 
 const exists = (f) => fs.existsSync(path.join(root, f));

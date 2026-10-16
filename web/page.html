@@ -8,8 +8,9 @@
 <header class="top">
   <div class="top-row">
     <div class="brand"><span class="sym">Q</span><h1>Breaking Bellman</h1></div>
-    <div class="score" id="score">0 discoveries</div>
+    <div class="top-right"><div class="score" id="score" aria-live="polite"></div><button class="btn ghost tiny" id="settings-btn" type="button" aria-label="Settings: AI tutor and learning log">⚙<span class="wide-only"> Settings</span></button></div>
   </div>
+  <div class="xpbar" aria-hidden="true"><i id="xp"></i></div>
   <nav class="tabs" role="tablist" id="tabs">
     <button role="tab" data-mode="campaign" aria-selected="true">Campaign</button>
     <button role="tab" data-mode="workbench" aria-selected="false">Workbench</button>
@@ -49,6 +50,7 @@
       <summary>Try every combination</summary>
       <div id="grid-lab"></div>
     </details>
+    <div class="card wonder" id="wonder" hidden></div>
     <div class="card" id="charts"></div>
     <details class="card-details" id="expert-card" hidden>
       <summary>An expert reads this run</summary>
