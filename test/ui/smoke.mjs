@@ -75,6 +75,29 @@ await session(1280, 900, 'desktop', async (page) => {
   await setWord(page, '#mode-pane', 'scorer', 'a frozen copy');
   await page.waitForTimeout(1500);
   console.log('math rows:', await page.locator('#mode-pane .math .mrow').count(), 'MathJax containers:', await page.locator('#mode-pane .math mjx-container').count());
+  // every word combination of every family, on every world: each unique TeX line typesets without a MathJax error
+  // (a twin network once wrote Q_A_\theta: "Double subscripts: use braces to clarify")
+  await page.waitForFunction(() => window.MathJax && window.MathJax.tex2svg, null, { timeout: 30000 });
+  const tex = await page.evaluate(() => {
+    const C = window.CONTENT, worlds = Object.keys(C.worldNames), seen = new Set(), bad = [];
+    let combos = 0;
+    for (const f of Object.keys(C.families)) {
+      const keys = C.families[f].keys, opts = keys.map((k) => C.words[k].options.map((o) => o[0])), idx = keys.map(() => 0);
+      for (;;) {
+        const parts = { family: f }; keys.forEach((k, i) => { parts[k] = opts[i][idx[i]]; }); combos++;
+        for (const w of worlds) for (const { tex } of bellman.math(parts, w)) {
+          if (seen.has(tex)) continue;
+          seen.add(tex);
+          const m = MathJax.tex2svg(tex, { display: true }).querySelector('[data-mjx-error]');
+          if (m) bad.push(m.getAttribute('data-mjx-error') + ': ' + tex);
+        }
+        let i = 0; while (i < keys.length && ++idx[i] === opts[i].length) { idx[i] = 0; i++; }
+        if (i === keys.length) break;
+      }
+    }
+    return { combos, unique: seen.size, bad };
+  });
+  check(tex.unique > 100 && !tex.bad.length, 'the TeX of all ' + tex.combos + ' word combinations typesets (' + tex.unique + ' unique lines)' + (tex.bad.length ? ': ' + tex.bad.slice(0, 3).join(' | ') : ''));
   await page.selectOption('#seeds', '1'); await page.selectOption('#budget', '10000');
   const t0 = Date.now();
   await page.click('#run-btn');
@@ -83,6 +106,25 @@ await session(1280, 900, 'desktop', async (page) => {
   check(await page.locator('#expert-card').isVisible() && await page.locator('#expert-card').evaluate((d) => d.open), 'the expert card opens after a Workbench run');
   check(/The frozen copy sets how fast the values can grow/.test(await page.locator('#expert').innerText()), 'the expert explains the frozen copy for DQN');
   check(await page.locator('#charts button', { hasText: 'Why this gap?' }).count() === 1, 'the value chart has a "Why this gap?" button');
+  // "Copy page": the whole page as Markdown, with the numbers behind each chart
+  const pmd = await page.evaluate(() => window.bellman.page());
+  check(pmd.startsWith('# Breaking Bellman: the Workbench page') && pmd.includes('## Lab') && pmd.includes('## Words of the current sentence'), 'the page export has its sections');
+  check(pmd.includes('**Chart: Score per test episode**') && pmd.includes('| training steps | seed 1 | mean |') && /\| lowest \| -?[\d.]+/.test(pmd), 'the page export writes each chart as a table of numbers');
+  check(pmd.includes('$$\n') && pmd.includes('[a network]') && !/\*\*\*\*|\bnull\b/.test(pmd), 'the page export keeps the TeX, the word chips, and no empty labels or "null"');
+  // review cases: a pinned run on another x grid gets its own table; a code fence inside a text box cannot end the export's fence
+  const rc = await page.evaluate(() => {
+    const xsA = Array.from({ length: 41 }, (_, i) => i * 250), xsB = Array.from({ length: 41 }, (_, i) => i * 500);
+    const ch = BB.pageMd.chart({ series: [{ label: 'A (pinned)', xs: xsA, ys: xsA }, { label: 'mean', xs: xsB, ys: xsB }], o: { xmax: 20000, xlabel: 'training steps' } });
+    const box = document.createElement('div'), ta = document.createElement('textarea'); ta.value = 'a\n```\nb\n```'; box.append(ta); document.body.append(box);
+    const md = BB.pageMd.fromNode(box); box.remove();
+    return { tables: (ch.match(/\| training steps \|/g) || []).length, end: /\| 20000 \| 20000 \|/.test(ch), wrong: /\| 1250 \| 1250 \| 1000 \|/.test(ch), fence: md.startsWith('````\n') && md.endsWith('\n````') };
+  });
+  check(rc.tables === 2 && rc.end && !rc.wrong && rc.fence, 'the export keeps each x grid in its own table and fences code safely ' + JSON.stringify(rc));
+  const nulls = await page.evaluate(() => { const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); let n = 0; while (w.nextNode()) if (w.currentNode.textContent.trim() === 'null') n++; return n; });
+  check(nulls === 0, 'no "null" text on the page after a run (found ' + nulls + ')');
+  await page.click('#copy-page-btn');
+  const copied = await page.waitForFunction(() => /as Markdown/.test(document.querySelector('#toast').textContent), null, { timeout: 5000 }).then(() => true, () => false);
+  check(copied, 'Copy page copies or downloads the page as Markdown');
   console.log('name box:', (await page.locator('#rule .compound').innerText()).replace(/\n/g, ' | '));
   await page.locator('#mode-pane .replay button', { hasText: /Watch one update|Start again/ }).click();
   await page.waitForSelector('#mode-pane .rp-stage', { timeout: 60000 });
@@ -114,6 +156,12 @@ await session(1280, 900, 'desktop', async (page) => {
   await page.screenshot({ path: out + '/desktop-codex.png' });
   await page.getByRole('tab', { name: 'Saboteur' }).click();
   await page.screenshot({ path: out + '/desktop-sab.png' });
+  // an API key never reaches the page export, even when the player shows it
+  await page.click('#settings-btn');
+  await page.evaluate(() => { const p = document.querySelector('#ai-provider'); p.value = p.options[1].value; p.dispatchEvent(new Event('change')); const k = document.querySelector('#ai-key'); k.value = 'sk-test-NOT-A-REAL-KEY'; k.type = 'text'; });
+  const smd = await page.evaluate(() => window.bellman.page());
+  check(smd.includes('## Open dialog') && smd.includes('[hidden text]') && !smd.includes('NOT-A-REAL-KEY'), 'the page export includes the open dialog but never the API key');
+  await page.keyboard.press('Escape');
 });
 // phases 2 to 5: a policy-gradient level end to end, actor-critic runs and replays, the family trees
 await session(1280, 900, 'phases', async (page) => {

@@ -247,6 +247,7 @@ details[open] > summary { margin-bottom: 8px; }
 
 /* header right side and the settings dialog */
 .top-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.btn .ico { vertical-align: -2px; }
 dialog.settings { width: min(560px, calc(100vw - 24px)); max-height: calc(100vh - 32px); overflow-y: auto; border: 1px solid var(--line); border-radius: var(--r);
   background: var(--surface); color: var(--ink); padding: 18px; }
 dialog.settings::backdrop { background: rgb(0 0 0 / 0.45); }

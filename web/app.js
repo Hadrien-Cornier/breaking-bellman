@@ -331,7 +331,7 @@
     return MJ;
   }
   function texInto(el, tex) {
-    el.textContent = tex; el.classList.add('tex-src');
+    el.textContent = tex; el.classList.add('tex-src'); el.setAttribute('data-tex', tex);
     loadMathJax().then((M) => {
       if (!M || !el.isConnected) return;
       try { el.replaceChildren(M.tex2svg(tex, { display: true })); el.classList.remove('tex-src'); } catch (e) { /* keep the source */ }
@@ -448,7 +448,10 @@
         : `\\pi = 1 \\text{ on } \\arg\\max_{a'} ${E(p.picker)},\\ 0 \\text{ on the others: it never acts at random, so the average is the best action (as in Q-learning)}`]);
     }
     const Lq = twins ? 'Q_A' : 'Q';
-    if (p.store === 'net') out.push(['update', `\\theta \\leftarrow \\theta - \\eta\\, \\nabla_\\theta \\big(${Lq}_\\theta(s_t,a_t) - y\\big)^2 \\quad \\text{(Adam)}`]);
+    // each twin is its own network: Q_A has weights theta_A (Q_A_theta would be a double subscript, a TeX error)
+    if (p.store === 'net') out.push(['update', twins
+      ? `\\theta_A \\leftarrow \\theta_A - \\eta\\, \\nabla_{\\theta_A} \\big(Q_A(s_t,a_t) - y\\big)^2 \\quad \\text{(Adam; } \\theta_A \\text{: the weights of } Q_A \\text{)}`
+      : `\\theta \\leftarrow \\theta - \\eta\\, \\nabla_\\theta \\big(Q_\\theta(s_t,a_t) - y\\big)^2 \\quad \\text{(Adam)}`]);
     else { const st = p.step === 'avg' ? '\\tfrac{1}{N(s_t,a_t)}' : '\\alpha'; out.push(['update', `${Lq}(s_t,a_t) \\leftarrow ${Lq}(s_t,a_t) + ${st}\\,\\big[\\, y - ${Lq}(s_t,a_t) \\,\\big]`]); }
     if (twins) out.push(['twins', '\\text{each update, a coin flip picks which twin is } Q_A \\text{ (it learns); the other is } Q_B']);
     if (p.data === 'replay') {
@@ -478,8 +481,9 @@
     const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     return { ctx, w, h: hgt };
   }
-  // series: [{ xs, ys, color, width, dash, alpha }]
+  // series: [{ xs, ys, color, width, dash, alpha, label }]; o.xlabel names the x axis in the page export
   function lineChart(cv, series, o) {
+    cv._md = { series: series.map((s) => ({ label: s.label, xs: s.xs, ys: s.ys })), o };
     const { ctx, w, h: H } = setupCanvas(cv);
     const padL = 44, padR = 8, padT = 8, padB = 22;
     ctx.clearRect(0, 0, w, H);
@@ -559,15 +563,15 @@
     const ink = css('--ink'), acc = css('--accent'), val = css('--f-value'), pol = css('--f-policy'), muted = css('--muted');
     const A = S.pinA && S.pinA.world === S.world ? S.pinA : null;
     const aLeg = A ? [[muted, 'A (pinned)', true]] : [];
-    const aSer = (c) => (c ? [{ xs: c.xs, ys: c.ys, color: muted, width: 2, dash: [6, 4] }] : []);
+    const aSer = (c, label) => (c ? [{ xs: c.xs, ys: c.ys, color: muted, width: 2, dash: [6, 4], label: label || 'A (pinned)' }] : []);
     if (S.world === 'bandit' || S.world === 'mirage') {
       const isB = S.world === 'bandit';
       box.replaceChildren(h('div.eyebrow', { text: isB ? 'Share of pulls on the best machine' : 'Share of episodes that take the left door' }),
         chartBox('ch-main', isB ? 'Best machine chosen (moving mean of 50 pulls, mean of runs)' : 'Left door from A (mean of runs, window 10 episodes)', [[ink, 'this run']].concat(aLeg, isB ? [] : [[muted, '5%: random tries alone']])));
       if (!done) return;
       const c = curvesOf(S.results, S.world).main;
-      lineChart($('#ch-main'), aSer(A && A.curves.main).concat([{ xs: c.xs, ys: c.ys, color: ink, width: 2.2, end: true }]),
-        { xmax: Math.max(c.xs.length, A ? A.curves.main.xs.length : 0), ymin: 0, ymax: 1, ref: isB ? null : 0.05 });
+      lineChart($('#ch-main'), aSer(A && A.curves.main).concat([{ xs: c.xs, ys: c.ys, color: ink, width: 2.2, end: true, label: 'this run' }]),
+        { xmax: Math.max(c.xs.length, A ? A.curves.main.xs.length : 0), ymin: 0, ymax: 1, ref: isB ? null : 0.05, xlabel: isB ? 'pulls' : 'episodes' });
       return;
     }
     const F = fam(S.lastCfg ? S.lastCfg.parts : S.parts), P_ = S.lastCfg ? S.lastCfg.parts : S.parts;
@@ -577,7 +581,7 @@
     if (box.dataset.key !== key || !$('#ch-ret')) {
       box.dataset.key = key;
       const who = F === 'value' ? 'Q' : F === 'pg' ? 'V (the critic)' : 'the critic';
-      box.replaceChildren(
+      box.replaceChildren(...[
         h('div.eyebrow', { text: (F === 'ac' && P_.source === 'fixed' ? 'Learning from a fixed dataset: each step is one update. ' : '') + 'Test runs every ' + short(Math.round(steps / 40)) + ' steps' }),
         chartBox('ch-ret', 'Score per test episode', [[acc, 'each seed'], [ink, 'mean']].concat(aLeg)),
         task ? chartBox('ch-task', task === 'success' ? 'Share of tests that reach the goal' : 'Distance to the target at the end (m)', [[ink, 'mean']].concat(task === 'dist' ? [[muted, 'classical controller', true]] : [])) : null,
@@ -586,55 +590,55 @@
         F === 'pg' ? chartBox('ch-kl', 'How far each update moves the policy (KL)', [[pol, 'each seed'], [muted, '0.02', true]]) : null,
         F === 'pg' && !['pendulum'].includes(S.world) ? chartBox('ch-ent', 'Randomness of the policy (entropy, nats)', [[pol, 'each seed']]) : null,
         F === 'ac' && P_.critics !== 'none' ? chartBox('ch-qq', 'Critic: value of the policy\'s actions vs the memory\'s actions', [[pol, 'policy\'s actions'], [val, 'actions in memory']]) : null,
-      );
+      ].filter(Boolean));  // a null child would show as the text "null"
       if (F === 'value' && $('#ch-val')) $('#ch-val').parentNode.querySelector('.chart-title').append(h('button.btn.tiny.ghost', { type: 'button', onclick: openExpert }, 'Why this gap?'));
     }
     const maxSteps = (S.lastCfg && S.lastCfg.knobs && S.lastCfg.knobs.maxSteps) || RLA.knobDefaults(S.world).maxSteps;
     const per = partials.map((p) => p.evals);
     const isCliff = S.world === 'cliff', isCart = S.world === 'cartpole';
-    const xmax = Math.max(steps, A ? A.steps : 0);
-    const ret = per.map((ev) => ({ xs: ev.map((e) => e.t), ys: ev.map((e) => e.ret), color: acc, alpha: 0.35, width: 1 }));
+    const xmax = Math.max(steps, A ? A.steps : 0), xlabel = F === 'ac' && P_.source === 'fixed' ? 'updates' : 'training steps';
+    const ret = per.map((ev, i) => ({ xs: ev.map((e) => e.t), ys: ev.map((e) => e.ret), color: acc, alpha: 0.35, width: 1, label: 'seed ' + (i + 1) }));
     const mr = meanCurve(per.map((ev) => ev.map((e) => ({ t: e.t, v: e.ret }))));
     const allR = per.flatMap((ev) => ev.map((e) => e.ret)).concat(A ? A.curves.main.ys : []).filter(isFinite);
     const yl = isCliff ? [-200, 0] : isCart ? [0, maxSteps] : S.world === 'goalgrid' ? [0, 1] : S.world === 'pendulum' ? [Math.min(-1600, ...allR), 0] : [Math.min(0, ...allR), Math.max(0, ...allR)];
-    lineChart($('#ch-ret'), aSer(A && A.curves.main).concat(ret, [{ xs: mr.xs, ys: mr.ys, color: ink, width: 2.2, end: true }]),
-      { xmax, ymin: yl[0], ymax: yl[1], ref: isCliff ? -13 : null });
+    lineChart($('#ch-ret'), aSer(A && A.curves.main).concat(ret, [{ xs: mr.xs, ys: mr.ys, color: ink, width: 2.2, end: true, label: 'mean' }]),
+      { xmax, ymin: yl[0], ymax: yl[1], ref: isCliff ? -13 : null, xlabel, note: isCliff ? 'The dashed line at -13 is the score of the shortest path.' : null });
     if (task && $('#ch-task')) {
       const k = task === 'success' ? 'success' : 'dist';
       const mt = meanCurve(per.map((ev) => ev.map((e) => ({ t: e.t, v: e[k] }))));
       const fin = done && S.results.length ? S.results.map((r) => r.final && r.final.baseDist).filter(isFinite) : [];
       const ref = task === 'dist' && fin.length ? fin.reduce((a, b) => a + b, 0) / fin.length : null;
-      lineChart($('#ch-task'), [{ xs: mt.xs, ys: mt.ys, color: ink, width: 2.2, end: true }],
-        { xmax, ymin: 0, ymax: task === 'success' ? 1 : Math.max(0.3, ...mt.ys.filter(isFinite)), ref });
+      lineChart($('#ch-task'), [{ xs: mt.xs, ys: mt.ys, color: ink, width: 2.2, end: true, label: 'mean' }],
+        { xmax, ymin: 0, ymax: task === 'success' ? 1 : Math.max(0.3, ...mt.ys.filter(isFinite)), ref, xlabel, note: ref != null ? 'The dashed line is the classical controller.' : null });
     }
     if (hasCritic && $('#ch-val')) {
       const mp = meanCurve(per.map((ev) => ev.map((e) => ({ t: e.t, v: e.pred }))));
       const md = meanCurve(per.map((ev) => ev.map((e) => ({ t: e.t, v: e.disc }))));
       const vals = mp.ys.concat(md.ys).filter(isFinite);
       const cap = F === 'value' ? 1e4 : 1e6;
-      lineChart($('#ch-val'), aSer(A && A.curves.pred).concat([{ xs: mp.xs, ys: mp.ys, color: val, width: 2, end: true }, { xs: md.xs, ys: md.ys, color: ink, width: 2, end: true }]),
-        { xmax, ymin: Math.min(0, ...vals.map((v) => Math.max(v, -cap))), ymax: Math.max(F === 'value' ? 10 : 0.1, ...vals.map((v) => Math.min(v, cap))) });
+      lineChart($('#ch-val'), aSer(A && A.curves.pred, 'A: predicted').concat([{ xs: mp.xs, ys: mp.ys, color: val, width: 2, end: true, label: 'predicted at start' }, { xs: md.xs, ys: md.ys, color: ink, width: 2, end: true, label: 'earned (discounted)' }]),
+        { xmax, ymin: Math.min(0, ...vals.map((v) => Math.max(v, -cap))), ymax: Math.max(F === 'value' ? 10 : 0.1, ...vals.map((v) => Math.min(v, cap))), xlabel });
     }
     if (F === 'value') {
-      const qs = per.map((ev) => ({ xs: ev.map((e) => e.t), ys: ev.map((e) => (isFinite(e.maxQ) ? e.maxQ : 1e9)), color: pol, width: 1.4 }));
+      const qs = per.map((ev, i) => ({ xs: ev.map((e) => e.t), ys: ev.map((e) => (isFinite(e.maxQ) ? e.maxQ : 1e9)), color: pol, width: 1.4, label: 'seed ' + (i + 1) }));
       lineChart($('#ch-q'), aSer(A && A.curves.maxQ).concat(qs),
-        { xmax, log: true, ymin: 1, ymax: Math.max(1000, ...per.flatMap((ev) => ev.map((e) => (isFinite(e.maxQ) ? e.maxQ : 1e9))), ...(A ? A.curves.maxQ.ys.filter(isFinite) : [])) });
+        { xmax, log: true, xlabel, note: 'A value of 1000000000 stands for infinity (the estimate overflowed).', ymin: 1, ymax: Math.max(1000, ...per.flatMap((ev) => ev.map((e) => (isFinite(e.maxQ) ? e.maxQ : 1e9))), ...(A ? A.curves.maxQ.ys.filter(isFinite) : [])) });
     }
     const dg = partials.map((p) => p.diag || []);
     if (F === 'pg') {
-      const kl = dg.map((d) => ({ xs: d.map((x) => x.t), ys: d.map((x) => Math.max(1e-4, Math.abs(x.kl || 0))), color: pol, width: 1.4 }));
-      lineChart($('#ch-kl'), kl, { xmax, ymin: 0, ymax: Math.max(0.05, ...kl.flatMap((k) => k.ys).filter(isFinite).map((v) => Math.min(v, 5))), ref: 0.02 });
+      const kl = dg.map((d, i) => ({ xs: d.map((x) => x.t), ys: d.map((x) => Math.max(1e-4, Math.abs(x.kl || 0))), color: pol, width: 1.4, label: 'seed ' + (i + 1) }));
+      lineChart($('#ch-kl'), kl, { xmax, ymin: 0, ymax: Math.max(0.05, ...kl.flatMap((k) => k.ys).filter(isFinite).map((v) => Math.min(v, 5))), ref: 0.02, xlabel });
       if ($('#ch-ent')) {
-        const en = dg.map((d) => ({ xs: d.map((x) => x.t), ys: d.map((x) => x.entropy), color: pol, width: 1.4 }));
-        lineChart($('#ch-ent'), en, { xmax, ymin: 0, ymax: Math.max(0.1, ...en.flatMap((k) => k.ys).filter(isFinite)) });
+        const en = dg.map((d, i) => ({ xs: d.map((x) => x.t), ys: d.map((x) => x.entropy), color: pol, width: 1.4, label: 'seed ' + (i + 1) }));
+        lineChart($('#ch-ent'), en, { xmax, ymin: 0, ymax: Math.max(0.1, ...en.flatMap((k) => k.ys).filter(isFinite)), xlabel });
       }
     }
     if (F === 'ac' && $('#ch-qq')) {
       const mp = meanCurve(dg.map((d) => d.map((x) => ({ t: x.t, v: x.qPolicy }))));
       const md = meanCurve(dg.map((d) => d.map((x) => ({ t: x.t, v: x.qData }))));
       const vals = mp.ys.concat(md.ys).filter(isFinite).map((v) => Math.max(-1e6, Math.min(1e6, v)));
-      lineChart($('#ch-qq'), [{ xs: md.xs, ys: md.ys, color: val, width: 2, end: true }, { xs: mp.xs, ys: mp.ys, color: pol, width: 2, end: true }],
-        { xmax, ymin: Math.min(0, ...vals), ymax: Math.max(0.1, ...vals) });
+      lineChart($('#ch-qq'), [{ xs: md.xs, ys: md.ys, color: val, width: 2, end: true, label: 'actions in memory' }, { xs: mp.xs, ys: mp.ys, color: pol, width: 2, end: true, label: "policy's actions" }],
+        { xmax, ymin: Math.min(0, ...vals), ymax: Math.max(0.1, ...vals), xlabel });
     }
   }
 
@@ -2039,7 +2043,7 @@
         for (let i = 0; i < 300; i++) { rs.push(RLA.run({ world: 'mirage', parts: L.parts(), hyper, steps: 600, seed: 1 + i })); if (i % 25 === 24) await new Promise((r) => setTimeout(r, 0)); }
         out.push({ L, a: RLA.autopsy(rs), c: curvesOf(rs, 'mirage').main });
       }
-      lineChart(chart.querySelector('canvas'), out.map((o, k) => ({ xs: o.c.xs, ys: o.c.ys, color: k ? css('--accent') : css('--ink'), width: 2.2 })), { xmax: Math.max(...out.map((o) => o.c.xs.length)), ymin: 0, ymax: 1, ref: 0.05 });
+      lineChart(chart.querySelector('canvas'), out.map((o, k) => ({ xs: o.c.xs, ys: o.c.ys, color: k ? css('--accent') : css('--ink'), width: 2.2, label: o.L.name })), { xmax: Math.max(...out.map((o) => o.c.xs.length)), ymin: 0, ymax: 1, ref: 0.05, xlabel: 'episodes' });
       res.textContent = 'Left door at the worst point: ' + out.map((o) => o.L.name + ' ' + Math.round(100 * o.a.summary.leftPeak) + '%').join(', ') +
         '. At the end: ' + out.map((o) => o.L.name + ' ' + Math.round(100 * o.a.summary.leftLate) + '%').join(', ') + '. 300 runs each, seeds 1 to 300, run in your browser now (Simulation).';
       runBtn.disabled = false;
@@ -2135,7 +2139,7 @@
     S.focus = [];
     const tutor = tutorSampler();
     const msgs = h('div.msgs', { id: 'msgs' });
-    const drawMsgs = () => msgs.replaceChildren(...(chatLog.length ? chatLog : [{ role: 'assistant', text: C.chatHello }]).map((m) => h('div.msg' + (m.role === 'user' ? '.me' : m.role === 'tool' ? '.tool' : ''), { text: m.text })));
+    const drawMsgs = () => msgs.replaceChildren(...(chatLog.length ? chatLog : [{ role: 'assistant', text: C.chatHello }]).map((m) => h('div.msg' + (m.role === 'user' ? '.me' : m.role === 'tool' ? '.tool' : ''), { text: m.text, 'data-md-prefix': m.role === 'user' ? 'Me' : m.role === 'tool' ? 'Tool' : 'Tutor' })));
     drawMsgs();
     const ta = h('textarea', { id: 'chat-in', 'aria-label': 'Message', placeholder: 'For example: why does my network blow up? or: use random old moves from memory and run 3 seeds.' });
     const send = h('button.btn', { type: 'button' }, 'Send');
@@ -2234,18 +2238,10 @@
       goal: st === 3 ? l.goal.text : null,
     };
   }
-  function aiBrief() {
+  const GAME_ABOUT = 'Breaking Bellman is a small browser game about reinforcement learning. Each level shows a learner (an update rule written as a sentence) that fails in a toy world. The player predicts what happens, runs real training in the page, diagnoses the failure, then fixes it by changing words of the sentence. Every result is a small simulation.';
+  function whereLines() {
     const lv = S.mode === 'campaign' ? C.levels.find((l) => l.id === S.level) : null, info = lv ? levelInfo(lv) : null, lab = labState();
-    const words = C.families[fam(S.parts)].keys.map((k) => '- `' + k + '` (' + W[k].q + '): ' + W[k].options.map((o) => '`' + o[0] + '` = ' + plainText(o[1])).join('; ') + '. Now: `' + S.parts[k] + '`.');
     return [
-      '# Breaking Bellman: a brief for an AI helper',
-      '',
-      'Breaking Bellman is a small browser game about reinforcement learning. Each level shows a learner (an update rule written as a sentence) that fails in a toy world. The player predicts what happens, runs real training in the page, diagnoses the failure, then fixes it by changing words of the sentence. Every result is a small simulation.',
-      '',
-      'How to help: ask the player to predict before you explain. Do not hand over the repair; point at the symptom. Keep it short.',
-      '',
-      '## Where the player is',
-      '',
       info ? '- Level ' + info.n + ' of ' + C.levels.length + ': ' + info.title + ' (world: ' + C.worldNames[info.world] + '). Step: ' + info.step + '.' : '- Mode: ' + S.mode + ' (not a campaign level).',
       info ? '- Level text: ' + info.intro : null,
       info && info.question ? '- Open question: ' + info.question.prompt + ' Choices: ' + info.question.options.map((o) => '(' + o.choice + ') ' + o.result).join(' ') : null,
@@ -2253,10 +2249,24 @@
       '- Levels done: ' + S.done.length + ' of ' + C.levels.length + '. Methods found: ' + S.found.length + '.',
       '- Current sentence: ' + lab.sentenceName + '. World: ' + C.worldNames[lab.world] + ', knobs ' + JSON.stringify(lab.knobs) + '.',
       lab.lastRun ? '- Last run (' + lab.lastRun.seeds + ' runs, ' + lab.lastRun.steps + ' steps): ' + (lab.lastRun.symptoms.join(' ') || 'no symptoms') : '- No run yet in this world.',
+    ].filter((x) => x !== null);
+  }
+  const wordLines = () => C.families[fam(S.parts)].keys.map((k) => '- `' + k + '` (' + W[k].q + '): ' + W[k].options.map((o) => '`' + o[0] + '` = ' + plainText(o[1])).join('; ') + '. Now: `' + S.parts[k] + '`.');
+  function aiBrief() {
+    return [
+      '# Breaking Bellman: a brief for an AI helper',
+      '',
+      GAME_ABOUT,
+      '',
+      'How to help: ask the player to predict before you explain. Do not hand over the repair; point at the symptom. Keep it short.',
+      '',
+      '## Where the player is',
+      '',
+      ...whereLines(),
       '',
       '## Words of the current sentence',
       '',
-      ...words,
+      ...wordLines(),
       '',
       '## Drive the page (optional)',
       '',
@@ -2264,6 +2274,8 @@
       '',
       '```js',
       'bellman.help()            // this brief, fresh',
+      'bellman.page()            // everything on the screen now, as Markdown',
+      'bellman.math()            // the update rule as TeX equations',
       'bellman.state()           // world, knobs, words, last run',
       'bellman.levels()          // all levels; any order is fine',
       'bellman.level(3)          // open level 3 (or its id)',
@@ -2278,10 +2290,51 @@
     try { await navigator.clipboard.writeText(t); toast('Copied. Paste it into your AI chat.'); }
     catch (e) { download('breaking-bellman-brief.md', t, 'text/markdown'); toast('Clipboard blocked: downloaded the brief instead.'); }
   }
+  // the whole page as Markdown (window.BB.pageMd walks what is on screen): the open tab, the lab, an open dialog, the words
+  function pageMarkdown() {
+    const md = (el) => window.BB.pageMd.fromNode(el, { depth: 2 });
+    const tab = ($('#tabs button[data-mode="' + S.mode + '"]') || {}).textContent || S.mode;
+    const dialogs = $$('dialog[open]').map((d) => md(d)).filter(Boolean);
+    const now = new Date(), stamp = now.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    return [
+      '# Breaking Bellman: the ' + tab + ' page',
+      '',
+      'I am playing Breaking Bellman (https://hadrien-cornier.github.io/breaking-bellman/). Below is everything on my screen, copied as Markdown on ' + stamp + '. Explain this page to me: what it shows, what the numbers and charts mean, and what to notice. If a level question is still open, help me reason before you give the answer.',
+      '',
+      '## About the game',
+      '',
+      GAME_ABOUT,
+      '',
+      '## Where I am',
+      '',
+      ...whereLines(),
+      '',
+      '## ' + tab + ' (main panel)',
+      '',
+      md($('#mode-pane')),
+      '',
+      '## Lab (the world, the update rule and the results of the last run)',
+      '',
+      md($('#lab')),
+      '',
+      ...(dialogs.length ? ['## Open dialog', '', ...dialogs, ''] : []),
+      '## Words of the current sentence (each word, its values, and the value now)',
+      '',
+      ...wordLines(),
+      '',
+    ].join('\n').replace(/\n{3,}/g, '\n\n');
+  }
+  async function copyPage() {
+    const t = pageMarkdown();
+    try { await navigator.clipboard.writeText(t); toast('Copied this page as Markdown. Paste it into your AI chat.'); }
+    catch (e) { download('breaking-bellman-' + S.mode + '.md', t, 'text/markdown'); toast('Clipboard blocked: downloaded the page as Markdown instead.'); }
+  }
   {
     const tool = (name) => chatTools(null, true).find((t) => t.name === name).execute;
     window.bellman = {
       help: () => aiBrief(),
+      page: () => pageMarkdown(),
+      math: (parts, world) => texLines(Object.assign({}, S.parts, parts || {}), world || S.world).map(([label, tex]) => ({ label, tex })),
       state: () => labState(),
       levels: () => C.levels.map((l) => { const i = levelInfo(l); return { n: i.n, id: i.id, title: i.title, world: i.world, done: i.done, step: i.step }; }),
       level: (which) => {
@@ -2291,7 +2344,7 @@
         return levelInfo(l);
       },
       words: (ws) => (ws ? tool('set_words')(ws) : { words: S.parts, name: nameOf(S.parts, S.world) }),
-      world: (name, knobs) => tool('set_world')({ world: name, knobs }),
+      world: (name, knobs) => { const r = tool('set_world')({ world: name, knobs }); if (S.mode === 'workbench') render(); return r; },  // a Saboteur mission sets its own world on render
       run: (opts) => tool('run_experiment')(opts || {}),
     };
   }
@@ -2348,7 +2401,7 @@
     const P = window.BB && BB.llm ? BB.llm.PROVIDERS : {};
     const v = Object.assign({}, AI);
     const prov = h('select', { id: 'ai-provider', 'aria-label': 'AI provider' }, [h('option', { value: '' }, 'No tutor (the game works without one)'), ...Object.keys(P).map((k) => h('option', { value: k, selected: v.provider === k }, P[k].label))]);
-    const key = h('input', { id: 'ai-key', type: 'password', autocomplete: 'off', spellcheck: 'false', placeholder: 'Paste your API key', value: v.apiKey || '' });
+    const key = h('input', { id: 'ai-key', type: 'password', 'data-md': 'secret', autocomplete: 'off', spellcheck: 'false', placeholder: 'Paste your API key', value: v.apiKey || '' });
     const showKey = h('button.btn.ghost.tiny', { type: 'button', onclick: () => { key.type = key.type === 'password' ? 'text' : 'password'; } }, 'Show');
     const model = h('input', { id: 'ai-model', list: 'ai-models', autocomplete: 'off', spellcheck: 'false', value: v.model || '' });
     const models = h('datalist', { id: 'ai-models' });
@@ -2462,6 +2515,7 @@
     render();
   }));
   $('#run-btn').addEventListener('click', () => run());
+  $('#copy-page-btn').addEventListener('click', copyPage);
   // redraw on a real width change only: phones fire resize when the address bar hides, and a redraw restarts the replay
   let stageW = 0;
   window.addEventListener('resize', () => {

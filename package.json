@@ -1,6 +1,6 @@
 {
   "name": "breaking-bellman",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Learn reinforcement learning by breaking it: a single-page game where real RL algorithms train in your browser and fail in front of you.",
   "license": "MIT",
   "author": "Hadrien Cornier",

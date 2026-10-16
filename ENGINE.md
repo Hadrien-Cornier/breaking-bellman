@@ -136,3 +136,16 @@ Calibration workflow for any number quoted in `web/content3.js`:
 - `window.bellman` lets a browser agent drive the page: `help()` (a Markdown brief), `state()`, `levels()`, `level(n or id)`,
   `words({...})`, `world(name, knobs)`, `run(opts)`. It reuses the Chat tab's tools. "Copy for your AI" copies the brief.
   `words` accepts a value or its text (`true` or `'true'`); it returns any unknown word or value under `rejected`.
+
+## Copy page and the math check (16 Oct 2026)
+
+- `web/pagemd.js` (`BB.pageMd.fromNode(root, { depth })`) turns what is on screen into Markdown. It walks the live DOM, so a new panel
+  needs no code there. It skips hidden elements, names a collapsed `<details>` without its content (a hint stays hidden), writes button states (selected, your pick, correct),
+  writes MathJax as its TeX (`data-tex`, set by `texInto`), and writes each chart as a table of 11 points plus the lowest and highest
+  value (`canvas._md`, set by `lineChart`; give each series a `label` and the options an `xlabel`). An input with
+  `data-md="secret"` or `type="password"` is written as `[hidden text]`.
+- `pageMarkdown()` in `web/app.js` adds a request for the AI, where the player is, the open tab, the lab, an open dialog and the
+  words. The header button "Copy page" and `bellman.page()` use it. `bellman.math(parts, world)` returns the TeX lines of a sentence.
+- `test/ui/smoke.mjs` typesets the TeX of every word combination of every family on every world (3,686,400 combinations,
+  369 unique lines) and fails on any MathJax error.
+

@@ -42,7 +42,8 @@ You don't need an AI assistant to play. If you want help:
 
 - **Chat tab:** paste your own key (Anthropic, OpenAI or OpenRouter), or use a model on your machine with Ollama. The key stays in your browser and goes straight to that provider. There is no Breaking Bellman server, so nobody else sees your key or spends it.
 - **Your own assistant:** click **Copy for your AI** and paste the brief into whatever you use. It says which level you are on and which words you can change.
-- **Browser agents:** the page has a `bellman` object, so an agent (or you, in the console) can drive it: `bellman.help()`, `bellman.level(3)`, `bellman.words({ eps: true })`, `await bellman.run()`.
+- **Stuck on a page?** Click **Copy page** at the top. It copies everything on your screen as Markdown: your answers, the sentence, and the numbers behind each chart. Paste it into any chat and ask what's going on.
+- **Browser agents:** the page has a `bellman` object, so an agent (or you, in the console) can drive it: `bellman.help()`, `bellman.level(3)`, `bellman.words({ eps: true })`, `await bellman.run()`, `bellman.page()`.
 
 ## How it works
 
