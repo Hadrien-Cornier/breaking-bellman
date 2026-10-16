@@ -38,11 +38,14 @@
     const A = spec.nActions, gamma = spec.gamma, D = spec.obsDim;
     const isNet = P.store === 'net';
     const mc = P.nstep === 0;
-    const usesSecond = !mc && (P.picker === 'second' || P.scorer === 'second' || P.scorer === 'minpair');
-    const usesFrozen = !mc && (P.picker === 'frozen' || P.scorer === 'frozen');
+    // a row keeps a guess only when nstep leaves room for one before the episode ends; with no guess
+    // the next-action words are idle all the way, not only in the target, so the twin and frozen copy stay out
+    const noGuess = mc || P.nstep >= spec.maxSteps;
+    const usesSecond = !noGuess && (P.picker === 'second' || P.scorer === 'second' || P.scorer === 'minpair');
+    const usesFrozen = !noGuess && (P.picker === 'frozen' || P.scorer === 'frozen');
     const notes = [];
     if (P.store === 'table' && !spec.nStates) throw new Error('This world has no table index.');
-    if (mc && (P.agg !== 'max' || P.picker !== 'live' || P.scorer !== 'live')) notes.push('With all real rewards there is no guess, so the next-action words do nothing.');
+    if (noGuess && (P.agg !== 'max' || P.picker !== 'live' || P.scorer !== 'live')) notes.push(mc ? 'With all real rewards there is no guess, so the next-action words do nothing.' : 'With ' + P.nstep + ' real rewards (the whole episode) there is no guess, so the next-action words do nothing.');
     if (!mc && P.agg === 'taken' && P.picker !== 'live') notes.push('"The action taken next" is not picked by any estimate, so the picker word does nothing.');
     const nValid = world.validActions ? (o) => world.validActions(o) : () => A;
 

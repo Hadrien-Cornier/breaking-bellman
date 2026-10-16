@@ -146,6 +146,13 @@ await session(1280, 900, 'desktop', async (page) => {
   await page.screenshot({ path: out + '/desktop-compare.png' });
   await page.selectOption('#wb-world', 'mirage');
   await page.waitForTimeout(300);
+  // finding 5: on this 2-step world "4 real rewards" is the whole episode, so the guess words are idle
+  await setWord(page, '#mode-pane', 'nstep', '4 real rewards');
+  const idleAll = await page.evaluate(() => ['agg', 'picker', 'scorer', 'sync'].every((k) => {
+    const el = document.querySelector('#mode-pane .w[data-key="' + k + '"]');
+    return !!el && el.classList.contains('idle') && /no guess/.test(el.getAttribute('title') || '');
+  }));
+  check(idleAll, 'finding 5: with 4 real rewards the guess words are idle and say there is no guess');
   await page.click('#run-btn');
   await runDone(page);
   console.log('mirage run:', await page.locator('#run-result').innerText());

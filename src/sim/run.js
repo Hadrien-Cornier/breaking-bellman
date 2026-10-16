@@ -11,7 +11,9 @@
   function makeLearner(parts, world, rng, hyper) {
     const fam = parts.family || 'value';
     if (!RLA[fam]) throw new Error('Unknown learner family ' + fam);
-    return RLA[fam].make(parts, world, rng, hyper);
+    // a world can declare the hyper values this task needs (for example a short learnStart when the
+    // episode is only a few steps long); the run's own hyper still wins over the world's
+    return RLA[fam].make(parts, world, rng, Object.assign({}, world.hyper || {}, hyper || {}));
   }
 
   function knobDefaults(name) {
@@ -84,7 +86,7 @@
       }
       const d = learner.diagnostics();
       res.evals.push({ t, ret: sr / evalN, disc: sd / evalN, pred: sp / evalN, maxQ: mq, success: ss / evalN, crashes: sc / evalN, dist: nd ? sdist / nd : null });
-      res.diag.push({ t, loss: d.loss, td: d.tdAbs, grad: d.gradNorm, eps: d.eps, kl: d.kl, clipFrac: d.clipFrac, entropy: d.entropy, alpha: d.alpha, qData: d.qData, qPolicy: d.qPolicy, std: d.std, zeroFrac: d.zeroFrac });
+      res.diag.push({ t, loss: d.loss, td: d.tdAbs, grad: d.gradNorm, eps: d.eps, updates: d.updates, kl: d.kl, clipFrac: d.clipFrac, entropy: d.entropy, alpha: d.alpha, qData: d.qData, qPolicy: d.qPolicy, std: d.std, zeroFrac: d.zeroFrac });
     }
 
     if (learner.offline) {
