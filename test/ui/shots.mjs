@@ -22,6 +22,10 @@ async function shot(name, w, h, fn, opts = {}) {
   await page.waitForTimeout(400);
   if (fn) await fn(page);
   await page.screenshot({ path: out + '/' + name + '.png', fullPage: !!opts.full });
+  if (opts.stage) { // the square field with its caption line, for the blog
+    const b = await page.locator('#stage').boundingBox(), S = Math.min(b.width, b.height) + 24;
+    await page.screenshot({ path: out + '/' + name + '-stage.png', clip: { x: b.x + (b.width - S) / 2, y: b.y, width: S, height: b.height } });
+  }
   console.log('shot', name);
   await ctx.close();
 }
@@ -43,13 +47,13 @@ if (want('fetch')) await shot('fetch', 1280, 860, async (p) => {
   await p.click('text=Run the starting sentence'); await runDone(p); await p.waitForTimeout(400);
   const box = await p.locator('#stage').boundingBox();
   await p.mouse.click(box.x + box.width * 0.62, box.y + box.height * 0.2); await p.waitForTimeout(3500);
-}, { state: Object.assign({ level: 'fetch', unlockAll: true, lstep: { fetch: 1 } }, seen) });
+}, { state: Object.assign({ level: 'fetch', unlockAll: true, lstep: { fetch: 1 } }, seen), stage: true });
 if (want('fetchfix')) await shot('fetchfix', 1280, 860, async (p) => {
   await p.selectOption('#rk-shaping', '2');
   await p.evaluate(() => { const e = document.querySelector('#rk-facingW'); e.value = '0'; e.dispatchEvent(new Event('change')); });
   await p.click('text=Run this sentence'); await runDone(p); await p.waitForTimeout(800);
   const box = await p.locator('#stage').boundingBox();
   await p.mouse.click(box.x + box.width * 0.35, box.y + box.height * 0.25); await p.waitForTimeout(3500);
-}, { state: Object.assign({ level: 'fetch', unlockAll: true, lstep: { fetch: 3 } }, seen), full: false });
+}, { state: Object.assign({ level: 'fetch', unlockAll: true, lstep: { fetch: 3 } }, seen), stage: true });
 await browser.close();
 if (errors.length) { console.log('PAGE ERRORS:\n' + errors.join('\n')); process.exitCode = 1; }

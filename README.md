@@ -16,9 +16,11 @@ I also built this with AI. An AI assistant wrote most of the code, read the pape
 
 I am a software engineer who is learning robotics with a small robot arm (an SO-101). The last phases of the game come from that: offline data, action chunks, a frozen policy steered by a critic, and a learned correction on top of a classical controller.
 
+I wrote about what breaking these algorithms taught me in a blog post: [I learn by breaking things, so I made a game where RL breaks](https://hadrien-cornier.github.io/robotics/breaking-bellman/).
+
 ## Play
 
-**Option 1: download one file.** Download `breaking-bellman.html` from the [latest release](https://github.com/Hadrien-Cornier/breaking-bellman/releases/latest) and open it in Chrome, Edge, Firefox or Safari. It works offline.
+**Option 1: download one file.** [Download `breaking-bellman.html`](https://github.com/Hadrien-Cornier/breaking-bellman/releases/latest/download/breaking-bellman.html) (from the [latest release](https://github.com/Hadrien-Cornier/breaking-bellman/releases/latest)) and open it in Chrome, Edge, Firefox or Safari. It works offline.
 
 **Option 2: run it from the source.** You need [Node.js](https://nodejs.org) 18 or newer. There are no dependencies to install.
 
@@ -166,6 +168,6 @@ MIT. See [LICENSE](LICENSE).
 ## Limits
 
 - The worlds are small on purpose. A method that works here can still fail on a real robot, and the reverse.
-- Results come from 1 to 5 seeds per run in the page, and 3 seeds in the experiment log. Small differences between sentences are not significant.
+- On the network worlds, a run in the page uses 1 to 5 seeds, and the experiment log mostly 3 to 5 (the table worlds use 200 to 300 runs). Small differences between sentences are not significant.
 - The AI tutor is as good as the model you connect. It can be wrong. The game tells it to state only facts from cards marked "Checked".
 - Progress lives in one browser. Clearing site data erases it, so export it first.
