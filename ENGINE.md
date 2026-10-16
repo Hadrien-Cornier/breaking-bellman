@@ -121,6 +121,17 @@ Calibration workflow for any number quoted in `web/content3.js`:
   "Watch one update" finds the replayed row in the episode by matching `obs`, `a` and the rewards, then animates it.
 - "Try every combination" (`web/app.js`, `runGrid`) runs every combination of 1 to 4 words (at most 32) with `runSeeds`, one
   combination at a time, and computes per-seed standard errors with `RLA.autopsy([r])`. It never calls `discover()`.
-- Notion snapshots (`saveToNotion`) are optional and off by default. They run only when the build reads a `local.config.json`
-  with a `notion` data source (see README) and the page runs inside claude.ai with the viewer's Notion connector.
 
+
+## Illustrated stages and the agent hooks (16 Oct 2026)
+
+- `web/scenes.js` draws the stage: a small robot plays each world (a casino for the bandit, a canyon for cliff walking, a
+  broom on its head for CartPole, two doors for the mirage, a charger for the goal grid, a workshop for the pendulum and the
+  arm, a coffee mug for the fork). `world.render` stays as the plain drawing that the replay panel uses.
+- Each scene is `BB.scenes.<name>(ctx, width, height, data)` and returns `{ frame(ts), click(), busy() }`: it keeps its own
+  clock, `frame(Infinity)` draws the end (reduced motion), a click skips ahead or replays.
+- The run records what the scenes replay: `res.bandit.arm` (the machine of each training pull), `res.peeks` (cliff training
+  episodes 1, 2, 3, 5, 10, 20, 50, ... and the last one, at most 200 steps each, with falls), `res.traceStart`, and a fall
+  flag `f` on each test-trace step.
+- `window.bellman` lets a browser agent drive the page: `help()` (a Markdown brief), `state()`, `levels()`, `level(n or id)`,
+  `words({...})`, `world(name, knobs)`, `run(opts)`. It reuses the Chat tab's tools. "Copy for your AI" copies the brief.

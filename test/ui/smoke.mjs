@@ -118,7 +118,11 @@ await session(1280, 900, 'desktop', async (page) => {
 // phases 2 to 5: a policy-gradient level end to end, actor-critic runs and replays, the family trees
 await session(1280, 900, 'phases', async (page) => {
   await page.getByRole('tab', { name: 'Campaign' }).click();
-  await page.locator('#mode-pane label', { hasText: 'Open every phase now' }).locator('input').check();
+  // every level is open, in any order; the save bar and the agent hooks are there
+  check(await page.locator('#mode-pane .node').count() === 17 && !(await page.locator('#mode-pane .node[disabled]').count()), 'all 17 levels are open');
+  check(await page.locator('#mode-pane .savebar button', { hasText: 'Download save file' }).count() === 1, 'the level map offers a save file');
+  const brief = await page.evaluate(() => window.bellman.help());
+  check(/Level \d+ of 17/.test(brief) && /bellman\.run\(\)/.test(brief), 'window.bellman gives a brief for an AI helper');
   await page.locator('#mode-pane .node', { hasText: 'Learn the policy itself' }).click();
   await page.locator('#mode-pane .mc').first().locator('.opt').nth(1).click();
   await page.getByText('Run the starting sentence').click();
@@ -185,7 +189,6 @@ await session(1280, 900, 'phases', async (page) => {
 await session(1280, 900, 'twoways', async (page) => {
   // phase 5 end to end: the 10-command Gaussian copy fails, the flow copy reaches the goal (level hyper: lr 0.003, batch 128)
   await page.getByRole('tab', { name: 'Campaign' }).click();
-  await page.locator('#mode-pane label', { hasText: 'Open every phase now' }).locator('input').check();
   await page.locator('#mode-pane .node', { hasText: 'Two good ways' }).click();
   await page.locator('#mode-pane .mc').first().locator('.opt').nth(0).click();
   let t0 = Date.now();
@@ -206,7 +209,6 @@ await session(1280, 900, 'twoways', async (page) => {
 });
 await session(375, 812, 'phone-frontier', async (page) => {
   await page.getByRole('tab', { name: 'Campaign' }).click();
-  await page.locator('#mode-pane label', { hasText: 'Open every phase now' }).locator('input').check();
   await page.locator('#mode-pane .node', { hasText: 'Steer a frozen policy' }).click();
   await page.waitForTimeout(500);
   check(/mud/.test(await page.locator('#mode-pane').innerText()), 'mud level shows its intro');

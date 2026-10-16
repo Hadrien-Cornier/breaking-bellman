@@ -37,7 +37,7 @@
       const r = ew.step(a);
       if (trace && trace.length < 600) {
         const st = r.info && (r.info.state || r.info.pos) ? Array.from(r.info.state || r.info.pos) : (ew.getState ? Array.from(ew.getState()) : null);
-        trace.push({ a: typeof a === 'number' ? a : Array.from(a), s: st, r: r.reward });
+        trace.push({ a: typeof a === 'number' ? a : Array.from(a), s: st, r: r.reward, f: r.info && r.info.fell ? 1 : 0 });
       }
       if (t < limit) ret += r.reward;
       disc += g * r.reward; g *= ew.spec.gamma;
@@ -66,7 +66,12 @@
       table: null,
     };
     const isBandit = world.spec.maxSteps === 1;
-    if (isBandit) res.bandit = { reward: new Float32Array(steps), optimal: new Uint8Array(steps), regret: new Float32Array(steps) };
+    if (isBandit) res.bandit = { reward: new Float32Array(steps), optimal: new Uint8Array(steps), regret: new Float32Array(steps), arm: new Uint8Array(steps) };
+    // a few training episodes, cell by cell, for the picture of the world (worlds whose step reports info.pos)
+    // episodes 1, 2, 3, 5, 10, 20, 50, 100, ... and the last one that ended; at most 200 steps each
+    const PEEK_AT = new Set([1, 2, 3, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000]);
+    let epCount = 0, peek = null, lastPeek = null;
+    res.peeks = [];
 
     let nextEval = evalEvery, nextProg = cfg.progressEvery || evalEvery;
     const evalN = cfg.evalEpisodes || W.evalEpisodes || 3;
@@ -107,6 +112,11 @@
         const r = world.step(a);
         learner.observe({ obs, a, r: r.reward, obs2: r.obs, done: r.done, truncated: r.truncated });
         epRet += r.reward; epLen++;
+        if (r.info && r.info.pos && !isBandit) {
+          if (!peek) peek = { ep: epCount + 1, t, pos: [], fell: [], ret: 0 };
+          if (peek.pos.length < 400) { peek.pos.push(r.info.pos[0], r.info.pos[1]); peek.fell.push(r.info.fell ? 1 : 0); }
+          peek.ret += r.reward;
+        }
         if (r.info && r.info.fell) falls++;
         if (r.info && r.info.success) epSuccess = 1;
         if (epLen === 1 && r.info && r.info.left !== undefined) epLeft = r.info.left ? 1 : 0;
@@ -114,9 +124,12 @@
           res.bandit.reward[t - 1] = r.reward;
           res.bandit.optimal[t - 1] = r.info.optimal ? 1 : 0;
           res.bandit.regret[t - 1] = r.info.regret;
+          res.bandit.arm[t - 1] = a;
         }
         if (r.done || r.truncated) {
           learner.endEpisode();
+          epCount++;
+          if (peek) { peek.done = !!r.done; if (PEEK_AT.has(epCount)) res.peeks.push(peek); lastPeek = peek; peek = null; }
           res.ep.t.push(t); res.ep.ret.push(epRet); res.ep.len.push(epLen); res.ep.falls.push(falls); res.ep.success.push(epSuccess);
           if (epLeft !== null) res.ep.left.push(epLeft);
           epRet = 0; epLen = 0; falls = 0; epLeft = null; epSuccess = 0;
@@ -127,9 +140,10 @@
         if (cfg.onProgress && t >= nextProg) { nextProg += cfg.progressEvery || evalEvery; cfg.onProgress(res, t); }
       }
     }
+    if (lastPeek && !res.peeks.includes(lastPeek)) res.peeks.push(lastPeek);
     if (!isBandit) {
       const e = evaluate(learner, W, knobs, evalRng, world.spec.maxSteps, true);
-      res.trace = e.trace;
+      res.trace = e.trace; res.traceStart = e.start;
       res.final = { ret: e.ret, disc: e.disc, pred: e.pred, success: e.success, dist: e.dist };
       if (W.playable && learner.policyNet) res.policy = learner.policyNet();
       if (W.evalEpisodes > 1 || learner.offline) {

@@ -44,7 +44,7 @@
     try {
       localStorage.setItem(LS, JSON.stringify({ found: S.found, given: S.given, seen: S.seen, done: S.done, answers: S.answers, missions: S.missions,
         saved: S.saved, mode: S.mode, level: S.level, lstep: S.lstep, made: S.made, reviews: S.reviews, unlockAll: S.unlockAll,
-        discoveries: S.discoveries, notion: S.notion, notionAuto: S.notionAuto, wondered: S.wondered, intro: S.intro }));
+        discoveries: S.discoveries, wondered: S.wondered, intro: S.intro }));
     } catch (e) { /* storage blocked */ }
   }
 
@@ -72,19 +72,8 @@
     wondered: saved.wondered || {},        // surprise id -> times shown ("Did you notice?")
     intro: saved.intro || 0,               // 1 after the first-visit welcome
     discoveries: saved.discoveries || {},  // card id -> what the discovery looked like (time, world, sentence, result, level answers)
-    notion: saved.notion || {},            // card id -> { state: 'saved' | 'unsure' | 'error', url, code }
-    notionAuto: saved.notionAuto !== false, // snapshot each new discovery to Notion
   };
   function MODES_OK(m) { return ['campaign', 'workbench', 'saboteur', 'codex', 'chat'].includes(m); }
-
-  // ---------------------------------------------------------------- runtime capabilities
-  let DB = null, SAMPLE = null, MCP = null;
-  if (window.claude && window.claude.use) {
-    window.claude.use('db').then((d) => { DB = d; if (d) loadNotionMarks(); }).catch(() => {});
-    window.claude.use('mcp').then((m) => { MCP = m; refreshNotion(); }).catch(() => {});
-    window.claude.use('sample').then((s) => { SAMPLE = s; if (S.mode === 'chat') render(); }).catch(() => {});
-  }
-  const safeId = (s) => s.replace(/[^\w-]/g, '_');
 
   // ---------------------------------------------------------------- bring your own AI key (optional)
   // The key stays in this browser. By default it lives in sessionStorage (gone when the tab closes); the player can
@@ -103,14 +92,12 @@
   }
   let AI = loadAI();
   const aiReady = () => !!(AI.provider && window.BB && BB.llm && BB.llm.PROVIDERS[AI.provider] && (AI.apiKey || !BB.llm.PROVIDERS[AI.provider].needsKey) && (AI.model || BB.llm.PROVIDERS[AI.provider].defaultModel));
-  // the chat calls this; it has the same shape as the claude.ai sample capability
+  // the chat calls this: fn(history, { system, tools, onText, signal }) -> { text }
   function tutorSampler() {
-    if (SAMPLE) return { fn: SAMPLE, viaClaude: true };
     if (!aiReady()) return null;
-    return { fn: BB.llm.makeSampler(AI), viaClaude: false };
+    return { fn: BB.llm.makeSampler(AI) };
   }
   function aiLabel() {
-    if (SAMPLE) return 'Claude (claude.ai)';
     if (!aiReady()) return 'off';
     const p = BB.llm.PROVIDERS[AI.provider];
     return p.label + ', ' + (AI.model || p.defaultModel);
@@ -119,14 +106,11 @@
     if (S.answers[qid]) return; // first attempt only
     S.answers[qid] = { choice, correct, ts: new Date().toISOString() };
     save(); updateScore();
-    if (DB) DB.collection('answers').doc(safeId(qid)).set({ qid, choice, correct, ts: S.answers[qid].ts }).catch(() => {});
   }
   function recordReview(card, wrong) {
-    const ts = new Date().toISOString();
     const r = S.reviews[card] || { n: 0, right: 0 };
     S.reviews[card] = { last: Date.now(), n: r.n + 1, right: r.right + (wrong.length ? 0 : 1) };
     save(); updateScore();
-    if (DB) DB.collection('reviews').doc(safeId(card + '-' + ts)).set({ card, correct: !wrong.length, wrong, ts }).catch(() => {});
   }
 
   // ---------------------------------------------------------------- engine workers
@@ -697,6 +681,19 @@
     };
     cv.style.cursor = 'crosshair';
   }
+  // an illustrated scene (web/scenes.js) keeps its own clock; a click on the stage skips ahead, or replays at the end
+  // (its clock starts when the stage is on screen; off screen it draws nothing; when only idle details move, 10 frames a second)
+  let stageSeen = !window.IntersectionObserver;
+  if (window.IntersectionObserver) new IntersectionObserver((es) => { stageSeen = es[es.length - 1].intersectionRatio >= 0.4; }, { threshold: [0, 0.4, 1] }).observe($('#stage'));
+  function playScene(cv, sc) {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { sc.frame(Infinity); return; }
+    let last = 0;
+    const tick = (ts) => { if (stageSeen && (sc.busy() || ts - last > 100)) { last = ts; sc.frame(ts); } anim = requestAnimationFrame(tick); };
+    anim = requestAnimationFrame(tick);
+    cv.onclick = () => sc.click(); cv.style.cursor = 'pointer';
+  }
+  const sceneFonts = () => ({ display: css('--font-display'), mono: css('--font-mono'), body: css('--font-body') });
+  const isDark = () => { const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(css('--bg')); return !!m && (parseInt(m[1], 16) + parseInt(m[2], 16) + parseInt(m[3], 16)) / 3 < 100; };
   function renderStage() {
     $('#stage').onclick = null; $('#stage').style.cursor = '';
     cancelAnimationFrame(anim);
@@ -719,13 +716,15 @@
       };
       anim = requestAnimationFrame(tick);
     };
+    const fonts = sceneFonts(), dark = isDark();
     if (['pendulum', 'reach', 'goalgrid'].includes(S.world)) {
-      const tr = r0 && r0.trace;
-      if (!tr || !tr.length) { world.render(ctx, w, H, colors); $('#stage-caption').textContent = RLA.worlds[S.world].info.title + '. The trained policy plays here after a run.'; return; }
-      if (S.world === 'reach') {
-        const tips = tr.map((st) => { world.setState(st.s); return world.tip(); });
-        playTrace(tr, '', (k) => ({ trail: tips.slice(0, k + 1), text: 'step ' + (k + 1) + ' / ' + tr.length + (st0(tr, k) ? '  holding the payload' : '') }));
-      } else playTrace(tr, '', (k) => ({ text: 'step ' + (k + 1) + ' / ' + tr.length }));
+      const tr = r0 && r0.trace && r0.trace.length ? r0.trace : null;
+      const sc = S.world === 'pendulum' ? BB.scenes.joint(ctx, w, H, { trace: tr, mass: knobs.mass, fonts, dark })
+        // reach.js: two links of 0.5 m
+        : S.world === 'reach' ? BB.scenes.arm(ctx, w, H, { trace: tr, state: world.getState(), L1: 0.5, L2: 0.5, fonts, dark })
+        : BB.scenes.lab(ctx, w, H, { N: knobs.size, wall: knobs.wall > 0, trace: tr, start: tr ? r0.traceStart : world.getState(), fonts, dark });
+      playScene(cv, sc);
+      if (!tr) { $('#stage-caption').textContent = RLA.worlds[S.world].info.title + '. The trained policy plays here after a run.'; return; }
       const f = r0.final || {};
       $('#stage-caption').textContent = 'Run 1 after training, one test episode. ' + (S.world === 'pendulum' ? 'Score ' + fmt(f.ret) + ' (0 is perfect).' : S.world === 'reach' ? 'Final distance ' + fmt(f.dist) + ' m.' : (f.success ? 'It reached the goal.' : 'It did not reach the goal.')) + ' Simulation.';
       return;
@@ -733,58 +732,48 @@
     if (S.world === 'fetch') { renderFetch(cv, ctx, w, H, colors, knobs, world, r0, playTrace); return; }
     if (S.world === 'fork') {
       const f = r0 && r0.final;
-      world.render(ctx, w, H, colors, f && f.paths ? { paths: f.paths, text: f.paths.length + ' test paths of run 1' } : null);
+      // fork.js: the goal is a disc of radius 0.08 at (0, 0.8)
+      playScene(cv, BB.scenes.table(ctx, w, H, { paths: f && f.paths, obstacle: knobs.obstacle, goal: [0, 0.8], goalR: 0.08, mud: knobs.mud > 0, fonts, dark }));
       $('#stage-caption').textContent = f && f.paths ? 'Run 1 after training: ' + f.paths.length + (f.paths.every((q) => q[0][0] === f.paths[0][0][0] && q[0][1] === f.paths[0][0][1]) ? ' test paths from the home pose. ' : ' test paths from different starts. ') + Math.round(100 * f.successRate) + '% reached the goal, ' + fmt(f.crashRate) + ' obstacle hits per test. Simulation.' : 'Fork in the road: go around the obstacle, on either side, to the goal at the top.';
       return;
     }
     if (S.world === 'cartpole') {
       const tr = r0 && r0.trace;
-      if (!tr) { world.render(ctx, w, H, colors); $('#stage-caption').textContent = 'CartPole. The trained policy plays here after a run.'; return; }
-      let i = 0, last = 0;
-      const tick = (ts) => {
-        if (ts - last > 20) {
-          last = ts; const st = tr[i % tr.length];
-          if (st && st.s) world.setState(st.s);
-          ctx.clearRect(0, 0, w, H); world.render(ctx, w, H, colors);
-          ctx.fillStyle = colors.muted; ctx.font = '12px ' + css('--font-mono'); ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-          ctx.fillText('step ' + ((i % tr.length) + 1) + ' / ' + tr.length + '  (seed 1, greedy)', 8, 8);
-          i++;
-        }
-        anim = requestAnimationFrame(tick);
-      };
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { const st = tr[tr.length - 1]; if (st.s) world.setState(st.s); world.render(ctx, w, H, colors); }
-      else anim = requestAnimationFrame(tick);
-      $('#stage-caption').textContent = 'Seed 1 after training: the greedy policy, ' + tr.length + ' steps until it fell or hit the limit. Simulation.';
+      // cartpole.js: the cart stays within 2.4 m, the pole within 12 degrees
+      playScene(cv, BB.scenes.balance(ctx, w, H, { trace: tr, xMax: 2.4, thMax: (12 * Math.PI) / 180, pole: knobs.poleScale, fonts, dark }));
+      if (!tr) { $('#stage-caption').textContent = 'CartPole: a robot on a rail keeps a broom upright by moving left and right. The trained policy plays here after a run.'; return; }
+      $('#stage-caption').textContent = 'Seed 1 after training: its greedy policy (no random moves) for ' + tr.length + ' steps of 0.02 s, until the broom fell or the test ended. Simulation.';
     } else if (S.world === 'cliff') {
-      let overlay = null;
+      // a canyon: a few of run 1's training episodes, then its test run with arrows for its favorite move per cell
+      let arrows = null;
       if (r0 && r0.table) {
-        const A = 4, n = r0.table.length / A, values = new Float32Array(n), arrows = new Int8Array(n);
+        const A = 4, n = r0.table.length / A; arrows = new Int8Array(n);
         for (let s = 0; s < n; s++) {
           let b = 0, same = true;
           for (let a = 1; a < A; a++) { if (r0.table[s * A + a] !== r0.table[s * A]) same = false; if (r0.table[s * A + a] > r0.table[s * A + b]) b = a; }
-          values[s] = r0.table[s * A + b]; arrows[s] = same ? -1 : b;
+          arrows[s] = same ? -1 : b;
         }
-        overlay = { values, arrows };
       }
-      world.render(ctx, w, H, colors, overlay);
-      $('#stage-caption').textContent = overlay ? 'Seed 1 after training: each arrow is the action with the best estimate in that cell (what the learner would do with no random move); the shade is that estimate (red: below 0). A dot: never tried there, all estimates equal. Simulation.' : 'Cliff walking. Arrows appear after a table run.';
+      playScene(cv, BB.scenes.canyon(ctx, w, H, { cols: knobs.width, peeks: r0 && r0.peeks, epLen: r0 && r0.ep && r0.ep.len, epFalls: r0 && r0.ep && r0.ep.falls,
+        test: r0 && r0.trace, arrows, cliffPenalty: knobs.cliffPenalty, sparse: !!knobs.sparseReward, fonts, dark }));
+      $('#stage-caption').textContent = r0 ? 'Run 1, replayed: a few training episodes, then a test run with no random moves.' + (arrows ? ' Arrows: the move with the best estimate in each cell (a dot: never tried).' : '') + ' Simulation.'
+        : 'Cliff walking: get from START to the flag. Each step costs 1. A fall costs ' + Math.abs(knobs.cliffPenalty) + ' and sends the robot back to START.';
     } else if (S.world === 'mirage') {
-      world.render(ctx, w, H, colors, r0 && r0.final ? { bq: r0.final.qB, text: 'Q(A, right door) = ' + fmt(r0.final.qA[0]) + '   Q(A, left door) = ' + fmt(r0.final.qA[1]) } : null);
-      $('#stage-caption').textContent = r0 && r0.final ? 'Run 1 after training: its two door estimates (top) and its machine estimates in B (green: above 0, red: below 0). Every machine pays −0.1 on average. Simulation.' : 'The mirage: state A with two doors, state B with the machines.';
+      // the hallway is state A; the machines behind the left door are state B
+      const f = r0 && r0.final, signedMean = (knobs.mean < 0 ? '−' : '') + Math.abs(knobs.mean).toFixed(2);
+      playScene(cv, BB.scenes.doors(ctx, w, H, { left: r0 && r0.ep && r0.ep.left, ret: r0 && r0.ep && r0.ep.ret, qA: f && f.qA, mean: knobs.mean, nB: knobs.machines, fonts, dark }));
+      $('#stage-caption').textContent = f ? 'Run 1, replayed: one door per training episode. Right ends with 0. Left leads to the machines, which pay ' + signedMean + ' on average. At the end, the signs show the truth and what the robot believes. Simulation.'
+        : 'The mirage. The right door ends the episode with 0. The left door leads to machines that pay ' + signedMean + ' on average, with noise.';
     } else {
-      if (r0 && r0.final) { world.means.set(r0.final.means); }
-      world.render(ctx, w, H, colors);
-      if (r0 && r0.final && r0.final.q) {
-        const q = r0.final.q, k = q.length, bw = w / k;
-        ctx.strokeStyle = colors.accent; ctx.lineWidth = 3;
-        const mx = Math.max(3, ...r0.final.means.map(Math.abs));
-        for (let a = 0; a < k; a++) { const y = H / 2 - (q[a] / mx) * (H / 2 - 12); ctx.beginPath(); ctx.moveTo(a * bw + 4, y); ctx.lineTo((a + 1) * bw - 4, y); ctx.stroke(); }
-        $('#stage-caption').textContent = 'Bars: true machine means (hidden from the learner). Lines: what run 1 believes after training. Simulation.';
-      } else $('#stage-caption').textContent = 'Ten slot machines with hidden mean payouts.';
+      // a casino: the robot replays run 1's training pulls, then the screens show the truth and its beliefs
+      const f = r0 && r0.final, b = r0 && r0.bandit;
+      const sc = BB.scenes.casino(ctx, w, H, { means: f ? f.means : null, q: f ? f.q : null, arms: b && b.arm, rewards: b && b.reward, n: world.means.length, fonts });
+      playScene(cv, sc);
+      $('#stage-caption').textContent = f ? 'Run 1, replayed: its ' + b.arm.length.toLocaleString('en-US') + ' training pulls. At the end, gold is each machine\'s true average payout and blue is what the robot believes. The crown marks the best machine. Simulation.'
+        : 'Ten slot machines. Each one pays a hidden average plus noise.';
     }
   }
 
-  const st0 = (tr, k) => tr[k] && tr[k].s && tr[k].s[6] > 0;
 
   // ---------------------------------------------------------------- autopsy and headline numbers
   function renderAutopsy() {
@@ -913,8 +902,6 @@
     S.discoveries[cardId] = discoveryRecord(cfg, a);
     save(); updateScore();
     toast('New discovery: ' + C.cards[cardId].name);
-    if (DB) DB.collection('discoveries').doc(safeId(cardId)).set(Object.assign({ card: cardId, name: C.cards[cardId].name }, S.discoveries[cardId])).catch(() => {});
-    if (NOTION && S.notionAuto && MCP && !notionBlocked) saveToNotion(cardId);
   }
   // the words that matter in a sentence, as text
   function sentenceText(p, world) {
@@ -932,126 +919,7 @@
     };
   }
 
-  // ---------------------------------------------------------------- Notion snapshots of discoveries (through the viewer's Notion connector)
-  // Optional. Off unless the build gets a local config (local.config.json, not in git) with
-  // { "notion": { "ds": "<data source id>", "db": "<database URL>", "page": "<this page's URL>", "dbName": "<database title>" } },
-  // and the page runs inside claude.ai with the viewer's Notion connector. See README, "Optional: Notion".
-  const CONFIG = globalThis.BB_CONFIG || {};
-  const NOTION = CONFIG.notion && CONFIG.notion.ds ? Object.assign({ server: 'Notion', tool: 'notion-create-pages', dbName: 'Breaking Bellman discoveries', page: '' }, CONFIG.notion) : null;
-  let notionBlocked = false;           // a failure that needs the viewer: no more automatic saves in this page load
-  const notionViews = new Set();       // redraw functions of the visible Notion status lines
-  function refreshNotion() { for (const f of notionViews) f(); }
-  function loadNotionMarks() {
-    DB.collection('notion').get().then((qs) => {
-      let n = 0;
-      for (const d of qs.docs) { const v = d.data(); if (v && v.card && (!S.notion[v.card] || S.notion[v.card].state !== 'saved')) { S.notion[v.card] = { state: 'saved', url: v.url || '', ts: v.ts }; n++; } }
-      if (n) { save(); refreshNotion(); }
-    }).catch(() => {});
-  }
   const plainText = (html) => { const d = document.createElement('div'); d.innerHTML = String(html || ''); return d.textContent.replace(/\s+/g, ' ').trim(); };
-  function cardFamily(id) {
-    const r = recipeOfCard(id);
-    if (r) return C.families[r.family || 'value'].name;
-    const d = S.discoveries[id];
-    return d && d.family ? d.family : null;
-  }
-  const FAMILY_SELECT = { 'Value learning': 'Value learning', 'Policy gradient': 'Policy gradient', 'Actor-critic, continuous actions': 'Actor-critic' };
-  function findUrl(x) {
-    let t = ''; try { t = typeof x === 'string' ? x : JSON.stringify(x); } catch (e) { return ''; }
-    const m = t.match(/https:\/\/(?:app\.|www\.)?notion\.(?:so|com)\/[^\s"'\\)<>{}]+/);
-    return m ? m[0] : '';
-  }
-  function notionErr(code, e) {
-    switch (code) {
-      case 'needs_reauth': return 'Reconnect Notion in claude.ai Settings, Connectors. Then press Save again.';
-      case 'server_not_connected': return 'Add the Notion connector in claude.ai Settings, Connectors. Then press Save again.';
-      case 'selection_required': return 'You have more than one Notion connector: choose one when claude.ai asks, then press Save again.';
-      case 'not_in_manifest': case 'approval_required': case 'consent_required': return 'This page does not have your permission to write to Notion. Allow Notion in the page\'s permissions, then press Save again.';
-      case 'blocked_by_policy': return 'Your organization blocks this Notion tool for you.';
-      case 'tool_error': return 'Notion refused the page: ' + String((e && e.message) || '').slice(0, 160);
-      case 'not_granted': case 'capability_disabled': case 'capability_removed': return 'Notion is not available in this view of the page.';
-      default: return 'Not saved (' + (code || 'unknown error') + ').';
-    }
-  }
-  async function saveToNotion(id) {
-    if (!MCP || !NOTION) return false;
-    const c = C.cards[id], d = S.discoveries[id] || {};
-    if (S.notion[id] && S.notion[id].state === 'saving') return false;
-    S.notion[id] = { state: 'saving' }; refreshNotion();
-    const famName = cardFamily(id);
-    const props = { Name: c.name, Kind: c.kind === 'failure' ? 'Failure' : 'Method', Card: id, Artifact: NOTION.page || 'Breaking Bellman',
-      World: d.world || 'not recorded', Sentence: d.sentence || 'not recorded (found before the page kept this)', Result: d.result || 'not recorded',
-      Predictions: d.predictions || 'not recorded' };
-    if (famName && FAMILY_SELECT[famName]) props.Family = FAMILY_SELECT[famName];
-    if (d.ts) { props['date:Discovered:start'] = d.ts; props['date:Discovered:is_datetime'] = 1; }
-    const rec = recipeOfCard(id);
-    const content = [
-      (c.kind === 'failure' ? '**What it is:** ' : '**What it fixes:** ') + plainText(c.fixes),
-      (c.kind === 'failure' ? '**Measured in the page:** ' : '**How it still fails:** ') + plainText(c.stillWrong),
-      rec ? '**Its words:** ' + Object.keys(rec.keys).map((k) => wordText(k, rec.keys[k])).join(' · ') : null,
-      '**Source:** ' + plainText(c.paper),
-      '**Your sentence:** ' + (d.sentence || 'not recorded'),
-      '**Result:** ' + (d.result || 'not recorded') + '. Simulation, in the page.',
-      '**Where:** ' + (d.where || 'not recorded') + '. **Level questions:** ' + (d.predictions || 'not recorded') + '.',
-      'Snapshot written by the Breaking Bellman page' + (NOTION.page ? ' (' + NOTION.page + ')' : '') + '. It is an observation, not an assessment of understanding.',
-    ].filter(Boolean).join('\n\n');
-    let ok = false;
-    try {
-      const r = await MCP.callTool(NOTION.server, NOTION.tool, { parent: { type: 'data_source_id', data_source_id: NOTION.ds }, pages: [{ properties: props, content }] }, { cache: false });
-      const pg = r && r.payload && Array.isArray(r.payload.pages) ? r.payload.pages[0] : null;
-      const url = (pg && typeof pg.url === 'string' ? pg.url : '') || findUrl(r && r.payload) || findUrl(r && r.content);
-      S.notion[id] = { state: 'saved', url, ts: new Date().toISOString() }; ok = true;
-      if (DB) DB.collection('notion').doc(safeId(id)).set({ card: id, url, ts: S.notion[id].ts }).catch(() => {});
-      toast('Saved to Notion: ' + c.name);
-    } catch (e) {
-      const code = e && e.code;
-      // a write that timed out or failed upstream may still have run: do not repeat it without the viewer
-      if (code === 'server_unavailable' || code === 'upstream_error' || code === 'cancelled' || !code) S.notion[id] = { state: 'unsure', code: code || 'unknown' };
-      else S.notion[id] = { state: 'error', code, msg: notionErr(code, e) };
-      if (['needs_reauth', 'server_not_connected', 'selection_required', 'not_in_manifest', 'approval_required', 'consent_required', 'blocked_by_policy', 'not_granted', 'capability_disabled', 'capability_removed'].includes(code)) notionBlocked = true;
-    }
-    save(); refreshNotion();
-    return ok;
-  }
-  // one card's Notion status line
-  function notionLine(id) {
-    if (!NOTION) return null;
-    const el = h('div.nline');
-    const draw = () => {
-      if (!el.isConnected && el.dataset.drawn) { notionViews.delete(draw); return; }
-      el.dataset.drawn = '1';
-      const st = S.notion[id], dbLink = h('a', { href: NOTION.db, target: '_blank', rel: 'noopener' }, NOTION.dbName);
-      if (st && st.state === 'saved') el.replaceChildren(h('span.small', null, ['Saved to Notion ✓ ', st.url ? h('a', { href: st.url, target: '_blank', rel: 'noopener' }, 'open the snapshot') : dbLink]));
-      else if (st && st.state === 'saving') el.replaceChildren(h('span.small', { text: 'Saving to Notion…' }));
-      else if (!MCP) el.replaceChildren(h('span.small', { text: 'Notion snapshot: not available in this view (it needs the page open in claude.ai with Notion allowed).' }));
-      else {
-        const btn = h('button.btn.ghost.tiny', { type: 'button', onclick: () => saveToNotion(id) }, st ? 'Save again' : 'Save to Notion');
-        const msg = st && st.state === 'unsure' ? 'The save may have worked (' + st.code + '). Look in ' : st && st.state === 'error' ? st.msg + ' ' : '';
-        el.replaceChildren(h('span.small', null, [msg, st && st.state === 'unsure' ? dbLink : null, st && st.state === 'unsure' ? ' before you save again. ' : '']), btn);
-      }
-    };
-    notionViews.add(draw); draw();
-    return el;
-  }
-  // the totals, the automatic switch and the backfill button
-  function notionPanel() {
-    if (!NOTION) return null;
-    const el = h('div.stack.npanel');
-    const draw = () => {
-      if (!el.isConnected && el.dataset.drawn) { notionViews.delete(draw); return; }
-      el.dataset.drawn = '1';
-      const found = S.found.filter((id) => C.cards[id] && C.cards[id].kind !== 'frontier');
-      const savedN = found.filter((id) => S.notion[id] && S.notion[id].state === 'saved').length, left = found.filter((id) => !S.notion[id] || S.notion[id].state === 'error');
-      const auto = h('label.small', null, [h('input', { type: 'checkbox', checked: S.notionAuto, onchange: (e) => { S.notionAuto = e.target.checked; save(); } }), ' Save each new discovery to Notion automatically']);
-      const busy = found.some((id) => S.notion[id] && S.notion[id].state === 'saving');
-      const back = MCP && left.length ? h('button.btn.ghost.tiny', { type: 'button', disabled: busy, onclick: async () => { for (const id of left) { if (!(await saveToNotion(id)) && notionBlocked) break; } } },
-        'Save the ' + left.length + ' not saved yet') : null;
-      el.replaceChildren(h('p.small', null, ['Notion: ' + savedN + ' of ' + found.length + ' discoveries saved in ', h('a', { href: NOTION.db, target: '_blank', rel: 'noopener' }, NOTION.dbName),
-        MCP ? (savedN ? '.' : '. The first save asks for your permission.') : '. Saving needs the page open in claude.ai with Notion allowed.']), h('div.row', null, [auto, back]));
-    };
-    notionViews.add(draw); draw();
-    return el;
-  }
   // ranks: one per stretch of the campaign (levels done)
   const RANKS = [[0, 'Newcomer'], [1, 'Bandit tamer'], [3, 'Cliff walker'], [5, 'Value wrangler'], [7, 'Policy climber'], [9, 'Gradient pilot'],
     [11, 'Swing-up artist'], [13, 'Offline archivist'], [15, 'Frontier roboticist'], [17, 'Bellman breaker']];
@@ -1121,7 +989,7 @@
       box.replaceChildren(
         h('div.eyebrow', { text: 'What is left to discover' }),
         h('p.small', { text: 'In the whole game: ' + mf + ' of ' + ms.length + ' methods and ' + ff + ' of ' + fs.length + ' failures. A method opens when you write its sentence and it passes the world\'s test; a failure opens when a run shows it. Two more cards (π0.5 and π0.7) are readings that the last levels give you.' }),
-        ...rows, h('div.row', null, [hintBtn]), ...[notionPanel()].filter(Boolean));
+        ...rows, h('div.row', null, [hintBtn]));
     };
     draw();
     return box;
@@ -1760,22 +1628,28 @@
   MODES.campaign = function (pane) {
     const lv = C.levels.find((l) => l.id === S.level) || C.levels[0];
     S.focus = lv.focus;
+    // every level is open: play in any order; the first one not done yet is marked as the suggested next
+    const next = C.levels.find((l) => !S.done.includes(l.id));
     const node = (l) => {
       const i = C.levels.indexOf(l);
-      const open = i === 0 || S.done.includes(C.levels[i - 1].id) || S.done.includes(l.id) || (S.unlockAll && l.phase > 1);
-      return h('button.node' + (S.done.includes(l.id) ? '.done' : '') + (open ? '' : '.locked'), {
-        type: 'button', 'aria-current': l.id === lv.id ? 'true' : 'false', disabled: !open,
+      return h('button.node' + (S.done.includes(l.id) ? '.done' : '') + (l === next ? '.next' : ''), {
+        type: 'button', 'aria-current': l.id === lv.id ? 'true' : 'false',
         onclick: () => { S.level = l.id; save(); enterLevel(l); render(); },
-      }, [h('span.small', { text: 'Level ' + (i + 1) + ' · ' + C.worldNames[l.world] }), h('b', { text: l.title })]);
+      }, [h('span.small', { text: 'Level ' + (i + 1) + ' · ' + C.worldNames[l.world] + (S.done.includes(l.id) ? ' · done' : l === next ? ' · next' : '') }), h('b', { text: l.title })]);
     };
     const tree = h('div.stack', null, C.phases.map((ph) => h('div', null, [
       h('div.eyebrow', { text: 'Phase ' + ph.n + ': ' + ph.title }),
       h('div.tree', { role: 'list' }, C.levels.filter((l) => (l.phase || 1) === ph.n).map(node)),
     ])));
     pane.append(h('div.card', null, [
-      h('p', { text: 'Each level shows a learner failing in a real training run in your browser. Predict, run, diagnose, then repair it by changing the words of its update rule. When your sentence works, the codex shows its published name and paper.' }),
-      h('div.eyebrow', { text: 'Each level breaks the method that won the level before' }), tree,
-      h('div.row', null, [h('label.small', null, [h('input', { type: 'checkbox', checked: !!S.unlockAll, onchange: (e) => { S.unlockAll = e.target.checked; save(); render(); } }), ' Open every phase now (skip the order)'])]),
+      h('p', { text: 'Each level hands you a learner that fails. Guess what happens, run it, then fix it by changing words in its update rule. Play in any order: each level breaks the method that won the one before, but nothing is locked.' }),
+      tree,
+      h('div.row.savebar', null, [
+        h('span.small', { text: 'Progress saves in this browser.' }),
+        h('button.btn.ghost.tiny', { type: 'button', onclick: downloadSave }, 'Download save file'),
+        h('button.btn.ghost.tiny', { type: 'button', onclick: loadSave }, 'Load save file'),
+        h('button.btn.ghost.tiny', { type: 'button', onclick: copyBrief, title: 'Copies a short Markdown brief: where you are, the words you can change, and how an AI can drive this page.' }, 'Copy for your AI'),
+      ]),
     ]));
     const st = S.lstep[lv.id] || 0;
     const card = h('div.card', null, [h('div.eyebrow', { text: C.worldNames[lv.world] }), h('h2', { text: lv.title }), h('p', { html: lv.intro })]);
@@ -2214,7 +2088,6 @@
       ]),
       peekFor(id),
       c.evidence ? h('details', null, [h('summary', { text: 'Evidence from the source' }), h('div', { html: c.evidence })]) : null,
-      S.found.includes(id) && c.kind !== 'frontier' ? notionLine(id) : null,
     ]);
   }
   MODES.codex = function (pane) {
@@ -2274,8 +2147,7 @@
       send.disabled = true; stopB.hidden = false; ctl = new AbortController();
       const history = chatLog.filter((m) => m.role !== 'tool' && m !== reply).map((m) => ({ role: m.role, content: m.text }));
       const opts = { signal: ctl.signal, cache: false, tools: chatTools(drawMsgs), onText: ({ text }) => { reply.text = text; drawMsgs(); msgs.scrollTop = msgs.scrollHeight; } };
-      if (tutor.viaClaude) history[0] = { role: 'user', content: chatSystem() + '\n\n---\n\n' + history[0].content };
-      else opts.system = chatSystem();
+      opts.system = chatSystem();
       try {
         const out = await tutor.fn(history, opts);
         reply.text = out.text || '(no text)';
@@ -2321,8 +2193,8 @@
       'Current lab state: ' + JSON.stringify(labState()),
     ].join('\n');
   }
-  function chatTools(redraw) {
-    const note = (t) => { chatLog.splice(chatLog.length - 1, 0, { role: 'tool', text: t }); redraw(); };
+  function chatTools(redraw, quiet) {
+    const note = quiet ? () => {} : (t) => { chatLog.splice(chatLog.length - 1, 0, { role: 'tool', text: t }); redraw(); };
     const props = { family: { enum: Object.keys(C.families), description: 'The kind of learner. Changing it resets the other words to that family\'s plain sentence.' } };
     for (const k in W) props[k] = { enum: W[k].options.map((o) => o[0]), description: W[k].q };
     return [
@@ -2340,6 +2212,80 @@
       { name: 'run_experiment', description: 'Train the current sentence on the current world for real (seconds) and return the autopsy. seeds applies to CartPole only (1, 3 or 5); the other worlds use many runs.', inputSchema: { type: 'object', properties: { seeds: { type: 'integer', minimum: 1, maximum: 5 } } },
         execute: async ({ seeds }) => { const so = C.seedOptions[S.world]; if (seeds && S.world === 'cartpole') $('#seeds').value = String(so.reduce((b, n) => (Math.abs(n - seeds) < Math.abs(b - seeds) ? n : b), so[0])); note('running ' + $('#seeds').value + ' runs…'); const a = await run(); if (!a) throw new Error('run failed'); note('done'); return { symptoms: a.symptoms, summary: a.summary }; } },
     ];
+  }
+
+  // ---------------------------------------------------------------- for an AI helper (a browser agent, or a chat the player pastes into)
+  // window.bellman drives the page with the same tools as the Chat tab; aiBrief() says where the player is, as Markdown.
+  const STEP_NAMES = ['predict', 'run', 'diagnose', 'repair', 'explain', 'done'];
+  function levelInfo(l) {
+    const i = C.levels.indexOf(l), st = S.lstep[l.id] || 0;
+    const q = st === 0 ? l.predict : st === 2 ? l.diagnose : st === 4 ? l.explain : null;
+    return {
+      n: i + 1, id: l.id, title: l.title, world: l.world, done: S.done.includes(l.id), step: STEP_NAMES[Math.min(st, 5)], intro: plainText(l.intro),
+      question: q ? { prompt: plainText(q.prompt), options: q.options.map((o, j) => ({ choice: j + 1, reasoning: o.steps.map(plainText), result: plainText(o.result) })) } : null,
+      goal: st === 3 ? l.goal.text : null,
+    };
+  }
+  function aiBrief() {
+    const lv = S.mode === 'campaign' ? C.levels.find((l) => l.id === S.level) : null, info = lv ? levelInfo(lv) : null, lab = labState();
+    const words = C.families[fam(S.parts)].keys.map((k) => '- `' + k + '` (' + W[k].q + '): ' + W[k].options.map((o) => '`' + o[0] + '` = ' + plainText(o[1])).join('; ') + '. Now: `' + S.parts[k] + '`.');
+    return [
+      '# Breaking Bellman: a brief for an AI helper',
+      '',
+      'Breaking Bellman is a small browser game about reinforcement learning. Each level shows a learner (an update rule written as a sentence) that fails in a toy world. The player predicts what happens, runs real training in the page, diagnoses the failure, then fixes it by changing words of the sentence. Every result is a small simulation.',
+      '',
+      'How to help: ask the player to predict before you explain. Do not hand over the repair; point at the symptom. Keep it short.',
+      '',
+      '## Where the player is',
+      '',
+      info ? '- Level ' + info.n + ' of ' + C.levels.length + ': ' + info.title + ' (world: ' + C.worldNames[info.world] + '). Step: ' + info.step + '.' : '- Mode: ' + S.mode + ' (not a campaign level).',
+      info ? '- Level text: ' + info.intro : null,
+      info && info.question ? '- Open question: ' + info.question.prompt + ' Choices: ' + info.question.options.map((o) => '(' + o.choice + ') ' + o.result).join(' ') : null,
+      info && info.goal ? '- Repair goal: ' + info.goal : null,
+      '- Levels done: ' + S.done.length + ' of ' + C.levels.length + '. Methods found: ' + S.found.length + '.',
+      '- Current sentence: ' + lab.sentenceName + '. World: ' + C.worldNames[lab.world] + ', knobs ' + JSON.stringify(lab.knobs) + '.',
+      lab.lastRun ? '- Last run (' + lab.lastRun.seeds + ' runs, ' + lab.lastRun.steps + ' steps): ' + (lab.lastRun.symptoms.join(' ') || 'no symptoms') : '- No run yet in this world.',
+      '',
+      '## Words of the current sentence',
+      '',
+      ...words,
+      '',
+      '## Drive the page (optional)',
+      '',
+      'In the browser console, or with a browser agent:',
+      '',
+      '```js',
+      'bellman.help()            // this brief, fresh',
+      'bellman.state()           // world, knobs, words, last run',
+      'bellman.levels()          // all levels; any order is fine',
+      'bellman.level(3)          // open level 3 (or its id)',
+      "bellman.words({ eps: 'eps' })   // change words (keys above)",
+      "bellman.world('cliff', { slip: 0.1 })",
+      'await bellman.run()       // train for real; returns the autopsy',
+      '```',
+    ].filter((x) => x !== null).join('\n');
+  }
+  async function copyBrief() {
+    const t = aiBrief();
+    try { await navigator.clipboard.writeText(t); toast('Copied. Paste it into your AI chat.'); }
+    catch (e) { download('breaking-bellman-brief.md', t, 'text/markdown'); toast('Clipboard blocked: downloaded the brief instead.'); }
+  }
+  {
+    const tool = (name) => chatTools(null, true).find((t) => t.name === name).execute;
+    window.bellman = {
+      help: () => aiBrief(),
+      state: () => labState(),
+      levels: () => C.levels.map((l) => { const i = levelInfo(l); return { n: i.n, id: i.id, title: i.title, world: i.world, done: i.done, step: i.step }; }),
+      level: (which) => {
+        const l = C.levels.find((x, i) => x.id === which || i + 1 === which);
+        if (!l) throw new Error('No level ' + which + '. See bellman.levels().');
+        S.mode = 'campaign'; S.level = l.id; save(); enterLevel(l); render();
+        return levelInfo(l);
+      },
+      words: (ws) => (ws ? tool('set_words')(ws) : { words: S.parts, name: nameOf(S.parts, S.world) }),
+      world: (name, knobs) => tool('set_world')({ world: name, knobs }),
+      run: (opts) => tool('run_experiment')(opts || {}),
+    };
   }
 
   // ---------------------------------------------------------------- settings: the AI tutor and your learning log
@@ -2375,6 +2321,11 @@
   function progressJSON() {
     let raw = {}; try { raw = JSON.parse(localStorage.getItem(LS)) || {}; } catch (e) { /* storage blocked */ }
     return JSON.stringify({ app: 'breaking-bellman', version: 1, exported: new Date().toISOString(), progress: raw }, null, 2);
+  }
+  const downloadSave = () => download('breaking-bellman-save-' + new Date().toISOString().slice(0, 10) + '.json', progressJSON(), 'application/json');
+  function loadSave() {
+    const fileIn = h('input', { type: 'file', accept: 'application/json,.json', hidden: true, onchange: (e) => e.target.files[0] && importProgress(e.target.files[0]) });
+    document.body.append(fileIn); fileIn.click(); setTimeout(() => fileIn.remove(), 60000);
   }
   function importProgress(file) {
     file.text().then((t) => {
@@ -2426,7 +2377,6 @@
       catch (e) { status.textContent = 'It did not work: ' + e.message; }
     } }, 'Test');
     const field = (label, input, extra, cls) => h('label.field' + (cls ? '.' + cls : ''), null, [h('span.small', { text: label }), h('div.row', null, [input, extra || null])]);
-    const fileIn = h('input', { type: 'file', accept: 'application/json,.json', hidden: true, onchange: (e) => e.target.files[0] && importProgress(e.target.files[0]) });
     settingsDlg = h('dialog.settings', { id: 'settings-dlg', 'aria-label': 'Settings' }, [
       h('form', { method: 'dialog', class: 'stack' }, [
         h('div.row', { style: 'justify-content:space-between' }, [h('h2', { text: 'Settings' }), h('button.btn.ghost.tiny', { value: 'close', 'aria-label': 'Close' }, 'Close')]),
@@ -2446,13 +2396,16 @@
           ]),
         ]),
         h('section.stack', null, [
-          h('h3', { text: 'Your learning log' }),
-          h('p.small', { text: 'Your progress lives in this browser only. Export it to keep a record of what you discovered, or to move it to another computer.' }),
+          h('h3', { text: 'Your progress' }),
+          h('p.small', { text: 'Progress saves in this browser (local storage), so a private window or cleared site data forgets it. Download a save file to keep it, or to continue in another browser or on another computer.' }),
           h('div.row', null, [
+            h('button.btn.ghost', { type: 'button', onclick: downloadSave }, 'Download save file'),
+            h('button.btn.ghost', { type: 'button', onclick: loadSave }, 'Load save file'),
             h('button.btn.ghost', { type: 'button', onclick: () => download('breaking-bellman-log-' + new Date().toISOString().slice(0, 10) + '.md', learningLogMarkdown(), 'text/markdown') }, 'Export the log (Markdown)'),
-            h('button.btn.ghost', { type: 'button', onclick: () => download('breaking-bellman-progress.json', progressJSON(), 'application/json') }, 'Export progress (JSON)'),
-            h('button.btn.ghost', { type: 'button', onclick: () => fileIn.click() }, 'Import progress'), fileIn,
           ]),
+          h('h3', { text: 'Play with your own AI' }),
+          h('p.small', { text: 'Using an AI in your browser (for example Codex, Claude or Gemini)? "Copy for your AI" gives it a short brief: where you are and the words you can change. A browser agent can also drive the page with the bellman object (type bellman.help() in the console).' }),
+          h('div.row', null, [h('button.btn.ghost', { type: 'button', onclick: copyBrief }, 'Copy for your AI')]),
           h('div.row', null, [h('button.btn.ghost.tiny.danger', { type: 'button', onclick: () => { if (confirm('Erase all progress in this browser? This cannot be undone.')) { try { localStorage.removeItem(LS); } catch (e) { /* storage blocked */ } location.reload(); } } }, 'Erase my progress')]),
         ]),
         h('p.small', null, ['Breaking Bellman is open source (MIT). ', h('a', { href: 'https://github.com/Hadrien-Cornier/breaking-bellman', target: '_blank', rel: 'noopener' }, 'Source code and how it works'), '.']),
@@ -2470,15 +2423,15 @@
     const close = (mode) => { S.intro = 1; save(); dlg.close(); dlg.remove(); if (mode && mode !== S.mode) { S.mode = mode; save(); if (mode === 'campaign') enterLevel(C.levels.find((l) => l.id === S.level) || C.levels[0]); render(); } };
     const step = (n, t, d) => h('li', null, [h('span.num', { text: n }), h('div', null, [h('b', { text: t }), h('p.small', { text: d })])]);
     const dlg = h('dialog.intro', { 'aria-label': 'Welcome' }, [h('div.stack', null, [
-      h('div.eyebrow', { text: 'A reinforcement learning sandbox' }),
+      h('div.eyebrow', { text: 'A small game about reinforcement learning' }),
       h('h1', { text: 'Breaking Bellman' }),
-      h('p.lead', { text: 'Learn reinforcement learning by breaking it. Real algorithms train in this page, in seconds, and fail in front of you. You find out why, and you fix them.' }),
+      h('p.lead', { text: 'Real RL algorithms train in this page and fail in front of you. You figure out why, then fix them by changing a word.' }),
       h('ol.steps', null, [
-        step('1', 'Predict', 'Each level shows a learner and a world. Say what you think will happen.'),
-        step('2', 'Run', 'Real training runs in your browser. Every curve comes from code that just ran.'),
-        step('3', 'Fix', 'Change one word of the update rule. When your sentence works, you have rediscovered a published method, from Q-learning to PPO, SAC and robot learning.'),
+        step('1', 'Predict', 'Guess what the learner will do. Be honest.'),
+        step('2', 'Run', 'Real training, in your browser, in seconds.'),
+        step('3', 'Fix', 'Change one word of its update rule. Get it right and you have reinvented a published method.'),
       ]),
-      h('p.small', { text: 'No account and no server: your progress stays in this browser. An AI tutor is optional (bring your own key in Settings).' }),
+      h('p.small', { text: '17 levels, any order. Progress saves in this browser; Settings has a save file you can take anywhere. No account, no server. The AI tutor is optional.' }),
       h('div.row', null, [h('button.btn', { type: 'button', onclick: () => close('campaign') }, 'Start level 1'), h('button.btn.ghost', { type: 'button', onclick: () => close('workbench') }, 'Open the workbench')]),
     ])]);
     dlg.addEventListener('cancel', () => { S.intro = 1; save(); });
@@ -2501,7 +2454,15 @@
     render();
   }));
   $('#run-btn').addEventListener('click', () => run());
-  window.addEventListener('resize', () => { if (S.results.length) renderCharts(S.results.map((r) => ({ evals: r.evals, diag: r.diag })), true); renderStage(); });
+  // redraw on a real width change only: phones fire resize when the address bar hides, and a redraw restarts the replay
+  let stageW = 0;
+  window.addEventListener('resize', () => {
+    const w = Math.round($('#stage').getBoundingClientRect().width);
+    if (w === stageW) return;
+    stageW = w;
+    if (S.results.length) renderCharts(S.results.map((r) => ({ evals: r.evals, diag: r.diag })), true);
+    renderStage();
+  });
 
   // the lab's own sentence (always present)
   $('#rule').append(mountSentence({ getParts: () => S.parts, setPart: setMainPart, world: () => S.world, focus: () => (S.mode === 'campaign' ? S.focus || [] : []), withName: true, permanent: true }));

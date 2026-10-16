@@ -80,24 +80,58 @@
       const [S, ox, oy] = fieldBox(W, H);
       const P = (px, py) => [ox + (px + 1) / 2 * S, oy + (1 - py) / 2 * S];
       const u = S / 2; // pixels per field unit
-      ctx.fillStyle = c.bg; ctx.fillRect(ox, oy, S, S);
-      ctx.strokeStyle = c.muted; ctx.lineWidth = 1; ctx.strokeRect(ox, oy, S, S);
-      ctx.save(); ctx.globalAlpha = 0.25; ctx.strokeStyle = c.accent; ctx.setLineDash([2, 6]);
-      for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(ox, oy + i * S / 4); ctx.lineTo(ox + S, oy + i * S / 4); ctx.stroke(); }
-      ctx.restore();
-      // the thrower: a small person
+      // a park: rough lawn around a mowed square with a chalk line; a dark page gets a dusk park
+      const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(c.bg).trim());
+      const dark = !!m && (parseInt(m[1], 16) + parseInt(m[2], 16) + parseInt(m[3], 16)) / 3 < 100;
+      const G = dark
+        ? { lawn: '#2c4528', a: '#3a5e32', b: '#35572e', line: 'rgba(235,240,225,0.6)', tuft: '#243a20', trunk: '#4a3524', leaf: ['#284a26', '#30562d', '#3a6335'], path: 'rgba(240,240,220,0.7)', bench: '#5a4330' }
+        : { lawn: '#a3cd7d', a: '#8dc365', b: '#81b859', line: 'rgba(255,255,255,0.9)', tuft: '#6c9f4a', trunk: '#7a5634', leaf: ['#5c9744', '#6aa84f', '#7fbb5e'], path: 'rgba(255,255,255,0.8)', bench: '#9a6b3f' };
+      ctx.fillStyle = G.lawn; ctx.fillRect(0, 0, W, H);
+      let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647; // fixed decoration, same every frame
+      const tuft = (tx, ty, h) => { ctx.beginPath(); ctx.moveTo(tx - h * 0.5, ty - h); ctx.lineTo(tx, ty); ctx.lineTo(tx + h * 0.5, ty - h); ctx.moveTo(tx, ty); ctx.lineTo(tx, ty - h * 1.2); ctx.stroke(); };
+      ctx.strokeStyle = G.tuft; ctx.lineWidth = Math.max(1, u * 0.008); ctx.lineCap = 'round';
+      for (let i = 0; i < 40; i++) { const tx = rnd() * W, ty = 20 + rnd() * (H - 20); if (tx < ox - 4 || tx > ox + S + 4) tuft(tx, ty, u * 0.03); }
+      // trees and a bench beside the field, when the stage is wider than the field
+      const tree = (tx, ty, r) => {
+        ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.beginPath(); ctx.ellipse(tx + r * 0.2, ty, r * 0.95, r * 0.28, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = G.trunk; ctx.fillRect(tx - r * 0.12, ty - r * 0.95, r * 0.24, r * 0.95);
+        for (const [a, bb, k, i] of [[0, -1.45, 0.8, 0], [-0.5, -1.1, 0.58, 1], [0.5, -1.15, 0.6, 1], [0.05, -1.95, 0.55, 2], [-0.25, -1.6, 0.35, 2]]) { ctx.fillStyle = G.leaf[i]; ctx.beginPath(); ctx.arc(tx + a * r, ty + bb * r, k * r, 0, TAU); ctx.fill(); }
+      };
+      const side = ox, r = Math.min(side * 0.28, S * 0.09);
+      if (side > S * 0.22) {
+        tree(side * 0.45, oy + S * 0.38, r); tree(side * 0.72, oy + S * 0.86, r * 0.75); tree(W - side * 0.5, oy + S * 0.5, r * 1.1);
+        const bx = W - side * 0.52, by = oy + S * 0.95, bw = r * 1.6; // bench, seen from the front
+        ctx.fillStyle = G.bench; ctx.fillRect(bx - bw / 2, by - r * 0.62, bw, r * 0.14); ctx.fillRect(bx - bw / 2, by - r * 0.34, bw, r * 0.12);
+        ctx.fillRect(bx - bw * 0.42, by - r * 0.3, r * 0.08, r * 0.3); ctx.fillRect(bx + bw * 0.42 - r * 0.08, by - r * 0.3, r * 0.08, r * 0.3);
+      }
+      // the mowed field: stripes, a few tufts and daisies, the chalk line
+      for (let i = 0; i < 8; i++) { ctx.fillStyle = i % 2 ? G.b : G.a; ctx.fillRect(ox + i * S / 8, oy, S / 8 + 0.5, S); }
+      ctx.strokeStyle = G.tuft;
+      for (let i = 0; i < 22; i++) tuft(ox + (0.03 + 0.94 * rnd()) * S, oy + (0.05 + 0.92 * rnd()) * S, u * 0.022);
+      for (let i = 0; i < 9; i++) {
+        const tx = ox + (0.04 + 0.92 * rnd()) * S, ty = oy + (0.04 + 0.92 * rnd()) * S;
+        ctx.fillStyle = i % 3 ? '#fffaf0' : '#ffd84d';
+        for (let p = 0; p < 5; p++) { ctx.beginPath(); ctx.arc(tx + Math.cos(p * 1.2566) * u * 0.011, ty + Math.sin(p * 1.2566) * u * 0.011, u * 0.008, 0, TAU); ctx.fill(); }
+        ctx.fillStyle = '#f0a030'; ctx.beginPath(); ctx.arc(tx, ty, u * 0.006, 0, TAU); ctx.fill();
+      }
+      ctx.strokeStyle = G.line; ctx.lineWidth = Math.max(1.5, u * 0.012); ctx.strokeRect(ox, oy, S, S);
+      // the thrower: the game's robot (web/scenes.js) when the page has it, else a small person
       const [hx, hy] = P(THROWER[0], THROWER[1]);
-      ctx.strokeStyle = c.muted; ctx.fillStyle = c.muted; ctx.lineWidth = Math.max(1.5, u * 0.012); ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.arc(hx, hy - u * 0.075, u * 0.022, 0, TAU); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(hx, hy - u * 0.05); ctx.lineTo(hx, hy + u * 0.01); ctx.moveTo(hx - u * 0.03, hy - u * 0.03); ctx.lineTo(hx + u * 0.03, hy - u * 0.04);
-      ctx.moveTo(hx, hy + u * 0.01); ctx.lineTo(hx - u * 0.02, hy + u * 0.045); ctx.moveTo(hx, hy + u * 0.01); ctx.lineTo(hx + u * 0.02, hy + u * 0.045); ctx.stroke();
+      const R = globalThis.BB && globalThis.BB.scenes && globalThis.BB.scenes.robot;
+      if (R) R(ctx, hx, hy + u * 0.05, u * 0.2, { wave: true });
+      else {
+        ctx.strokeStyle = c.muted; ctx.fillStyle = c.muted; ctx.lineWidth = Math.max(1.5, u * 0.012); ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.arc(hx, hy - u * 0.075, u * 0.022, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(hx, hy - u * 0.05); ctx.lineTo(hx, hy + u * 0.01); ctx.moveTo(hx - u * 0.03, hy - u * 0.03); ctx.lineTo(hx + u * 0.03, hy - u * 0.04);
+        ctx.moveTo(hx, hy + u * 0.01); ctx.lineTo(hx - u * 0.02, hy + u * 0.045); ctx.moveTo(hx, hy + u * 0.01); ctx.lineTo(hx + u * 0.02, hy + u * 0.045); ctx.stroke();
+      }
       // the dog's path
       if (trail.length > 1) {
-        ctx.save(); ctx.strokeStyle = c.accent; ctx.lineWidth = Math.max(1, u * 0.008); ctx.globalAlpha = 0.7; ctx.beginPath();
+        ctx.save(); ctx.strokeStyle = G.path; ctx.lineWidth = Math.max(1.5, u * 0.01); ctx.lineJoin = 'round'; ctx.beginPath();
         trail.forEach(([a, b], i) => { const [px, py] = P(a, b); if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py); }); ctx.stroke(); ctx.restore();
       }
       if (overlay && overlay.paths) {
-        ctx.save(); ctx.globalAlpha = 0.35; ctx.strokeStyle = c.accent; ctx.lineWidth = 1;
+        ctx.save(); ctx.globalAlpha = 0.45; ctx.strokeStyle = G.path; ctx.lineWidth = 1;
         for (const p of overlay.paths) { ctx.beginPath(); p.forEach(([a, b], i) => { const [px, py] = P(a, b); if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py); }); ctx.stroke(); }
         ctx.restore();
       }
@@ -108,11 +142,12 @@
       };
       if (!carrying) { const [px, py] = P(sx, sy); stick(px, py, -Math.PI / 6); }
       const [dx, dy] = P(x, y), ang = -th; // canvas y points down
-      ctx.save(); ctx.strokeStyle = c.muted; ctx.setLineDash([3, 4]); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(dx, dy);
+      ctx.save(); ctx.strokeStyle = G.path; ctx.setLineDash([3, 4]); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(dx, dy);
       ctx.lineTo(dx + Math.cos(ang) * u * 0.22, dy + Math.sin(ang) * u * 0.22); ctx.stroke(); ctx.restore();
-      // the dog, drawn along its heading: tail, body, head, ears, nose
+      // the dog, drawn along its heading: shadow, tail, body, head, ears, nose
       ctx.save(); ctx.translate(dx, dy); ctx.rotate(ang);
       const b = u * 0.075;
+      ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(b * 0.25, b * 0.2, b * 1.45, b * 0.7, 0, 0, TAU); ctx.fill();
       ctx.strokeStyle = '#7a4f24'; ctx.lineWidth = Math.max(1.5, b * 0.18); ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(-b * 0.95, 0); ctx.quadraticCurveTo(-b * 1.45, -b * 0.15, -b * 1.5, -b * 0.55); ctx.stroke();
       ctx.fillStyle = '#c98b4a'; ctx.beginPath(); ctx.ellipse(0, 0, b, b * 0.55, 0, 0, TAU); ctx.fill();
@@ -123,7 +158,12 @@
       ctx.beginPath(); ctx.arc(b * 1.48, 0, b * 0.1, 0, TAU); ctx.fill();
       if (carrying) stick(b * 1.55, 0, Math.PI / 2);
       ctx.restore();
-      if (overlay && overlay.text) { ctx.fillStyle = c.fg; ctx.font = '12px monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(overlay.text, 8, 8); }
+      if (overlay && overlay.text) {
+        ctx.font = '12px monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        const tm = ctx.measureText(overlay.text), tw = tm && tm.width ? tm.width : overlay.text.length * 7.2;
+        ctx.fillStyle = dark ? 'rgba(16,24,18,0.78)' : 'rgba(255,255,255,0.85)'; ctx.fillRect(3, 3, tw + 10, 19);
+        ctx.fillStyle = c.fg; ctx.fillText(overlay.text, 8, 7);
+      }
     }
     return {
       spec, reset, step, render,

@@ -2,7 +2,6 @@
 // The engine source is also kept as text so the page can start Web Workers from a blob URL.
 // node build.mjs              -> a complete HTML document: open it from disk or serve it (npm start).
 // node build.mjs --fragment   -> the page body only (for hosts that add their own <html> skeleton).
-// An optional local.config.json (not in git) is inlined as globalThis.BB_CONFIG (see README, "Optional: Notion").
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -17,16 +16,13 @@ export const ENGINE_FILES = [
   'src/sim/run.js', 'src/sim/autopsy.js',
 ];
 const CONTENT_FILES = ['web/content.js', 'web/content2.js', 'web/measured.js', 'web/content3.js', 'web/expert.js', 'web/papers.js', 'web/wonder.js', 'web/fetch-level.js'];
-const APP_FILES = ['web/llm.js', 'web/app.js'];
+const APP_FILES = ['web/llm.js', 'web/scenes.js', 'web/app.js'];
 
 const exists = (f) => fs.existsSync(path.join(root, f));
 const join = (files) => files.filter(exists).map(read).join('\n;\n');
 const noClose = (s) => s.replace(/<\/script/gi, '<\\/script');
-let config = {};
-if (exists('local.config.json')) config = JSON.parse(read('local.config.json'));
 
 const body = read('web/page.html')
-  .replace('/*@CONFIG@*/', () => 'globalThis.BB_CONFIG = ' + noClose(JSON.stringify(config)) + ';')
   .replace('/*@ENGINE@*/', () => noClose(join(ENGINE_FILES)))
   .replace('/*@CONTENT@*/', () => join(CONTENT_FILES))
   .replace('/*@APP@*/', () => join(APP_FILES))
@@ -46,4 +42,4 @@ const page = fragment ? body
 const out = fragment ? 'dist/breaking-bellman.fragment.html' : 'dist/breaking-bellman.html';
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(root, out), page);
-console.log(out, (page.length / 1024).toFixed(1), 'KiB', Object.keys(config).length ? '(with local.config.json)' : '');
+console.log(out, (page.length / 1024).toFixed(1), 'KiB');
