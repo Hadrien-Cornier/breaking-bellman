@@ -4,7 +4,7 @@
   if (typeof require === 'function') {
     require('../core/rng.js');
     require('../worlds/bandit.js'); require('../worlds/cliff.js'); require('../worlds/cartpole.js'); require('../worlds/mirage.js');
-    require('../worlds/pendulum.js'); require('../worlds/reach.js'); require('../worlds/fork.js'); require('../worlds/goalgrid.js');
+    require('../worlds/pendulum.js'); require('../worlds/reach.js'); require('../worlds/fork.js'); require('../worlds/goalgrid.js'); require('../worlds/fetch.js');
     require('../agents/value.js'); require('../agents/pg.js'); require('../agents/ac.js');
   }
 
@@ -131,6 +131,7 @@
       const e = evaluate(learner, W, knobs, evalRng, world.spec.maxSteps, true);
       res.trace = e.trace;
       res.final = { ret: e.ret, disc: e.disc, pred: e.pred, success: e.success, dist: e.dist };
+      if (W.playable && learner.policyNet) res.policy = learner.policyNet();
       if (W.evalEpisodes > 1 || learner.offline) {
         // a wider final test: many starts, and their paths for the picture
         // test episode k uses its own random stream, so the classical controller below meets exactly the same starts

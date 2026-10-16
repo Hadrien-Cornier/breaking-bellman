@@ -15,7 +15,7 @@ const errors = [];
 async function shot(name, w, h, fn, opts = {}) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: opts.dpr || 2, colorScheme: opts.dark ? 'dark' : 'light' });
   const page = await ctx.newPage();
-  page.on('pageerror', (e) => errors.push(name + ': ' + e.message));
+  page.on('pageerror', (e) => { errors.push(name + ': ' + e.message); console.log('PAGEERROR', name, e.message); });
   page.on('console', (m) => { if (m.type() === 'error') errors.push(name + ' console: ' + m.text()); });
   if (opts.state) await page.addInitScript((st) => { try { localStorage.setItem('breaking-bellman-v1', JSON.stringify(st)); } catch (e) {} }, opts.state);
   await page.goto('file://' + page0);
@@ -30,18 +30,26 @@ const only = process.env.SHOTS ? process.env.SHOTS.split(',') : null;
 const want = (n) => !only || only.includes(n);
 const seen = { intro: 1 };
 if (want('intro')) await shot('intro', 1280, 800, null);
-if (want('campaign')) await shot('campaign', 1280, 860, async (p) => { await p.click('#run-btn'); await runDone(p); await p.waitForTimeout(800); }, { state: seen });
+if (want('campaign')) await shot('campaign', 1280, 860, async (p) => { await p.click('#run-btn'); await runDone(p); await p.waitForTimeout(3200); }, { state: seen });
 if (want('workbench')) await shot('workbench', 1280, 860, async (p) => {
   await p.click('#tabs button[data-mode="workbench"]'); await p.waitForTimeout(300);
   await p.click('#run-btn'); await runDone(p); await p.waitForTimeout(800);
 }, { state: Object.assign({ mode: 'workbench' }, seen) });
 if (want('settings')) await shot('settings', 1280, 860, async (p) => { await p.click('#settings-btn'); await p.selectOption('#ai-provider', 'anthropic'); await p.waitForTimeout(200); }, { state: seen });
-if (want('phone')) await shot('phone', 390, 844, async (p) => { await p.click('#run-btn'); await runDone(p); await p.waitForTimeout(600); }, { state: seen, dark: true });
+if (want('phone')) await shot('phone', 390, 844, async (p) => { await p.click('#run-btn'); await runDone(p); await p.waitForTimeout(3200); }, { state: seen, dark: true });
 if (want('codex')) await shot('codex', 1280, 860, async (p) => { await p.click('#tabs button[data-mode="codex"]'); await p.waitForTimeout(400); },
   { state: Object.assign({ mode: 'codex', found: ['egreedy', 'lockin', 'qlearning', 'sarsa', 'triad', 'dqn', 'maxbias', 'doubleq', 'ppo', 'grpo', 'sac', 'iql', 'expo', 'recap'] }, seen) });
 if (want('fetch')) await shot('fetch', 1280, 860, async (p) => {
-  await p.evaluate(() => window.__bbGoto && window.__bbGoto('fetch')); await p.waitForTimeout(300);
-  await p.click('#run-btn'); await runDone(p); await p.waitForTimeout(1500);
-}, { state: seen });
+  await p.click('text=Run the starting sentence'); await runDone(p); await p.waitForTimeout(400);
+  const box = await p.locator('#stage').boundingBox();
+  await p.mouse.click(box.x + box.width * 0.62, box.y + box.height * 0.2); await p.waitForTimeout(3500);
+}, { state: Object.assign({ level: 'fetch', unlockAll: true, lstep: { fetch: 1 } }, seen) });
+if (want('fetchfix')) await shot('fetchfix', 1280, 860, async (p) => {
+  await p.selectOption('#rk-shaping', '2');
+  await p.evaluate(() => { const e = document.querySelector('#rk-facingW'); e.value = '0'; e.dispatchEvent(new Event('change')); });
+  await p.click('text=Run this sentence'); await runDone(p); await p.waitForTimeout(800);
+  const box = await p.locator('#stage').boundingBox();
+  await p.mouse.click(box.x + box.width * 0.35, box.y + box.height * 0.25); await p.waitForTimeout(3500);
+}, { state: Object.assign({ level: 'fetch', unlockAll: true, lstep: { fetch: 3 } }, seen), full: false });
 await browser.close();
 if (errors.length) { console.log('PAGE ERRORS:\n' + errors.join('\n')); process.exitCode = 1; }

@@ -162,6 +162,13 @@
       if (S_.successRate >= 0.8) add('solved', 'ok', 'Goes around and reaches the goal', ev);
       else if (S_.crashRate < 1) add('unsolved', S_.successRate >= 0.4 ? 'warn' : 'bad', 'Does not reach the goal', ev);
     }
+    if (r0.world === 'fetch') {
+      const found = r0.knobs.found != null ? r0.knobs.found : 1;
+      const ev = `Got the stick in ${(S_.successRate * 100).toFixed(0)}% of ${S_.tests} test throws; each throw paid ${fmt(S_.testReturn)} reward on average (the stick alone pays ${fmt(found)}).`;
+      if (S_.successRate < 0.5 && S_.testReturn > 0.5 * found) add('hack', 'bad', 'Collects reward without the stick', ev);
+      if (S_.successRate >= 0.8) add('solved', 'ok', 'Fetches the stick', ev);
+      else if (!(S_.successRate < 0.5 && S_.testReturn > 0.5 * found)) add('unsolved', S_.successRate >= 0.4 ? 'warn' : 'bad', 'Often misses the stick', ev);
+    }
     if (r0.world === 'goalgrid') {
       const ev = `Reached the goal in ${(S_.successRate * 100).toFixed(0)}% of ${S_.tests} new prompts (start and goal).`;
       if (S_.successRate >= 0.8) add('solved', 'ok', 'Solves most prompts', ev);

@@ -127,7 +127,7 @@
   const valueKeys = Object.keys(C.words);
   C.families = {
     value: { name: 'Value learning', keys: valueKeys, base: Object.assign({}, C.base), worlds: ['bandit', 'cliff', 'cartpole', 'mirage'] },
-    pg: { name: 'Policy gradient', keys: Object.keys(pgWords), base: pgBase, worlds: ['cartpole', 'goalgrid', 'pendulum'] },
+    pg: { name: 'Policy gradient', keys: Object.keys(pgWords), base: pgBase, worlds: ['cartpole', 'goalgrid', 'pendulum', 'fetch'] },
     ac: { name: 'Actor-critic, continuous actions', keys: Object.keys(acWords), base: acBase, worlds: ['pendulum', 'reach', 'fork'] },
   };
   Object.assign(C.words, pgWords, acWords);
@@ -140,6 +140,10 @@
   };
   C.famOf = (p) => (p && p.family) || 'value';
 
+  Object.assign(C.worldNames, { fetch: 'Fetch' });
+  Object.assign(C.budgets, { fetch: [10000, 20000, 60000] });
+  Object.assign(C.budgetDefault, { fetch: 1 });
+  Object.assign(C.seedOptions, { fetch: [1, 3, 5] });
   Object.assign(C.worldNames, { goalgrid: 'Goal grid', pendulum: 'Pendulum swing-up', reach: 'Arm reach', fork: 'Fork in the road' });
   Object.assign(C.budgets, { goalgrid: [30000, 60000], pendulum: [6000, 10000, 15000], reach: [4000, 8000, 15000], fork: [3000, 6000] });
   Object.assign(C.budgetDefault, { goalgrid: 1, pendulum: 1, reach: 1, fork: 1 });

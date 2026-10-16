@@ -1,0 +1,410 @@
+[
+ {
+  "name": "f-plain-30k",
+  "sec": 2.977,
+  "summary": {
+   "finalReturn": 0.868,
+   "finalSd": 0.004,
+   "peak": 0.889,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": -0.002,
+   "realized": 0.586,
+   "collapsedSeeds": 0,
+   "kl": 0.008,
+   "entropy": 0.117,
+   "zeroFrac": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": 0.865,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0.3,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   0.871,
+   0.865,
+   0.859
+  ],
+  "notes": []
+ },
+ {
+  "name": "f-closer1-30k",
+  "sec": 2.943,
+  "summary": {
+   "finalReturn": 1.555,
+   "finalSd": 0.015,
+   "peak": 1.654,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": -0.007,
+   "realized": 1.134,
+   "collapsedSeeds": 0,
+   "kl": 0.01,
+   "entropy": 0.099,
+   "zeroFrac": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": 1.551,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0.283,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   1.543,
+   1.539,
+   1.571
+  ],
+  "notes": []
+ },
+ {
+  "name": "f-closer1w2-30k",
+  "sec": 2.955,
+  "summary": {
+   "finalReturn": 2.24,
+   "finalSd": 0.036,
+   "peak": 2.453,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": -0.005,
+   "realized": 1.681,
+   "collapsedSeeds": 0,
+   "kl": 0.01,
+   "entropy": 0.102,
+   "zeroFrac": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": 2.235,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0.317,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   2.213,
+   2.285,
+   2.207
+  ],
+  "notes": []
+ },
+ {
+  "name": "f-pbrs-30k",
+  "sec": 2.941,
+  "summary": {
+   "finalReturn": 1.787,
+   "finalSd": 0.028,
+   "peak": 1.937,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": -0.006,
+   "realized": 1.324,
+   "collapsedSeeds": 0,
+   "kl": 0.011,
+   "entropy": 0.113,
+   "zeroFrac": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": 1.789,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0.3,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   1.765,
+   1.777,
+   1.826
+  ],
+  "notes": []
+ },
+ {
+  "name": "f-facing05-30k",
+  "sec": 3.137,
+  "summary": {
+   "finalReturn": 2.168,
+   "finalSd": 0.044,
+   "peak": 2.299,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": 0.223,
+   "realized": 0.97,
+   "collapsedSeeds": 0,
+   "kl": 0.001,
+   "entropy": 0.252,
+   "zeroFrac": 0,
+   "successRate": 0,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": 2.156,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:hack"
+  ],
+  "perSeed": [
+   2.223,
+   2.17,
+   2.075
+  ],
+  "notes": []
+ },
+ {
+  "name": "f-facing05t0-30k",
+  "sec": 3.119,
+  "summary": {
+   "finalReturn": 2.784,
+   "finalSd": 0.019,
+   "peak": 2.891,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": 0.267,
+   "realized": 1.256,
+   "collapsedSeeds": 0,
+   "kl": 0.001,
+   "entropy": 0.195,
+   "zeroFrac": 0,
+   "successRate": 0,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": 2.745,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:hack"
+  ],
+  "perSeed": [
+   2.715,
+   2.705,
+   2.815
+  ],
+  "notes": []
+ },
+ {
+  "name": "f-plain-60k",
+  "sec": 5.735,
+  "summary": {
+   "finalReturn": 0.868,
+   "finalSd": 0.005,
+   "peak": 0.888,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": 0.001,
+   "realized": 0.586,
+   "collapsedSeeds": 0,
+   "kl": 0.01,
+   "entropy": 0.074,
+   "zeroFrac": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": 0.865,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0.283,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   0.859,
+   0.871,
+   0.865
+  ],
+  "notes": []
+ },
+ {
+  "name": "f-closer1-60k",
+  "sec": 5.939,
+  "summary": {
+   "finalReturn": 1.555,
+   "finalSd": 0.015,
+   "peak": 1.656,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": 0,
+   "realized": 1.135,
+   "collapsedSeeds": 0,
+   "kl": 0.01,
+   "entropy": 0.062,
+   "zeroFrac": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": 1.55,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0.283,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   1.54,
+   1.54,
+   1.568
+  ],
+  "notes": []
+ },
+ {
+  "name": "f-closer1w2-60k",
+  "sec": 5.932,
+  "summary": {
+   "finalReturn": 2.239,
+   "finalSd": 0.035,
+   "peak": 2.46,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": -0.005,
+   "realized": 1.679,
+   "collapsedSeeds": 0,
+   "kl": 0.01,
+   "entropy": 0.063,
+   "zeroFrac": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": 2.233,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0.283,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   2.2,
+   2.279,
+   2.219
+  ],
+  "notes": []
+ },
+ {
+  "name": "f-pbrs-60k",
+  "sec": 5.973,
+  "summary": {
+   "finalReturn": 1.787,
+   "finalSd": 0.028,
+   "peak": 1.981,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": 0.002,
+   "realized": 1.324,
+   "collapsedSeeds": 0,
+   "kl": 0.011,
+   "entropy": 0.07,
+   "zeroFrac": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": 1.789,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0.283,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   1.777,
+   1.765,
+   1.826
+  ],
+  "notes": []
+ },
+ {
+  "name": "f-facing05-60k",
+  "sec": 5.876,
+  "summary": {
+   "finalReturn": 2.246,
+   "finalSd": 0.016,
+   "peak": 2.306,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": 0.212,
+   "realized": 1.004,
+   "collapsedSeeds": 0,
+   "kl": 0.001,
+   "entropy": 0.17,
+   "zeroFrac": 0,
+   "successRate": 0,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": 2.239,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:hack"
+  ],
+  "perSeed": [
+   2.27,
+   2.203,
+   2.244
+  ],
+  "notes": []
+ },
+ {
+  "name": "f-facing05t0-60k",
+  "sec": 5.805,
+  "summary": {
+   "finalReturn": 2.841,
+   "finalSd": 0.008,
+   "peak": 2.889,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": 0.271,
+   "realized": 1.283,
+   "collapsedSeeds": 0,
+   "kl": 0.001,
+   "entropy": 0.129,
+   "zeroFrac": 0,
+   "successRate": 0,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": 2.844,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:hack"
+  ],
+  "perSeed": [
+   2.893,
+   2.816,
+   2.822
+  ],
+  "notes": []
+ }
+]

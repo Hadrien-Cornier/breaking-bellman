@@ -610,6 +610,7 @@
   // ---- when a sentence "works" in a new world, its card opens
   Object.assign(C.works, {
     goalgrid: (a) => a.summary.successRate >= 0.8,
+    fetch: (a) => a.summary.successRate >= 0.8,
     pendulum: (a) => (isFinite(a.summary.worstSeed) ? a.summary.worstSeed : a.summary.pendulumScore) >= -250,
     reach: (a) => a.summary.meanDist < 0.4 && !(typeof a.summary.vsBase === 'number' && a.summary.vsBase < -2.5),
     fork: (a) => a.summary.successRate >= 0.8 && a.summary.crashRate < 5,

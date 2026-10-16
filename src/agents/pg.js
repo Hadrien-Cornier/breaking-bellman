@@ -216,6 +216,8 @@
       probe: () => lastProbe,
       value: useCritic ? (obs) => crit.forward(obs)[0] : null,
       probs: cont ? null : (obs) => Array.from(softmax(pol.forward(obs), 0, new Float64Array(A))),
+      // the policy weights as plain arrays, so the page can play the trained policy outside the worker (fetch: throw the stick)
+      policyNet: () => ({ sizes: pol.sizes.slice(), act: H.act, cont, params: pol.params.map((p) => Array.from(p)) }),
       diagnostics: () => ({ steps, updates, kl: last.kl, clipFrac: last.clipFrac, entropy: last.entropy, loss: last.vloss, zeroGroups: last.zeroGroups, zeroFrac: updates ? nZero / updates : 0, std: cont ? Array.from(logStd, Math.exp) : null }),
     };
   }

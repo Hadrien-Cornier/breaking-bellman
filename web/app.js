@@ -328,7 +328,7 @@
     return h('div.compound', null, [h('span.big', { text: big }), h('span.small', { text: small })]);
   }
 
-  // ---------------------------------------------------------------- math (MathJax 3 from cdnjs; falls back to the TeX source)
+  // ---------------------------------------------------------------- math (MathJax 3, inlined by the build; else from cdnjs; falls back to the TeX source)
   let MJ = null;
   function loadMathJax() {
     if (MJ) return MJ;
@@ -336,7 +336,10 @@
       const done = (v) => { resolve(v); };
       window.MathJax = { tex: { inlineMath: [] }, svg: { fontCache: 'local' }, startup: { typeset: false, ready() { window.MathJax.startup.defaultReady(); window.MathJax.startup.promise.then(() => { try { document.head.append(window.MathJax.svgStylesheet()); } catch (e) { /* older build */ } done(window.MathJax); }); } } };
       const s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js'; s.async = true;
+      const local = document.getElementById('mathjax-src');
+      s.src = local && local.textContent.length > 1000 ? URL.createObjectURL(new Blob([local.textContent], { type: 'text/javascript' }))
+        : 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js';
+      s.async = true;
       s.onerror = () => done(null);
       document.head.append(s);
       setTimeout(() => done(null), 15000);
@@ -586,7 +589,7 @@
     const F = fam(S.lastCfg ? S.lastCfg.parts : S.parts), P_ = S.lastCfg ? S.lastCfg.parts : S.parts;
     const key = S.world + ':' + F + ':' + (A ? 'A' : '');
     const hasCritic = F === 'value' || (F === 'pg' && P_.baseline === 'critic') || (F === 'ac' && P_.critics !== 'none');
-    const task = S.world === 'goalgrid' || S.world === 'fork' ? 'success' : S.world === 'reach' ? 'dist' : null;
+    const task = S.world === 'goalgrid' || S.world === 'fork' || S.world === 'fetch' ? 'success' : S.world === 'reach' ? 'dist' : null;
     if (box.dataset.key !== key || !$('#ch-ret')) {
       box.dataset.key = key;
       const who = F === 'value' ? 'Q' : F === 'pg' ? 'V (the critic)' : 'the critic';
@@ -653,7 +656,49 @@
 
   // ---------------------------------------------------------------- stage (the world, replaying a trained policy)
   let anim = null;
+  // Fetch: replay one test throw of run 1, then let the player throw the stick (a click or a tap on the field)
+  function policyOf(pn) {
+    if (!pn) return null;
+    const net = RLA.nn.mlp({ sizes: pn.sizes, act: pn.act, rng: RLA.rng.make(1) });
+    net.params.forEach((p, i) => p.set(pn.params[i]));
+    return (obs) => { const z = net.forward(obs); let b = 0; for (let j = 1; j < z.length; j++) if (z[j] > z[b]) b = j; return b; };
+  }
+  function renderFetch(cv, ctx, w, H, colors, knobs, world, r0, playTrace) {
+    const pol = policyOf(r0 && r0.policy), rnd = RLA.rng.make(9);
+    const act = pol || (() => rnd.int(4));
+    const cap = $('#stage-caption');
+    const tr = r0 && r0.trace;
+    if (tr && tr.length) {
+      playTrace(tr, '', (k) => ({ text: 'test throw, step ' + (k + 1) + ' / ' + tr.length }));
+      cap.textContent = 'Run 1 after training, one test throw: ' + (r0.final && r0.final.success ? 'it got the stick.' : 'it did not get the stick.') + ' Click or tap the field to throw the stick yourself. Simulation.';
+    } else {
+      world.render(ctx, w, H, colors, { text: 'click the field to throw' });
+      cap.textContent = 'Fetch. Click or tap the field to throw the stick. Before training, the dog moves at random.';
+    }
+    cv.onclick = (e) => {
+      const rect = cv.getBoundingClientRect();
+      const [fx, fy] = world.fieldAt(e.clientX - rect.left, e.clientY - rect.top, w, H);
+      if (fx < -1 || fx > 1 || fy < -1 || fy > 1) return;
+      cancelAnimationFrame(anim);
+      const g = world.getState();
+      world.setState([g[0], g[1], g[2], g[3], g[4], 0, 0]);
+      let o = world.throwStick(fx, fy), n = 0, last = 0, end = null;
+      const limit = Math.max(60, knobs.maxSteps || 60);
+      const tick = (ts) => {
+        if (!end && ts - last > 45) {
+          last = ts; const r = world.step(act(o)); o = r.obs; n++;
+          if (r.done) end = 'Got it in ' + n + ' steps!'; else if (n >= limit) end = 'No stick after ' + n + ' steps.';
+          world.render(ctx, w, H, colors, { text: (pol ? 'trained dog' : 'untrained dog, random moves') + '  step ' + n + (end ? '  ' + end : '') });
+          if (end) cap.textContent = end + (pol ? ' This is run 1\'s greedy policy (it always takes its most likely action).' : ' Train the dog first: press Run.') + ' Click again to throw again.';
+        }
+        if (!end) anim = requestAnimationFrame(tick);
+      };
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { while (!end) tick(last + 1000); } else anim = requestAnimationFrame(tick);
+    };
+    cv.style.cursor = 'crosshair';
+  }
   function renderStage() {
+    $('#stage').onclick = null; $('#stage').style.cursor = '';
     cancelAnimationFrame(anim);
     const cv = $('#stage'); const { ctx, w, h: H } = setupCanvas(cv);
     const colors = { fg: css('--ink'), accent: css('--accent'), muted: css('--muted'), bad: css('--bad'), bg: css('--sunk') };
@@ -685,6 +730,7 @@
       $('#stage-caption').textContent = 'Run 1 after training, one test episode. ' + (S.world === 'pendulum' ? 'Score ' + fmt(f.ret) + ' (0 is perfect).' : S.world === 'reach' ? 'Final distance ' + fmt(f.dist) + ' m.' : (f.success ? 'It reached the goal.' : 'It did not reach the goal.')) + ' Simulation.';
       return;
     }
+    if (S.world === 'fetch') { renderFetch(cv, ctx, w, H, colors, knobs, world, r0, playTrace); return; }
     if (S.world === 'fork') {
       const f = r0 && r0.final;
       world.render(ctx, w, H, colors, f && f.paths ? { paths: f.paths, text: f.paths.length + ' test paths of run 1' } : null);
@@ -803,6 +849,7 @@
     if (world === 'reach') return 'final distance ' + fmt(s.meanDist) + ' m, test score ' + fmt(isFinite(s.testReturn) ? s.testReturn : s.finalReturn) + (isFinite(s.baseRet) ? ' (classical controller alone, same starts: ' + fmt(s.baseDist) + ' m, ' + fmt(s.baseRet) + ')' : '');
     if (world === 'fork') return Math.round(100 * s.successRate) + '% of tests reach the goal, ' + fmt(s.crashRate) + ' obstacle hits per test';
     if (world === 'goalgrid') return Math.round(100 * s.successRate) + '% of new prompts solved';
+    if (world === 'fetch') return 'got the stick in ' + Math.round(100 * s.successRate) + '% of test throws, ' + fmt(s.testReturn) + ' reward per throw';
     if (world === 'cartpole' && S.lastCfg && S.lastCfg.knobs && S.lastCfg.knobs.maxSteps) return 'score ' + Math.round(s.finalReturn) + ' of ' + S.lastCfg.knobs.maxSteps + (fam(S.lastCfg.parts) === 'value' ? ', largest |Q| ' + short(s.maxQ) : '');
     return 'score ' + Math.round(s.finalReturn) + ' of 200' + (S.lastCfg && fam(S.lastCfg.parts) !== 'value' ? '' : ', largest |Q| ' + short(s.maxQ));
   }
@@ -848,6 +895,7 @@
       const works = C.works[cfg.world](a);
       if (rec && rec.card && works) discover(rec.card, cfg, a);
       for (const f of C.failures) if (!S.found.includes(f.card) && f.when(a, cfg)) discover(f.card, cfg, a);
+      for (const f of C.knobFinds || []) if (!S.found.includes(f.card) && f.when(a, cfg)) discover(f.card, cfg, a);
       $('#run-result').replaceChildren(h('b', { text: works ? 'Works on ' + C.worldNames[cfg.world] + ': ' : 'Does not work yet: ' }), headline(a, cfg.world) + '.');
       save(); refreshSentences(); drawCompare();
       if (S.afterRun) S.afterRun(a);
@@ -1036,7 +1084,7 @@
     }
     return ids;
   }
-  const allMethodCards = () => ['value', 'pg', 'ac'].flatMap((f) => methodCards(f));
+  const allMethodCards = () => ['value', 'pg', 'ac'].flatMap((f) => methodCards(f)).concat(C.rewardMethods || []);
   const failCards = () => Object.keys(C.cards).filter((id) => C.cards[id].kind === 'failure');
   const MAP_GROUPS = () => [
     { title: 'Slot machines (value learning)', ids: methodCards('value', 'bandit') },
@@ -1044,9 +1092,11 @@
     { title: 'Policy gradient', ids: methodCards('pg') },
     { title: 'Actor-critic, offline learning and the frontier', ids: methodCards('ac') },
     { title: 'Failures', ids: failCards() },
+    { title: 'Reward design', ids: C.rewardMethods || [] },
   ];
   function groupOf(cardId, world, family) {
     if (cardId && C.cards[cardId] && C.cards[cardId].kind === 'failure') return 4;
+    if (cardId && (C.rewardMethods || []).includes(cardId)) return 5;
     if (family === 'pg') return 2;
     if (family === 'ac') return 3;
     return world === 'bandit' ? 0 : 1;
@@ -1115,7 +1165,7 @@
     if (world === 'cliff') return { v: s.finalReturn, up: true, label: 'greedy score' };
     if (world === 'pendulum') return { v: isFinite(s.pendulumScore) ? s.pendulumScore : s.finalReturn, up: true, label: 'test score (0 is perfect)' };
     if (world === 'reach') return { v: isFinite(s.testReturn) ? s.testReturn : s.finalReturn, up: true, label: 'test score' };
-    if (world === 'fork' || world === 'goalgrid') return { v: 100 * s.successRate, up: true, label: '% of tests solved' };
+    if (world === 'fork' || world === 'goalgrid' || world === 'fetch') return { v: 100 * s.successRate, up: true, label: '% of tests solved' };
     return { v: s.finalReturn, up: true, label: 'score' };
   }
   const gridKeys = (p, world) => (world === 'bandit' && fam(p) === 'value' ? ['eps', 'ucb', 'optimistic', 'step'] : C.families[fam(p)].keys);
@@ -1286,12 +1336,14 @@
     if (world === 'pendulum') return 'angle ' + Math.round(Math.atan2(s[1], s[0]) * 180 / Math.PI) + '° from upright, speed ' + fmt(s[2] * 8) + ' rad/s';
     if (world === 'reach') return 'tip ' + fmt(Math.hypot(s[6], s[7])) + ' m from the target' + (s[10] > 0 ? ', holding the payload' : '');
     if (world === 'fork') return 'position (' + fmt(s[0]) + ', ' + fmt(s[1]) + ')';
+    if (world === 'fetch') return 'stick ' + fmt(s[2] * 2) + ' away, ' + Math.round(Math.atan2(s[1], s[0]) * 180 / Math.PI) + '° from the nose' + (s[5] > 0 ? ', carrying it' : '');
     if (world === 'goalgrid') { const n = (knobs && knobs.size) || 7; return 'cell (' + Math.round(s[2] * n) + ', ' + Math.round(s[3] * n) + '), goal (' + Math.round((s[0] + s[2]) * n) + ', ' + Math.round((s[1] + s[3]) * n) + ')'; }
     return 'cart ' + fmt(s[0]) + ', cart speed ' + fmt(s[1]) + ', pole angle ' + fmt(s[2]) + ', pole speed ' + fmt(s[3]) + ' (scaled)';
   }
   function fmtAction(world, a, s, knobs) {
     if (a && typeof a === 'object') return '[' + Array.from(a).map(fmt).join(', ') + ']';
     if (world === 'goalgrid') return ['up', 'right', 'down', 'left'][a];
+    if (world === 'fetch') return ['walk', 'turn left', 'turn right', 'sit'][a];
     if (a == null || a < 0) return '?';
     if (world === 'cliff') return ACT.cliff[a];
     if (world === 'bandit') return 'machine ' + (a + 1);
@@ -1745,19 +1797,19 @@
     ])));
     if (st >= 3) {
       const status = h('p.small', { text: 'Tap a word to see the choices. Words in a dashed box do nothing in this sentence.' });
-      steps.append(mk(3, 'Repair: change the words', h('div.stack', null, [
+      steps.append(mk(3, lv.repairKnobs ? 'Repair: change the reward' : 'Repair: change the words', h('div.stack', null, [
         h('p', { html: lv.repairText }),
-        mainSentence({ focus: () => lv.focus, withName: true, withMath: true }),
+        lv.repairKnobs ? rewardPanel(lv) : mainSentence({ focus: () => lv.focus, withName: true, withMath: true }),
         h('div.row', null, [h('button.btn', { type: 'button', onclick: async () => {
-          if (S.world !== lv.world || JSON.stringify(S.knobs) !== JSON.stringify(lv.knobs || {})) setWorld(lv.world, lv.knobs || {});
+          if (S.world !== lv.world || (!lv.repairKnobs && JSON.stringify(S.knobs) !== JSON.stringify(lv.knobs || {}))) setWorld(lv.world, lv.knobs || {});
           const a = await run(); if (!a) return;
           const ok = lv.goal.test(a, S.parts);
-          const notes = (lv.notes || []).filter((n) => n.when(a, S.parts)).map((n) => (typeof n.text === 'function' ? n.text(a, S.parts) : n.text.replace('{final}', fmt(a.summary.finalReturn))));
+          const notes = (lv.notes || []).filter((n) => n.when(a, S.parts, S.knobs)).map((n) => (typeof n.text === 'function' ? n.text(a, S.parts, S.knobs) : n.text.replace('{final}', fmt(a.summary.finalReturn))));
           if (ok) {
             if (!S.done.includes(lv.id)) S.done.push(lv.id);
             for (const id of [].concat(lv.revealOnDone || [])) if (!S.given.includes(id)) S.given.push(id);
             const rec = recognize(S.parts, S.world);
-            S.made[lv.id] = { parts: Object.assign({}, S.parts), recipe: rec ? rec.id : null, notes };
+            S.made[lv.id] = { parts: Object.assign({}, S.parts), recipe: rec ? rec.id : null, notes, knobs: lv.repairKnobs ? Object.assign({}, S.knobs) : undefined };
             setStep(lv, lv.explain ? 4 : 5); save(); render();
           } else status.textContent = (notes.length ? notes.join(' ') + ' ' : '') + 'Not fixed yet: ' + lv.goal.text + ' Read the autopsy, or pin this run as A and change one word.';
         } }, 'Run this sentence')]),
@@ -1770,8 +1822,41 @@
     card.append(steps);
     pane.append(card);
   };
+  // the reward controls of a level whose repair is the reward
+  function rewardPanel(lv) {
+    const box = h('div.stack.reward-panel');
+    const meta = RLA.worlds[lv.world].knobs;
+    const draw = () => {
+      const cur = Object.assign(RLA.knobDefaults(lv.world), S.knobs);
+      box.replaceChildren(...lv.repairKnobs.map((key) => {
+        const m = meta.find((k) => k.key === key);
+        if (key === 'shaping') {
+          const sel = h('select', { id: 'rk-' + key, onchange: (e) => { S.knobs = Object.assign({}, S.knobs, { shaping: +e.target.value }); renderStage(); draw(); } },
+            [['0', 'none'], ['1', 'pay only for getting closer'], ['2', 'potential-based: γ·Φ(next) − Φ(now), Φ = −distance']].map(([v, t]) => h('option', { value: v, selected: String(cur.shaping) === v }, t)));
+          return h('label.field', null, [h('span.small', { text: m.label }), sel]);
+        }
+        const val = h('b.mono', { text: String(cur[key]) });
+        const inp = h('input', { type: 'range', id: 'rk-' + key, min: m.min, max: m.max, step: m.step, value: cur[key],
+          oninput: (e) => { val.textContent = e.target.value; }, onchange: (e) => { S.knobs = Object.assign({}, S.knobs, { [key]: +e.target.value }); renderStage(); } });
+        return h('label.field', null, [h('span.small', null, [m.label + ': ', val]), inp, h('span.small.muted', { text: m.help })]);
+      }), h('div.row', null, [h('button.btn.ghost.tiny', { type: 'button', onclick: () => { S.knobs = Object.assign({}, lv.knobs || {}); renderStage(); draw(); } }, 'Back to the starting reward')]));
+    };
+    draw();
+    return box;
+  }
   function consolidation(lv) {
     const made = S.made[lv.id] || { parts: S.parts, recipe: null };
+    if (lv.repairKnobs) {
+      const box = h('div.stack');
+      const k = Object.assign(RLA.knobDefaults(lv.world), made.knobs || S.knobs);
+      box.append(h('p', { html: 'Your reward: stick ' + k.found + ', step cost ' + k.timeCost + ', facing bonus ' + k.facingW + ', getting-closer reward: ' + ['none', 'paid only for getting closer', 'potential-based'][k.shaping] + (k.shaping ? ' (weight ' + k.closerW + ')' : '') + '. The dog fetches.' }));
+      for (const id of ['rewardhack', 'pbrs']) if (S.found.includes(id)) box.append(cardView(id, true));
+      if (!S.found.includes('pbrs')) box.append(h('p.small', { text: 'One reward method is still hidden in this level: a getting-closer reward that no loop can game.' }));
+      for (const n of made.notes || []) box.append(h('p.small', { text: n }));
+      box.append(h('p', { text: 'Now play: click or tap the field to throw the stick, and watch the trained dog fetch it.' }));
+      box.append(h('p', { html: '<b>On a real robot:</b> ' + lv.soWhat }), h('p.small', { html: '<b>What this toy world cannot teach:</b> ' + lv.cannotTeach }), nextLevelButton(lv));
+      return box;
+    }
     const rec = C.recipes.find((r) => r.id === made.recipe);
     const box = h('div.stack');
     if (lv.id === 'cells') {
@@ -1822,8 +1907,9 @@
   function enterLevel(lv, forceStart) {
     if (S.world !== lv.world || JSON.stringify(S.knobs) !== JSON.stringify(lv.knobs || {})) setWorld(lv.world, lv.knobs || {});
     const step = S.lstep[lv.id] || 0;
-    if (forceStart || step < 3) setParts(lv.start);
-    else if (S.made[lv.id]) setParts(S.made[lv.id].parts);
+    // a repair in progress keeps the player's words, unless they belong to another kind of learner (a reload, another level)
+    if (forceStart || step < 3 || (!S.made[lv.id] && fam(S.parts) !== fam(lv.start))) setParts(lv.start);
+    else if (S.made[lv.id]) { setParts(S.made[lv.id].parts); if (lv.repairKnobs && S.made[lv.id].knobs) { S.knobs = Object.assign({}, S.made[lv.id].knobs); renderStage(); } }
     $('#seeds').value = String(lv.seeds); if (lv.steps) $('#budget').value = String(lv.steps);
   }
 
@@ -2310,11 +2396,20 @@
     const base = h('input', { id: 'ai-base', autocomplete: 'off', spellcheck: 'false', value: v.baseUrl || '' });
     const remember = h('input', { type: 'checkbox', id: 'ai-remember', checked: !!v.remember });
     const status = h('p.small', { id: 'ai-status', 'aria-live': 'polite' });
+    const hint = h('p.small.ai-only', { id: 'ai-hint' });
+    const HINTS = {
+      anthropic: 'Make a key at console.anthropic.com. Give the key a spending limit.',
+      openai: 'Make a key at platform.openai.com. Give the key a spending limit, and type a model name or use "List models".',
+      openrouter: 'Make a key at openrouter.ai. One key reaches many models. Give the key a credit limit.',
+      ollama: 'Ollama runs a model on your own computer, with no key and no cost per message. Start it with OLLAMA_ORIGINS=* ollama serve so this page may call it.',
+      custom: 'Any server with an OpenAI-compatible /chat/completions endpoint. It must allow requests from this page (CORS).',
+    };
     const read = () => ({ provider: prov.value, apiKey: key.value.trim(), model: model.value.trim(), baseUrl: base.value.trim(), remember: remember.checked });
     const sync = () => {
       const p = P[prov.value];
       for (const el of settingsDlg.querySelectorAll('.ai-only')) el.hidden = !p;
       if (!p) return;
+      hint.textContent = HINTS[prov.value] || '';
       key.closest('.field').hidden = !p.needsKey && prov.value !== 'custom';
       model.placeholder = p.defaultModel ? 'Default: ' + p.defaultModel : 'Model name, for example from "List models"';
       base.placeholder = p.baseUrl || 'https://your-server/v1';
@@ -2343,7 +2438,7 @@
           field('Model', model, listBtn, 'ai-only'), models,
           field('Server address', base, null, 'ai-only'),
           h('label.small.ai-only', null, [remember, ' Remember the key on this computer (off: it is forgotten when you close the tab)']),
-          h('p.small.ai-only', { text: 'Ollama runs a model on your own computer, with no key and no cost per message. Start it with OLLAMA_ORIGINS=* so this page may call it.' }),
+          hint,
           h('div.row.ai-only', null, [testBtn]), status,
           h('div.row', null, [
             h('button.btn', { type: 'button', onclick: () => { AI = read(); saveAI(AI); toast(AI.provider ? 'Tutor saved: ' + aiLabel() : 'Tutor off'); settingsDlg.close(); if (S.mode === 'chat') render(); } }, 'Save'),

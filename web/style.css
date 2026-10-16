@@ -289,8 +289,13 @@ ol.steps .num { display: grid; place-items: center; width: 30px; height: 30px; b
   .top-row { flex-wrap: nowrap; align-items: center; }
   .top-row h1 { font-size: 1.35rem; }
   .top-right { flex-wrap: nowrap; }
-  .score .pill:nth-of-type(n+3) { display: none; }
+  .score .pill:nth-of-type(n+4) { display: none; }  /* the rank is the first span: keep levels and methods */
   .score .rank { display: none; }
   .wide-only { display: none; }
   .tabs { margin-top: 8px; }
 }
+
+/* reward controls (bonus level) */
+.reward-panel { border: 1px dashed var(--line); border-radius: 8px; padding: 10px; }
+.reward-panel input[type="range"] { width: 100%; accent-color: var(--accent); }
+.muted { color: var(--muted); }

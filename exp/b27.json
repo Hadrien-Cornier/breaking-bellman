@@ -1,0 +1,362 @@
+[
+ {
+  "name": "f-plain-30k",
+  "world": "fetch",
+  "knobs": {
+   "maxSteps": 60,
+   "throwMax": 1.2,
+   "found": 1,
+   "timeCost": 0.01,
+   "shaping": 0,
+   "closerW": 1,
+   "facingW": 0,
+   "spinCost": 0,
+   "bringBack": 0
+  },
+  "parts": {
+   "family": "pg",
+   "batch": 8,
+   "group": "none",
+   "credit": "togo",
+   "baseline": "critic",
+   "adv": "gae",
+   "scale": "none",
+   "ratio": "clip",
+   "epochs": 4,
+   "lr": 0.003,
+   "bonus": 0
+  },
+  "steps": 30000,
+  "seeds": 3
+ },
+ {
+  "name": "f-closer1-30k",
+  "world": "fetch",
+  "knobs": {
+   "maxSteps": 60,
+   "throwMax": 1.2,
+   "found": 1,
+   "timeCost": 0.01,
+   "shaping": 1,
+   "closerW": 1,
+   "facingW": 0,
+   "spinCost": 0,
+   "bringBack": 0
+  },
+  "parts": {
+   "family": "pg",
+   "batch": 8,
+   "group": "none",
+   "credit": "togo",
+   "baseline": "critic",
+   "adv": "gae",
+   "scale": "none",
+   "ratio": "clip",
+   "epochs": 4,
+   "lr": 0.003,
+   "bonus": 0
+  },
+  "steps": 30000,
+  "seeds": 3
+ },
+ {
+  "name": "f-closer1w2-30k",
+  "world": "fetch",
+  "knobs": {
+   "maxSteps": 60,
+   "throwMax": 1.2,
+   "found": 1,
+   "timeCost": 0.01,
+   "shaping": 1,
+   "closerW": 2,
+   "facingW": 0,
+   "spinCost": 0,
+   "bringBack": 0
+  },
+  "parts": {
+   "family": "pg",
+   "batch": 8,
+   "group": "none",
+   "credit": "togo",
+   "baseline": "critic",
+   "adv": "gae",
+   "scale": "none",
+   "ratio": "clip",
+   "epochs": 4,
+   "lr": 0.003,
+   "bonus": 0
+  },
+  "steps": 30000,
+  "seeds": 3
+ },
+ {
+  "name": "f-pbrs-30k",
+  "world": "fetch",
+  "knobs": {
+   "maxSteps": 60,
+   "throwMax": 1.2,
+   "found": 1,
+   "timeCost": 0.01,
+   "shaping": 2,
+   "closerW": 1,
+   "facingW": 0,
+   "spinCost": 0,
+   "bringBack": 0
+  },
+  "parts": {
+   "family": "pg",
+   "batch": 8,
+   "group": "none",
+   "credit": "togo",
+   "baseline": "critic",
+   "adv": "gae",
+   "scale": "none",
+   "ratio": "clip",
+   "epochs": 4,
+   "lr": 0.003,
+   "bonus": 0
+  },
+  "steps": 30000,
+  "seeds": 3
+ },
+ {
+  "name": "f-facing05-30k",
+  "world": "fetch",
+  "knobs": {
+   "maxSteps": 60,
+   "throwMax": 1.2,
+   "found": 1,
+   "timeCost": 0.01,
+   "shaping": 0,
+   "closerW": 1,
+   "facingW": 0.05,
+   "spinCost": 0,
+   "bringBack": 0
+  },
+  "parts": {
+   "family": "pg",
+   "batch": 8,
+   "group": "none",
+   "credit": "togo",
+   "baseline": "critic",
+   "adv": "gae",
+   "scale": "none",
+   "ratio": "clip",
+   "epochs": 4,
+   "lr": 0.003,
+   "bonus": 0
+  },
+  "steps": 30000,
+  "seeds": 3
+ },
+ {
+  "name": "f-facing05t0-30k",
+  "world": "fetch",
+  "knobs": {
+   "maxSteps": 60,
+   "throwMax": 1.2,
+   "found": 1,
+   "timeCost": 0,
+   "shaping": 0,
+   "closerW": 1,
+   "facingW": 0.05,
+   "spinCost": 0,
+   "bringBack": 0
+  },
+  "parts": {
+   "family": "pg",
+   "batch": 8,
+   "group": "none",
+   "credit": "togo",
+   "baseline": "critic",
+   "adv": "gae",
+   "scale": "none",
+   "ratio": "clip",
+   "epochs": 4,
+   "lr": 0.003,
+   "bonus": 0
+  },
+  "steps": 30000,
+  "seeds": 3
+ },
+ {
+  "name": "f-plain-60k",
+  "world": "fetch",
+  "knobs": {
+   "maxSteps": 60,
+   "throwMax": 1.2,
+   "found": 1,
+   "timeCost": 0.01,
+   "shaping": 0,
+   "closerW": 1,
+   "facingW": 0,
+   "spinCost": 0,
+   "bringBack": 0
+  },
+  "parts": {
+   "family": "pg",
+   "batch": 8,
+   "group": "none",
+   "credit": "togo",
+   "baseline": "critic",
+   "adv": "gae",
+   "scale": "none",
+   "ratio": "clip",
+   "epochs": 4,
+   "lr": 0.003,
+   "bonus": 0
+  },
+  "steps": 60000,
+  "seeds": 3
+ },
+ {
+  "name": "f-closer1-60k",
+  "world": "fetch",
+  "knobs": {
+   "maxSteps": 60,
+   "throwMax": 1.2,
+   "found": 1,
+   "timeCost": 0.01,
+   "shaping": 1,
+   "closerW": 1,
+   "facingW": 0,
+   "spinCost": 0,
+   "bringBack": 0
+  },
+  "parts": {
+   "family": "pg",
+   "batch": 8,
+   "group": "none",
+   "credit": "togo",
+   "baseline": "critic",
+   "adv": "gae",
+   "scale": "none",
+   "ratio": "clip",
+   "epochs": 4,
+   "lr": 0.003,
+   "bonus": 0
+  },
+  "steps": 60000,
+  "seeds": 3
+ },
+ {
+  "name": "f-closer1w2-60k",
+  "world": "fetch",
+  "knobs": {
+   "maxSteps": 60,
+   "throwMax": 1.2,
+   "found": 1,
+   "timeCost": 0.01,
+   "shaping": 1,
+   "closerW": 2,
+   "facingW": 0,
+   "spinCost": 0,
+   "bringBack": 0
+  },
+  "parts": {
+   "family": "pg",
+   "batch": 8,
+   "group": "none",
+   "credit": "togo",
+   "baseline": "critic",
+   "adv": "gae",
+   "scale": "none",
+   "ratio": "clip",
+   "epochs": 4,
+   "lr": 0.003,
+   "bonus": 0
+  },
+  "steps": 60000,
+  "seeds": 3
+ },
+ {
+  "name": "f-pbrs-60k",
+  "world": "fetch",
+  "knobs": {
+   "maxSteps": 60,
+   "throwMax": 1.2,
+   "found": 1,
+   "timeCost": 0.01,
+   "shaping": 2,
+   "closerW": 1,
+   "facingW": 0,
+   "spinCost": 0,
+   "bringBack": 0
+  },
+  "parts": {
+   "family": "pg",
+   "batch": 8,
+   "group": "none",
+   "credit": "togo",
+   "baseline": "critic",
+   "adv": "gae",
+   "scale": "none",
+   "ratio": "clip",
+   "epochs": 4,
+   "lr": 0.003,
+   "bonus": 0
+  },
+  "steps": 60000,
+  "seeds": 3
+ },
+ {
+  "name": "f-facing05-60k",
+  "world": "fetch",
+  "knobs": {
+   "maxSteps": 60,
+   "throwMax": 1.2,
+   "found": 1,
+   "timeCost": 0.01,
+   "shaping": 0,
+   "closerW": 1,
+   "facingW": 0.05,
+   "spinCost": 0,
+   "bringBack": 0
+  },
+  "parts": {
+   "family": "pg",
+   "batch": 8,
+   "group": "none",
+   "credit": "togo",
+   "baseline": "critic",
+   "adv": "gae",
+   "scale": "none",
+   "ratio": "clip",
+   "epochs": 4,
+   "lr": 0.003,
+   "bonus": 0
+  },
+  "steps": 60000,
+  "seeds": 3
+ },
+ {
+  "name": "f-facing05t0-60k",
+  "world": "fetch",
+  "knobs": {
+   "maxSteps": 60,
+   "throwMax": 1.2,
+   "found": 1,
+   "timeCost": 0,
+   "shaping": 0,
+   "closerW": 1,
+   "facingW": 0.05,
+   "spinCost": 0,
+   "bringBack": 0
+  },
+  "parts": {
+   "family": "pg",
+   "batch": 8,
+   "group": "none",
+   "credit": "togo",
+   "baseline": "critic",
+   "adv": "gae",
+   "scale": "none",
+   "ratio": "clip",
+   "epochs": 4,
+   "lr": 0.003,
+   "bonus": 0
+  },
+  "steps": 60000,
+  "seeds": 3
+ }
+]

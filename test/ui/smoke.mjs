@@ -25,6 +25,10 @@ async function session(w, h, name, fn) {
   page.on('pageerror', (e) => errors.push(name + ' pageerror: ' + e.message));
   await page.goto('file://' + out + '/page.html');
   await page.waitForTimeout(500);
+  // a first visit opens the welcome dialog; it must close and leave level 1 ready
+  check(await page.locator('dialog.intro').isVisible(), name + ' first visit shows the welcome');
+  await page.locator('dialog.intro button', { hasText: 'Start level 1' }).click();
+  check(!(await page.locator('dialog.intro').count()), name + ' the welcome closes');
   await fn(page);
   const sw = await page.evaluate(() => document.documentElement.scrollWidth);
   check(sw <= w, name + ' no horizontal scroll (scrollWidth ' + sw + ', viewport ' + w + ')');
@@ -231,7 +235,7 @@ await session(375, 812, 'comments', async (page) => {
   check(/last 12 pulls/.test(await page.locator('#replay-lab .rp-ep').innerText()), 'the replay shows the pulls before the update');
   await page.evaluate(() => { const v = JSON.parse(localStorage.getItem('breaking-bellman-v1')) || {}; v.found = ['egreedy', 'expsarsa']; v.mode = 'codex'; localStorage.setItem('breaking-bellman-v1', JSON.stringify(v)); });
   await page.reload(); await page.waitForTimeout(500);
-  check(/2 of 33 methods/.test(await page.locator('#score').innerText()), 'the score counts methods out of 33');
+  check(/2\/34 methods/.test(await page.locator('#score').innerText()), 'the score counts methods out of 34');
   check(/1 of 9 found, 8 left/.test(await page.locator('.dmap').innerText()), 'the discovery map counts the grid-world methods');
   const mp = page.locator('details.mp');
   check(await mp.count() === 1, 'the Expected Sarsa card has one mirage drawer');

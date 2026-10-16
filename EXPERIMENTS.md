@@ -469,3 +469,41 @@ value of DQN is mostly set by the number of refreshes, not by the "next action" 
 
 Limits: 3 runs per network config; the cap is approximate (the network generalizes, and "every 50" overshoots it). The
 table CartPole learner does not solve the task with any word, so its gaps compare unsolved policies.
+
+## Batch 27: Fetch, a dog that learns what the reward pays for (16 Oct 2026)
+
+Question: in a small fetch world (inspired by Huggy from the Hugging Face Deep RL course), which reward parts does a
+PPO-like learner game, and which ones are safe? This is the calibration of the bonus level "Fetch!".
+
+Prediction: a per-step bonus for facing the stick, paid also while the dog sits, beats the stick (1, paid once) when it
+is large enough, so the dog turns to the stick and sits. "Pay only for getting closer" can be gamed by walking away and
+back. Potential-based shaping (Ng, Harada and Russell 1999) cannot be gamed.
+
+Settings: world `fetch` (field [−1, 1]², dog at the thrower, stick thrown 0.5 to 1.2 away, 60 steps, γ = 0.97,
+4 actions: walk 0.07, turn ±0.45 rad with a small step, sit). Sentence: 8 episodes per batch, rewards after the action,
+a learned V(s) with GAE (λ = 0.95), 4 passes, clip 20%, step size 0.003. 3 seeds (101, 202, 303); final test: 20 throws
+per seed. Configs: `exp/b27.json`, `exp/b27b.json` (made by `exp/b27gen.py`, `exp/b27bgen.py`). Raw results:
+`exp/out/b27.json`, `exp/out/b27b.json`. Run time: 1 to 6 s per config (3 seeds in parallel).
+
+| Reward (stick 1, step cost 0.01 unless stated) | Steps | Stick fetched | Reward per test throw |
+|---|---|---|---|
+| Plain (no shaping) | 10000 / 20000 / 60000 | 98% / 100% / 100% | 0.84 / 0.87 / 0.87 |
+| Plain, no step cost | 30000 | 100% | 1.00 |
+| Facing bonus 0.01 / 0.02 / 0.03 per step | 30000 | 100% / 100% / 100% | 0.98 / 1.09 / 1.20 |
+| Facing bonus 0.05 per step | 10000 / 20000 / 30000 / 60000 | 2% / 0% / 0% / 0% | 2.12 / 2.12 / 2.16 / 2.24 |
+| Facing bonus 0.05, no step cost | 30000 / 60000 | 0% / 0% | 2.75 / 2.84 |
+| Pay only for getting closer, weight 1 / 2 / 3 | 30000 | 100% / 100% / 100% | 1.55 / 2.24 / 2.92 |
+| Potential-based shaping, weight 1 | 10000 / 20000 / 30000 | 100% / 100% / 100% | 1.79 |
+| Bring it back (120 steps), plain / potential-based | 60000 | 100% / 100% | 1.19 / 3.16 |
+| REINFORCE (4 episodes, 1 pass), plain / facing 0.05 | 30000 | 92% / 73% | 0.73 / 1.68 |
+
+Interpretation: the facing bonus has a sharp threshold between 0.03 and 0.05 per step. Above it, the trained dog turns
+to the stick and sits for the whole throw, and more training makes it better at staring (2.12 at 20000 steps, 2.24 at
+60000). "Pay only for getting closer" was not gamed in this world: with γ = 0.97 the discounted value of a loop is
+below the stick plus the straight path. The loop exists without discounting: `test/fetch.test.js` has a scripted dog
+that walks away and back and earns more than the fetching dog (undiscounted, 120 steps, weight 3). The weaker learner
+(REINFORCE) still fetched in 73% of throws with the 0.05 bonus; its policy was still much more random (entropy 1.0 nats against
+0.25 for PPO at the same budget), so it had not finished converging to the hack.
+
+Limits: 3 seeds per config; one world; the threshold depends on γ, the time limit and the step cost. A 2D dog that turns
+and walks is not Huggy, which moves four legs with joint motors (the course trains it with PPO for 2 million steps).
