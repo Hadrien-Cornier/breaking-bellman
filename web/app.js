@@ -199,8 +199,13 @@
     if (world === 'bandit') return o;
     if (p.data !== 'replay') o.memory = 'the memory is used only with "random old moves from memory".';
     if (p.store === 'net') o.step = 'a network always moves by small gradient steps (Adam, learning rate 0.001).';
-    if (p.nstep === 0) { const r = 'with all rewards to the end there is no guess.'; o.agg = o.picker = o.scorer = o.sync = r; }
-    else {
+    // a row keeps a guess only when nstep leaves room for one before the episode ends
+    const maxSteps = (RLA.knobDefaults(world) || {}).maxSteps || 1;
+    const noGuess = p.nstep === 0 || p.nstep >= maxSteps;
+    if (noGuess) {
+      const r = p.nstep === 0 ? 'with all rewards to the end there is no guess.' : p.nstep + ' real rewards is the whole episode here, so there is no guess.';
+      o.agg = o.picker = o.scorer = o.sync = r;
+    } else {
       if (p.agg === 'taken') o.picker = 'the action really taken next is not chosen by any estimate.';
       if (p.picker !== 'frozen' && p.scorer !== 'frozen') o.sync = 'no frozen copy is used in this sentence.';
     }
@@ -538,8 +543,20 @@
       return { main: { xs: m.map((_, i) => i + 1), ys: m } };
     }
     if (world === 'mirage') {
-      const nE = Math.min(...results.map((r) => r.ep.left.length));
-      const m = []; for (let i = 0; i < nE; i++) m.push(results.reduce((s, r) => s + r.ep.left[i], 0) / results.length);
+      // an episode is 1 step if the agent goes right and 2 if it goes left, so run lengths differ a
+      // lot. The curve is the left-door rate against the share of each run's own episodes (0 to 100%),
+      // so its right edge is the end of every run and it matches the "at the end" figure.
+      const NB = 100;
+      const m = [];
+      for (let b = 0; b < NB; b++) {
+        let acc = 0;
+        for (const r of results) {
+          const n = r.ep.left.length, a = Math.floor(n * b / NB), c = Math.max(a + 1, Math.floor(n * (b + 1) / NB));
+          const seg = r.ep.left.slice(a, c);
+          acc += seg.reduce((s, x) => s + x, 0) / Math.max(1, seg.length);
+        }
+        m.push(acc / results.length);
+      }
       const mm = movingMean(m, 10);
       return { main: { xs: mm.map((_, i) => i + 1), ys: mm } };
     }
@@ -567,11 +584,11 @@
     if (S.world === 'bandit' || S.world === 'mirage') {
       const isB = S.world === 'bandit';
       box.replaceChildren(h('div.eyebrow', { text: isB ? 'Share of pulls on the best machine' : 'Share of episodes that take the left door' }),
-        chartBox('ch-main', isB ? 'Best machine chosen (moving mean of 50 pulls, mean of runs)' : 'Left door from A (mean of runs, window 10 episodes)', [[ink, 'this run']].concat(aLeg, isB ? [] : [[muted, '5%: random tries alone']])));
+        chartBox('ch-main', isB ? 'Best machine chosen (moving mean of 50 pulls, mean of runs)' : 'Left door from A (mean of runs, window 10% of each run)', [[ink, 'this run']].concat(aLeg, isB ? [] : [[muted, '5%: random tries alone']])));
       if (!done) return;
       const c = curvesOf(S.results, S.world).main;
       lineChart($('#ch-main'), aSer(A && A.curves.main).concat([{ xs: c.xs, ys: c.ys, color: ink, width: 2.2, end: true, label: 'this run' }]),
-        { xmax: Math.max(c.xs.length, A ? A.curves.main.xs.length : 0), ymin: 0, ymax: 1, ref: isB ? null : 0.05, xlabel: isB ? 'pulls' : 'episodes' });
+        { xmax: isB ? Math.max(c.xs.length, A ? A.curves.main.xs.length : 0) : 100, ymin: 0, ymax: 1, ref: isB ? null : 0.05, xlabel: isB ? 'pulls' : "share of each run's episodes (%)" });
       return;
     }
     const F = fam(S.lastCfg ? S.lastCfg.parts : S.parts), P_ = S.lastCfg ? S.lastCfg.parts : S.parts;
@@ -2043,7 +2060,7 @@
     }
     // many runs: the share of episodes that take the left door
     const chartId = 'ch-mirage-' + (++miragePeekN);
-    const chart = chartBox(chartId, 'Left door from A (mean of 300 runs, window 10 episodes)', [[css('--ink'), 'Q-learning'], [css('--accent'), 'Expected Sarsa'], [css('--muted'), '5%: random tries alone']]);
+    const chart = chartBox(chartId, 'Left door from A (mean of 300 runs, window 10% of each run)', [[css('--ink'), 'Q-learning'], [css('--accent'), 'Expected Sarsa'], [css('--muted'), '5%: random tries alone']]);
     const res = h('p.small');
     const runBtn = h('button.btn.ghost', { type: 'button', onclick: runMany }, 'Run 300 learners of each (about 2 s)');
     async function runMany() {
@@ -2054,7 +2071,7 @@
         for (let i = 0; i < 300; i++) { rs.push(RLA.run({ world: 'mirage', parts: L.parts(), hyper, steps: 600, seed: 1 + i })); if (i % 25 === 24) await new Promise((r) => setTimeout(r, 0)); }
         out.push({ L, a: RLA.autopsy(rs), c: curvesOf(rs, 'mirage').main });
       }
-      lineChart(chart.querySelector('canvas'), out.map((o, k) => ({ xs: o.c.xs, ys: o.c.ys, color: k ? css('--accent') : css('--ink'), width: 2.2, label: o.L.name })), { xmax: Math.max(...out.map((o) => o.c.xs.length)), ymin: 0, ymax: 1, ref: 0.05, xlabel: 'episodes' });
+      lineChart(chart.querySelector('canvas'), out.map((o, k) => ({ xs: o.c.xs, ys: o.c.ys, color: k ? css('--accent') : css('--ink'), width: 2.2, label: o.L.name })), { xmax: 100, ymin: 0, ymax: 1, ref: 0.05, xlabel: "share of each run's episodes (%)" });
       res.textContent = 'Left door at the worst point: ' + out.map((o) => o.L.name + ' ' + Math.round(100 * o.a.summary.leftPeak) + '%').join(', ') +
         '. At the end: ' + out.map((o) => o.L.name + ' ' + Math.round(100 * o.a.summary.leftLate) + '%').join(', ') + '. 300 runs each, seeds 1 to 300, run in your browser now (Simulation).';
       runBtn.disabled = false;

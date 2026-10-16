@@ -28,18 +28,51 @@
     }
 
     if (r0.world === 'mirage') {
-      // share of episodes that took the left door, early and late (optimal with epsilon 0.1 is about 5%)
-      const nE = Math.min.apply(null, results.map((r) => r.ep.left.length));
-      const early = Math.max(1, Math.floor(nE * 0.1)), lateFrom = Math.floor(nE * 0.8);
-      const share = (r, a, b) => mean(r.ep.left.slice(a, b));
-      const e = mean(results.map((r) => share(r, 0, early))), peakWin = mean(results.map((r) => Math.max.apply(null, [0.1, 0.2, 0.3].map((f) => share(r, Math.floor(nE * f), Math.floor(nE * (f + 0.1)))))));
-      const late = mean(results.map((r) => share(r, lateFrom, nE)));
-      const qLeft = mean(results.map((r) => r.final.qA ? r.final.qA[1] : NaN));
-      out.summary = { leftEarly: e, leftPeak: peakWin, leftLate: late, qLeft, trueLeft: r0.knobs.mean, episodes: nE, seeds: results.length };
-      const ev = `Left door in ${(peakWin * 100).toFixed(0)}% of episodes at the worst point, ${(late * 100).toFixed(0)}% at the end (about 5% is only exploration). Q(A, left) = ${qLeft.toFixed(2)}, true value ${r0.knobs.mean}. Mean of ${results.length} runs.`;
-      if (r0.knobs.mean < 0 && peakWin > 0.4) add('mirage', 'bad', 'Chases the mirage', ev);
-      else if (r0.knobs.mean < 0 && peakWin > 0.2) add('mirage', 'warn', 'Tempted by the mirage', ev);
-      else add('mirage', 'ok', 'Avoids the mirage', ev);
+      // Share of episodes that took the left door. Every window is a fraction of each seed's own
+      // episode count, so "at the end" is the end of every run (an episode is 1 step if the agent
+      // goes right and 2 if it goes left, so the episode counts differ a lot between seeds).
+      const P = r0.parts || {};
+      const maxSteps = (r0.knobs && r0.knobs.maxSteps) || 2;
+      const nstep = P.nstep == null ? 1 : +P.nstep;
+      // a row keeps a guess only when nstep leaves room for one before the episode ends
+      const noGuess = !(nstep > 0) || nstep >= maxSteps;
+      const hasMax = !noGuess && P.agg === 'max'; // the target can take a max over the machines
+      const binOf = (r, f0, f1) => {
+        const n = r.ep.left.length, a = Math.floor(n * f0), b = Math.max(a + 1, Math.floor(n * f1));
+        return mean(r.ep.left.slice(a, b));
+      };
+      const e = mean(results.map((r) => binOf(r, 0, 0.1)));
+      // the worst of the three early windows, each window measured on the mean curve. A per-seed max
+      // over the same three windows lifts a flat coin flip to about 56%; the max of the window means
+      // does not, so the number reads as the rate it is.
+      const wins = [0.1, 0.2, 0.3].map((f) => mean(results.map((r) => binOf(r, f, f + 0.1))));
+      const peakWin = Math.max.apply(null, wins), stretch = mean(wins);
+      const late = mean(results.map((r) => binOf(r, 0.8, 1)));
+      const qLeft = mean(results.map((r) => (r.final && r.final.qA ? r.final.qA[1] : NaN)));
+      const nEp = mean(results.map((r) => r.ep.left.length));
+      // a random try takes the left door with probability epsilon / 2 (two doors in state A)
+      const epsNow = P.eps ? (r0.diag && r0.diag.length && isFinite(r0.diag[0].eps) ? r0.diag[0].eps : 0.1) : 0;
+      const exploreShare = epsNow / 2;
+      // on most runs, did any update land before the early stretch ended? Replay can push the first
+      // update past the window this goal measures. Only say so when the runs record update counts.
+      const knowsUpdates = results.some((r) => r.diag && r.diag.some((x) => x.updates != null));
+      const delayed = knowsUpdates && mean(results.map((r) => {
+        const n = r.ep.left.length, end = r.ep.t[Math.max(0, Math.floor(n * 0.4) - 1)];
+        const first = r.diag && r.diag.find((x) => (x.updates || 0) > 0);
+        return first && first.t <= end ? 0 : 1;
+      })) > 0.5;
+      out.summary = { leftEarly: e, leftPeak: peakWin, leftPeakMean: stretch, leftLate: late, qLeft, trueLeft: r0.knobs.mean, episodes: nEp, seeds: results.length, hasMax, noGuess };
+      const endNote = exploreShare > 0
+        ? `the last 20% of each run; about ${Math.round(100 * exploreShare)}% is only exploration`
+        : 'the last 20% of each run';
+      const ev = `Left door in ${(peakWin * 100).toFixed(0)}% of episodes at the worst of three windows (10-20%, 20-30% and 30-40% of each run; mean ${(stretch * 100).toFixed(0)}% there), ${(late * 100).toFixed(0)}% at the end (${endNote}). Q(A, left) = ${qLeft.toFixed(2)}, true value ${r0.knobs.mean}. Mean of ${results.length} runs.`;
+      let cause = '';
+      if (noGuess) cause = ' This is not maximization bias: the target has no guess, so no max over the machines enters it.';
+      else if (!hasMax) cause = ' This is not maximization bias: the target scores the ' + (P.agg === 'min' ? 'worst' : P.agg === 'mean' ? 'average' : 'taken') + ' next action, not the max.';
+      if (delayed) cause += ' No update had landed in that window on most runs, so the estimates were still at their start values there.';
+      if (r0.knobs.mean < 0 && peakWin > 0.4) add('mirage', 'bad', hasMax ? 'Chases the mirage' : 'Takes the left door too often early', ev + cause);
+      else if (r0.knobs.mean < 0 && peakWin > 0.2) add('mirage', 'warn', hasMax ? 'Tempted by the mirage' : 'Often takes the left door early', ev + cause);
+      else add('mirage', 'ok', 'Avoids the mirage', ev + cause);
       return out;
     }
 

@@ -15,6 +15,12 @@
     { key: 'maxSteps', label: 'Time limit (steps)', min: 2, max: 2, step: 1, default: 2, help: 'An episode has at most two steps.' },
   ];
 
+  // The episode is 1 or 2 steps long, and the level 6 goal measures the first few hundred episodes.
+  // The default learnStart of 500 stored rows lands past that window (about 250-500 episodes here),
+  // so a sentence with memory never starts to learn inside the measured stretch. 50 rows is about
+  // 30 episodes on this world, well before the window.
+  const hyper = { learnStart: 50 };
+
   function make(k, rng) {
     const nB = Math.max(1, k.machines | 0);
     const A = Math.max(2, nB);
@@ -24,6 +30,7 @@
     let lastLeft = false;
     return {
       spec,
+      hyper,
       reset() { st = 0; over = false; t = 0; return obs(); },
       // number of valid actions in this state: actions 0..n-1
       validActions(o) { return o[0] > 0.5 ? 2 : nB; },
@@ -64,7 +71,7 @@
   }
 
   RLA.worlds.mirage = {
-    make, knobs,
+    make, knobs, hyper,
     info: {
       title: 'The mirage',
       teaches: 'Maximization bias: the max of many noisy estimates is too high, so a learner chases a door that loses on average.',
