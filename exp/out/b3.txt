@@ -1,0 +1,126 @@
+== cliff Q a0.5
+{"repr":"table","target":"td","explore":"epsilon"} {} {"epsStart":0.1,"epsEnd":0.1,"lrTable":0.5} 0.2s
+ seed 101 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 202 evals -200 -13 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 303 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 404 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 505 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 606 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 707 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 808 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 909 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1010 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1111 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1212 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1313 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1414 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1515 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1616 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1717 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1818 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1919 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 2020 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ summary {"finalReturn":-13,"finalSd":0,"peak":-13,"seeds":20,"maxQ":112.13,"overestimate":0,"realized":-12.25,"collapsedSeeds":0,"fallsPerEpisode":0.32}
+  warn Falls off while learning - 0.32 falls per episode in the second half of training.
+
+== cliff MC a0.5
+{"repr":"table","target":"mc","explore":"epsilon"} {} {"epsStart":0.1,"epsEnd":0.1,"lrTable":0.5} 0.3s
+ seed 101 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 7 2 5 72 23 | maxQ 1093
+ seed 202 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 3 11 73 45 84 | maxQ 299
+ seed 303 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 1 29 7 84 84 | maxQ 284
+ seed 404 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 34 17 17 5 79 | maxQ 283
+ seed 505 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc -14 82 21 3 16 | maxQ 485
+ seed 606 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 78 74 8 8 85 | maxQ 253
+ seed 707 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 17 -16 37 19 47 | maxQ 404
+ seed 808 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 0 0 14 7 2 | maxQ 345
+ seed 909 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 0 0 0 0 0 | maxQ 1115
+ seed 1010 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 0 -24 -12 -4 -7 | maxQ 430
+ seed 1111 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 0 15 1 2 1 | maxQ 265
+ seed 1212 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc -14 7 16 5 5 | maxQ 329
+ seed 1313 evals -20000 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 0 0 0 0 0 | maxQ 2829
+ seed 1414 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 8 33 81 80 82 | maxQ 374
+ seed 1515 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 18 15 10 83 8 | maxQ 485
+ seed 1616 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 1 19 10 9 85 | maxQ 371
+ seed 1717 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 18 5 3 -16 -4 | maxQ 509
+ seed 1818 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 4 11 6 31 31 | maxQ 650
+ seed 1919 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 1 -9 -5 -1 -1 | maxQ 351
+ seed 2020 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 5 16 6 4 1 | maxQ 331
+ summary {"finalReturn":-200,"finalSd":0,"peak":-200,"seeds":20,"maxQ":2828.98,"overestimate":16.77,"realized":-86.6,"collapsedSeeds":0,"fallsPerEpisode":0.94}
+  bad Values blew up - Largest |Q| 2.8e+3; no policy can earn more than about 200.
+  warn Predicts a bit more than it earns - Q says -70; earned -87. Gap 17.
+  warn Falls off while learning - 0.94 falls per episode in the second half of training.
+
+== cliff MC a0.1
+{"repr":"table","target":"mc","explore":"epsilon"} {} {"epsStart":0.1,"epsEnd":0.1,"lrTable":0.1} 0.4s
+ seed 101 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc -2 3 4 3 2 | maxQ 537
+ seed 202 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 18 -1 6 5 3 | maxQ 380
+ seed 303 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 1 1 3 2 2 | maxQ 239
+ seed 404 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc -3 6 4 3 2 | maxQ 443
+ seed 505 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 7 6 4 3 2 | maxQ 441
+ seed 606 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 3 12 11 9 14 | maxQ 310
+ seed 707 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 0 0 0 0 0 | maxQ 412
+ seed 808 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 4 7 3 2 4 | maxQ 914
+ seed 909 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc -11 -9 -3 1 1 | maxQ 777
+ seed 1010 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc -21 -25 15 46 26 | maxQ 283
+ seed 1111 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 1 0 0 0 0 | maxQ 393
+ seed 1212 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 5 4 3 2 2 | maxQ 285
+ seed 1313 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc -9 -11 -14 -24 -18 | maxQ 1845
+ seed 1414 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc -3 -2 -2 -5 -3 | maxQ 440
+ seed 1515 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 10 10 12 8 5 | maxQ 885
+ seed 1616 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 0 0 0 0 0 | maxQ 323
+ seed 1717 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc -106 -86 -56 -45 -33 | maxQ 453
+ seed 1818 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 0 0 -4 -4 -3 | maxQ 404
+ seed 1919 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc -9 -13 -14 -12 -8 | maxQ 1098
+ seed 2020 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc -8 -6 -5 -4 -9 | maxQ 504
+ summary {"finalReturn":-200,"finalSd":0,"peak":-200,"seeds":20,"maxQ":1844.71,"overestimate":-1.14,"realized":-86.6,"collapsedSeeds":0,"fallsPerEpisode":0.31}
+  warn Falls off while learning - 0.31 falls per episode in the second half of training.
+
+== cliff Q a0.5 20k
+{"repr":"table","target":"td","explore":"epsilon"} {} {"epsStart":0.1,"epsEnd":0.1,"lrTable":0.5} 0.3s
+ seed 101 evals -200 -13 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 202 evals -13 -13 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 303 evals -200 -13 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 404 evals -200 -13 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 505 evals -200 -13 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 606 evals -200 -13 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 707 evals -200 -13 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 808 evals -200 -13 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 909 evals -200 -13 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1010 evals -200 -13 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1111 evals -200 -13 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1212 evals -200 -13 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1313 evals -200 -13 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1414 evals -200 -13 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1515 evals -200 -13 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1616 evals -200 -13 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1717 evals -200 -13 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1818 evals -200 -13 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1919 evals -200 -13 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 2020 evals -200 -13 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ summary {"finalReturn":-13,"finalSd":0,"peak":-13,"seeds":20,"maxQ":112.13,"overestimate":0,"realized":-12.25,"collapsedSeeds":0,"fallsPerEpisode":0.33}
+  warn Falls off while learning - 0.33 falls per episode in the second half of training.
+
+== cliff Q greedy a0.5
+{"repr":"table","target":"td","explore":"greedy"} {} {"lrTable":0.5} 0.2s
+ seed 101 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 52
+ seed 202 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 52
+ seed 303 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 51
+ seed 404 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 52
+ seed 505 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 52
+ seed 606 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 52
+ seed 707 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 52
+ seed 808 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 52
+ seed 909 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 52
+ seed 1010 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 51
+ seed 1111 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 52
+ seed 1212 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 51
+ seed 1313 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 52
+ seed 1414 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 52
+ seed 1515 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 52
+ seed 1616 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 51
+ seed 1717 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 52
+ seed 1818 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 52
+ seed 1919 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 52
+ seed 2020 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 52
+ summary {"finalReturn":-13,"finalSd":0,"peak":-13,"seeds":20,"maxQ":51.93,"overestimate":0,"realized":-12.25,"collapsedSeeds":0,"fallsPerEpisode":0}
+

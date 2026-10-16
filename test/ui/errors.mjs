@@ -1,0 +1,10 @@
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { chromium } = require('/home/ec2-user/.npm/_npx/9833c18b2d85bc59/node_modules/playwright-core');
+const b = await chromium.launch({ executablePath: '/home/ec2-user/.cache/ms-playwright/chromium_headless_shell-1234/chrome-linux/headless_shell' });
+const p = await b.newPage();
+p.on('console', (m) => console.log('console', m.type(), m.text()));
+p.on('pageerror', (e) => console.log('pageerror', e.message, e.stack.split('\n').slice(0,3).join(' | ')));
+await p.goto('file://' + process.argv[2]);
+await p.waitForTimeout(1000);
+await b.close();

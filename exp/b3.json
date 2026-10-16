@@ -1,0 +1,7 @@
+[
+{"name":"cliff Q a0.5","world":"cliff","parts":{"repr":"table","target":"td","explore":"epsilon"},"steps":10000,"seeds":20,"hyper":{"epsStart":0.1,"epsEnd":0.1,"lrTable":0.5}},
+{"name":"cliff MC a0.5","world":"cliff","parts":{"repr":"table","target":"mc","explore":"epsilon"},"steps":10000,"seeds":20,"hyper":{"epsStart":0.1,"epsEnd":0.1,"lrTable":0.5}},
+{"name":"cliff MC a0.1","world":"cliff","parts":{"repr":"table","target":"mc","explore":"epsilon"},"steps":20000,"seeds":20,"hyper":{"epsStart":0.1,"epsEnd":0.1,"lrTable":0.1}},
+{"name":"cliff Q a0.5 20k","world":"cliff","parts":{"repr":"table","target":"td","explore":"epsilon"},"steps":20000,"seeds":20,"hyper":{"epsStart":0.1,"epsEnd":0.1,"lrTable":0.5}},
+{"name":"cliff Q greedy a0.5","world":"cliff","parts":{"repr":"table","target":"td","explore":"greedy"},"steps":10000,"seeds":20,"hyper":{"lrTable":0.5}}
+]

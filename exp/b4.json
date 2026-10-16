@@ -1,0 +1,14 @@
+[
+{"name":"net MC","world":"cartpole","parts":{"repr":"net","target":"mc","explore":"epsilon"},"steps":20000,"seeds":5},
+{"name":"net MC replay","world":"cartpole","parts":{"repr":"net","target":"mc","explore":"epsilon","replay":true},"steps":20000,"seeds":5},
+{"name":"DQN sparse","world":"cartpole","parts":{"repr":"net","target":"td","explore":"epsilon","replay":true,"targetNet":true},"steps":20000,"seeds":3,"knobs":{"sparseReward":1}},
+{"name":"DQN slip0.3","world":"cartpole","parts":{"repr":"net","target":"td","explore":"epsilon","replay":true,"targetNet":true},"steps":20000,"seeds":3,"knobs":{"actionNoise":0.3}},
+{"name":"DQN obs0.3","world":"cartpole","parts":{"repr":"net","target":"td","explore":"epsilon","replay":true,"targetNet":true},"steps":20000,"seeds":3,"knobs":{"obsNoise":0.3}},
+{"name":"DQN force4","world":"cartpole","parts":{"repr":"net","target":"td","explore":"epsilon","replay":true,"targetNet":true},"steps":20000,"seeds":3,"knobs":{"forceMag":4}},
+{"name":"table bins12","world":"cartpole","parts":{"repr":"table","target":"td","explore":"epsilon"},"steps":20000,"seeds":5,"knobs":{"bins":12}},
+{"name":"table bins3","world":"cartpole","parts":{"repr":"table","target":"td","explore":"epsilon"},"steps":20000,"seeds":5,"knobs":{"bins":3}},
+{"name":"DQN 40k","world":"cartpole","parts":{"repr":"net","target":"td","explore":"epsilon","replay":true,"targetNet":true},"steps":40000,"seeds":5},
+{"name":"mirage Q 20 noise2","world":"mirage","parts":{"repr":"table","target":"td","explore":"epsilon"},"steps":600,"seeds":300,"hyper":{"epsStart":0.1,"epsEnd":0.1},"knobs":{"machines":20,"noise":2}},
+{"name":"mirage DQ 20 noise2","world":"mirage","parts":{"repr":"table","target":"td","explore":"epsilon","double":true},"steps":600,"seeds":300,"hyper":{"epsStart":0.1,"epsEnd":0.1},"knobs":{"machines":20,"noise":2}},
+{"name":"mirage Q 1 machine","world":"mirage","parts":{"repr":"table","target":"td","explore":"epsilon"},"steps":600,"seeds":300,"hyper":{"epsStart":0.1,"epsEnd":0.1},"knobs":{"machines":1}}
+]

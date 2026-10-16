@@ -1,0 +1,534 @@
+[
+ {
+  "name": "fk2-gauss-c1",
+  "sec": 23.589,
+  "summary": {
+   "finalReturn": -0.389,
+   "finalSd": 0.017,
+   "peak": -0.297,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0.117,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -0.411,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.43,
+   -0.442,
+   -0.36
+  ],
+  "notes": []
+ },
+ {
+  "name": "fk2-gauss-c5",
+  "sec": 29.332,
+  "summary": {
+   "finalReturn": -1.698,
+   "finalSd": 2.071,
+   "peak": -0.395,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0.126,
+   "successRate": 0.667,
+   "crashRate": 10.667,
+   "meanDist": null,
+   "testReturn": -6.577,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:crash"
+  ],
+  "perSeed": [
+   -0.459,
+   -18.675,
+   -0.596
+  ],
+  "notes": []
+ },
+ {
+  "name": "fk2-gauss-c10",
+  "sec": 35.899,
+  "summary": {
+   "finalReturn": -6.367,
+   "finalSd": 4.392,
+   "peak": -2.723,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0.126,
+   "successRate": 0.667,
+   "crashRate": 13.333,
+   "meanDist": null,
+   "testReturn": -8.109,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:crash"
+  ],
+  "perSeed": [
+   -4.433,
+   -2.202,
+   -17.693
+  ],
+  "notes": []
+ },
+ {
+  "name": "fk2-det-c1",
+  "sec": 23.953,
+  "summary": {
+   "finalReturn": -0.343,
+   "finalSd": 0.024,
+   "peak": -0.267,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -0.316,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.355,
+   -0.315,
+   -0.279
+  ],
+  "notes": []
+ },
+ {
+  "name": "fk2-det-c5",
+  "sec": 26.936,
+  "summary": {
+   "finalReturn": -0.489,
+   "finalSd": 0.017,
+   "peak": -0.362,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -0.607,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.602,
+   -0.636,
+   -0.582
+  ],
+  "notes": []
+ },
+ {
+  "name": "fk2-det-c10",
+  "sec": 30.754,
+  "summary": {
+   "finalReturn": -7.146,
+   "finalSd": 1.192,
+   "peak": -1.287,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 0.667,
+   "crashRate": 12.667,
+   "meanDist": null,
+   "testReturn": -7.678,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:crash"
+  ],
+  "perSeed": [
+   -2.202,
+   -2.143,
+   -18.69
+  ],
+  "notes": []
+ },
+ {
+  "name": "fk2-flow-c1",
+  "sec": 20.012,
+  "summary": {
+   "finalReturn": -0.309,
+   "finalSd": 0.004,
+   "peak": -0.237,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -0.317,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.411,
+   -0.258,
+   -0.282
+  ],
+  "notes": []
+ },
+ {
+  "name": "fk2-flow-c5",
+  "sec": 23.178,
+  "summary": {
+   "finalReturn": -0.453,
+   "finalSd": 0.174,
+   "peak": -0.263,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 0.983,
+   "crashRate": 0.017,
+   "meanDist": null,
+   "testReturn": -0.332,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.343,
+   -0.248,
+   -0.404
+  ],
+  "notes": []
+ },
+ {
+  "name": "fk2-flow-c10",
+  "sec": 28.023,
+  "summary": {
+   "finalReturn": -2.009,
+   "finalSd": 0.424,
+   "peak": -0.612,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 0.867,
+   "crashRate": 2.683,
+   "meanDist": null,
+   "testReturn": -1.946,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:crash",
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.811,
+   -3.387,
+   -1.641
+  ],
+  "notes": []
+ },
+ {
+  "name": "fk2-flow-c10-h0",
+  "sec": 14.966,
+  "summary": {
+   "finalReturn": -5.077,
+   "finalSd": 0.453,
+   "peak": -1.841,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 0.633,
+   "crashRate": 7.617,
+   "meanDist": null,
+   "testReturn": -4.866,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:crash"
+  ],
+  "perSeed": [
+   -4.98,
+   -5.103,
+   -4.513
+  ],
+  "notes": []
+ },
+ {
+  "name": "qp2-qavg",
+  "sec": 159.813,
+  "summary": {
+   "finalReturn": -0.515,
+   "finalSd": 0.017,
+   "peak": -0.318,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": -0.005,
+   "realized": -0.645,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -0.333,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.36,
+   -0.326,
+   -0.313
+  ],
+  "notes": []
+ },
+ {
+  "name": "qp2-best",
+  "sec": 158.598,
+  "summary": {
+   "finalReturn": -0.201,
+   "finalSd": 0.138,
+   "peak": -0.107,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": -0.105,
+   "realized": -0.456,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -0.18,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.139,
+   -0.101,
+   -0.301
+  ],
+  "notes": []
+ },
+ {
+  "name": "qp2-edit",
+  "sec": 393.379,
+  "summary": {
+   "finalReturn": -0.102,
+   "finalSd": 0.222,
+   "peak": 0.043,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": -0.075,
+   "realized": -0.355,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -0.093,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   0.144,
+   -0.124,
+   -0.299
+  ],
+  "notes": []
+ },
+ {
+  "name": "qp2-one",
+  "sec": 136.69,
+  "summary": {
+   "finalReturn": -0.269,
+   "finalSd": 0.057,
+   "peak": -0.225,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": -0.094,
+   "realized": -0.517,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 1,
+   "crashRate": 0.017,
+   "meanDist": null,
+   "testReturn": -0.278,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.274,
+   -0.227,
+   -0.334
+  ],
+  "notes": []
+ },
+ {
+  "name": "m2-fk-o1",
+  "sec": 35.753,
+  "summary": {
+   "finalReturn": -12.427,
+   "finalSd": 5.364,
+   "peak": -0.882,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0.115,
+   "successRate": 0.667,
+   "crashRate": 1.333,
+   "meanDist": null,
+   "testReturn": -0.979,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:crash"
+  ],
+  "perSeed": [
+   -1.049,
+   -1.12,
+   -0.769
+  ],
+  "notes": []
+ },
+ {
+  "name": "m2-fk-o2",
+  "sec": 35.534,
+  "summary": {
+   "finalReturn": -17.905,
+   "finalSd": 1.077,
+   "peak": -7.145,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0.12,
+   "successRate": 0,
+   "crashRate": 32.667,
+   "meanDist": null,
+   "testReturn": -18.481,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:crash"
+  ],
+  "perSeed": [
+   -18.672,
+   -18.669,
+   -18.103
+  ],
+  "notes": []
+ },
+ {
+  "name": "m2-fk-o3",
+  "sec": 34.497,
+  "summary": {
+   "finalReturn": -6.142,
+   "finalSd": 1.204,
+   "peak": -1.601,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0.122,
+   "successRate": 1,
+   "crashRate": 8,
+   "meanDist": null,
+   "testReturn": -4.458,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:crash",
+   "ok:solved"
+  ],
+  "perSeed": [
+   -6.216,
+   -5.537,
+   -1.621
+  ],
+  "notes": []
+ },
+ {
+  "name": "m2-fk-sp1",
+  "sec": 33.571,
+  "summary": {
+   "finalReturn": -13.407,
+   "finalSd": 1.329,
+   "peak": -8.535,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0.135,
+   "successRate": 0.383,
+   "crashRate": 20.483,
+   "meanDist": null,
+   "testReturn": -11.99,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:crash"
+  ],
+  "perSeed": [
+   -9.406,
+   -10.218,
+   -16.346
+  ],
+  "notes": []
+ }
+]

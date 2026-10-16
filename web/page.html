@@ -1,0 +1,80 @@
+<title>Breaking Bellman</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/*@FONTS@*/
+/*@CSS@*/
+</style>
+
+<header class="top">
+  <div class="top-row">
+    <div class="brand"><span class="sym">Q</span><h1>Breaking Bellman</h1></div>
+    <div class="score" id="score">0 discoveries</div>
+  </div>
+  <nav class="tabs" role="tablist" id="tabs">
+    <button role="tab" data-mode="campaign" aria-selected="true">Campaign</button>
+    <button role="tab" data-mode="workbench" aria-selected="false">Workbench</button>
+    <button role="tab" data-mode="saboteur" aria-selected="false">Saboteur</button>
+    <button role="tab" data-mode="review" aria-selected="false">Review</button>
+    <button role="tab" data-mode="codex" aria-selected="false">Codex</button>
+    <button role="tab" data-mode="chat" aria-selected="false">Chat</button>
+  </nav>
+</header>
+
+<main class="layout">
+  <section class="pane" id="mode-pane" aria-live="polite"></section>
+  <aside class="pane lab" id="lab" aria-label="Lab">
+    <div class="card">
+      <div class="row" style="justify-content: space-between">
+        <div class="eyebrow" id="lab-world">World</div>
+        <span class="tag sim" title="Every curve here comes from training code that ran in this page">Simulation</span>
+      </div>
+      <canvas class="stage" id="stage" width="640" height="280" aria-label="The world, replaying the last trained policy"></canvas>
+      <p class="small" id="stage-caption">Run a recipe to see the trained policy act.</p>
+    </div>
+    <div class="card">
+      <div class="eyebrow">The update rule: tap a word to change it</div>
+      <div id="rule"></div>
+      <div class="row">
+        <button class="btn" id="run-btn">Run</button>
+        <label class="small" for="seeds">Seeds</label>
+        <select id="seeds"><option>1</option><option selected>3</option><option>5</option></select>
+        <label class="small" for="budget">Steps</label>
+        <select id="budget"></select>
+      </div>
+      <div class="progress"><i id="prog"></i></div>
+      <p class="small" id="run-result" aria-live="polite"></p>
+      <div class="stack" id="compare"></div>
+    </div>
+    <details class="card-details" id="grid-card">
+      <summary>Try every combination</summary>
+      <div id="grid-lab"></div>
+    </details>
+    <div class="card" id="charts"></div>
+    <details class="card-details" id="expert-card" hidden>
+      <summary>An expert reads this run</summary>
+      <div class="stack" id="expert"></div>
+    </details>
+    <div class="card">
+      <div class="eyebrow">Autopsy</div>
+      <div class="symptoms" id="symptoms"><p class="small">No run yet.</p></div>
+    </div>
+    <details class="card-details">
+      <summary>Watch one update</summary>
+      <div id="replay-lab"></div>
+    </details>
+  </aside>
+</main>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/*@CONFIG@*/
+</script>
+<script id="engine-src">
+/*@ENGINE@*/
+</script>
+<script>
+/*@CONTENT@*/
+</script>
+<script>
+/*@APP@*/
+</script>

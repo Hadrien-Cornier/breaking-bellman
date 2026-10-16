@@ -1,0 +1,449 @@
+[
+{
+"name": "fk2-gauss-c1",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "gauss"
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "fk2-gauss-c5",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "gauss",
+"chunk": 5
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "fk2-gauss-c10",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "gauss",
+"chunk": 10
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "fk2-det-c1",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "det"
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "fk2-det-c5",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "det",
+"chunk": 5
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "fk2-det-c10",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "det",
+"chunk": 10
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "fk2-flow-c1",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "flow"
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "fk2-flow-c5",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "flow",
+"chunk": 5
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "fk2-flow-c10",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "flow",
+"chunk": 10
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "fk2-flow-c10-h0",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "flow",
+"chunk": 10
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+]
+}
+},
+{
+"name": "qp2-qavg",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "both",
+"demos": "expert",
+"head": "flow",
+"aim": "none",
+"critics": "two",
+"next": "data",
+"entropy": "none",
+"pick": "qavg"
+},
+"steps": 4000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"lr": 0.003,
+"batch": 128,
+"pretrain": 8000
+}
+},
+{
+"name": "qp2-best",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "both",
+"demos": "expert",
+"head": "flow",
+"aim": "none",
+"critics": "two",
+"next": "data",
+"entropy": "none",
+"pick": "best"
+},
+"steps": 4000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"lr": 0.003,
+"batch": 128,
+"pretrain": 8000
+}
+},
+{
+"name": "qp2-edit",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "both",
+"demos": "expert",
+"head": "flow",
+"aim": "none",
+"critics": "two",
+"next": "data",
+"entropy": "none",
+"pick": "edit"
+},
+"steps": 4000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"lr": 0.003,
+"batch": 128,
+"pretrain": 8000
+}
+},
+{
+"name": "qp2-one",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "both",
+"demos": "expert",
+"head": "flow",
+"aim": "none",
+"critics": "two",
+"next": "data",
+"entropy": "none",
+"pick": "one"
+},
+"steps": 4000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"lr": 0.003,
+"batch": 128,
+"pretrain": 8000
+}
+},
+{
+"name": "m2-fk-o1",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "gauss",
+"chunk": 10
+},
+"steps": 6000,
+"seeds": 3,
+"knobs": {
+"obstacle": 0.1
+},
+"hyper": {
+"hidden": [
+64,
+64
+],
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "m2-fk-o2",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "gauss",
+"chunk": 10
+},
+"steps": 6000,
+"seeds": 3,
+"knobs": {
+"obstacle": 0.2
+},
+"hyper": {
+"hidden": [
+64,
+64
+],
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "m2-fk-o3",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "gauss",
+"chunk": 10
+},
+"steps": 6000,
+"seeds": 3,
+"knobs": {
+"obstacle": 0.3
+},
+"hyper": {
+"hidden": [
+64,
+64
+],
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "m2-fk-sp1",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "gauss",
+"chunk": 10
+},
+"steps": 6000,
+"seeds": 3,
+"knobs": {
+"spread": 0.1
+},
+"hyper": {
+"hidden": [
+64,
+64
+],
+"lr": 0.003,
+"batch": 128
+}
+}
+]

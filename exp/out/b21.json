@@ -1,0 +1,387 @@
+[
+ {
+  "name": "fk3-gauss-c1",
+  "sec": 23.443,
+  "summary": {
+   "finalReturn": -0.363,
+   "finalSd": 0.019,
+   "peak": -0.294,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0.114,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -0.335,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.328,
+   -0.345,
+   -0.331
+  ],
+  "notes": []
+ },
+ {
+  "name": "fk3-gauss-c10",
+  "sec": 35.355,
+  "summary": {
+   "finalReturn": -11.5,
+   "finalSd": 3.946,
+   "peak": -2.574,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0.125,
+   "successRate": 0.333,
+   "crashRate": 15,
+   "meanDist": null,
+   "testReturn": -9.451,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:crash"
+  ],
+  "perSeed": [
+   -6.268,
+   -3.894,
+   -18.192
+  ],
+  "notes": []
+ },
+ {
+  "name": "fk3-det-c1",
+  "sec": 23.47,
+  "summary": {
+   "finalReturn": -0.362,
+   "finalSd": 0.004,
+   "peak": -0.267,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -0.389,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.358,
+   -0.389,
+   -0.42
+  ],
+  "notes": []
+ },
+ {
+  "name": "fk3-det-c10",
+  "sec": 30.055,
+  "summary": {
+   "finalReturn": -10.727,
+   "finalSd": 1.712,
+   "peak": -1.459,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 0.667,
+   "crashRate": 13.667,
+   "meanDist": null,
+   "testReturn": -8.234,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:crash"
+  ],
+  "perSeed": [
+   -2.174,
+   -3.849,
+   -18.679
+  ],
+  "notes": []
+ },
+ {
+  "name": "fk3-flow-c1",
+  "sec": 19.811,
+  "summary": {
+   "finalReturn": -0.31,
+   "finalSd": 0.01,
+   "peak": -0.236,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -0.298,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.296,
+   -0.258,
+   -0.341
+  ],
+  "notes": []
+ },
+ {
+  "name": "fk3-flow-c10",
+  "sec": 27.054,
+  "summary": {
+   "finalReturn": -2.136,
+   "finalSd": 0.556,
+   "peak": -0.52,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 0.85,
+   "crashRate": 3.65,
+   "meanDist": null,
+   "testReturn": -2.468,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:crash",
+   "ok:solved"
+  ],
+  "perSeed": [
+   -1.903,
+   -3.631,
+   -1.869
+  ],
+  "notes": []
+ },
+ {
+  "name": "qp3-qavg",
+  "sec": 156.187,
+  "summary": {
+   "finalReturn": -0.476,
+   "finalSd": 0.105,
+   "peak": -0.321,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": -0.106,
+   "realized": -0.637,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 1,
+   "crashRate": 0.05,
+   "meanDist": null,
+   "testReturn": -0.382,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.469,
+   -0.315,
+   -0.363
+  ],
+  "notes": []
+ },
+ {
+  "name": "qp3-best",
+  "sec": 154.404,
+  "summary": {
+   "finalReturn": -0.163,
+   "finalSd": 0.08,
+   "peak": -0.075,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": -0.141,
+   "realized": -0.428,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -0.168,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.134,
+   -0.278,
+   -0.092
+  ],
+  "notes": []
+ },
+ {
+  "name": "qp3-one",
+  "sec": 133.357,
+  "summary": {
+   "finalReturn": -0.311,
+   "finalSd": 0.066,
+   "peak": -0.275,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": -0.082,
+   "realized": -0.553,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -0.318,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.379,
+   -0.243,
+   -0.331
+  ],
+  "notes": []
+ },
+ {
+  "name": "m3-fk-o1",
+  "sec": 23.59,
+  "summary": {
+   "finalReturn": 0.282,
+   "finalSd": 0.005,
+   "peak": 0.304,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0.107,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": 0.283,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   0.278,
+   0.289,
+   0.283
+  ],
+  "notes": []
+ },
+ {
+  "name": "m3-fk-o2",
+  "sec": 23.555,
+  "summary": {
+   "finalReturn": 0.17,
+   "finalSd": 0.024,
+   "peak": 0.219,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0.114,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": 0.181,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   0.194,
+   0.187,
+   0.162
+  ],
+  "notes": []
+ },
+ {
+  "name": "m3-fk-o3",
+  "sec": 23.586,
+  "summary": {
+   "finalReturn": -0.006,
+   "finalSd": 0.01,
+   "peak": 0.066,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0.115,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -0.014,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.003,
+   -0.012,
+   -0.028
+  ],
+  "notes": []
+ },
+ {
+  "name": "m3-fk-sp1",
+  "sec": 22.832,
+  "summary": {
+   "finalReturn": -1.679,
+   "finalSd": 0.909,
+   "peak": -0.233,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0.131,
+   "successRate": 0.95,
+   "crashRate": 1.867,
+   "meanDist": null,
+   "testReturn": -1.382,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:crash",
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.273,
+   -3.472,
+   -0.403
+  ],
+  "notes": []
+ }
+]

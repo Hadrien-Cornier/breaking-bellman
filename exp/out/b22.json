@@ -1,0 +1,559 @@
+[
+ {
+  "name": "tw-gauss-c10-6k",
+  "sec": 36.472,
+  "summary": {
+   "finalReturn": -11.5,
+   "finalSd": 3.946,
+   "peak": -2.574,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0.125,
+   "successRate": 0.333,
+   "crashRate": 15,
+   "meanDist": null,
+   "testReturn": -9.451,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:crash"
+  ],
+  "perSeed": [
+   -18.192,
+   -6.268,
+   -3.894
+  ],
+  "notes": []
+ },
+ {
+  "name": "tw-det-c10-6k",
+  "sec": 31.343,
+  "summary": {
+   "finalReturn": -10.727,
+   "finalSd": 1.712,
+   "peak": -1.459,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 0.667,
+   "crashRate": 13.667,
+   "meanDist": null,
+   "testReturn": -8.234,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0.333,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:crash"
+  ],
+  "perSeed": [
+   -3.849,
+   -2.174,
+   -18.679
+  ],
+  "notes": []
+ },
+ {
+  "name": "tw-flow-c10-6k",
+  "sec": 27.853,
+  "summary": {
+   "finalReturn": -2.136,
+   "finalSd": 0.556,
+   "peak": -0.52,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 0.85,
+   "crashRate": 3.65,
+   "meanDist": null,
+   "testReturn": -2.468,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0.5,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:crash",
+   "ok:solved"
+  ],
+  "perSeed": [
+   -1.869,
+   -1.903,
+   -3.631
+  ],
+  "notes": []
+ },
+ {
+  "name": "tw-gauss-c10-10k",
+  "sec": 62.279,
+  "summary": {
+   "finalReturn": -8.857,
+   "finalSd": 4.097,
+   "peak": -2.194,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0.121,
+   "successRate": 0.333,
+   "crashRate": 18,
+   "meanDist": null,
+   "testReturn": -11.044,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0.333,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:crash"
+  ],
+  "perSeed": [
+   -17.671,
+   -4.427,
+   -11.034
+  ],
+  "notes": []
+ },
+ {
+  "name": "tw-det-c10-10k",
+  "sec": 53.022,
+  "summary": {
+   "finalReturn": -6.641,
+   "finalSd": 1.06,
+   "peak": -1.53,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 1,
+   "crashRate": 3,
+   "meanDist": null,
+   "testReturn": -2.141,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0.667,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:crash",
+   "ok:solved"
+  ],
+  "perSeed": [
+   -2.164,
+   -2.174,
+   -2.086
+  ],
+  "notes": []
+ },
+ {
+  "name": "tw-flow-c10-10k",
+  "sec": 48.184,
+  "summary": {
+   "finalReturn": -1.512,
+   "finalSd": 0.199,
+   "peak": -0.496,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 0.817,
+   "crashRate": 2.467,
+   "meanDist": null,
+   "testReturn": -1.875,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0.5,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:crash",
+   "ok:solved"
+  ],
+  "perSeed": [
+   -1.037,
+   -3.408,
+   -1.179
+  ],
+  "notes": []
+ },
+ {
+  "name": "tw-gauss-c1",
+  "sec": 25.445,
+  "summary": {
+   "finalReturn": -0.363,
+   "finalSd": 0.019,
+   "peak": -0.294,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0.114,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -0.335,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0.667,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.345,
+   -0.328,
+   -0.331
+  ],
+  "notes": []
+ },
+ {
+  "name": "tw-gauss-c2",
+  "sec": 27.092,
+  "summary": {
+   "finalReturn": -0.446,
+   "finalSd": 0.02,
+   "peak": -0.344,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0.118,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -0.392,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0.333,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.378,
+   -0.41,
+   -0.387
+  ],
+  "notes": []
+ },
+ {
+  "name": "tw-gauss-c3",
+  "sec": 27.976,
+  "summary": {
+   "finalReturn": -0.448,
+   "finalSd": 0.036,
+   "peak": -0.363,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0.121,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -0.45,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0.333,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.422,
+   -0.499,
+   -0.429
+  ],
+  "notes": []
+ },
+ {
+  "name": "tw-gauss-c5",
+  "sec": 30.564,
+  "summary": {
+   "finalReturn": -1.338,
+   "finalSd": 1.046,
+   "peak": -0.412,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0.126,
+   "successRate": 1,
+   "crashRate": 0.333,
+   "meanDist": null,
+   "testReturn": -0.681,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0.667,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.442,
+   -1.109,
+   -0.492
+  ],
+  "notes": []
+ },
+ {
+  "name": "tw-det-c1",
+  "sec": 24.554,
+  "summary": {
+   "finalReturn": -0.362,
+   "finalSd": 0.004,
+   "peak": -0.267,
+   "seeds": 3,
+   "maxQ": 0,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -0.389,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0.667,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.389,
+   -0.42,
+   -0.358
+  ],
+  "notes": []
+ },
+ {
+  "name": "pk-one-m1",
+  "sec": 75.656,
+  "summary": {
+   "finalReturn": -1.16,
+   "finalSd": 0.035,
+   "peak": -0.794,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": -0.063,
+   "realized": -1.128,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -0.989,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0.483,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -1.05,
+   -1.019,
+   -0.898
+  ],
+  "notes": []
+ },
+ {
+  "name": "pk-best-m1",
+  "sec": 99.593,
+  "summary": {
+   "finalReturn": -0.129,
+   "finalSd": 0.029,
+   "peak": -0.099,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": -0.153,
+   "realized": -0.398,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -0.137,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.143,
+   -0.095,
+   -0.173
+  ],
+  "notes": []
+ },
+ {
+  "name": "pk-qavg-m1",
+  "sec": 100.338,
+  "summary": {
+   "finalReturn": -0.47,
+   "finalSd": 0.093,
+   "peak": -0.329,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": -0.171,
+   "realized": -0.645,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 0.983,
+   "crashRate": 0.533,
+   "meanDist": null,
+   "testReturn": -0.676,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0.017,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -1.245,
+   -0.363,
+   -0.42
+  ],
+  "notes": []
+ },
+ {
+  "name": "pk-edit-m1",
+  "sec": 220.104,
+  "summary": {
+   "finalReturn": -0.206,
+   "finalSd": 0.274,
+   "peak": 0.034,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": -0.114,
+   "realized": -0.375,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": 0.004,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.113,
+   0.108,
+   0.016
+  ],
+  "notes": []
+ },
+ {
+  "name": "pk-one-m05",
+  "sec": 75.795,
+  "summary": {
+   "finalReturn": -0.74,
+   "finalSd": 0.024,
+   "peak": -0.546,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": -0.067,
+   "realized": -0.842,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -0.655,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0.483,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.674,
+   -0.67,
+   -0.62
+  ],
+  "notes": []
+ },
+ {
+  "name": "pk-best-m05",
+  "sec": 93.764,
+  "summary": {
+   "finalReturn": -0.105,
+   "finalSd": 0.013,
+   "peak": -0.091,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": -0.16,
+   "realized": -0.382,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -0.111,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.096,
+   -0.144,
+   -0.094
+  ],
+  "notes": []
+ },
+ {
+  "name": "pk-qavg-m05",
+  "sec": 93.634,
+  "summary": {
+   "finalReturn": -0.583,
+   "finalSd": 0.126,
+   "peak": -0.334,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": -0.054,
+   "realized": -0.71,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -0.38,
+   "baseDist": null,
+   "baseRet": null,
+   "leftRate": 0.05,
+   "tests": 20
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   -0.395,
+   -0.367,
+   -0.378
+  ],
+  "notes": []
+ }
+]

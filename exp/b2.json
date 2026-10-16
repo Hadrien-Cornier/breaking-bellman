@@ -1,0 +1,16 @@
+[
+{"name":"mirage Q","world":"mirage","parts":{"repr":"table","target":"td","explore":"epsilon"},"steps":600,"seeds":300,"hyper":{"epsStart":0.1,"epsEnd":0.1}},
+{"name":"mirage DoubleQ","world":"mirage","parts":{"repr":"table","target":"td","explore":"epsilon","double":true},"steps":600,"seeds":300,"hyper":{"epsStart":0.1,"epsEnd":0.1}},
+{"name":"mirage Q+targetcopy+double","world":"mirage","parts":{"repr":"table","target":"td","explore":"epsilon","double":true,"targetNet":true},"steps":600,"seeds":300,"hyper":{"epsStart":0.1,"epsEnd":0.1,"targetSync":20}},
+{"name":"mirage MC","world":"mirage","parts":{"repr":"table","target":"mc","explore":"epsilon"},"steps":600,"seeds":300,"hyper":{"epsStart":0.1,"epsEnd":0.1}},
+{"name":"bandit greedy","world":"bandit","parts":{"repr":"table","target":"td","explore":"greedy"},"steps":1000,"seeds":300},
+{"name":"bandit eps0.1","world":"bandit","parts":{"repr":"table","target":"td","explore":"epsilon"},"steps":1000,"seeds":300,"hyper":{"epsStart":0.1,"epsEnd":0.1}},
+{"name":"bandit eps decay","world":"bandit","parts":{"repr":"table","target":"td","explore":"epsilon"},"steps":1000,"seeds":300,"hyper":{"epsStart":1,"epsEnd":0.01,"epsDecaySteps":500}},
+{"name":"bandit optimistic","world":"bandit","parts":{"repr":"table","target":"td","explore":"optimistic"},"steps":1000,"seeds":300},
+{"name":"bandit ucb","world":"bandit","parts":{"repr":"table","target":"td","explore":"ucb"},"steps":1000,"seeds":300},
+{"name":"bandit eps drift","world":"bandit","parts":{"repr":"table","target":"td","explore":"epsilon"},"steps":2000,"seeds":300,"hyper":{"epsStart":0.1,"epsEnd":0.1},"knobs":{"drift":0.03}},
+{"name":"bandit eps drift const","world":"bandit","parts":{"repr":"table","target":"td","explore":"epsilon"},"steps":2000,"seeds":300,"hyper":{"epsStart":0.1,"epsEnd":0.1,"sampleAverage":false},"knobs":{"drift":0.03}},
+{"name":"cliff Q td","world":"cliff","parts":{"repr":"table","target":"td","explore":"epsilon"},"steps":10000,"seeds":10,"hyper":{"epsStart":0.1,"epsEnd":0.1}},
+{"name":"cliff MC","world":"cliff","parts":{"repr":"table","target":"mc","explore":"epsilon"},"steps":10000,"seeds":10,"hyper":{"epsStart":0.1,"epsEnd":0.1}},
+{"name":"cliff Q td decay","world":"cliff","parts":{"repr":"table","target":"td","explore":"epsilon"},"steps":10000,"seeds":10}
+]

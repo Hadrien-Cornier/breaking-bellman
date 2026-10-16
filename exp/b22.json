@@ -1,0 +1,464 @@
+[
+{
+"name": "tw-gauss-c10-6k",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "gauss",
+"chunk": 10
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000,
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "tw-det-c10-6k",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "det",
+"chunk": 10
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000,
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "tw-flow-c10-6k",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "flow",
+"chunk": 10
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000,
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "tw-gauss-c10-10k",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "gauss",
+"chunk": 10
+},
+"steps": 10000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000,
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "tw-det-c10-10k",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "det",
+"chunk": 10
+},
+"steps": 10000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000,
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "tw-flow-c10-10k",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "flow",
+"chunk": 10
+},
+"steps": 10000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000,
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "tw-gauss-c1",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "gauss"
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000,
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "tw-gauss-c2",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "gauss",
+"chunk": 2
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000,
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "tw-gauss-c3",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "gauss",
+"chunk": 3
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000,
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "tw-gauss-c5",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "gauss",
+"chunk": 5
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000,
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "tw-det-c1",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "det"
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000,
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "pk-one-m1",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "both",
+"demos": "expert",
+"head": "flow",
+"aim": "none",
+"critics": "two",
+"next": "data",
+"entropy": "none",
+"pick": "one"
+},
+"steps": 4000,
+"seeds": 3,
+"knobs": {
+"mud": 0.1
+},
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000
+}
+},
+{
+"name": "pk-best-m1",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "both",
+"demos": "expert",
+"head": "flow",
+"aim": "none",
+"critics": "two",
+"next": "data",
+"entropy": "none",
+"pick": "best"
+},
+"steps": 4000,
+"seeds": 3,
+"knobs": {
+"mud": 0.1
+},
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000
+}
+},
+{
+"name": "pk-qavg-m1",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "both",
+"demos": "expert",
+"head": "flow",
+"aim": "none",
+"critics": "two",
+"next": "data",
+"entropy": "none",
+"pick": "qavg"
+},
+"steps": 4000,
+"seeds": 3,
+"knobs": {
+"mud": 0.1
+},
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000
+}
+},
+{
+"name": "pk-edit-m1",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "both",
+"demos": "expert",
+"head": "flow",
+"aim": "none",
+"critics": "two",
+"next": "data",
+"entropy": "none",
+"pick": "edit"
+},
+"steps": 4000,
+"seeds": 3,
+"knobs": {
+"mud": 0.1
+},
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000
+}
+},
+{
+"name": "pk-one-m05",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "both",
+"demos": "expert",
+"head": "flow",
+"aim": "none",
+"critics": "two",
+"next": "data",
+"entropy": "none",
+"pick": "one"
+},
+"steps": 4000,
+"seeds": 3,
+"knobs": {
+"mud": 0.05
+},
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000
+}
+},
+{
+"name": "pk-best-m05",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "both",
+"demos": "expert",
+"head": "flow",
+"aim": "none",
+"critics": "two",
+"next": "data",
+"entropy": "none",
+"pick": "best"
+},
+"steps": 4000,
+"seeds": 3,
+"knobs": {
+"mud": 0.05
+},
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000
+}
+},
+{
+"name": "pk-qavg-m05",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "both",
+"demos": "expert",
+"head": "flow",
+"aim": "none",
+"critics": "two",
+"next": "data",
+"entropy": "none",
+"pick": "qavg"
+},
+"steps": 4000,
+"seeds": 3,
+"knobs": {
+"mud": 0.05
+},
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000
+}
+}
+]

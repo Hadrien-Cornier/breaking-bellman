@@ -1,0 +1,4 @@
+Q-learning                       left at worst 84.2%, at end 11.4%; after 30 episodes: max Q(B) 0.106, mean Q(B) -0.048, Q(A,left) 0.098 (true -0.1); 300 runs in 456 ms
+Expected Sarsa                   left at worst 78.1%, at end 10.9%; after 30 episodes: max Q(B) 0.084, mean Q(B) -0.031, Q(A,left) 0.056 (true -0.1); 300 runs in 396 ms
+Expected Sarsa, never at random  left at worst 65.8%, at end 0.0%; after 30 episodes: max Q(B) 0.085, mean Q(B) -0.053, Q(A,left) 0.095 (true -0.1); 300 runs in 368 ms
+Double Q-learning                left at worst 18.3%, at end 5.8%; after 30 episodes: max Q(B) 0.046, mean Q(B) -0.008, Q(A,left) 0.002 (true -0.1); 300 runs in 613 ms

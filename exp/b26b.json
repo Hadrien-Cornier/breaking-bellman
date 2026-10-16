@@ -1,0 +1,128 @@
+[
+ {
+  "name": "cart-dqn-max-sync50",
+  "world": "cartpole",
+  "parts": {
+   "store": "net",
+   "eps": true,
+   "ucb": false,
+   "optimistic": false,
+   "data": "replay",
+   "memory": 10000,
+   "step": "const",
+   "nstep": 1,
+   "agg": "max",
+   "picker": "frozen",
+   "scorer": "frozen",
+   "sync": 50
+  },
+  "hyper": {},
+  "steps": 20000,
+  "seeds": 3
+ },
+ {
+  "name": "cart-dqn-min-sync50",
+  "world": "cartpole",
+  "parts": {
+   "store": "net",
+   "eps": true,
+   "ucb": false,
+   "optimistic": false,
+   "data": "replay",
+   "memory": 10000,
+   "step": "const",
+   "nstep": 1,
+   "agg": "min",
+   "picker": "frozen",
+   "scorer": "frozen",
+   "sync": 50
+  },
+  "hyper": {},
+  "steps": 20000,
+  "seeds": 3
+ },
+ {
+  "name": "cart-dqn-max-sync250",
+  "world": "cartpole",
+  "parts": {
+   "store": "net",
+   "eps": true,
+   "ucb": false,
+   "optimistic": false,
+   "data": "replay",
+   "memory": 10000,
+   "step": "const",
+   "nstep": 1,
+   "agg": "max",
+   "picker": "frozen",
+   "scorer": "frozen",
+   "sync": 250
+  },
+  "hyper": {},
+  "steps": 20000,
+  "seeds": 3
+ },
+ {
+  "name": "cart-dqn-min-sync250",
+  "world": "cartpole",
+  "parts": {
+   "store": "net",
+   "eps": true,
+   "ucb": false,
+   "optimistic": false,
+   "data": "replay",
+   "memory": 10000,
+   "step": "const",
+   "nstep": 1,
+   "agg": "min",
+   "picker": "frozen",
+   "scorer": "frozen",
+   "sync": 250
+  },
+  "hyper": {},
+  "steps": 20000,
+  "seeds": 3
+ },
+ {
+  "name": "cart-dqn-max-sync1000",
+  "world": "cartpole",
+  "parts": {
+   "store": "net",
+   "eps": true,
+   "ucb": false,
+   "optimistic": false,
+   "data": "replay",
+   "memory": 10000,
+   "step": "const",
+   "nstep": 1,
+   "agg": "max",
+   "picker": "frozen",
+   "scorer": "frozen",
+   "sync": 1000
+  },
+  "hyper": {},
+  "steps": 20000,
+  "seeds": 3
+ },
+ {
+  "name": "cart-dqn-min-sync1000",
+  "world": "cartpole",
+  "parts": {
+   "store": "net",
+   "eps": true,
+   "ucb": false,
+   "optimistic": false,
+   "data": "replay",
+   "memory": 10000,
+   "step": "const",
+   "nstep": 1,
+   "agg": "min",
+   "picker": "frozen",
+   "scorer": "frozen",
+   "sync": 1000
+  },
+  "hyper": {},
+  "steps": 20000,
+  "seeds": 3
+ }
+]

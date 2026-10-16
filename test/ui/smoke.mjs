@@ -1,0 +1,268 @@
+// UI smoke test: phone (375) campaign level 1 end to end, desktop (1280) workbench, replay, compare, review.
+// node test/ui/smoke.mjs [screenshot dir]
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+// Playwright: `npm i -D playwright && npx playwright install chromium`, or set PW_CORE to a playwright-core folder
+// and PW_CHROMIUM to a Chromium binary.
+const load = (m) => { try { return require(m); } catch (e) { return null; } };
+const pw = (process.env.PW_CORE && load(process.env.PW_CORE)) || load('playwright') || load('playwright-core');
+if (!pw) { console.error('Playwright not found. Run: npm i -D playwright && npx playwright install chromium'); process.exit(2); }
+const { chromium } = pw;
+const exe = process.env.PW_CHROMIUM || '';
+const fs = await import('fs');
+const os = await import('os');
+const out = process.argv[2] || (os.tmpdir() + '/breaking-bellman-shots');
+fs.mkdirSync(out, { recursive: true });
+fs.copyFileSync(new URL('../../dist/breaking-bellman.html', import.meta.url), out + '/page.html');
+const browser = await chromium.launch({ executablePath: fs.existsSync(exe) ? exe : undefined });
+const errors = [];
+const fails = [];
+const check = (cond, msg) => { if (!cond) fails.push(msg); console.log((cond ? 'ok   ' : 'FAIL ') + msg); };
+const runDone = (page) => page.waitForFunction(() => !document.querySelector('#run-btn').disabled && document.querySelector('#run-result').textContent.length > 0, null, { timeout: 240000 });
+async function session(w, h, name, fn) {
+  const page = await browser.newPage({ viewport: { width: w, height: h } });
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(name + ': ' + m.text()); });
+  page.on('pageerror', (e) => errors.push(name + ' pageerror: ' + e.message));
+  await page.goto('file://' + out + '/page.html');
+  await page.waitForTimeout(500);
+  await fn(page);
+  const sw = await page.evaluate(() => document.documentElement.scrollWidth);
+  check(sw <= w, name + ' no horizontal scroll (scrollWidth ' + sw + ', viewport ' + w + ')');
+  await page.close();
+}
+// tap a word chip in the mode pane, then the option with this label
+async function setWord(page, scope, key, label) {
+  await page.locator(scope + ' .w[data-key="' + key + '"]').first().click();
+  await page.locator(scope + ' .chooser .choice', { hasText: label }).first().click();
+}
+
+await session(375, 812, 'phone', async (page) => {
+  await page.screenshot({ path: out + '/phone-start.png' });
+  await page.locator('.mc .opt').nth(1).click();
+  await page.getByText('Run the starting sentence').click();
+  await runDone(page);
+  console.log('L1 run:', await page.locator('#run-result').innerText());
+  await page.locator('#mode-pane .replay button', { hasText: /Watch one update|Start again/ }).click();
+  await page.waitForSelector('#mode-pane .rp-stage', { timeout: 60000 });
+  for (let i = 0; i < 4; i++) await page.locator('#mode-pane .replay button', { hasText: /^Next$/ }).click();
+  console.log('L1 replay, last stage:', (await page.locator('#mode-pane .rp-stage').innerText()).slice(0, 200));
+  await page.locator('#mode-pane .mc').nth(1).locator('.opt').nth(1).click();
+  await setWord(page, '#mode-pane', 'eps', 'sometimes at random');
+  const mjx = await page.locator('#mode-pane .math mjx-container').count();
+  console.log('MathJax containers in the repair step:', mjx);
+  await page.screenshot({ path: out + '/phone-repair.png', fullPage: false });
+  await page.getByText('Run this sentence').click();
+  await runDone(page);
+  console.log('L1 repair run:', await page.locator('#run-result').innerText());
+  await page.waitForSelector('text=Explain why it works', { timeout: 10000 });
+  await page.locator('#mode-pane .mc').last().locator('.opt').nth(0).click();
+  await page.waitForSelector('text=Your sentence and the published one');
+  const cons = await page.locator('#mode-pane .step').last().innerText();
+  check(/ε-greedy/.test(cons), 'level 1 consolidation names ε-greedy');
+  await page.screenshot({ path: out + '/phone-l1-done.png', fullPage: true });
+});
+
+await session(1280, 900, 'desktop', async (page) => {
+  await page.getByRole('tab', { name: 'Workbench' }).click();
+  await page.selectOption('#wb-world', 'cartpole');
+  await setWord(page, '#mode-pane', 'store', 'a network');
+  await setWord(page, '#mode-pane', 'data', 'random old moves');
+  await setWord(page, '#mode-pane', 'picker', 'a frozen copy');
+  await setWord(page, '#mode-pane', 'scorer', 'a frozen copy');
+  await page.waitForTimeout(1500);
+  console.log('math rows:', await page.locator('#mode-pane .math .mrow').count(), 'MathJax containers:', await page.locator('#mode-pane .math mjx-container').count());
+  await page.selectOption('#seeds', '1'); await page.selectOption('#budget', '10000');
+  const t0 = Date.now();
+  await page.click('#run-btn');
+  await runDone(page);
+  console.log('DQN 10k 1 seed in', ((Date.now() - t0) / 1000).toFixed(1), 's:', await page.locator('#run-result').innerText());
+  check(await page.locator('#expert-card').isVisible() && await page.locator('#expert-card').evaluate((d) => d.open), 'the expert card opens after a Workbench run');
+  check(/The frozen copy sets how fast the values can grow/.test(await page.locator('#expert').innerText()), 'the expert explains the frozen copy for DQN');
+  check(await page.locator('#charts button', { hasText: 'Why this gap?' }).count() === 1, 'the value chart has a "Why this gap?" button');
+  console.log('name box:', (await page.locator('#rule .compound').innerText()).replace(/\n/g, ' | '));
+  await page.locator('#mode-pane .replay button', { hasText: /Watch one update|Start again/ }).click();
+  await page.waitForSelector('#mode-pane .rp-stage', { timeout: 60000 });
+  await page.locator('#mode-pane .rp-tab').nth(4).click();
+  console.log('DQN replay verdict:', await page.locator('#mode-pane .rp-verdict').innerText());
+  await page.screenshot({ path: out + '/desktop-wb.png' });
+  await page.getByText('Pin this run as A').click();
+  await setWord(page, '#mode-pane', 'picker', 'the live estimate');
+  await setWord(page, '#mode-pane', 'scorer', 'the live estimate');
+  await setWord(page, '#mode-pane', 'data', 'the move just made');
+  console.log('compare:', (await page.locator('#compare').innerText()).replace(/\n/g, ' | '));
+  await page.click('#run-btn');
+  await runDone(page);
+  console.log('naive net run:', await page.locator('#run-result').innerText());
+  await page.locator('#mode-pane .replay button', { hasText: /Watch one update|Start again/ }).click();
+  await page.waitForSelector('#mode-pane .rp-stage', { timeout: 60000 });
+  await page.locator('#mode-pane .rp-tab').nth(4).click();
+  console.log('naive replay verdict:', await page.locator('#mode-pane .rp-verdict').innerText());
+  await page.screenshot({ path: out + '/desktop-compare.png' });
+  await page.selectOption('#wb-world', 'mirage');
+  await page.waitForTimeout(300);
+  await page.click('#run-btn');
+  await runDone(page);
+  console.log('mirage run:', await page.locator('#run-result').innerText());
+  await page.screenshot({ path: out + '/desktop-mirage.png' });
+  await page.getByRole('tab', { name: 'Review' }).click();
+  await page.screenshot({ path: out + '/desktop-review.png' });
+  await page.getByRole('tab', { name: 'Codex' }).click();
+  await page.screenshot({ path: out + '/desktop-codex.png' });
+  await page.getByRole('tab', { name: 'Saboteur' }).click();
+  await page.screenshot({ path: out + '/desktop-sab.png' });
+});
+// phases 2 to 5: a policy-gradient level end to end, actor-critic runs and replays, the family trees
+await session(1280, 900, 'phases', async (page) => {
+  await page.getByRole('tab', { name: 'Campaign' }).click();
+  await page.locator('#mode-pane label', { hasText: 'Open every phase now' }).locator('input').check();
+  await page.locator('#mode-pane .node', { hasText: 'Learn the policy itself' }).click();
+  await page.locator('#mode-pane .mc').first().locator('.opt').nth(1).click();
+  await page.getByText('Run the starting sentence').click();
+  await runDone(page);
+  const r1 = await page.locator('#run-result').innerText();
+  console.log('credit start run:', r1);
+  check(/Does not work yet/.test(r1), 'the simplest policy gradient does not reach the goal');
+  await page.locator('#mode-pane .replay button', { hasText: /Watch one update|Start again/ }).click();
+  await page.waitForSelector('#mode-pane .rp-stage', { timeout: 60000 });
+  for (let i = 0; i < 3; i++) await page.locator('#mode-pane .replay button', { hasText: /^Next$/ }).click();
+  console.log('pg replay stage:', (await page.locator('#mode-pane .rp-stage').innerText()).slice(0, 160).replace(/\n/g, ' | '));
+  await page.locator('#mode-pane .mc').nth(1).locator('.opt').nth(0).click();
+  await setWord(page, '#mode-pane', 'credit', 'only the rewards after it');
+  await setWord(page, '#mode-pane', 'scale', 'yes, by the standard deviation');
+  await page.waitForTimeout(800);
+  check(await page.locator('#mode-pane .math mjx-container').count() > 0, 'policy-gradient sentence renders its math');
+  await page.getByText('Run this sentence').click();
+  await runDone(page);
+  console.log('credit repair run:', await page.locator('#run-result').innerText());
+  await page.waitForSelector('text=Explain why it works', { timeout: 10000 });
+  await page.locator('#mode-pane .mc').last().locator('.opt').nth(0).click();
+  await page.waitForSelector('text=On a real robot', { timeout: 10000 });
+  const cons = await page.locator('#mode-pane .step').last().innerText();
+  check(/REINFORCE/.test(cons), 'credit consolidation names REINFORCE');
+  await page.screenshot({ path: out + '/phases-credit-done.png', fullPage: true });
+
+  await page.getByRole('tab', { name: 'Workbench' }).click();
+  await page.selectOption('#wb-family', 'ac');
+  await page.selectOption('#wb-world', 'pendulum');
+  await page.selectOption('#seeds', '1'); await page.selectOption('#budget', '6000');
+  let t0 = Date.now();
+  await page.click('#run-btn');
+  await runDone(page);
+  console.log('SAC pendulum 6k 1 seed in', ((Date.now() - t0) / 1000).toFixed(1), 's:', await page.locator('#run-result').innerText());
+  check(await page.locator('#charts canvas, #charts svg').count() >= 3, 'actor-critic charts drawn');
+  await page.locator('#mode-pane .replay button', { hasText: /Watch one update|Start again/ }).click();
+  await page.waitForSelector('#mode-pane .rp-stage', { timeout: 60000 });
+  for (let i = 0; i < 4; i++) await page.locator('#mode-pane .replay button', { hasText: /^Next$/ }).click();
+  console.log('ac replay stage:', (await page.locator('#mode-pane .rp-stage').innerText()).slice(0, 160).replace(/\n/g, ' | '));
+  await page.screenshot({ path: out + '/phases-sac.png' });
+
+  await page.selectOption('#wb-world', 'fork');
+  await setWord(page, '#mode-pane', 'source', 'a fixed dataset only');
+  await setWord(page, '#mode-pane', 'aim', 'copy the actions in memory');
+  await setWord(page, '#mode-pane', 'head', 'noise turned into an action');
+  await page.selectOption('#seeds', '1'); await page.selectOption('#budget', '2000');
+  t0 = Date.now();
+  await page.click('#run-btn');
+  await runDone(page);
+  console.log('flow BC fork 2k in', ((Date.now() - t0) / 1000).toFixed(1), 's:', await page.locator('#run-result').innerText());
+  console.log('name box:', (await page.locator('#rule .compound').innerText()).replace(/\n/g, ' | '));
+  await page.screenshot({ path: out + '/phases-fork.png' });
+
+  await page.getByRole('tab', { name: 'Codex' }).click();
+  const trees = await page.locator('#mode-pane .genealogy svg').count();
+  check(trees === 5, 'codex shows 5 family trees (got ' + trees + ')');
+  await page.screenshot({ path: out + '/phases-codex.png', fullPage: true });
+  await page.getByRole('tab', { name: 'Saboteur' }).click();
+  await page.locator('#mode-pane .mission', { hasText: 'Look more often' }).click();
+  await page.waitForTimeout(300);
+  check(await page.locator('#k-obstacle').count() === 1, 'fork mission shows the obstacle knob');
+  check(/10 commands/.test(await page.locator('#rule').innerText()), 'fork mission starts with 10 commands per decision');
+});
+await session(1280, 900, 'twoways', async (page) => {
+  // phase 5 end to end: the 10-command Gaussian copy fails, the flow copy reaches the goal (level hyper: lr 0.003, batch 128)
+  await page.getByRole('tab', { name: 'Campaign' }).click();
+  await page.locator('#mode-pane label', { hasText: 'Open every phase now' }).locator('input').check();
+  await page.locator('#mode-pane .node', { hasText: 'Two good ways' }).click();
+  await page.locator('#mode-pane .mc').first().locator('.opt').nth(0).click();
+  let t0 = Date.now();
+  await page.getByText('Run the starting sentence').click();
+  await runDone(page);
+  const r1 = await page.locator('#run-result').innerText();
+  console.log('twoways start run in', ((Date.now() - t0) / 1000).toFixed(0), 's:', r1);
+  check(/Does not work yet/.test(r1), 'the 10-command Gaussian copy does not pass');
+  await page.locator('#mode-pane .mc').nth(1).locator('.opt').nth(0).click();
+  await setWord(page, '#mode-pane', 'head', 'noise turned into an action');
+  t0 = Date.now();
+  await page.getByText('Run this sentence').click();
+  await runDone(page);
+  console.log('twoways flow run in', ((Date.now() - t0) / 1000).toFixed(0), 's:', await page.locator('#run-result').innerText());
+  const ok = await page.waitForSelector('text=Explain why it works', { timeout: 10000 }).then(() => true, () => false);
+  check(ok, 'the 10-command flow copy passes the goal');
+  await page.screenshot({ path: out + '/twoways-done.png', fullPage: true });
+});
+await session(375, 812, 'phone-frontier', async (page) => {
+  await page.getByRole('tab', { name: 'Campaign' }).click();
+  await page.locator('#mode-pane label', { hasText: 'Open every phase now' }).locator('input').check();
+  await page.locator('#mode-pane .node', { hasText: 'Steer a frozen policy' }).click();
+  await page.waitForTimeout(500);
+  check(/mud/.test(await page.locator('#mode-pane').innerText()), 'mud level shows its intro');
+  await page.screenshot({ path: out + '/phone-mud.png', fullPage: true });
+  await page.locator('#mode-pane .node', { hasText: 'Keep the controller' }).click();
+  await page.waitForTimeout(500);
+  check(/kitting/.test(await page.locator('#mode-pane').innerText()), 'residual level shows its intro');
+  await page.locator('#mode-pane .mc').first().locator('.opt').nth(1).click();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: out + '/phone-residual.png', fullPage: true });
+});
+// comment fixes of 15 Oct: the combination table, the episode animation, the discovery map
+await session(375, 812, 'comments', async (page) => {
+  await page.locator('#grid-card summary').click();
+  check(await page.locator('#grid-lab .chip.gw.on').count() === 4, 'slots: the four bandit words are picked by default');
+  await page.locator('#grid-lab button', { hasText: /^Run all 16/ }).click();
+  await page.waitForFunction(() => /Done|failed/.test(document.querySelector('#grid-status').textContent), null, { timeout: 120000 });
+  check(/Done: 16/.test(await page.locator('#grid-status').innerText()), 'the combination table runs all 16 bandit combinations');
+  check(await page.locator('#grid-lab .gcell').count() === 16, 'the matrix has 16 cells');
+  check(/depending on the other words/.test(await page.locator('#grid-lab').innerText()), 'the effects list finds an interaction');
+  await page.locator('#grid-card').screenshot({ path: out + '/comments-grid.png' });
+  const det = page.locator('#lab details.card-details', { hasText: 'Watch one update' });
+  await det.locator('summary').click();
+  await det.locator('button', { hasText: /^Watch one update$/ }).click();
+  await page.waitForSelector('#replay-lab .rp-canvas', { timeout: 60000 });
+  check(/last 12 pulls/.test(await page.locator('#replay-lab .rp-ep').innerText()), 'the replay shows the pulls before the update');
+  await page.evaluate(() => { const v = JSON.parse(localStorage.getItem('breaking-bellman-v1')) || {}; v.found = ['egreedy', 'expsarsa']; v.mode = 'codex'; localStorage.setItem('breaking-bellman-v1', JSON.stringify(v)); });
+  await page.reload(); await page.waitForTimeout(500);
+  check(/2 of 33 methods/.test(await page.locator('#score').innerText()), 'the score counts methods out of 33');
+  check(/1 of 9 found, 8 left/.test(await page.locator('.dmap').innerText()), 'the discovery map counts the grid-world methods');
+  const mp = page.locator('details.mp');
+  check(await mp.count() === 1, 'the Expected Sarsa card has one mirage drawer');
+  await mp.locator('summary').click();
+  await mp.locator('button', { hasText: 'Play 40 episodes: Q-learning' }).click();
+  await page.waitForFunction(() => /episode 8:/.test(document.querySelector('details.mp').innerText), null, { timeout: 20000 });
+  check(/Guess for the left door \(the best estimate\)/.test(await mp.innerText()), 'the mirage animation explains the Q-learning guess');
+  await mp.locator('button', { hasText: /^Run 300 learners/ }).click();
+  await page.waitForFunction(() => /Left door at the worst point/.test(document.querySelector('details.mp').innerText), null, { timeout: 60000 });
+  const mt = await mp.innerText();
+  console.log('mirage drawer:', (mt.match(/Left door at the worst point[^\n]*/) || [''])[0]);
+  const pk = (mt.match(/Q-learning (\d+)%, Expected Sarsa (\d+)%/) || []).slice(1).map(Number);
+  check(pk.length === 2 && pk[0] > 50 && pk[1] > 50, 'both learners chase the mirage in the 300-run chart');
+  await mp.screenshot({ path: out + '/comments-mirage.png' });
+});
+await session(375, 812, 'expert', async (page) => {
+  await page.getByRole('tab', { name: 'Workbench' }).click();
+  await page.selectOption('#wb-world', 'cliff');
+  await setWord(page, '#mode-pane', 'agg', 'the worst next action');
+  await page.selectOption('#seeds', '5');
+  await page.click('#run-btn');
+  await runDone(page);
+  console.log('cliff worst next action:', await page.locator('#run-result').innerText());
+  const ex = await page.locator('#expert').innerText();
+  console.log('expert first note:', ex.split('\n').slice(0, 2).join(' | '));
+  check(/Q predicts less than the policy earns/.test(ex), 'the expert reads a pessimistic value chart');
+  check(/Why it fails here/.test(ex) && /Where it works/.test(ex), 'the worst-next-action note says why it fails on the cliff and where it works');
+  await page.locator('#expert-card').screenshot({ path: out + '/expert-cliff-min.png' });
+});
+console.log('errors:', errors.length ? errors.join('\n') : 'none');
+if (errors.length) fails.push('page errors');
+console.log(fails.length ? 'FAILED: ' + fails.join('; ') : 'ALL CHECKS PASSED');
+await browser.close();
+process.exit(fails.length ? 1 : 0);

@@ -1,0 +1,18 @@
+[
+ {"name":"fork5-gauss","world":"fork","knobs":{"obstacle":0.5},"parts":{"family":"ac","source":"fixed","demos":"expert","aim":"copy","critics":"none","entropy":"none"},"steps":6000,"seeds":3},
+ {"name":"fork5-flow","world":"fork","knobs":{"obstacle":0.5},"parts":{"family":"ac","source":"fixed","demos":"expert","head":"flow","aim":"copy","critics":"none","entropy":"none"},"steps":6000,"seeds":3},
+ {"name":"fork5-flow-h64","world":"fork","knobs":{"obstacle":0.5},"hyper":{"hidden":[64,64]},"parts":{"family":"ac","source":"fixed","demos":"expert","head":"flow","aim":"copy","critics":"none","entropy":"none"},"steps":6000,"seeds":3},
+ {"name":"fork5-det","world":"fork","knobs":{"obstacle":0.5},"parts":{"family":"ac","source":"fixed","demos":"expert","head":"det","aim":"copy","critics":"none","entropy":"none"},"steps":6000,"seeds":3},
+ {"name":"reachP3-base","world":"reach","knobs":{"payload":3,"pickAt":15},"parts":{"family":"ac","base":"classical","aim":"none"},"steps":2000,"seeds":2},
+ {"name":"reachP3-res-sac","world":"reach","knobs":{"payload":3,"pickAt":15},"parts":{"family":"ac","base":"classical"},"steps":15000,"seeds":3},
+ {"name":"reachP3-res-sac-s1","world":"reach","knobs":{"payload":3,"pickAt":15},"hyper":{"residualScale":1},"parts":{"family":"ac","base":"classical"},"steps":15000,"seeds":3},
+ {"name":"reachP3-res-td3","world":"reach","knobs":{"payload":3,"pickAt":15},"hyper":{"residualScale":1},"parts":{"family":"ac","base":"classical","head":"det","next":"smooth","delay":2,"entropy":"none"},"steps":15000,"seeds":3},
+ {"name":"reachP3-sac","world":"reach","knobs":{"payload":3,"pickAt":15},"parts":{"family":"ac"},"steps":15000,"seeds":3},
+ {"name":"reachL2-base","world":"reach","knobs":{"latency":2},"parts":{"family":"ac","base":"classical","aim":"none"},"steps":2000,"seeds":2},
+ {"name":"reachL2-res-sac-s1","world":"reach","knobs":{"latency":2},"hyper":{"residualScale":1},"parts":{"family":"ac","base":"classical"},"steps":15000,"seeds":3},
+ {"name":"reach-mix-cond","world":"reach","parts":{"family":"ac","source":"fixed","demos":"mixed","head":"det","aim":"cond","critics":"none","entropy":"none"},"steps":8000,"seeds":3},
+ {"name":"reach-mix-cond-q","world":"reach","parts":{"family":"ac","source":"fixed","demos":"mixed","head":"det","aim":"cond","critics":"two","entropy":"none"},"steps":8000,"seeds":3},
+ {"name":"reach-noisy-bc","world":"reach","parts":{"family":"ac","source":"fixed","demos":"noisy","head":"det","aim":"copy","critics":"none","entropy":"none"},"steps":8000,"seeds":3},
+ {"name":"reach-noisy-cond","world":"reach","parts":{"family":"ac","source":"fixed","demos":"noisy","head":"det","aim":"cond","critics":"none","entropy":"none"},"steps":8000,"seeds":3},
+ {"name":"reach-noisy-iql","world":"reach","parts":{"family":"ac","source":"fixed","demos":"noisy","head":"det","aim":"weighted","critics":"two","next":"expectile","entropy":"none"},"steps":8000,"seeds":3}
+]

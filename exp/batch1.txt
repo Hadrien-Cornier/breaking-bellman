@@ -1,0 +1,8 @@
+cartpole|{"repr":"net","target":"td","explore":"epsilon"}|20000|5|{}
+cartpole|{"repr":"net","target":"td","explore":"epsilon","replay":true}|20000|5|{}
+cartpole|{"repr":"net","target":"td","explore":"epsilon","targetNet":true}|20000|5|{}
+cartpole|{"repr":"net","target":"td","explore":"epsilon","replay":true,"targetNet":true}|20000|5|{}
+cartpole|{"repr":"net","target":"td","explore":"epsilon","replay":true,"targetNet":true,"double":true}|20000|5|{}
+cartpole|{"repr":"table","target":"td","explore":"epsilon"}|20000|5|{}
+cartpole|{"repr":"net","target":"td","explore":"epsilon","replay":true,"targetNet":true}|20000|5|{"actionCopies":5,"rewardNoise":2}
+cartpole|{"repr":"net","target":"td","explore":"epsilon","replay":true,"targetNet":true,"double":true}|20000|5|{"actionCopies":5,"rewardNoise":2}

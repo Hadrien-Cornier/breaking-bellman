@@ -1,0 +1,20 @@
+[
+{"name":"naive net","world":"cartpole","parts":{"store":"net"},"steps":20000,"seeds":3},
+{"name":"DQN (frozen picks+scores, replay)","world":"cartpole","parts":{"store":"net","data":"replay","picker":"frozen","scorer":"frozen"},"steps":20000,"seeds":5},
+{"name":"DDQN (live picks, frozen scores)","world":"cartpole","parts":{"store":"net","data":"replay","picker":"live","scorer":"frozen"},"steps":20000,"seeds":5},
+{"name":"net MC replay","world":"cartpole","parts":{"store":"net","data":"replay","nstep":0},"steps":20000,"seeds":3},
+{"name":"net n4 replay frozen","world":"cartpole","parts":{"store":"net","data":"replay","nstep":4,"picker":"frozen","scorer":"frozen"},"steps":20000,"seeds":3},
+{"name":"table Q","world":"cartpole","parts":{"store":"table"},"steps":20000,"seeds":5},
+{"name":"bandit greedy","world":"bandit","parts":{"eps":false,"step":"avg"},"steps":1000,"seeds":300},
+{"name":"bandit eps","world":"bandit","parts":{"step":"avg"},"steps":1000,"seeds":300,"hyper":{"epsStart":0.1,"epsEnd":0.1}},
+{"name":"mirage Q","world":"mirage","parts":{},"steps":600,"seeds":300,"hyper":{"epsStart":0.1,"epsEnd":0.1}},
+{"name":"mirage DoubleQ","world":"mirage","parts":{"scorer":"second"},"steps":600,"seeds":300,"hyper":{"epsStart":0.1,"epsEnd":0.1}},
+{"name":"mirage clipped minpair","world":"mirage","parts":{"scorer":"minpair"},"steps":600,"seeds":300,"hyper":{"epsStart":0.1,"epsEnd":0.1}},
+{"name":"mirage frozen scorer","world":"mirage","parts":{"scorer":"frozen","sync":20},"steps":600,"seeds":300,"hyper":{"epsStart":0.1,"epsEnd":0.1}},
+{"name":"mirage expected sarsa","world":"mirage","parts":{"agg":"mean"},"steps":600,"seeds":300,"hyper":{"epsStart":0.1,"epsEnd":0.1}},
+{"name":"cliff Q","world":"cliff","parts":{},"steps":10000,"seeds":20,"hyper":{"epsStart":0.1,"epsEnd":0.1,"lrTable":0.5}},
+{"name":"cliff Sarsa","world":"cliff","parts":{"agg":"taken"},"steps":10000,"seeds":20,"hyper":{"epsStart":0.1,"epsEnd":0.1,"lrTable":0.5}},
+{"name":"cliff ExpSarsa","world":"cliff","parts":{"agg":"mean"},"steps":10000,"seeds":20,"hyper":{"epsStart":0.1,"epsEnd":0.1,"lrTable":0.5}},
+{"name":"cliff MC","world":"cliff","parts":{"nstep":0},"steps":10000,"seeds":20,"hyper":{"epsStart":0.1,"epsEnd":0.1,"lrTable":0.5}},
+{"name":"cliff n4","world":"cliff","parts":{"nstep":4},"steps":10000,"seeds":20,"hyper":{"epsStart":0.1,"epsEnd":0.1,"lrTable":0.5}}
+]

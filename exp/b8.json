@@ -1,0 +1,7 @@
+[
+ {"name":"sac-pend-12k","world":"pendulum","parts":{"family":"ac"},"steps":12000,"seeds":3},
+ {"name":"td3-pend-12k","world":"pendulum","parts":{"family":"ac","head":"det","critics":"two","next":"smooth","delay":2,"entropy":"none"},"steps":12000,"seeds":3},
+ {"name":"ddpg-pend-12k","world":"pendulum","parts":{"family":"ac","head":"det","critics":"one","next":"policy","delay":1,"entropy":"none"},"steps":12000,"seeds":3},
+ {"name":"pg-reinforce-cp","world":"cartpole","parts":{"family":"pg","batch":4,"credit":"total","baseline":"none","adv":"mc","lr":0.003},"steps":40000,"seeds":3},
+ {"name":"pg-ppo-cp","world":"cartpole","parts":{"family":"pg","batch":8,"credit":"togo","baseline":"critic","adv":"gae","scale":"std","step":"clip","epochs":10,"lr":0.001},"steps":40000,"seeds":3}
+]

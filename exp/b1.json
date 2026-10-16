@@ -1,0 +1,10 @@
+[
+{"name":"naive net","world":"cartpole","parts":{"repr":"net","target":"td","explore":"epsilon"},"steps":20000,"seeds":5},
+{"name":"replay only","world":"cartpole","parts":{"repr":"net","target":"td","explore":"epsilon","replay":true},"steps":20000,"seeds":5},
+{"name":"target only","world":"cartpole","parts":{"repr":"net","target":"td","explore":"epsilon","targetNet":true},"steps":20000,"seeds":5},
+{"name":"DQN","world":"cartpole","parts":{"repr":"net","target":"td","explore":"epsilon","replay":true,"targetNet":true},"steps":20000,"seeds":5},
+{"name":"DDQN","world":"cartpole","parts":{"repr":"net","target":"td","explore":"epsilon","replay":true,"targetNet":true,"double":true},"steps":20000,"seeds":5},
+{"name":"table","world":"cartpole","parts":{"repr":"table","target":"td","explore":"epsilon"},"steps":20000,"seeds":5},
+{"name":"DQN noisy copies","world":"cartpole","parts":{"repr":"net","target":"td","explore":"epsilon","replay":true,"targetNet":true},"steps":20000,"seeds":5,"knobs":{"actionCopies":5,"rewardNoise":2}},
+{"name":"DDQN noisy copies","world":"cartpole","parts":{"repr":"net","target":"td","explore":"epsilon","replay":true,"targetNet":true,"double":true},"steps":20000,"seeds":5,"knobs":{"actionCopies":5,"rewardNoise":2}}
+]

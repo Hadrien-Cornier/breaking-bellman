@@ -1,0 +1,6 @@
+ucb avg        late pulls: best 82.0%, 2nd best 11.3%, machine changes per late pull 0.084; final |Q - true mean|: best 0.031, 2nd 0.114; mean gap best-2nd 0.473
+ucb const      late pulls: best 67.0%, 2nd best 17.2%, machine changes per late pull 0.040; final |Q - true mean|: best 0.292, 2nd 0.393; mean gap best-2nd 0.473
+ucb opt const  late pulls: best 72.4%, 2nd best 12.7%, machine changes per late pull 0.038; final |Q - true mean|: best 0.288, 2nd 0.362; mean gap best-2nd 0.473
+opt const      late pulls: best 83.5%, 2nd best 13.4%, machine changes per late pull 0.011; final |Q - true mean|: best 0.279, 2nd 0.343; mean gap best-2nd 0.473
+opt avg        late pulls: best 63.5%, 2nd best 27.5%, machine changes per late pull 0.000; final |Q - true mean|: best 0.413, 2nd 0.458; mean gap best-2nd 0.473
+greedy const   late pulls: best 51.4%, 2nd best 30.9%, machine changes per late pull 0.001; final |Q - true mean|: best 0.852, 2nd 0.748; mean gap best-2nd 0.473

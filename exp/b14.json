@@ -1,0 +1,17 @@
+[
+ {"name":"fork-gauss","world":"fork","parts":{"family":"ac","source":"fixed","demos":"expert","aim":"copy","critics":"none","entropy":"none"},"steps":6000,"seeds":4},
+ {"name":"fork-det","world":"fork","parts":{"family":"ac","source":"fixed","demos":"expert","head":"det","aim":"copy","critics":"none","entropy":"none"},"steps":6000,"seeds":4},
+ {"name":"fork-flow-h64-12k","world":"fork","hyper":{"hidden":[64,64]},"parts":{"family":"ac","source":"fixed","demos":"expert","head":"flow","aim":"copy","critics":"none","entropy":"none"},"steps":12000,"seeds":4},
+ {"name":"fork-flow-h64-6k","world":"fork","hyper":{"hidden":[64,64]},"parts":{"family":"ac","source":"fixed","demos":"expert","head":"flow","aim":"copy","critics":"none","entropy":"none"},"steps":6000,"seeds":4},
+ {"name":"fork-noisy-flow","world":"fork","hyper":{"hidden":[64,64]},"parts":{"family":"ac","source":"fixed","demos":"noisy","head":"flow","aim":"copy","critics":"none","entropy":"none"},"steps":8000,"seeds":3},
+ {"name":"qp-noisy-one","world":"fork","hyper":{"hidden":[64,64],"pretrain":8000},"parts":{"family":"ac","source":"both","demos":"noisy","head":"flow","aim":"none","critics":"two","next":"data","entropy":"none","pick":"one"},"steps":4000,"seeds":3},
+ {"name":"qp-noisy-qavg","world":"fork","hyper":{"hidden":[64,64],"pretrain":8000},"parts":{"family":"ac","source":"both","demos":"noisy","head":"flow","aim":"none","critics":"two","next":"data","entropy":"none","pick":"qavg"},"steps":4000,"seeds":3},
+ {"name":"qp-noisy-best","world":"fork","hyper":{"hidden":[64,64],"pretrain":8000},"parts":{"family":"ac","source":"both","demos":"noisy","head":"flow","aim":"none","critics":"two","next":"data","entropy":"none","pick":"best"},"steps":4000,"seeds":3},
+ {"name":"qp-exp-qavg","world":"fork","hyper":{"hidden":[64,64],"pretrain":8000},"parts":{"family":"ac","source":"both","demos":"expert","head":"flow","aim":"none","critics":"two","next":"data","entropy":"none","pick":"qavg"},"steps":4000,"seeds":3},
+ {"name":"qp-exp-best","world":"fork","hyper":{"hidden":[64,64],"pretrain":8000},"parts":{"family":"ac","source":"both","demos":"expert","head":"flow","aim":"none","critics":"two","next":"data","entropy":"none","pick":"best"},"steps":4000,"seeds":3},
+ {"name":"res-g90","world":"reach","knobs":{"payload":3,"pickAt":15},"hyper":{"gamma":0.9},"parts":{"family":"ac","base":"classical"},"steps":15000,"seeds":3},
+ {"name":"res-g90-h64","world":"reach","knobs":{"payload":3,"pickAt":15},"hyper":{"gamma":0.9,"hidden":[64,64]},"parts":{"family":"ac","base":"classical"},"steps":15000,"seeds":3},
+ {"name":"res-g90-lr3e4","world":"reach","knobs":{"payload":3,"pickAt":15},"hyper":{"gamma":0.9,"lr":0.0003},"parts":{"family":"ac","base":"classical"},"steps":15000,"seeds":3},
+ {"name":"res-g90-td3","world":"reach","knobs":{"payload":3,"pickAt":15},"hyper":{"gamma":0.9},"parts":{"family":"ac","base":"classical","head":"det","next":"smooth","delay":2,"entropy":"none"},"steps":15000,"seeds":3},
+ {"name":"sac-g90","world":"reach","knobs":{"payload":3,"pickAt":15},"hyper":{"gamma":0.9},"parts":{"family":"ac"},"steps":15000,"seeds":3}
+]

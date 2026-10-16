@@ -1,0 +1,462 @@
+[
+ {
+  "name": "m-grpo-7",
+  "sec": 6.251,
+  "summary": {
+   "finalReturn": 0.997,
+   "finalSd": 0.006,
+   "peak": 1,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": -0.997,
+   "realized": 0.997,
+   "collapsedSeeds": 0,
+   "kl": 0,
+   "entropy": 0.381,
+   "zeroFrac": 0.924,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": 1,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:emptyGroups",
+   "ok:solved"
+  ],
+  "perSeed": [
+   1,
+   1,
+   1
+  ],
+  "notes": []
+ },
+ {
+  "name": "m-grpo-11",
+  "sec": 7.158,
+  "summary": {
+   "finalReturn": 0.95,
+   "finalSd": 0.026,
+   "peak": 1,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": -0.994,
+   "realized": 0.994,
+   "collapsedSeeds": 0,
+   "kl": 0.002,
+   "entropy": 0.333,
+   "zeroFrac": 0.799,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": 0.967,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:emptyGroups",
+   "ok:solved"
+  ],
+  "perSeed": [
+   0.95,
+   1,
+   0.95
+  ],
+  "notes": []
+ },
+ {
+  "name": "m-grpo-11-t10",
+  "sec": 6.734,
+  "summary": {
+   "finalReturn": 0.787,
+   "finalSd": 0.029,
+   "peak": 0.933,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": -1,
+   "realized": 1,
+   "collapsedSeeds": 0,
+   "kl": 0.003,
+   "entropy": 0.246,
+   "zeroFrac": 0.812,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": 0.8,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:emptyGroups",
+   "ok:solved"
+  ],
+  "perSeed": [
+   0.85,
+   0.85,
+   0.7
+  ],
+  "notes": []
+ },
+ {
+  "name": "m-grpo-9-t8",
+  "sec": 3.832,
+  "summary": {
+   "finalReturn": 0.532,
+   "finalSd": 0.439,
+   "peak": 0.683,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": -0.672,
+   "realized": 0.672,
+   "collapsedSeeds": 0,
+   "kl": 0.001,
+   "entropy": 0.228,
+   "zeroFrac": 0.893,
+   "successRate": 0.667,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": 0.5,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:emptyGroups",
+   "warn:unsolved"
+  ],
+  "perSeed": [
+   0,
+   0.85,
+   0.65
+  ],
+  "notes": []
+ },
+ {
+  "name": "m-sac-m2",
+  "sec": 28.505,
+  "summary": {
+   "finalReturn": -340.596,
+   "finalSd": 57.134,
+   "peak": -162.727,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": 54.443,
+   "realized": -253.347,
+   "collapsedSeeds": 0,
+   "std": 0.413,
+   "successRate": 0,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -318.715,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "warn:overestimate",
+   "warn:unsolved"
+  ],
+  "perSeed": [
+   -394.894,
+   -279.904,
+   -281.347
+  ],
+  "notes": []
+ },
+ {
+  "name": "m-sac-m3",
+  "sec": 28.49,
+  "summary": {
+   "finalReturn": -958.214,
+   "finalSd": 24.893,
+   "peak": -802.362,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": 235.757,
+   "realized": -445.912,
+   "collapsedSeeds": 0,
+   "std": 0.353,
+   "successRate": 0,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -922.306,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:overestimate",
+   "bad:unsolved"
+  ],
+  "perSeed": [
+   -869.988,
+   -1014.46,
+   -882.47
+  ],
+  "notes": []
+ },
+ {
+  "name": "m-sac-t1",
+  "sec": 28.891,
+  "summary": {
+   "finalReturn": -351.37,
+   "finalSd": 58.422,
+   "peak": -132.133,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": 61.81,
+   "realized": -260.36,
+   "collapsedSeeds": 0,
+   "std": 0.405,
+   "successRate": 0,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": -304.867,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "warn:overestimate",
+   "warn:unsolved"
+  ],
+  "perSeed": [
+   -287.341,
+   -342.443,
+   -284.816
+  ],
+  "notes": []
+ },
+ {
+  "name": "m-base-l1",
+  "sec": 3.35,
+  "summary": {
+   "finalReturn": -11.766,
+   "finalSd": 0.352,
+   "peak": -6.97,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": 2.895,
+   "realized": -8.697,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 0,
+   "crashRate": 0,
+   "meanDist": 0.026,
+   "testReturn": -12.44,
+   "baseDist": 0.027,
+   "baseRet": -13.603,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:overestimate",
+   "ok:solved"
+  ],
+  "perSeed": [
+   -13.052,
+   -10.967,
+   -13.301
+  ],
+  "notes": []
+ },
+ {
+  "name": "m-base-l2",
+  "sec": 3.349,
+  "summary": {
+   "finalReturn": -15.102,
+   "finalSd": 0.318,
+   "peak": -9.628,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": 4.27,
+   "realized": -10.295,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 0,
+   "crashRate": 0,
+   "meanDist": 0.077,
+   "testReturn": -15.252,
+   "baseDist": 0.109,
+   "baseRet": -16.892,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:overestimate",
+   "warn:unsolved"
+  ],
+  "perSeed": [
+   -15.722,
+   -14.231,
+   -15.803
+  ],
+  "notes": []
+ },
+ {
+  "name": "m-base-l3",
+  "sec": 4.288,
+  "summary": {
+   "finalReturn": -18.131,
+   "finalSd": 0.353,
+   "peak": -12.549,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": 5.566,
+   "realized": -11.743,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 0,
+   "crashRate": 0,
+   "meanDist": 0.139,
+   "testReturn": -18.085,
+   "baseDist": 0.163,
+   "baseRet": -19.978,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:overestimate",
+   "bad:unsolved"
+  ],
+  "perSeed": [
+   -18.652,
+   -17.221,
+   -18.382
+  ],
+  "notes": []
+ },
+ {
+  "name": "m-base-p0",
+  "sec": 6.818,
+  "summary": {
+   "finalReturn": -10.105,
+   "finalSd": 0.342,
+   "peak": -5.429,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": 1.95,
+   "realized": -7.707,
+   "collapsedSeeds": 0,
+   "std": 0,
+   "successRate": 0,
+   "crashRate": 0,
+   "meanDist": 0.012,
+   "testReturn": -10.904,
+   "baseDist": 0.008,
+   "baseRet": -11.81,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:overestimate",
+   "ok:solved"
+  ],
+  "perSeed": [
+   -11.345,
+   -9.517,
+   -11.849
+  ],
+  "notes": []
+ },
+ {
+  "name": "m-fk-o02",
+  "sec": 12.413,
+  "summary": {
+   "finalReturn": -0.355,
+   "finalSd": 0.301,
+   "peak": 0.315,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": 0.288,
+   "realized": -0.288,
+   "collapsedSeeds": 0,
+   "std": 0.118,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": 0.263,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:overestimate",
+   "bad:noSignal",
+   "ok:solved"
+  ],
+  "perSeed": [
+   0.251,
+   0.284,
+   0.256
+  ],
+  "notes": []
+ },
+ {
+  "name": "m-fk-o03",
+  "sec": 11.162,
+  "summary": {
+   "finalReturn": -1.057,
+   "finalSd": 0.81,
+   "peak": 0.259,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": 0.766,
+   "realized": -0.766,
+   "collapsedSeeds": 0,
+   "std": 0.125,
+   "successRate": 0.933,
+   "crashRate": 2.233,
+   "meanDist": null,
+   "testReturn": -1.076,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "bad:overestimate",
+   "bad:noSignal",
+   "bad:crash",
+   "ok:solved"
+  ],
+  "perSeed": [
+   -1.742,
+   -1.679,
+   0.194
+  ],
+  "notes": []
+ },
+ {
+  "name": "m-fk-o01",
+  "sec": 11.146,
+  "summary": {
+   "finalReturn": 0.077,
+   "finalSd": 0.214,
+   "peak": 0.358,
+   "seeds": 3,
+   "maxQ": 0,
+   "overestimate": 0.101,
+   "realized": -0.101,
+   "collapsedSeeds": 0,
+   "std": 0.108,
+   "successRate": 1,
+   "crashRate": 0,
+   "meanDist": null,
+   "testReturn": 0.308,
+   "baseDist": null,
+   "baseRet": null,
+   "tests": 20
+  },
+  "symptoms": [
+   "warn:overestimate",
+   "bad:noSignal",
+   "ok:solved"
+  ],
+  "perSeed": [
+   0.292,
+   0.317,
+   0.314
+  ],
+  "notes": []
+ }
+]

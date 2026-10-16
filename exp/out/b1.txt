@@ -1,0 +1,88 @@
+== naive net
+{"repr":"net","target":"td","explore":"epsilon"} {} {} 2.9s
+ seed 101 evals 10 9 9 10 9 9 9 9 9 10 | pred-disc 1704292 1782547 1985513 2011771 2134323 | maxQ 4689149
+ seed 202 evals 9 10 10 9 9 9 9 10 10 10 | pred-disc 1463606 1573228 1793912 1818530 2012678 | maxQ 2644579
+ seed 303 evals 9 9 10 10 9 10 9 10 9 10 | pred-disc 1496710 1595717 1777589 1860022 2009224 | maxQ 4388458
+ seed 404 evals 9 9 10 9 9 9 10 9 9 10 | pred-disc 1613944 1737078 1942134 2000096 2073965 | maxQ 2822087
+ seed 505 evals 10 10 9 10 9 9 10 9 9 9 | pred-disc 1630107 1681887 1969321 2104145 2219047 | maxQ 4100653
+ summary {"finalReturn":9.43,"finalSd":0.16,"peak":10.2,"seeds":5,"maxQ":4689148.5,"overestimate":1414093.73,"realized":9.05,"collapsedSeeds":0}
+  bad Values blew up - Largest |Q| 4.7e+6; no policy can earn more than about 100.
+  bad Predicts more than it earns - Q says 1.4e+6 at the start; the greedy run earned 9.0 (discounted). Gap 1.4e+6.
+  bad Does not balance - Final greedy score 9.4 of 200.
+
+== replay only
+{"repr":"net","target":"td","explore":"epsilon","replay":true} {} {} 31.9s
+ seed 101 evals 168 168 167 11 110 200 72 15 167 60 | pred-disc 10507 11683 15144 19844 25917 | maxQ 113336
+ seed 202 evals 9 194 199 9 119 160 9 83 62 10 | pred-disc 19291 24171 38459 36999 46848 | maxQ 96869
+ seed 303 evals 191 200 200 153 46 17 9 200 137 11 | pred-disc 1243 978 640 386 634 | maxQ 4064
+ seed 404 evals 200 195 200 200 127 13 117 9 127 200 | pred-disc 3272 3774 3555 4712 5990 | maxQ 28291
+ seed 505 evals 200 153 195 11 86 104 200 174 14 35 | pred-disc 13976 13413 18796 18249 17471 | maxQ 70362
+ summary {"finalReturn":90.59,"finalSd":40.28,"peak":200,"seeds":5,"maxQ":113335.52,"overestimate":10745.78,"realized":50.99,"collapsedSeeds":2}
+  bad Values blew up - Largest |Q| 1.1e+5; no policy can earn more than about 100.
+  bad Predicts more than it earns - Q says 1.1e+4 at the start; the greedy run earned 51 (discounted). Gap 1.1e+4.
+  warn Learned, then forgot - 2 of 5 seeds reached a high score and then fell below half of it.
+  bad Does not balance - Final greedy score 91 of 200.
+
+== target only
+{"repr":"net","target":"td","explore":"epsilon","targetNet":true} {} {} 3.1s
+ seed 101 evals 10 147 10 10 194 9 112 189 11 9 | pred-disc 51 27 56 60 62 | maxQ 70
+ seed 202 evals 9 9 10 25 19 9 89 81 10 10 | pred-disc 50 50 50 52 57 | maxQ 67
+ seed 303 evals 9 9 10 9 15 120 9 9 75 186 | pred-disc 11 9 -10 -13 -16 | maxQ 70
+ seed 404 evals 35 30 10 9 60 9 142 99 10 50 | pred-disc 52 53 52 50 23 | maxQ 65
+ seed 505 evals 9 10 10 10 104 131 10 121 93 9 | pred-disc 12 68 67 70 71 | maxQ 81
+ summary {"finalReturn":56.55,"finalSd":14.25,"peak":197.27,"seeds":5,"maxQ":80.55,"overestimate":25.38,"realized":35.68,"collapsedSeeds":4}
+  bad Predicts more than it earns - Q says 61 at the start; the greedy run earned 36 (discounted). Gap 25.
+  bad Learned, then forgot - 4 of 5 seeds reached a high score and then fell below half of it.
+  bad Does not balance - Final greedy score 57 of 200.
+
+== DQN
+{"repr":"net","target":"td","explore":"epsilon","replay":true,"targetNet":true} {} {} 32.6s
+ seed 101 evals 43 200 198 114 123 200 135 196 200 115 | pred-disc -36 -22 -37 -27 -7 | maxQ 61
+ seed 202 evals 21 125 126 161 178 193 167 102 159 200 | pred-disc -24 -30 -33 -39 -41 | maxQ 60
+ seed 303 evals 144 200 197 121 168 104 115 109 93 106 | pred-disc -3 -4 -3 -4 -2 | maxQ 65
+ seed 404 evals 113 200 200 200 200 147 102 97 105 106 | pred-disc -10 -18 -6 -16 -5 | maxQ 60
+ seed 505 evals 124 153 200 200 200 114 103 126 200 136 | pred-disc -31 -30 -28 -24 -10 | maxQ 65
+ summary {"finalReturn":143.8,"finalSd":30.65,"peak":200,"seeds":5,"maxQ":65.04,"overestimate":-19.66,"realized":74.88,"collapsedSeeds":0}
+  warn Balances part of the time - Final greedy score 144 of 200.
+
+== DDQN
+{"repr":"net","target":"td","explore":"epsilon","replay":true,"targetNet":true,"double":true} {} {} 39.4s
+ seed 101 evals 35 200 200 189 116 148 133 96 103 107 | pred-disc -9 -18 -13 -12 -6 | maxQ 62
+ seed 202 evals 120 191 193 200 196 106 123 132 200 200 | pred-disc -42 -38 -39 -29 -33 | maxQ 64
+ seed 303 evals 91 197 150 159 126 129 126 114 108 157 | pred-disc -9 -10 -21 -35 -17 | maxQ 62
+ seed 404 evals 200 200 200 200 200 200 200 113 119 200 | pred-disc -15 -41 -38 -42 -42 | maxQ 61
+ seed 505 evals 171 200 200 200 197 200 200 200 105 89 | pred-disc -10 -26 -8 11 0 | maxQ 94
+ summary {"finalReturn":142.19,"finalSd":24.98,"peak":200,"seeds":5,"maxQ":94.01,"overestimate":-22.56,"realized":77,"collapsedSeeds":0}
+  warn Balances part of the time - Final greedy score 142 of 200.
+
+== table
+{"repr":"table","target":"td","explore":"epsilon"} {} {} 0.3s
+ seed 101 evals 51 40 39 12 44 30 92 31 11 16 | pred-disc 6 -9 -14 9 2 | maxQ 33
+ seed 202 evals 47 63 56 77 41 72 67 47 53 69 | pred-disc -11 -24 8 -9 -17 | maxQ 36
+ seed 303 evals 37 43 23 134 53 31 103 65 105 172 | pred-disc -32 -25 -51 -34 -55 | maxQ 40
+ seed 404 evals 20 37 26 54 56 38 33 48 35 50 | pred-disc -10 -9 5 -21 -23 | maxQ 25
+ seed 505 evals 17 35 54 33 30 29 64 74 49 108 | pred-disc -12 -27 -41 -47 -39 | maxQ 31
+ summary {"finalReturn":58.68,"finalSd":26.97,"peak":131.07,"seeds":5,"maxQ":39.85,"overestimate":-14.61,"realized":38.4,"collapsedSeeds":2}
+  warn Learned, then forgot - 2 of 5 seeds reached a high score and then fell below half of it.
+  bad Does not balance - Final greedy score 59 of 200.
+
+== DQN noisy copies
+{"repr":"net","target":"td","explore":"epsilon","replay":true,"targetNet":true} {"actionCopies":5,"rewardNoise":2} {} 38.7s
+ seed 101 evals 8 218 204 198 177 197 211 88 181 139 | pred-disc 10 22 9 0 14 | maxQ 91
+ seed 202 evals 3 196 222 199 183 184 187 139 198 163 | pred-disc -12 -4 -22 -7 -1 | maxQ 84
+ seed 303 evals 8 183 192 199 201 166 209 208 163 133 | pred-disc -5 -15 -11 8 11 | maxQ 94
+ seed 404 evals 18 220 192 169 183 221 190 173 235 173 | pred-disc -40 -15 -11 -12 0 | maxQ 156
+ seed 505 evals 18 153 200 205 190 224 196 176 190 128 | pred-disc -7 6 25 -6 20 | maxQ 100
+ summary {"finalReturn":166.34,"finalSd":28.79,"peak":230.67,"seeds":5,"maxQ":155.7,"overestimate":-5.41,"realized":83.29,"collapsedSeeds":0}
+  warn Balances part of the time - Final greedy score 166 of 200.
+
+== DDQN noisy copies
+{"repr":"net","target":"td","explore":"epsilon","replay":true,"targetNet":true,"double":true} {"actionCopies":5,"rewardNoise":2} {} 45.7s
+ seed 101 evals 9 214 164 190 99 183 197 113 144 216 | pred-disc -6 -16 -13 -8 -34 | maxQ 78
+ seed 202 evals 3 186 180 190 204 200 159 193 96 187 | pred-disc -3 -19 -14 -9 -21 | maxQ 71
+ seed 303 evals 8 79 186 216 127 217 212 169 176 114 | pred-disc -18 -40 9 -11 0 | maxQ 81
+ seed 404 evals 18 206 203 188 205 199 157 160 190 210 | pred-disc -27 -37 -41 -21 -30 | maxQ 105
+ seed 505 evals 17 166 192 193 181 237 221 184 65 92 | pred-disc 14 -23 20 -20 9 | maxQ 79
+ summary {"finalReturn":151.32,"finalSd":15.68,"peak":222.78,"seeds":5,"maxQ":105.48,"overestimate":-18.95,"realized":79.51,"collapsedSeeds":0}
+  warn Balances part of the time - Final greedy score 151 of 200.
+

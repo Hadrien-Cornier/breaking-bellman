@@ -1,0 +1,4 @@
+CartPole fastest fall from the start: mean 8.73 steps (min 8, max 9, 0 of 200 deeper than 14). Discounted reward of that fall: 8.40.
+Cliff, worst next action: greedy test reaches the goal in 1 of 20 runs; mean greedy score -190.8.
+most visited cells in the greedy tests (row,col: count): 
+Cliff, worst next action, greedy walk: share of steps per row (row 0 top, row 3 bottom with the cliff): 76% 16% 8% 0%

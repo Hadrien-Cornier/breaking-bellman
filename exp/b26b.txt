@@ -1,0 +1,6 @@
+cart-dqn-max-sync50          {"finalReturn":118.411,"finalSd":50.414,"peak":200,"seeds":3,"maxQ":364.898,"overestimate":81.674,"realized":69.683,"collapsedSeeds":0} bad:overestimate,warn:unsolved 8.611s
+cart-dqn-min-sync50          {"finalReturn":90.5,"finalSd":70.404,"peak":200,"seeds":3,"maxQ":4719.318,"overestimate":-346.516,"realized":46.276,"collapsedSeeds":1} bad:diverge,warn:collapse,warn:spread,bad:unsolved 8.701s
+cart-dqn-max-sync250         {"finalReturn":147.722,"finalSd":38.446,"peak":200,"seeds":3,"maxQ":65.384,"overestimate":-21.319,"realized":76.33,"collapsedSeeds":0} warn:unsolved 8.635s
+cart-dqn-min-sync250         {"finalReturn":156.967,"finalSd":8.773,"peak":200,"seeds":3,"maxQ":21.024,"overestimate":-70.871,"realized":80.953,"collapsedSeeds":0} warn:unsolved 8.564s
+cart-dqn-max-sync1000        {"finalReturn":169.1,"finalSd":33.082,"peak":191.333,"seeds":3,"maxQ":20.566,"overestimate":-69.406,"realized":85.63,"collapsedSeeds":0} warn:unsolved 8.482s
+cart-dqn-min-sync1000        {"finalReturn":191.133,"finalSd":15.358,"peak":200,"seeds":3,"maxQ":11.929,"overestimate":-86.517,"realized":95.115,"collapsedSeeds":0} ok:solved 8.508s

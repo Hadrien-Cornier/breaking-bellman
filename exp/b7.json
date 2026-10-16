@@ -1,0 +1,19 @@
+[
+{"name":"table bins12","world":"cartpole","parts":{"store":"table"},"knobs":{"bins":12},"steps":20000,"seeds":3},
+{"name":"table bins3","world":"cartpole","parts":{"store":"table"},"knobs":{"bins":3},"steps":20000,"seeds":3},
+{"name":"table bins6 3 seeds","world":"cartpole","parts":{"store":"table"},"steps":20000,"seeds":3},
+{"name":"bandit drift eps avg","world":"bandit","parts":{"step":"avg"},"knobs":{"drift":0.03},"hyper":{"epsStart":0.1,"epsEnd":0.1},"steps":2000,"seeds":200},
+{"name":"bandit drift eps const","world":"bandit","parts":{"step":"const"},"knobs":{"drift":0.03},"hyper":{"epsStart":0.1,"epsEnd":0.1,"lrTable":0.1},"steps":2000,"seeds":200},
+{"name":"bandit optimistic const no eps","world":"bandit","parts":{"eps":false,"optimistic":true,"step":"const"},"hyper":{"epsStart":0.1,"epsEnd":0.1,"lrTable":0.1},"steps":1000,"seeds":200},
+{"name":"bandit optimistic avg no eps","world":"bandit","parts":{"eps":false,"optimistic":true,"step":"avg"},"hyper":{"epsStart":0.1,"epsEnd":0.1,"lrTable":0.1},"steps":1000,"seeds":200},
+{"name":"bandit ucb no eps","world":"bandit","parts":{"eps":false,"ucb":true,"step":"avg"},"hyper":{"epsStart":0.1,"epsEnd":0.1,"lrTable":0.1},"steps":1000,"seeds":200},
+{"name":"mirage bigger 20 n2","world":"mirage","parts":{},"knobs":{"machines":20,"noise":2},"hyper":{"epsStart":0.1,"epsEnd":0.1},"steps":600,"seeds":300},
+{"name":"DQN sparse","world":"cartpole","parts":{"store":"net","data":"replay","picker":"frozen","scorer":"frozen"},"knobs":{"sparseReward":true},"steps":20000,"seeds":3},
+{"name":"cliff n2","world":"cliff","parts":{"nstep":2},"hyper":{"epsStart":0.1,"epsEnd":0.1,"lrTable":0.5},"steps":10000,"seeds":20},
+{"name":"cliff sarsa n1 eps off check","world":"cliff","parts":{"agg":"taken","eps":false},"hyper":{"epsStart":0.1,"epsEnd":0.1,"lrTable":0.5},"steps":10000,"seeds":20},
+{"name":"net replay only","world":"cartpole","parts":{"store":"net","data":"replay"},"steps":20000,"seeds":3},
+{"name":"net frozen only","world":"cartpole","parts":{"store":"net","picker":"frozen","scorer":"frozen"},"steps":20000,"seeds":3},
+{"name":"net n4 latest live","world":"cartpole","parts":{"store":"net","nstep":4},"steps":20000,"seeds":3},
+{"name":"net MC latest","world":"cartpole","parts":{"store":"net","nstep":0},"steps":20000,"seeds":3},
+{"name":"net clipped replay","world":"cartpole","parts":{"store":"net","data":"replay","scorer":"minpair"},"steps":20000,"seeds":3}
+]

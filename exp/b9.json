@@ -1,0 +1,20 @@
+[
+ {"name":"pg-tot-b1","world":"cartpole","knobs":{"maxSteps":500},"parts":{"family":"pg","batch":1,"credit":"total","baseline":"none","lr":0.003},"steps":15000,"seeds":4},
+ {"name":"pg-togo-b1","world":"cartpole","knobs":{"maxSteps":500},"parts":{"family":"pg","batch":1,"credit":"togo","baseline":"none","lr":0.003},"steps":15000,"seeds":4},
+ {"name":"pg-avg-b1","world":"cartpole","knobs":{"maxSteps":500},"parts":{"family":"pg","batch":1,"credit":"togo","baseline":"avg","lr":0.003},"steps":15000,"seeds":4},
+ {"name":"pg-critic-b1","world":"cartpole","knobs":{"maxSteps":500},"parts":{"family":"pg","batch":1,"credit":"togo","baseline":"critic","adv":"gae","lr":0.003},"steps":15000,"seeds":4},
+ {"name":"pg-plain-e10-lr01","world":"cartpole","knobs":{"maxSteps":500},"parts":{"family":"pg","batch":8,"baseline":"critic","adv":"gae","scale":"std","ratio":"plain","epochs":10,"lr":0.01},"steps":40000,"seeds":4},
+ {"name":"pg-clip-e10-lr01","world":"cartpole","knobs":{"maxSteps":500},"parts":{"family":"pg","batch":8,"baseline":"critic","adv":"gae","scale":"std","ratio":"clip","epochs":10,"lr":0.01},"steps":40000,"seeds":4},
+ {"name":"gg-none","world":"goalgrid","knobs":{"wall":1},"parts":{"family":"pg","batch":16,"credit":"total","baseline":"none","lr":0.003},"steps":40000,"seeds":3},
+ {"name":"gg-avg","world":"goalgrid","knobs":{"wall":1},"parts":{"family":"pg","batch":16,"credit":"total","baseline":"avg","lr":0.003},"steps":40000,"seeds":3},
+ {"name":"gg-group-mixed","world":"goalgrid","knobs":{"wall":1},"parts":{"family":"pg","batch":16,"group":"none","baseline":"group","scale":"std","lr":0.003},"steps":40000,"seeds":3},
+ {"name":"gg-grpo","world":"goalgrid","knobs":{"wall":1},"parts":{"family":"pg","batch":16,"group":"same","baseline":"group","scale":"std","lr":0.003},"steps":40000,"seeds":3},
+ {"name":"gg-ppo","world":"goalgrid","knobs":{"wall":1},"parts":{"family":"pg","batch":16,"baseline":"critic","adv":"gae","scale":"std","ratio":"clip","epochs":4,"lr":0.003},"steps":40000,"seeds":3},
+ {"name":"pend-ddpg-live","world":"pendulum","parts":{"family":"ac","head":"det","critics":"one","target":"live","entropy":"none"},"steps":10000,"seeds":3},
+ {"name":"pend-sac-noent","world":"pendulum","parts":{"family":"ac","entropy":"none"},"steps":10000,"seeds":3},
+ {"name":"pend-sac-live","world":"pendulum","parts":{"family":"ac","target":"live"},"steps":10000,"seeds":3},
+ {"name":"reach-sac","world":"reach","parts":{"family":"ac"},"steps":15000,"seeds":3},
+ {"name":"reachP-base","world":"reach","knobs":{"payload":2,"pickAt":15},"parts":{"family":"ac","base":"classical","aim":"none"},"steps":3000,"seeds":2},
+ {"name":"reachP-sac","world":"reach","knobs":{"payload":2,"pickAt":15},"parts":{"family":"ac"},"steps":15000,"seeds":3},
+ {"name":"reachP-res","world":"reach","knobs":{"payload":2,"pickAt":15},"parts":{"family":"ac","base":"classical"},"steps":15000,"seeds":3}
+]

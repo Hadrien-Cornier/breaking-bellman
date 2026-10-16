@@ -1,0 +1,238 @@
+[
+{
+"name": "m-grpo-7",
+"world": "goalgrid",
+"parts": {
+"family": "pg",
+"batch": 16,
+"group": "same",
+"baseline": "group",
+"scale": "std",
+"ratio": "clip",
+"epochs": 4,
+"lr": 0.003
+},
+"steps": 60000,
+"seeds": 3
+},
+{
+"name": "m-grpo-11",
+"world": "goalgrid",
+"parts": {
+"family": "pg",
+"batch": 16,
+"group": "same",
+"baseline": "group",
+"scale": "std",
+"ratio": "clip",
+"epochs": 4,
+"lr": 0.003
+},
+"steps": 60000,
+"seeds": 3,
+"knobs": {
+"size": 11
+}
+},
+{
+"name": "m-grpo-11-t10",
+"world": "goalgrid",
+"parts": {
+"family": "pg",
+"batch": 16,
+"group": "same",
+"baseline": "group",
+"scale": "std",
+"ratio": "clip",
+"epochs": 4,
+"lr": 0.003
+},
+"steps": 60000,
+"seeds": 3,
+"knobs": {
+"size": 11,
+"maxSteps": 10
+}
+},
+{
+"name": "m-grpo-9-t8",
+"world": "goalgrid",
+"parts": {
+"family": "pg",
+"batch": 16,
+"group": "same",
+"baseline": "group",
+"scale": "std",
+"ratio": "clip",
+"epochs": 4,
+"lr": 0.003
+},
+"steps": 60000,
+"seeds": 3,
+"knobs": {
+"size": 9,
+"maxSteps": 8
+}
+},
+{
+"name": "m-sac-m2",
+"world": "pendulum",
+"parts": {
+"family": "ac"
+},
+"steps": 10000,
+"seeds": 3,
+"knobs": {
+"mass": 2
+}
+},
+{
+"name": "m-sac-m3",
+"world": "pendulum",
+"parts": {
+"family": "ac"
+},
+"steps": 10000,
+"seeds": 3,
+"knobs": {
+"mass": 3
+}
+},
+{
+"name": "m-sac-t1",
+"world": "pendulum",
+"parts": {
+"family": "ac"
+},
+"steps": 10000,
+"seeds": 3,
+"knobs": {
+"maxTorque": 1
+}
+},
+{
+"name": "m-base-l1",
+"world": "reach",
+"parts": {
+"family": "ac",
+"base": "classical",
+"wait": 3000
+},
+"steps": 2000,
+"seeds": 3,
+"knobs": {
+"latency": 1
+}
+},
+{
+"name": "m-base-l2",
+"world": "reach",
+"parts": {
+"family": "ac",
+"base": "classical",
+"wait": 3000
+},
+"steps": 2000,
+"seeds": 3,
+"knobs": {
+"latency": 2
+}
+},
+{
+"name": "m-base-l3",
+"world": "reach",
+"parts": {
+"family": "ac",
+"base": "classical",
+"wait": 3000
+},
+"steps": 2000,
+"seeds": 3,
+"knobs": {
+"latency": 3
+}
+},
+{
+"name": "m-base-p0",
+"world": "reach",
+"parts": {
+"family": "ac",
+"base": "classical",
+"wait": 3000
+},
+"steps": 2000,
+"seeds": 3
+},
+{
+"name": "m-fk-o02",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "gauss"
+},
+"steps": 6000,
+"seeds": 3,
+"knobs": {
+"obstacle": 0.2
+},
+"hyper": {
+"hidden": [
+64,
+64
+]
+}
+},
+{
+"name": "m-fk-o03",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "gauss"
+},
+"steps": 6000,
+"seeds": 3,
+"knobs": {
+"obstacle": 0.3
+},
+"hyper": {
+"hidden": [
+64,
+64
+]
+}
+},
+{
+"name": "m-fk-o01",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "gauss"
+},
+"steps": 6000,
+"seeds": 3,
+"knobs": {
+"obstacle": 0.1
+},
+"hyper": {
+"hidden": [
+64,
+64
+]
+}
+}
+]

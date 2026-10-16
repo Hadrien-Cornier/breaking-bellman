@@ -1,0 +1,348 @@
+[
+{
+"name": "tw-gauss-c10",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "gauss",
+"chunk": 10
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000,
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "tw-gauss-c1",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "gauss"
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000,
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "tw-det-c10",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "det",
+"chunk": 10
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000,
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "tw-det-c1",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "det"
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000,
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "tw-flow-c10",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "flow",
+"chunk": 10
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000,
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "tw-flow-c1",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "flow"
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000,
+"lr": 0.003,
+"batch": 128
+}
+},
+{
+"name": "pk-one",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "both",
+"demos": "expert",
+"head": "flow",
+"aim": "none",
+"critics": "two",
+"next": "data",
+"entropy": "none",
+"pick": "one"
+},
+"steps": 4000,
+"seeds": 3,
+"knobs": {
+"mud": 0.1
+},
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000
+}
+},
+{
+"name": "pk-best",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "both",
+"demos": "expert",
+"head": "flow",
+"aim": "none",
+"critics": "two",
+"next": "data",
+"entropy": "none",
+"pick": "best"
+},
+"steps": 4000,
+"seeds": 3,
+"knobs": {
+"mud": 0.1
+},
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000
+}
+},
+{
+"name": "pk-qavg",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "both",
+"demos": "expert",
+"head": "flow",
+"aim": "none",
+"critics": "two",
+"next": "data",
+"entropy": "none",
+"pick": "qavg"
+},
+"steps": 4000,
+"seeds": 3,
+"knobs": {
+"mud": 0.1
+},
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000
+}
+},
+{
+"name": "pk-edit",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "both",
+"demos": "expert",
+"head": "flow",
+"aim": "none",
+"critics": "two",
+"next": "data",
+"entropy": "none",
+"pick": "edit"
+},
+"steps": 4000,
+"seeds": 3,
+"knobs": {
+"mud": 0.1
+},
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000
+}
+},
+{
+"name": "m-ch-c1",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "gauss"
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000
+}
+},
+{
+"name": "m-ch-c3",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "gauss",
+"chunk": 3
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000
+}
+},
+{
+"name": "m-ch-c5",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "gauss",
+"chunk": 5
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000
+}
+},
+{
+"name": "m-ch-c10",
+"world": "fork",
+"parts": {
+"family": "ac",
+"source": "fixed",
+"demos": "expert",
+"critics": "none",
+"entropy": "none",
+"aim": "copy",
+"head": "gauss",
+"chunk": 10
+},
+"steps": 6000,
+"seeds": 3,
+"hyper": {
+"hidden": [
+64,
+64
+],
+"pretrain": 8000
+}
+}
+]

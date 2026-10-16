@@ -1,0 +1,2316 @@
+== naive net
+{"store":"net"} {} {} 2.0s
+ seed 101 evals 10 9 9 10 9 9 9 9 9 10 | pred-disc 1704292 1782547 1985513 2011771 2134323 | maxQ 4689149
+ seed 202 evals 9 10 10 9 9 9 9 10 10 10 | pred-disc 1463606 1573228 1793912 1818530 2012678 | maxQ 2644579
+ seed 303 evals 9 9 10 10 9 10 9 10 9 10 | pred-disc 1496710 1595717 1777589 1860022 2009224 | maxQ 4388458
+ summary {"finalReturn":9.49,"finalSd":0.18,"peak":10.22,"seeds":3,"maxQ":4689148.5,"overestimate":1382522.54,"realized":9.09,"collapsedSeeds":0}
+  bad Values blew up - Largest |Q| 4.7e+6; no policy can earn more than about 100.
+  bad Predicts more than it earns - Q says 1.4e+6 at the start; the greedy run earned 9.1 (discounted). Gap 1.4e+6.
+  bad Does not balance - Final greedy score 9.5 of 200.
+
+== DQN (frozen picks+scores, replay)
+{"store":"net","data":"replay","picker":"frozen","scorer":"frozen"} {} {} 43.9s
+ seed 101 evals 43 200 198 114 123 200 135 196 200 113 | pred-disc -40 -24 -34 -27 -7 | maxQ 62
+ seed 202 evals 21 125 126 161 178 193 167 102 159 200 | pred-disc -24 -30 -33 -39 -41 | maxQ 60
+ seed 303 evals 144 200 197 121 168 104 115 107 95 102 | pred-disc -4 -1 0 -2 -1 | maxQ 65
+ seed 404 evals 113 200 200 200 200 147 102 97 107 99 | pred-disc -11 -18 -7 -12 -3 | maxQ 60
+ seed 505 evals 124 153 200 200 200 121 108 127 188 200 | pred-disc -26 -18 -31 -17 -28 | maxQ 65
+ summary {"finalReturn":142.96,"finalSd":33.74,"peak":200,"seeds":5,"maxQ":65.38,"overestimate":-19.48,"realized":74.57,"collapsedSeeds":0}
+  warn Balances part of the time - Final greedy score 143 of 200.
+
+== DDQN (live picks, frozen scores)
+{"store":"net","data":"replay","picker":"live","scorer":"frozen"} {} {} 44.2s
+ seed 101 evals 35 200 200 189 116 148 133 96 103 107 | pred-disc -9 -18 -13 -12 -6 | maxQ 62
+ seed 202 evals 120 191 193 200 196 106 123 132 200 200 | pred-disc -42 -38 -39 -38 -32 | maxQ 63
+ seed 303 evals 91 197 150 159 126 129 126 114 108 118 | pred-disc -9 -10 -29 -22 -8 | maxQ 62
+ seed 404 evals 200 200 200 200 200 200 96 64 96 178 | pred-disc -4 -5 -3 -5 -21 | maxQ 75
+ seed 505 evals 171 200 200 200 197 200 200 200 125 131 | pred-disc -17 -23 -8 -12 -14 | maxQ 94
+ summary {"finalReturn":136.93,"finalSd":33.38,"peak":200,"seeds":5,"maxQ":94.09,"overestimate":-19.3,"realized":74.08,"collapsedSeeds":0}
+  warn Balances part of the time - Final greedy score 137 of 200.
+
+== net MC replay
+{"store":"net","data":"replay","nstep":0} {} {} 13.1s
+ seed 101 evals 200 200 200 200 200 200 200 200 200 200 | pred-disc -15 -25 -19 -18 -23 | maxQ 85
+ seed 202 evals 200 200 200 200 200 200 197 200 169 200 | pred-disc 1 -9 -8 -7 -17 | maxQ 115
+ seed 303 evals 200 200 200 200 200 200 200 200 200 200 | pred-disc -16 -14 -14 -13 -14 | maxQ 101
+ summary {"finalReturn":195.93,"finalSd":6.42,"peak":200,"seeds":3,"maxQ":115.29,"overestimate":-15.86,"realized":94.18,"collapsedSeeds":0}
+  ok Balances to the time limit - Final greedy score 196 of 200.
+
+== net n4 replay frozen
+{"store":"net","data":"replay","nstep":4,"picker":"frozen","scorer":"frozen"} {} {} 26.1s
+ seed 101 evals 200 200 200 200 200 200 200 200 200 200 | pred-disc -5 -6 -4 -2 -2 | maxQ 130
+ seed 202 evals 184 190 193 200 200 200 200 200 200 200 | pred-disc -8 -3 -1 13 4 | maxQ 156
+ seed 303 evals 166 200 200 199 200 200 200 200 200 200 | pred-disc -4 -3 -4 -4 -3 | maxQ 112
+ summary {"finalReturn":198.97,"finalSd":1.79,"peak":200,"seeds":3,"maxQ":155.99,"overestimate":-5.03,"realized":97.33,"collapsedSeeds":0}
+  ok Balances to the time limit - Final greedy score 199 of 200.
+
+== table Q
+{"store":"table"} {} {} 0.4s
+ seed 101 evals 21 19 37 29 28 32 29 31 33 43 | pred-disc -6 -18 -5 -9 -12 | maxQ 29
+ seed 202 evals 13 42 36 51 36 66 47 40 53 81 | pred-disc -15 2 8 -23 -28 | maxQ 33
+ seed 303 evals 13 35 29 34 43 35 38 66 119 59 | pred-disc -41 -24 -18 -21 -18 | maxQ 35
+ seed 404 evals 17 34 63 23 27 36 28 51 79 20 | pred-disc -25 -16 -11 -14 3 | maxQ 30
+ seed 505 evals 15 11 60 23 52 50 110 66 31 36 | pred-disc -4 -5 -27 -12 -3 | maxQ 33
+ summary {"finalReturn":50.4,"finalSd":10.62,"peak":96.87,"seeds":5,"maxQ":35.04,"overestimate":-13.3,"realized":36.77,"collapsedSeeds":0}
+  bad Does not balance - Final greedy score 50 of 200.
+
+== bandit greedy
+{"eps":false,"step":"avg"} {} {} 0.7s
+ seed 101 evals  | pred-disc  | maxQ -Infinity
+ seed 202 evals  | pred-disc  | maxQ -Infinity
+ seed 303 evals  | pred-disc  | maxQ -Infinity
+ seed 404 evals  | pred-disc  | maxQ -Infinity
+ seed 505 evals  | pred-disc  | maxQ -Infinity
+ seed 606 evals  | pred-disc  | maxQ -Infinity
+ seed 707 evals  | pred-disc  | maxQ -Infinity
+ seed 808 evals  | pred-disc  | maxQ -Infinity
+ seed 909 evals  | pred-disc  | maxQ -Infinity
+ seed 1010 evals  | pred-disc  | maxQ -Infinity
+ seed 1111 evals  | pred-disc  | maxQ -Infinity
+ seed 1212 evals  | pred-disc  | maxQ -Infinity
+ seed 1313 evals  | pred-disc  | maxQ -Infinity
+ seed 1414 evals  | pred-disc  | maxQ -Infinity
+ seed 1515 evals  | pred-disc  | maxQ -Infinity
+ seed 1616 evals  | pred-disc  | maxQ -Infinity
+ seed 1717 evals  | pred-disc  | maxQ -Infinity
+ seed 1818 evals  | pred-disc  | maxQ -Infinity
+ seed 1919 evals  | pred-disc  | maxQ -Infinity
+ seed 2020 evals  | pred-disc  | maxQ -Infinity
+ seed 2121 evals  | pred-disc  | maxQ -Infinity
+ seed 2222 evals  | pred-disc  | maxQ -Infinity
+ seed 2323 evals  | pred-disc  | maxQ -Infinity
+ seed 2424 evals  | pred-disc  | maxQ -Infinity
+ seed 2525 evals  | pred-disc  | maxQ -Infinity
+ seed 2626 evals  | pred-disc  | maxQ -Infinity
+ seed 2727 evals  | pred-disc  | maxQ -Infinity
+ seed 2828 evals  | pred-disc  | maxQ -Infinity
+ seed 2929 evals  | pred-disc  | maxQ -Infinity
+ seed 3030 evals  | pred-disc  | maxQ -Infinity
+ seed 3131 evals  | pred-disc  | maxQ -Infinity
+ seed 3232 evals  | pred-disc  | maxQ -Infinity
+ seed 3333 evals  | pred-disc  | maxQ -Infinity
+ seed 3434 evals  | pred-disc  | maxQ -Infinity
+ seed 3535 evals  | pred-disc  | maxQ -Infinity
+ seed 3636 evals  | pred-disc  | maxQ -Infinity
+ seed 3737 evals  | pred-disc  | maxQ -Infinity
+ seed 3838 evals  | pred-disc  | maxQ -Infinity
+ seed 3939 evals  | pred-disc  | maxQ -Infinity
+ seed 4040 evals  | pred-disc  | maxQ -Infinity
+ seed 4141 evals  | pred-disc  | maxQ -Infinity
+ seed 4242 evals  | pred-disc  | maxQ -Infinity
+ seed 4343 evals  | pred-disc  | maxQ -Infinity
+ seed 4444 evals  | pred-disc  | maxQ -Infinity
+ seed 4545 evals  | pred-disc  | maxQ -Infinity
+ seed 4646 evals  | pred-disc  | maxQ -Infinity
+ seed 4747 evals  | pred-disc  | maxQ -Infinity
+ seed 4848 evals  | pred-disc  | maxQ -Infinity
+ seed 4949 evals  | pred-disc  | maxQ -Infinity
+ seed 5050 evals  | pred-disc  | maxQ -Infinity
+ seed 5151 evals  | pred-disc  | maxQ -Infinity
+ seed 5252 evals  | pred-disc  | maxQ -Infinity
+ seed 5353 evals  | pred-disc  | maxQ -Infinity
+ seed 5454 evals  | pred-disc  | maxQ -Infinity
+ seed 5555 evals  | pred-disc  | maxQ -Infinity
+ seed 5656 evals  | pred-disc  | maxQ -Infinity
+ seed 5757 evals  | pred-disc  | maxQ -Infinity
+ seed 5858 evals  | pred-disc  | maxQ -Infinity
+ seed 5959 evals  | pred-disc  | maxQ -Infinity
+ seed 6060 evals  | pred-disc  | maxQ -Infinity
+ seed 6161 evals  | pred-disc  | maxQ -Infinity
+ seed 6262 evals  | pred-disc  | maxQ -Infinity
+ seed 6363 evals  | pred-disc  | maxQ -Infinity
+ seed 6464 evals  | pred-disc  | maxQ -Infinity
+ seed 6565 evals  | pred-disc  | maxQ -Infinity
+ seed 6666 evals  | pred-disc  | maxQ -Infinity
+ seed 6767 evals  | pred-disc  | maxQ -Infinity
+ seed 6868 evals  | pred-disc  | maxQ -Infinity
+ seed 6969 evals  | pred-disc  | maxQ -Infinity
+ seed 7070 evals  | pred-disc  | maxQ -Infinity
+ seed 7171 evals  | pred-disc  | maxQ -Infinity
+ seed 7272 evals  | pred-disc  | maxQ -Infinity
+ seed 7373 evals  | pred-disc  | maxQ -Infinity
+ seed 7474 evals  | pred-disc  | maxQ -Infinity
+ seed 7575 evals  | pred-disc  | maxQ -Infinity
+ seed 7676 evals  | pred-disc  | maxQ -Infinity
+ seed 7777 evals  | pred-disc  | maxQ -Infinity
+ seed 7878 evals  | pred-disc  | maxQ -Infinity
+ seed 7979 evals  | pred-disc  | maxQ -Infinity
+ seed 8080 evals  | pred-disc  | maxQ -Infinity
+ seed 8181 evals  | pred-disc  | maxQ -Infinity
+ seed 8282 evals  | pred-disc  | maxQ -Infinity
+ seed 8383 evals  | pred-disc  | maxQ -Infinity
+ seed 8484 evals  | pred-disc  | maxQ -Infinity
+ seed 8585 evals  | pred-disc  | maxQ -Infinity
+ seed 8686 evals  | pred-disc  | maxQ -Infinity
+ seed 8787 evals  | pred-disc  | maxQ -Infinity
+ seed 8888 evals  | pred-disc  | maxQ -Infinity
+ seed 8989 evals  | pred-disc  | maxQ -Infinity
+ seed 9090 evals  | pred-disc  | maxQ -Infinity
+ seed 9191 evals  | pred-disc  | maxQ -Infinity
+ seed 9292 evals  | pred-disc  | maxQ -Infinity
+ seed 9393 evals  | pred-disc  | maxQ -Infinity
+ seed 9494 evals  | pred-disc  | maxQ -Infinity
+ seed 9595 evals  | pred-disc  | maxQ -Infinity
+ seed 9696 evals  | pred-disc  | maxQ -Infinity
+ seed 9797 evals  | pred-disc  | maxQ -Infinity
+ seed 9898 evals  | pred-disc  | maxQ -Infinity
+ seed 9999 evals  | pred-disc  | maxQ -Infinity
+ seed 10100 evals  | pred-disc  | maxQ -Infinity
+ seed 10201 evals  | pred-disc  | maxQ -Infinity
+ seed 10302 evals  | pred-disc  | maxQ -Infinity
+ seed 10403 evals  | pred-disc  | maxQ -Infinity
+ seed 10504 evals  | pred-disc  | maxQ -Infinity
+ seed 10605 evals  | pred-disc  | maxQ -Infinity
+ seed 10706 evals  | pred-disc  | maxQ -Infinity
+ seed 10807 evals  | pred-disc  | maxQ -Infinity
+ seed 10908 evals  | pred-disc  | maxQ -Infinity
+ seed 11009 evals  | pred-disc  | maxQ -Infinity
+ seed 11110 evals  | pred-disc  | maxQ -Infinity
+ seed 11211 evals  | pred-disc  | maxQ -Infinity
+ seed 11312 evals  | pred-disc  | maxQ -Infinity
+ seed 11413 evals  | pred-disc  | maxQ -Infinity
+ seed 11514 evals  | pred-disc  | maxQ -Infinity
+ seed 11615 evals  | pred-disc  | maxQ -Infinity
+ seed 11716 evals  | pred-disc  | maxQ -Infinity
+ seed 11817 evals  | pred-disc  | maxQ -Infinity
+ seed 11918 evals  | pred-disc  | maxQ -Infinity
+ seed 12019 evals  | pred-disc  | maxQ -Infinity
+ seed 12120 evals  | pred-disc  | maxQ -Infinity
+ seed 12221 evals  | pred-disc  | maxQ -Infinity
+ seed 12322 evals  | pred-disc  | maxQ -Infinity
+ seed 12423 evals  | pred-disc  | maxQ -Infinity
+ seed 12524 evals  | pred-disc  | maxQ -Infinity
+ seed 12625 evals  | pred-disc  | maxQ -Infinity
+ seed 12726 evals  | pred-disc  | maxQ -Infinity
+ seed 12827 evals  | pred-disc  | maxQ -Infinity
+ seed 12928 evals  | pred-disc  | maxQ -Infinity
+ seed 13029 evals  | pred-disc  | maxQ -Infinity
+ seed 13130 evals  | pred-disc  | maxQ -Infinity
+ seed 13231 evals  | pred-disc  | maxQ -Infinity
+ seed 13332 evals  | pred-disc  | maxQ -Infinity
+ seed 13433 evals  | pred-disc  | maxQ -Infinity
+ seed 13534 evals  | pred-disc  | maxQ -Infinity
+ seed 13635 evals  | pred-disc  | maxQ -Infinity
+ seed 13736 evals  | pred-disc  | maxQ -Infinity
+ seed 13837 evals  | pred-disc  | maxQ -Infinity
+ seed 13938 evals  | pred-disc  | maxQ -Infinity
+ seed 14039 evals  | pred-disc  | maxQ -Infinity
+ seed 14140 evals  | pred-disc  | maxQ -Infinity
+ seed 14241 evals  | pred-disc  | maxQ -Infinity
+ seed 14342 evals  | pred-disc  | maxQ -Infinity
+ seed 14443 evals  | pred-disc  | maxQ -Infinity
+ seed 14544 evals  | pred-disc  | maxQ -Infinity
+ seed 14645 evals  | pred-disc  | maxQ -Infinity
+ seed 14746 evals  | pred-disc  | maxQ -Infinity
+ seed 14847 evals  | pred-disc  | maxQ -Infinity
+ seed 14948 evals  | pred-disc  | maxQ -Infinity
+ seed 15049 evals  | pred-disc  | maxQ -Infinity
+ seed 15150 evals  | pred-disc  | maxQ -Infinity
+ seed 15251 evals  | pred-disc  | maxQ -Infinity
+ seed 15352 evals  | pred-disc  | maxQ -Infinity
+ seed 15453 evals  | pred-disc  | maxQ -Infinity
+ seed 15554 evals  | pred-disc  | maxQ -Infinity
+ seed 15655 evals  | pred-disc  | maxQ -Infinity
+ seed 15756 evals  | pred-disc  | maxQ -Infinity
+ seed 15857 evals  | pred-disc  | maxQ -Infinity
+ seed 15958 evals  | pred-disc  | maxQ -Infinity
+ seed 16059 evals  | pred-disc  | maxQ -Infinity
+ seed 16160 evals  | pred-disc  | maxQ -Infinity
+ seed 16261 evals  | pred-disc  | maxQ -Infinity
+ seed 16362 evals  | pred-disc  | maxQ -Infinity
+ seed 16463 evals  | pred-disc  | maxQ -Infinity
+ seed 16564 evals  | pred-disc  | maxQ -Infinity
+ seed 16665 evals  | pred-disc  | maxQ -Infinity
+ seed 16766 evals  | pred-disc  | maxQ -Infinity
+ seed 16867 evals  | pred-disc  | maxQ -Infinity
+ seed 16968 evals  | pred-disc  | maxQ -Infinity
+ seed 17069 evals  | pred-disc  | maxQ -Infinity
+ seed 17170 evals  | pred-disc  | maxQ -Infinity
+ seed 17271 evals  | pred-disc  | maxQ -Infinity
+ seed 17372 evals  | pred-disc  | maxQ -Infinity
+ seed 17473 evals  | pred-disc  | maxQ -Infinity
+ seed 17574 evals  | pred-disc  | maxQ -Infinity
+ seed 17675 evals  | pred-disc  | maxQ -Infinity
+ seed 17776 evals  | pred-disc  | maxQ -Infinity
+ seed 17877 evals  | pred-disc  | maxQ -Infinity
+ seed 17978 evals  | pred-disc  | maxQ -Infinity
+ seed 18079 evals  | pred-disc  | maxQ -Infinity
+ seed 18180 evals  | pred-disc  | maxQ -Infinity
+ seed 18281 evals  | pred-disc  | maxQ -Infinity
+ seed 18382 evals  | pred-disc  | maxQ -Infinity
+ seed 18483 evals  | pred-disc  | maxQ -Infinity
+ seed 18584 evals  | pred-disc  | maxQ -Infinity
+ seed 18685 evals  | pred-disc  | maxQ -Infinity
+ seed 18786 evals  | pred-disc  | maxQ -Infinity
+ seed 18887 evals  | pred-disc  | maxQ -Infinity
+ seed 18988 evals  | pred-disc  | maxQ -Infinity
+ seed 19089 evals  | pred-disc  | maxQ -Infinity
+ seed 19190 evals  | pred-disc  | maxQ -Infinity
+ seed 19291 evals  | pred-disc  | maxQ -Infinity
+ seed 19392 evals  | pred-disc  | maxQ -Infinity
+ seed 19493 evals  | pred-disc  | maxQ -Infinity
+ seed 19594 evals  | pred-disc  | maxQ -Infinity
+ seed 19695 evals  | pred-disc  | maxQ -Infinity
+ seed 19796 evals  | pred-disc  | maxQ -Infinity
+ seed 19897 evals  | pred-disc  | maxQ -Infinity
+ seed 19998 evals  | pred-disc  | maxQ -Infinity
+ seed 20099 evals  | pred-disc  | maxQ -Infinity
+ seed 20200 evals  | pred-disc  | maxQ -Infinity
+ seed 20301 evals  | pred-disc  | maxQ -Infinity
+ seed 20402 evals  | pred-disc  | maxQ -Infinity
+ seed 20503 evals  | pred-disc  | maxQ -Infinity
+ seed 20604 evals  | pred-disc  | maxQ -Infinity
+ seed 20705 evals  | pred-disc  | maxQ -Infinity
+ seed 20806 evals  | pred-disc  | maxQ -Infinity
+ seed 20907 evals  | pred-disc  | maxQ -Infinity
+ seed 21008 evals  | pred-disc  | maxQ -Infinity
+ seed 21109 evals  | pred-disc  | maxQ -Infinity
+ seed 21210 evals  | pred-disc  | maxQ -Infinity
+ seed 21311 evals  | pred-disc  | maxQ -Infinity
+ seed 21412 evals  | pred-disc  | maxQ -Infinity
+ seed 21513 evals  | pred-disc  | maxQ -Infinity
+ seed 21614 evals  | pred-disc  | maxQ -Infinity
+ seed 21715 evals  | pred-disc  | maxQ -Infinity
+ seed 21816 evals  | pred-disc  | maxQ -Infinity
+ seed 21917 evals  | pred-disc  | maxQ -Infinity
+ seed 22018 evals  | pred-disc  | maxQ -Infinity
+ seed 22119 evals  | pred-disc  | maxQ -Infinity
+ seed 22220 evals  | pred-disc  | maxQ -Infinity
+ seed 22321 evals  | pred-disc  | maxQ -Infinity
+ seed 22422 evals  | pred-disc  | maxQ -Infinity
+ seed 22523 evals  | pred-disc  | maxQ -Infinity
+ seed 22624 evals  | pred-disc  | maxQ -Infinity
+ seed 22725 evals  | pred-disc  | maxQ -Infinity
+ seed 22826 evals  | pred-disc  | maxQ -Infinity
+ seed 22927 evals  | pred-disc  | maxQ -Infinity
+ seed 23028 evals  | pred-disc  | maxQ -Infinity
+ seed 23129 evals  | pred-disc  | maxQ -Infinity
+ seed 23230 evals  | pred-disc  | maxQ -Infinity
+ seed 23331 evals  | pred-disc  | maxQ -Infinity
+ seed 23432 evals  | pred-disc  | maxQ -Infinity
+ seed 23533 evals  | pred-disc  | maxQ -Infinity
+ seed 23634 evals  | pred-disc  | maxQ -Infinity
+ seed 23735 evals  | pred-disc  | maxQ -Infinity
+ seed 23836 evals  | pred-disc  | maxQ -Infinity
+ seed 23937 evals  | pred-disc  | maxQ -Infinity
+ seed 24038 evals  | pred-disc  | maxQ -Infinity
+ seed 24139 evals  | pred-disc  | maxQ -Infinity
+ seed 24240 evals  | pred-disc  | maxQ -Infinity
+ seed 24341 evals  | pred-disc  | maxQ -Infinity
+ seed 24442 evals  | pred-disc  | maxQ -Infinity
+ seed 24543 evals  | pred-disc  | maxQ -Infinity
+ seed 24644 evals  | pred-disc  | maxQ -Infinity
+ seed 24745 evals  | pred-disc  | maxQ -Infinity
+ seed 24846 evals  | pred-disc  | maxQ -Infinity
+ seed 24947 evals  | pred-disc  | maxQ -Infinity
+ seed 25048 evals  | pred-disc  | maxQ -Infinity
+ seed 25149 evals  | pred-disc  | maxQ -Infinity
+ seed 25250 evals  | pred-disc  | maxQ -Infinity
+ seed 25351 evals  | pred-disc  | maxQ -Infinity
+ seed 25452 evals  | pred-disc  | maxQ -Infinity
+ seed 25553 evals  | pred-disc  | maxQ -Infinity
+ seed 25654 evals  | pred-disc  | maxQ -Infinity
+ seed 25755 evals  | pred-disc  | maxQ -Infinity
+ seed 25856 evals  | pred-disc  | maxQ -Infinity
+ seed 25957 evals  | pred-disc  | maxQ -Infinity
+ seed 26058 evals  | pred-disc  | maxQ -Infinity
+ seed 26159 evals  | pred-disc  | maxQ -Infinity
+ seed 26260 evals  | pred-disc  | maxQ -Infinity
+ seed 26361 evals  | pred-disc  | maxQ -Infinity
+ seed 26462 evals  | pred-disc  | maxQ -Infinity
+ seed 26563 evals  | pred-disc  | maxQ -Infinity
+ seed 26664 evals  | pred-disc  | maxQ -Infinity
+ seed 26765 evals  | pred-disc  | maxQ -Infinity
+ seed 26866 evals  | pred-disc  | maxQ -Infinity
+ seed 26967 evals  | pred-disc  | maxQ -Infinity
+ seed 27068 evals  | pred-disc  | maxQ -Infinity
+ seed 27169 evals  | pred-disc  | maxQ -Infinity
+ seed 27270 evals  | pred-disc  | maxQ -Infinity
+ seed 27371 evals  | pred-disc  | maxQ -Infinity
+ seed 27472 evals  | pred-disc  | maxQ -Infinity
+ seed 27573 evals  | pred-disc  | maxQ -Infinity
+ seed 27674 evals  | pred-disc  | maxQ -Infinity
+ seed 27775 evals  | pred-disc  | maxQ -Infinity
+ seed 27876 evals  | pred-disc  | maxQ -Infinity
+ seed 27977 evals  | pred-disc  | maxQ -Infinity
+ seed 28078 evals  | pred-disc  | maxQ -Infinity
+ seed 28179 evals  | pred-disc  | maxQ -Infinity
+ seed 28280 evals  | pred-disc  | maxQ -Infinity
+ seed 28381 evals  | pred-disc  | maxQ -Infinity
+ seed 28482 evals  | pred-disc  | maxQ -Infinity
+ seed 28583 evals  | pred-disc  | maxQ -Infinity
+ seed 28684 evals  | pred-disc  | maxQ -Infinity
+ seed 28785 evals  | pred-disc  | maxQ -Infinity
+ seed 28886 evals  | pred-disc  | maxQ -Infinity
+ seed 28987 evals  | pred-disc  | maxQ -Infinity
+ seed 29088 evals  | pred-disc  | maxQ -Infinity
+ seed 29189 evals  | pred-disc  | maxQ -Infinity
+ seed 29290 evals  | pred-disc  | maxQ -Infinity
+ seed 29391 evals  | pred-disc  | maxQ -Infinity
+ seed 29492 evals  | pred-disc  | maxQ -Infinity
+ seed 29593 evals  | pred-disc  | maxQ -Infinity
+ seed 29694 evals  | pred-disc  | maxQ -Infinity
+ seed 29795 evals  | pred-disc  | maxQ -Infinity
+ seed 29896 evals  | pred-disc  | maxQ -Infinity
+ seed 29997 evals  | pred-disc  | maxQ -Infinity
+ seed 30098 evals  | pred-disc  | maxQ -Infinity
+ seed 30199 evals  | pred-disc  | maxQ -Infinity
+ seed 30300 evals  | pred-disc  | maxQ -Infinity
+ summary {"optimalLast20":0.33,"rewardLast20":0.99,"totalRegret":490.19,"seeds":300}
+  bad Locked in on a worse arm - Best arm chosen 33% of the last 200 pulls (mean of 300 seeds).
+
+== bandit eps
+{"step":"avg"} {} {"epsStart":0.1,"epsEnd":0.1} 0.6s
+ seed 101 evals  | pred-disc  | maxQ -Infinity
+ seed 202 evals  | pred-disc  | maxQ -Infinity
+ seed 303 evals  | pred-disc  | maxQ -Infinity
+ seed 404 evals  | pred-disc  | maxQ -Infinity
+ seed 505 evals  | pred-disc  | maxQ -Infinity
+ seed 606 evals  | pred-disc  | maxQ -Infinity
+ seed 707 evals  | pred-disc  | maxQ -Infinity
+ seed 808 evals  | pred-disc  | maxQ -Infinity
+ seed 909 evals  | pred-disc  | maxQ -Infinity
+ seed 1010 evals  | pred-disc  | maxQ -Infinity
+ seed 1111 evals  | pred-disc  | maxQ -Infinity
+ seed 1212 evals  | pred-disc  | maxQ -Infinity
+ seed 1313 evals  | pred-disc  | maxQ -Infinity
+ seed 1414 evals  | pred-disc  | maxQ -Infinity
+ seed 1515 evals  | pred-disc  | maxQ -Infinity
+ seed 1616 evals  | pred-disc  | maxQ -Infinity
+ seed 1717 evals  | pred-disc  | maxQ -Infinity
+ seed 1818 evals  | pred-disc  | maxQ -Infinity
+ seed 1919 evals  | pred-disc  | maxQ -Infinity
+ seed 2020 evals  | pred-disc  | maxQ -Infinity
+ seed 2121 evals  | pred-disc  | maxQ -Infinity
+ seed 2222 evals  | pred-disc  | maxQ -Infinity
+ seed 2323 evals  | pred-disc  | maxQ -Infinity
+ seed 2424 evals  | pred-disc  | maxQ -Infinity
+ seed 2525 evals  | pred-disc  | maxQ -Infinity
+ seed 2626 evals  | pred-disc  | maxQ -Infinity
+ seed 2727 evals  | pred-disc  | maxQ -Infinity
+ seed 2828 evals  | pred-disc  | maxQ -Infinity
+ seed 2929 evals  | pred-disc  | maxQ -Infinity
+ seed 3030 evals  | pred-disc  | maxQ -Infinity
+ seed 3131 evals  | pred-disc  | maxQ -Infinity
+ seed 3232 evals  | pred-disc  | maxQ -Infinity
+ seed 3333 evals  | pred-disc  | maxQ -Infinity
+ seed 3434 evals  | pred-disc  | maxQ -Infinity
+ seed 3535 evals  | pred-disc  | maxQ -Infinity
+ seed 3636 evals  | pred-disc  | maxQ -Infinity
+ seed 3737 evals  | pred-disc  | maxQ -Infinity
+ seed 3838 evals  | pred-disc  | maxQ -Infinity
+ seed 3939 evals  | pred-disc  | maxQ -Infinity
+ seed 4040 evals  | pred-disc  | maxQ -Infinity
+ seed 4141 evals  | pred-disc  | maxQ -Infinity
+ seed 4242 evals  | pred-disc  | maxQ -Infinity
+ seed 4343 evals  | pred-disc  | maxQ -Infinity
+ seed 4444 evals  | pred-disc  | maxQ -Infinity
+ seed 4545 evals  | pred-disc  | maxQ -Infinity
+ seed 4646 evals  | pred-disc  | maxQ -Infinity
+ seed 4747 evals  | pred-disc  | maxQ -Infinity
+ seed 4848 evals  | pred-disc  | maxQ -Infinity
+ seed 4949 evals  | pred-disc  | maxQ -Infinity
+ seed 5050 evals  | pred-disc  | maxQ -Infinity
+ seed 5151 evals  | pred-disc  | maxQ -Infinity
+ seed 5252 evals  | pred-disc  | maxQ -Infinity
+ seed 5353 evals  | pred-disc  | maxQ -Infinity
+ seed 5454 evals  | pred-disc  | maxQ -Infinity
+ seed 5555 evals  | pred-disc  | maxQ -Infinity
+ seed 5656 evals  | pred-disc  | maxQ -Infinity
+ seed 5757 evals  | pred-disc  | maxQ -Infinity
+ seed 5858 evals  | pred-disc  | maxQ -Infinity
+ seed 5959 evals  | pred-disc  | maxQ -Infinity
+ seed 6060 evals  | pred-disc  | maxQ -Infinity
+ seed 6161 evals  | pred-disc  | maxQ -Infinity
+ seed 6262 evals  | pred-disc  | maxQ -Infinity
+ seed 6363 evals  | pred-disc  | maxQ -Infinity
+ seed 6464 evals  | pred-disc  | maxQ -Infinity
+ seed 6565 evals  | pred-disc  | maxQ -Infinity
+ seed 6666 evals  | pred-disc  | maxQ -Infinity
+ seed 6767 evals  | pred-disc  | maxQ -Infinity
+ seed 6868 evals  | pred-disc  | maxQ -Infinity
+ seed 6969 evals  | pred-disc  | maxQ -Infinity
+ seed 7070 evals  | pred-disc  | maxQ -Infinity
+ seed 7171 evals  | pred-disc  | maxQ -Infinity
+ seed 7272 evals  | pred-disc  | maxQ -Infinity
+ seed 7373 evals  | pred-disc  | maxQ -Infinity
+ seed 7474 evals  | pred-disc  | maxQ -Infinity
+ seed 7575 evals  | pred-disc  | maxQ -Infinity
+ seed 7676 evals  | pred-disc  | maxQ -Infinity
+ seed 7777 evals  | pred-disc  | maxQ -Infinity
+ seed 7878 evals  | pred-disc  | maxQ -Infinity
+ seed 7979 evals  | pred-disc  | maxQ -Infinity
+ seed 8080 evals  | pred-disc  | maxQ -Infinity
+ seed 8181 evals  | pred-disc  | maxQ -Infinity
+ seed 8282 evals  | pred-disc  | maxQ -Infinity
+ seed 8383 evals  | pred-disc  | maxQ -Infinity
+ seed 8484 evals  | pred-disc  | maxQ -Infinity
+ seed 8585 evals  | pred-disc  | maxQ -Infinity
+ seed 8686 evals  | pred-disc  | maxQ -Infinity
+ seed 8787 evals  | pred-disc  | maxQ -Infinity
+ seed 8888 evals  | pred-disc  | maxQ -Infinity
+ seed 8989 evals  | pred-disc  | maxQ -Infinity
+ seed 9090 evals  | pred-disc  | maxQ -Infinity
+ seed 9191 evals  | pred-disc  | maxQ -Infinity
+ seed 9292 evals  | pred-disc  | maxQ -Infinity
+ seed 9393 evals  | pred-disc  | maxQ -Infinity
+ seed 9494 evals  | pred-disc  | maxQ -Infinity
+ seed 9595 evals  | pred-disc  | maxQ -Infinity
+ seed 9696 evals  | pred-disc  | maxQ -Infinity
+ seed 9797 evals  | pred-disc  | maxQ -Infinity
+ seed 9898 evals  | pred-disc  | maxQ -Infinity
+ seed 9999 evals  | pred-disc  | maxQ -Infinity
+ seed 10100 evals  | pred-disc  | maxQ -Infinity
+ seed 10201 evals  | pred-disc  | maxQ -Infinity
+ seed 10302 evals  | pred-disc  | maxQ -Infinity
+ seed 10403 evals  | pred-disc  | maxQ -Infinity
+ seed 10504 evals  | pred-disc  | maxQ -Infinity
+ seed 10605 evals  | pred-disc  | maxQ -Infinity
+ seed 10706 evals  | pred-disc  | maxQ -Infinity
+ seed 10807 evals  | pred-disc  | maxQ -Infinity
+ seed 10908 evals  | pred-disc  | maxQ -Infinity
+ seed 11009 evals  | pred-disc  | maxQ -Infinity
+ seed 11110 evals  | pred-disc  | maxQ -Infinity
+ seed 11211 evals  | pred-disc  | maxQ -Infinity
+ seed 11312 evals  | pred-disc  | maxQ -Infinity
+ seed 11413 evals  | pred-disc  | maxQ -Infinity
+ seed 11514 evals  | pred-disc  | maxQ -Infinity
+ seed 11615 evals  | pred-disc  | maxQ -Infinity
+ seed 11716 evals  | pred-disc  | maxQ -Infinity
+ seed 11817 evals  | pred-disc  | maxQ -Infinity
+ seed 11918 evals  | pred-disc  | maxQ -Infinity
+ seed 12019 evals  | pred-disc  | maxQ -Infinity
+ seed 12120 evals  | pred-disc  | maxQ -Infinity
+ seed 12221 evals  | pred-disc  | maxQ -Infinity
+ seed 12322 evals  | pred-disc  | maxQ -Infinity
+ seed 12423 evals  | pred-disc  | maxQ -Infinity
+ seed 12524 evals  | pred-disc  | maxQ -Infinity
+ seed 12625 evals  | pred-disc  | maxQ -Infinity
+ seed 12726 evals  | pred-disc  | maxQ -Infinity
+ seed 12827 evals  | pred-disc  | maxQ -Infinity
+ seed 12928 evals  | pred-disc  | maxQ -Infinity
+ seed 13029 evals  | pred-disc  | maxQ -Infinity
+ seed 13130 evals  | pred-disc  | maxQ -Infinity
+ seed 13231 evals  | pred-disc  | maxQ -Infinity
+ seed 13332 evals  | pred-disc  | maxQ -Infinity
+ seed 13433 evals  | pred-disc  | maxQ -Infinity
+ seed 13534 evals  | pred-disc  | maxQ -Infinity
+ seed 13635 evals  | pred-disc  | maxQ -Infinity
+ seed 13736 evals  | pred-disc  | maxQ -Infinity
+ seed 13837 evals  | pred-disc  | maxQ -Infinity
+ seed 13938 evals  | pred-disc  | maxQ -Infinity
+ seed 14039 evals  | pred-disc  | maxQ -Infinity
+ seed 14140 evals  | pred-disc  | maxQ -Infinity
+ seed 14241 evals  | pred-disc  | maxQ -Infinity
+ seed 14342 evals  | pred-disc  | maxQ -Infinity
+ seed 14443 evals  | pred-disc  | maxQ -Infinity
+ seed 14544 evals  | pred-disc  | maxQ -Infinity
+ seed 14645 evals  | pred-disc  | maxQ -Infinity
+ seed 14746 evals  | pred-disc  | maxQ -Infinity
+ seed 14847 evals  | pred-disc  | maxQ -Infinity
+ seed 14948 evals  | pred-disc  | maxQ -Infinity
+ seed 15049 evals  | pred-disc  | maxQ -Infinity
+ seed 15150 evals  | pred-disc  | maxQ -Infinity
+ seed 15251 evals  | pred-disc  | maxQ -Infinity
+ seed 15352 evals  | pred-disc  | maxQ -Infinity
+ seed 15453 evals  | pred-disc  | maxQ -Infinity
+ seed 15554 evals  | pred-disc  | maxQ -Infinity
+ seed 15655 evals  | pred-disc  | maxQ -Infinity
+ seed 15756 evals  | pred-disc  | maxQ -Infinity
+ seed 15857 evals  | pred-disc  | maxQ -Infinity
+ seed 15958 evals  | pred-disc  | maxQ -Infinity
+ seed 16059 evals  | pred-disc  | maxQ -Infinity
+ seed 16160 evals  | pred-disc  | maxQ -Infinity
+ seed 16261 evals  | pred-disc  | maxQ -Infinity
+ seed 16362 evals  | pred-disc  | maxQ -Infinity
+ seed 16463 evals  | pred-disc  | maxQ -Infinity
+ seed 16564 evals  | pred-disc  | maxQ -Infinity
+ seed 16665 evals  | pred-disc  | maxQ -Infinity
+ seed 16766 evals  | pred-disc  | maxQ -Infinity
+ seed 16867 evals  | pred-disc  | maxQ -Infinity
+ seed 16968 evals  | pred-disc  | maxQ -Infinity
+ seed 17069 evals  | pred-disc  | maxQ -Infinity
+ seed 17170 evals  | pred-disc  | maxQ -Infinity
+ seed 17271 evals  | pred-disc  | maxQ -Infinity
+ seed 17372 evals  | pred-disc  | maxQ -Infinity
+ seed 17473 evals  | pred-disc  | maxQ -Infinity
+ seed 17574 evals  | pred-disc  | maxQ -Infinity
+ seed 17675 evals  | pred-disc  | maxQ -Infinity
+ seed 17776 evals  | pred-disc  | maxQ -Infinity
+ seed 17877 evals  | pred-disc  | maxQ -Infinity
+ seed 17978 evals  | pred-disc  | maxQ -Infinity
+ seed 18079 evals  | pred-disc  | maxQ -Infinity
+ seed 18180 evals  | pred-disc  | maxQ -Infinity
+ seed 18281 evals  | pred-disc  | maxQ -Infinity
+ seed 18382 evals  | pred-disc  | maxQ -Infinity
+ seed 18483 evals  | pred-disc  | maxQ -Infinity
+ seed 18584 evals  | pred-disc  | maxQ -Infinity
+ seed 18685 evals  | pred-disc  | maxQ -Infinity
+ seed 18786 evals  | pred-disc  | maxQ -Infinity
+ seed 18887 evals  | pred-disc  | maxQ -Infinity
+ seed 18988 evals  | pred-disc  | maxQ -Infinity
+ seed 19089 evals  | pred-disc  | maxQ -Infinity
+ seed 19190 evals  | pred-disc  | maxQ -Infinity
+ seed 19291 evals  | pred-disc  | maxQ -Infinity
+ seed 19392 evals  | pred-disc  | maxQ -Infinity
+ seed 19493 evals  | pred-disc  | maxQ -Infinity
+ seed 19594 evals  | pred-disc  | maxQ -Infinity
+ seed 19695 evals  | pred-disc  | maxQ -Infinity
+ seed 19796 evals  | pred-disc  | maxQ -Infinity
+ seed 19897 evals  | pred-disc  | maxQ -Infinity
+ seed 19998 evals  | pred-disc  | maxQ -Infinity
+ seed 20099 evals  | pred-disc  | maxQ -Infinity
+ seed 20200 evals  | pred-disc  | maxQ -Infinity
+ seed 20301 evals  | pred-disc  | maxQ -Infinity
+ seed 20402 evals  | pred-disc  | maxQ -Infinity
+ seed 20503 evals  | pred-disc  | maxQ -Infinity
+ seed 20604 evals  | pred-disc  | maxQ -Infinity
+ seed 20705 evals  | pred-disc  | maxQ -Infinity
+ seed 20806 evals  | pred-disc  | maxQ -Infinity
+ seed 20907 evals  | pred-disc  | maxQ -Infinity
+ seed 21008 evals  | pred-disc  | maxQ -Infinity
+ seed 21109 evals  | pred-disc  | maxQ -Infinity
+ seed 21210 evals  | pred-disc  | maxQ -Infinity
+ seed 21311 evals  | pred-disc  | maxQ -Infinity
+ seed 21412 evals  | pred-disc  | maxQ -Infinity
+ seed 21513 evals  | pred-disc  | maxQ -Infinity
+ seed 21614 evals  | pred-disc  | maxQ -Infinity
+ seed 21715 evals  | pred-disc  | maxQ -Infinity
+ seed 21816 evals  | pred-disc  | maxQ -Infinity
+ seed 21917 evals  | pred-disc  | maxQ -Infinity
+ seed 22018 evals  | pred-disc  | maxQ -Infinity
+ seed 22119 evals  | pred-disc  | maxQ -Infinity
+ seed 22220 evals  | pred-disc  | maxQ -Infinity
+ seed 22321 evals  | pred-disc  | maxQ -Infinity
+ seed 22422 evals  | pred-disc  | maxQ -Infinity
+ seed 22523 evals  | pred-disc  | maxQ -Infinity
+ seed 22624 evals  | pred-disc  | maxQ -Infinity
+ seed 22725 evals  | pred-disc  | maxQ -Infinity
+ seed 22826 evals  | pred-disc  | maxQ -Infinity
+ seed 22927 evals  | pred-disc  | maxQ -Infinity
+ seed 23028 evals  | pred-disc  | maxQ -Infinity
+ seed 23129 evals  | pred-disc  | maxQ -Infinity
+ seed 23230 evals  | pred-disc  | maxQ -Infinity
+ seed 23331 evals  | pred-disc  | maxQ -Infinity
+ seed 23432 evals  | pred-disc  | maxQ -Infinity
+ seed 23533 evals  | pred-disc  | maxQ -Infinity
+ seed 23634 evals  | pred-disc  | maxQ -Infinity
+ seed 23735 evals  | pred-disc  | maxQ -Infinity
+ seed 23836 evals  | pred-disc  | maxQ -Infinity
+ seed 23937 evals  | pred-disc  | maxQ -Infinity
+ seed 24038 evals  | pred-disc  | maxQ -Infinity
+ seed 24139 evals  | pred-disc  | maxQ -Infinity
+ seed 24240 evals  | pred-disc  | maxQ -Infinity
+ seed 24341 evals  | pred-disc  | maxQ -Infinity
+ seed 24442 evals  | pred-disc  | maxQ -Infinity
+ seed 24543 evals  | pred-disc  | maxQ -Infinity
+ seed 24644 evals  | pred-disc  | maxQ -Infinity
+ seed 24745 evals  | pred-disc  | maxQ -Infinity
+ seed 24846 evals  | pred-disc  | maxQ -Infinity
+ seed 24947 evals  | pred-disc  | maxQ -Infinity
+ seed 25048 evals  | pred-disc  | maxQ -Infinity
+ seed 25149 evals  | pred-disc  | maxQ -Infinity
+ seed 25250 evals  | pred-disc  | maxQ -Infinity
+ seed 25351 evals  | pred-disc  | maxQ -Infinity
+ seed 25452 evals  | pred-disc  | maxQ -Infinity
+ seed 25553 evals  | pred-disc  | maxQ -Infinity
+ seed 25654 evals  | pred-disc  | maxQ -Infinity
+ seed 25755 evals  | pred-disc  | maxQ -Infinity
+ seed 25856 evals  | pred-disc  | maxQ -Infinity
+ seed 25957 evals  | pred-disc  | maxQ -Infinity
+ seed 26058 evals  | pred-disc  | maxQ -Infinity
+ seed 26159 evals  | pred-disc  | maxQ -Infinity
+ seed 26260 evals  | pred-disc  | maxQ -Infinity
+ seed 26361 evals  | pred-disc  | maxQ -Infinity
+ seed 26462 evals  | pred-disc  | maxQ -Infinity
+ seed 26563 evals  | pred-disc  | maxQ -Infinity
+ seed 26664 evals  | pred-disc  | maxQ -Infinity
+ seed 26765 evals  | pred-disc  | maxQ -Infinity
+ seed 26866 evals  | pred-disc  | maxQ -Infinity
+ seed 26967 evals  | pred-disc  | maxQ -Infinity
+ seed 27068 evals  | pred-disc  | maxQ -Infinity
+ seed 27169 evals  | pred-disc  | maxQ -Infinity
+ seed 27270 evals  | pred-disc  | maxQ -Infinity
+ seed 27371 evals  | pred-disc  | maxQ -Infinity
+ seed 27472 evals  | pred-disc  | maxQ -Infinity
+ seed 27573 evals  | pred-disc  | maxQ -Infinity
+ seed 27674 evals  | pred-disc  | maxQ -Infinity
+ seed 27775 evals  | pred-disc  | maxQ -Infinity
+ seed 27876 evals  | pred-disc  | maxQ -Infinity
+ seed 27977 evals  | pred-disc  | maxQ -Infinity
+ seed 28078 evals  | pred-disc  | maxQ -Infinity
+ seed 28179 evals  | pred-disc  | maxQ -Infinity
+ seed 28280 evals  | pred-disc  | maxQ -Infinity
+ seed 28381 evals  | pred-disc  | maxQ -Infinity
+ seed 28482 evals  | pred-disc  | maxQ -Infinity
+ seed 28583 evals  | pred-disc  | maxQ -Infinity
+ seed 28684 evals  | pred-disc  | maxQ -Infinity
+ seed 28785 evals  | pred-disc  | maxQ -Infinity
+ seed 28886 evals  | pred-disc  | maxQ -Infinity
+ seed 28987 evals  | pred-disc  | maxQ -Infinity
+ seed 29088 evals  | pred-disc  | maxQ -Infinity
+ seed 29189 evals  | pred-disc  | maxQ -Infinity
+ seed 29290 evals  | pred-disc  | maxQ -Infinity
+ seed 29391 evals  | pred-disc  | maxQ -Infinity
+ seed 29492 evals  | pred-disc  | maxQ -Infinity
+ seed 29593 evals  | pred-disc  | maxQ -Infinity
+ seed 29694 evals  | pred-disc  | maxQ -Infinity
+ seed 29795 evals  | pred-disc  | maxQ -Infinity
+ seed 29896 evals  | pred-disc  | maxQ -Infinity
+ seed 29997 evals  | pred-disc  | maxQ -Infinity
+ seed 30098 evals  | pred-disc  | maxQ -Infinity
+ seed 30199 evals  | pred-disc  | maxQ -Infinity
+ seed 30300 evals  | pred-disc  | maxQ -Infinity
+ summary {"optimalLast20":0.78,"rewardLast20":1.31,"totalRegret":218.99,"seeds":300}
+  ok Finds the best arm - Best arm chosen 78% of the last 200 pulls.
+
+== mirage Q
+{} {} {"epsStart":0.1,"epsEnd":0.1} 0.7s
+ seed 101 evals 0 0 0 0 0 0 0 0 1 0 | pred-disc -1 0 0 0 0 | maxQ 0
+ seed 202 evals 0 0 0 1 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 303 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 404 evals 1 -1 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 505 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 606 evals -2 -1 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 707 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 808 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 909 evals -1 0 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1010 evals 0 0 1 0 0 0 0 -2 1 -1 | pred-disc 0 0 1 1 1 | maxQ 0
+ seed 1111 evals 0 0 0 0 0 0 -1 -1 1 0 | pred-disc -1 0 0 -1 0 | maxQ 0
+ seed 1212 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1313 evals -1 0 1 -1 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1414 evals 0 -1 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1515 evals 0 -1 0 -1 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1616 evals 0 1 0 0 0 0 0 0 0 -1 | pred-disc 0 1 1 1 1 | maxQ 0
+ seed 1717 evals 0 0 1 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1818 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1919 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2020 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2121 evals -1 0 -1 0 0 0 0 -1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2222 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2323 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 1
+ seed 2424 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2525 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2626 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2727 evals 0 0 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2828 evals 0 0 -1 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2929 evals 0 0 0 0 0 0 0 0 0 -1 | pred-disc 0 -1 0 0 1 | maxQ 0
+ seed 3030 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3131 evals 0 0 0 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3232 evals 0 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3333 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3434 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3535 evals -1 0 0 0 0 0 0 0 0 1 | pred-disc 0 1 0 0 -1 | maxQ 0
+ seed 3636 evals 0 0 0 1 0 0 0 0 0 0 | pred-disc 0 0 -1 0 0 | maxQ 0
+ seed 3737 evals 0 0 -1 1 0 1 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3838 evals -1 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3939 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4040 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4141 evals 0 0 0 0 0 0 0 0 -1 0 | pred-disc 1 0 1 1 0 | maxQ 0
+ seed 4242 evals -1 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4343 evals -1 -2 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4444 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4545 evals 0 0 -1 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4646 evals 0 0 0 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4747 evals -1 -1 0 0 0 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4848 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4949 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5050 evals 0 0 0 0 0 0 0 0 1 0 | pred-disc -1 0 1 0 0 | maxQ 0
+ seed 5151 evals 0 0 0 0 0 0 0 0 0 -1 | pred-disc 0 0 0 0 1 | maxQ 0
+ seed 5252 evals 0 -1 0 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5353 evals 0 0 0 0 0 0 0 0 0 1 | pred-disc 0 0 0 1 -1 | maxQ 0
+ seed 5454 evals -1 0 -1 1 0 0 0 0 0 0 | pred-disc 0 1 0 0 0 | maxQ 0
+ seed 5555 evals 0 0 0 0 0 0 0 -1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5656 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5757 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5858 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5959 evals 0 -1 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6060 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6161 evals -1 0 0 -1 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6262 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6363 evals 0 0 1 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6464 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6565 evals 0 0 0 0 -1 0 -1 -1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6666 evals 0 -2 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6767 evals 0 0 2 0 -1 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6868 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 1 1 -1 0 | maxQ 0
+ seed 6969 evals 0 1 0 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7070 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7171 evals 0 0 0 0 0 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7272 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7373 evals 0 -1 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7474 evals -1 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7575 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7676 evals 0 0 -1 0 0 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7777 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 1 0 -1 1 | maxQ 0
+ seed 7878 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7979 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8080 evals -2 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8181 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 1 0 | maxQ 0
+ seed 8282 evals 0 -1 0 1 -1 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8383 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8484 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8585 evals 1 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8686 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8787 evals 0 0 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8888 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8989 evals 0 0 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9090 evals 1 0 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 1
+ seed 9191 evals 0 0 0 0 0 0 0 1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9292 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9393 evals 0 0 0 0 0 1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9494 evals -1 0 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9595 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 -1 0 0 0 | maxQ 0
+ seed 9696 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9797 evals -1 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9898 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9999 evals 0 -1 0 1 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10100 evals 1 1 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10201 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10302 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10403 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10504 evals -1 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10605 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10706 evals -1 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10807 evals -1 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10908 evals -1 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11009 evals 0 0 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11110 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11211 evals 0 0 0 0 0 0 0 -1 0 0 | pred-disc 0 0 -1 0 0 | maxQ 0
+ seed 11312 evals -1 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11413 evals 1 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11514 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 1 0 0 0 0 | maxQ 0
+ seed 11615 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11716 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11817 evals 0 0 0 0 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11918 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12019 evals 0 0 0 0 0 0 0 0 -1 0 | pred-disc 1 -1 1 0 0 | maxQ 0
+ seed 12120 evals -1 0 0 -2 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12221 evals 0 0 0 0 0 0 0 -1 0 0 | pred-disc 1 1 0 0 0 | maxQ 0
+ seed 12322 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12423 evals -1 0 0 0 0 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12524 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12625 evals -1 0 0 0 0 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12726 evals 0 0 0 0 0 1 0 -2 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12827 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12928 evals 0 -1 1 0 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13029 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13130 evals -1 0 1 0 0 0 0 0 -1 0 | pred-disc 1 -1 0 0 0 | maxQ 0
+ seed 13231 evals 0 0 1 0 0 1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13332 evals -1 0 0 0 -1 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13433 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13534 evals -1 0 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13635 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13736 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13837 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13938 evals 0 0 0 -1 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14039 evals 1 0 -1 -1 -1 0 0 0 0 0 | pred-disc 0 -1 0 0 0 | maxQ 0
+ seed 14140 evals 0 -1 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14241 evals -1 0 0 0 0 0 1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14342 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14443 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14544 evals 0 0 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14645 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14746 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14847 evals 0 0 0 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14948 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15049 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15150 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15251 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15352 evals 0 0 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15453 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15554 evals 0 0 -3 -1 0 -1 0 0 0 -1 | pred-disc 0 0 0 0 1 | maxQ 0
+ seed 15655 evals 0 0 0 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15756 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15857 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 -1 -1 0 | maxQ 0
+ seed 15958 evals -1 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16059 evals 0 0 0 0 0 0 0 1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16160 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16261 evals -1 0 -2 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16362 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16463 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16564 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16665 evals 0 0 0 0 0 0 0 0 1 0 | pred-disc -1 0 0 0 0 | maxQ 0
+ seed 16766 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16867 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16968 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17069 evals -1 0 -1 -1 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17170 evals 0 -1 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17271 evals 0 0 0 0 0 0 0 0 0 1 | pred-disc 0 0 1 0 0 | maxQ 0
+ seed 17372 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17473 evals 0 1 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17574 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17675 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17776 evals 1 0 -1 0 0 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17877 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17978 evals 1 -1 0 0 0 0 0 0 1 0 | pred-disc -1 0 0 0 0 | maxQ 0
+ seed 18079 evals -1 0 1 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18180 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18281 evals 0 0 0 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18382 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18483 evals 0 1 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18584 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18685 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18786 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18887 evals 1 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18988 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19089 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19190 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19291 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19392 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19493 evals 1 0 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19594 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19695 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19796 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19897 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19998 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20099 evals 0 -1 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20200 evals 0 0 0 -1 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20301 evals 0 0 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20402 evals -1 0 -1 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20503 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20604 evals 1 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20705 evals 1 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20806 evals 1 0 -2 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20907 evals 0 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21008 evals -1 -1 0 0 0 1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21109 evals 0 -1 0 -1 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21210 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21311 evals 1 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21412 evals 0 0 0 0 0 0 0 0 -1 0 | pred-disc 1 -1 1 0 0 | maxQ 0
+ seed 21513 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21614 evals -1 0 -1 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21715 evals 0 0 -1 0 -1 1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21816 evals 0 -1 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21917 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22018 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22119 evals 0 -1 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22220 evals -1 0 0 0 0 0 0 -1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22321 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 -1 0 0 | maxQ 0
+ seed 22422 evals 0 0 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22523 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22624 evals -1 0 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22725 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22826 evals -1 0 0 0 0 0 0 -1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22927 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23028 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23129 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23230 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23331 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23432 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23533 evals -1 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23634 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23735 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23836 evals 0 1 0 0 0 0 0 0 0 -1 | pred-disc 0 0 0 0 1 | maxQ 0
+ seed 23937 evals -2 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24038 evals 0 0 1 0 1 0 0 0 0 0 | pred-disc 0 0 0 1 0 | maxQ 0
+ seed 24139 evals 0 0 0 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24240 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24341 evals -1 -2 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24442 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24543 evals 0 0 0 0 0 1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24644 evals -1 -1 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24745 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24846 evals -1 0 0 0 1 -1 0 1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24947 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25048 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25149 evals 0 0 -1 -1 0 0 0 0 0 -1 | pred-disc 0 0 1 1 1 | maxQ 0
+ seed 25250 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25351 evals 0 1 -1 0 0 0 0 0 0 0 | pred-disc 1 0 0 0 0 | maxQ 0
+ seed 25452 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25553 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25654 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25755 evals 0 1 -1 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25856 evals -1 0 0 0 0 0 0 0 -1 1 | pred-disc 2 0 0 1 -1 | maxQ 0
+ seed 25957 evals 0 0 0 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26058 evals 0 -1 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26159 evals 0 0 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26260 evals -1 -1 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26361 evals 0 1 0 -1 0 0 0 0 -1 0 | pred-disc 1 0 0 0 0 | maxQ 0
+ seed 26462 evals 0 -1 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26563 evals 0 0 0 0 0 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26664 evals 0 0 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26765 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26866 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26967 evals 1 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27068 evals 0 0 0 0 0 1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27169 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27270 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27371 evals -1 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27472 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27573 evals 0 0 0 -1 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27674 evals 0 0 0 0 0 0 0 0 1 0 | pred-disc -1 0 0 0 0 | maxQ 0
+ seed 27775 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27876 evals 0 0 0 0 0 1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27977 evals -2 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28078 evals 1 0 0 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28179 evals 0 0 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28280 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28381 evals 1 0 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28482 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28583 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28684 evals -1 0 0 0 0 0 0 -1 1 0 | pred-disc 0 1 0 0 0 | maxQ 0
+ seed 28785 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28886 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28987 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29088 evals 0 -1 0 0 0 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29189 evals -1 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29290 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29391 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29492 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29593 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29694 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29795 evals -1 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29896 evals -2 -1 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29997 evals 0 0 1 0 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 30098 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 30199 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 30300 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ summary {"leftEarly":0.85,"leftPeak":0.82,"leftLate":0.13,"qLeft":-0.04,"trueLeft":-0.1,"episodes":352,"seeds":300}
+  bad Chases the mirage - Left door in 82% of episodes at the worst point, 13% at the end (about 5% is only exploration). Q(A, left) = -0.04, true value -0.1. Mean of 300 runs.
+
+== mirage DoubleQ
+{"scorer":"second"} {} {"epsStart":0.1,"epsEnd":0.1} 0.8s
+ seed 101 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 202 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 303 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 404 evals 0 0 0 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 505 evals 0 0 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 606 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 707 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 808 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 1 0 0 | maxQ 0
+ seed 909 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1010 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1111 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1212 evals -1 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1313 evals 0 0 0 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1414 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1515 evals -1 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1616 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1717 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1818 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1919 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2020 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2121 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2222 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2323 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2424 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2525 evals 0 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2626 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2727 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2828 evals 0 0 0 0 0 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2929 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3030 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3131 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3232 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3333 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3434 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3535 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3636 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3737 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3838 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3939 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4040 evals 0 0 0 0 0 0 0 0 1 0 | pred-disc -1 0 0 0 0 | maxQ 0
+ seed 4141 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4242 evals 0 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4343 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4444 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4545 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4646 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4747 evals 0 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4848 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4949 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5050 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5151 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5252 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5353 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5454 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5555 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5656 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5757 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5858 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5959 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6060 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6161 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6262 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6363 evals 1 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6464 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6565 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6666 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6767 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6868 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6969 evals 0 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7070 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7171 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7272 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7373 evals 0 0 0 0 0 -1 1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7474 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7575 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7676 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7777 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7878 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7979 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8080 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8181 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8282 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8383 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8484 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8585 evals 0 0 0 0 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8686 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8787 evals 0 0 0 -1 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8888 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8989 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9090 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9191 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9292 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9393 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9494 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9595 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9696 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9797 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9898 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9999 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10100 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10201 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10302 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10403 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10504 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10605 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10706 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10807 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10908 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11009 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11110 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11211 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11312 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11413 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11514 evals 0 0 0 0 0 1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11615 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11716 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11817 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 1 0 | maxQ 0
+ seed 11918 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 1 0 0 0 | maxQ 0
+ seed 12019 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 -1 1 0 0 | maxQ 0
+ seed 12120 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12221 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12322 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12423 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12524 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12625 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12726 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12827 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12928 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13029 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13130 evals -1 0 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13231 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13332 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13433 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13534 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13635 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13736 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13837 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13938 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14039 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14140 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14241 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14342 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14443 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14544 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14645 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14746 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14847 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14948 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15049 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15150 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15251 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15352 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15453 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15554 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15655 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15756 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15857 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15958 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16059 evals 0 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16160 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16261 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16362 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16463 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16564 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16665 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16766 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16867 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16968 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17069 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17170 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17271 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17372 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17473 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17574 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17675 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17776 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17877 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17978 evals 0 0 0 0 0 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18079 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18180 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18281 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18382 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18483 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18584 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18685 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18786 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18887 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18988 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19089 evals 0 0 0 0 0 1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19190 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19291 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19392 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19493 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19594 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19695 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19796 evals 0 0 -1 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19897 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19998 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20099 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20200 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20301 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20402 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20503 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20604 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20705 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20806 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20907 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21008 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21109 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21210 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21311 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21412 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21513 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21614 evals -1 0 -1 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21715 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21816 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21917 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22018 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22119 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22220 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22321 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22422 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22523 evals 0 0 0 0 0 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22624 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22725 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22826 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22927 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23028 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23129 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23230 evals 0 0 0 0 0 0 0 0 0 1 | pred-disc 0 0 0 0 -1 | maxQ 0
+ seed 23331 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23432 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23533 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23634 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23735 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23836 evals 0 0 0 0 0 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23937 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24038 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24139 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24240 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24341 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24442 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24543 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24644 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24745 evals 0 0 0 0 -1 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24846 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24947 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25048 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25149 evals 0 0 0 0 0 0 0 0 -1 -1 | pred-disc 1 0 1 0 1 | maxQ 0
+ seed 25250 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25351 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25452 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25553 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25654 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25755 evals 0 0 0 0 0 0 -1 0 0 0 | pred-disc 0 0 1 0 0 | maxQ 0
+ seed 25856 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25957 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26058 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26159 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26260 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26361 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26462 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26563 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26664 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26765 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26866 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 -1 0 0 | maxQ 0
+ seed 26967 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27068 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27169 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27270 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27371 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27472 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27573 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27674 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27775 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27876 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 1 0 0 | maxQ 0
+ seed 27977 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28078 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28179 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28280 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28381 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28482 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28583 evals 0 0 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28684 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28785 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28886 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28987 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29088 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29189 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29290 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29391 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29492 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29593 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29694 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29795 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29896 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29997 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 30098 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 30199 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 30300 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ summary {"leftEarly":0.28,"leftPeak":0.16,"leftLate":0.06,"qLeft":-0.07,"trueLeft":-0.1,"episodes":434,"seeds":300}
+  ok Avoids the mirage - Left door in 16% of episodes at the worst point, 6% at the end (about 5% is only exploration). Q(A, left) = -0.07, true value -0.1. Mean of 300 runs.
+
+== mirage clipped minpair
+{"scorer":"minpair"} {} {"epsStart":0.1,"epsEnd":0.1} 0.7s
+ seed 101 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 202 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 303 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 404 evals 0 0 0 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 505 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 606 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 707 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 808 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 909 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1010 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1111 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1212 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1313 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1414 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1515 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1616 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1717 evals 1 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1818 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1919 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2020 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2121 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2222 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2323 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2424 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2525 evals 0 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2626 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2727 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2828 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2929 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3030 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3131 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3232 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3333 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3434 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 1 0 0 0 | maxQ 0
+ seed 3535 evals 0 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3636 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3737 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3838 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3939 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4040 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4141 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4242 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4343 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4444 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4545 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4646 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4747 evals 0 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4848 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4949 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5050 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5151 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5252 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5353 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5454 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5555 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5656 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5757 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5858 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5959 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6060 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6161 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6262 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6363 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6464 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6565 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6666 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6767 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 -2 0 0 | maxQ 0
+ seed 6868 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6969 evals 0 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7070 evals 0 0 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7171 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7272 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7373 evals 0 0 0 0 0 -1 1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7474 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7575 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7676 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7777 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7878 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7979 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8080 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8181 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8282 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8383 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8484 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8585 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8686 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8787 evals 0 0 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8888 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8989 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9090 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9191 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9292 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9393 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9494 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9595 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9696 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9797 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9898 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9999 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10100 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10201 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10302 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10403 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10504 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10605 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10706 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10807 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10908 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11009 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11110 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11211 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11312 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11413 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11514 evals 0 0 0 0 0 1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11615 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11716 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11817 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11918 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12019 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12120 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12221 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12322 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12423 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12524 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12625 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12726 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12827 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12928 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13029 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13130 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13231 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13332 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13433 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13534 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13635 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13736 evals 0 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13837 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13938 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14039 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14140 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14241 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14342 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14443 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14544 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14645 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14746 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14847 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14948 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15049 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15150 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15251 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15352 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15453 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15554 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15655 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15756 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15857 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15958 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16059 evals 0 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16160 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16261 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16362 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16463 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16564 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16665 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16766 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16867 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16968 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17069 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17170 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17271 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17372 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17473 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17574 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17675 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17776 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17877 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17978 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18079 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18180 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18281 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18382 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18483 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18584 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18685 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18786 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18887 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18988 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19089 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 -1 0 0 0 | maxQ 0
+ seed 19190 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19291 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19392 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19493 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19594 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19695 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19796 evals 0 0 -1 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19897 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19998 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20099 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20200 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20301 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20402 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20503 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20604 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20705 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20806 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20907 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21008 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21109 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21210 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21311 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21412 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21513 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21614 evals -1 0 -1 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21715 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21816 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21917 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22018 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22119 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22220 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22321 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22422 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22523 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22624 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22725 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22826 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22927 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23028 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23129 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23230 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23331 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23432 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23533 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23634 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23735 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23836 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23937 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24038 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24139 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24240 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24341 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24442 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24543 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24644 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24745 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 1 0 0 0 | maxQ 0
+ seed 24846 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24947 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25048 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25149 evals 0 0 0 0 0 0 0 -1 0 0 | pred-disc 0 1 0 0 0 | maxQ 0
+ seed 25250 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25351 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25452 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25553 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25654 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25755 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25856 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25957 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26058 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26159 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26260 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26361 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26462 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26563 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26664 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26765 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26866 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26967 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27068 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27169 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27270 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27371 evals 0 0 0 0 0 0 0 0 1 0 | pred-disc -1 0 0 0 0 | maxQ 0
+ seed 27472 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27573 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27674 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27775 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27876 evals 0 0 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27977 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28078 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28179 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28280 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28381 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28482 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28583 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28684 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28785 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28886 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28987 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29088 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29189 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29290 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29391 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29492 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29593 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29694 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29795 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29896 evals 0 0 0 0 0 0 -2 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29997 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 30098 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 30199 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 30300 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ summary {"leftEarly":0.25,"leftPeak":0.14,"leftLate":0.06,"qLeft":-0.07,"trueLeft":-0.1,"episodes":440,"seeds":300}
+  ok Avoids the mirage - Left door in 14% of episodes at the worst point, 6% at the end (about 5% is only exploration). Q(A, left) = -0.07, true value -0.1. Mean of 300 runs.
+
+== mirage frozen scorer
+{"scorer":"frozen","sync":20} {} {"epsStart":0.1,"epsEnd":0.1} 0.6s
+ seed 101 evals 0 0 0 0 0 0 0 0 -1 0 | pred-disc 1 0 0 0 0 | maxQ 0
+ seed 202 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 303 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 404 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 505 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 606 evals 0 -1 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 707 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 808 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 909 evals 0 1 1 0 1 1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1010 evals 0 -1 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1111 evals 0 0 0 0 0 0 0 0 -1 1 | pred-disc 1 0 1 1 -1 | maxQ 0
+ seed 1212 evals -1 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1313 evals -1 0 1 -1 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1414 evals 1 -1 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1515 evals 0 -1 0 -1 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1616 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1717 evals 0 1 0 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1818 evals -1 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1919 evals 0 0 0 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2020 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2121 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2222 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2323 evals 1 0 0 -1 0 0 0 0 0 0 | pred-disc 0 1 1 0 1 | maxQ 1
+ seed 2424 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2525 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2626 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2727 evals 0 0 0 0 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2828 evals 0 0 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2929 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3030 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3131 evals 0 0 0 0 0 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3232 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3333 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3434 evals 1 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3535 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 -1 0 | maxQ 0
+ seed 3636 evals 0 -1 0 0 0 0 0 1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3737 evals 0 -1 0 0 0 0 0 -1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3838 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 1 0 0 | maxQ 0
+ seed 3939 evals 0 0 0 0 0 0 0 -1 -2 0 | pred-disc 2 0 0 0 0 | maxQ 0
+ seed 4040 evals 0 0 0 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4141 evals -1 0 0 0 0 0 0 0 -1 0 | pred-disc 1 1 1 0 0 | maxQ 0
+ seed 4242 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4343 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4444 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4545 evals -1 0 0 0 0 -1 1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4646 evals 0 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4747 evals -1 -1 0 0 0 0 0 -1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4848 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4949 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 1 1 0 | maxQ 0
+ seed 5050 evals 0 0 0 0 0 0 0 0 1 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5151 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5252 evals 0 0 0 0 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5353 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5454 evals 0 0 0 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5555 evals 0 0 0 0 0 0 0 1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5656 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5757 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5858 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 1 1 1 0 0 | maxQ 0
+ seed 5959 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6060 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6161 evals 0 1 0 -1 0 1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6262 evals 0 1 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6363 evals 1 1 1 0 0 0 0 0 0 0 | pred-disc 0 0 -1 1 0 | maxQ 0
+ seed 6464 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6565 evals 0 0 0 0 1 0 0 -1 1 0 | pred-disc -1 1 0 0 0 | maxQ 0
+ seed 6666 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6767 evals -1 0 1 -1 0 0 0 -1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6868 evals 0 0 0 0 0 0 0 0 1 1 | pred-disc 0 1 -1 1 -1 | maxQ 0
+ seed 6969 evals 0 1 0 0 0 0 0 0 -1 0 | pred-disc 1 0 0 0 0 | maxQ 0
+ seed 7070 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7171 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7272 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7373 evals 0 -1 0 0 0 0 0 -1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7474 evals -1 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7575 evals 2 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7676 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7777 evals 0 -1 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7878 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7979 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8080 evals 0 0 0 0 0 0 0 -1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8181 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8282 evals 0 0 0 -1 0 0 0 0 -1 0 | pred-disc 1 0 0 0 0 | maxQ 0
+ seed 8383 evals 0 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8484 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8585 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8686 evals 0 0 0 0 -1 0 0 0 -1 0 | pred-disc 1 0 0 0 0 | maxQ 0
+ seed 8787 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8888 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8989 evals -1 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9090 evals 0 0 0 0 -1 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9191 evals 0 0 0 0 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9292 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9393 evals 0 0 0 0 0 0 0 0 0 1 | pred-disc 0 0 -1 -1 -1 | maxQ 0
+ seed 9494 evals 1 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9595 evals 1 0 -1 -1 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9696 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9797 evals -1 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9898 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9999 evals 1 1 0 1 1 1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10100 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10201 evals 0 0 1 0 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10302 evals 1 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10403 evals -1 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10504 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10605 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 1 0 | maxQ 0
+ seed 10706 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10807 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 -1 0 0 0 | maxQ 0
+ seed 10908 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11009 evals 0 0 0 0 -1 0 0 0 0 0 | pred-disc 0 0 1 0 0 | maxQ 0
+ seed 11110 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11211 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11312 evals 0 -1 0 0 0 0 0 0 1 0 | pred-disc -1 0 0 0 0 | maxQ 0
+ seed 11413 evals 1 0 0 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11514 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11615 evals 0 0 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11716 evals 0 0 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11817 evals 0 0 0 0 0 1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11918 evals 0 0 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12019 evals -1 -1 1 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12120 evals -1 -1 1 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12221 evals 0 0 0 0 2 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12322 evals -1 0 0 0 0 0 0 1 0 0 | pred-disc 1 0 0 0 0 | maxQ 0
+ seed 12423 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12524 evals 0 0 0 0 0 0 -1 1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12625 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 1 0 0 0 0 | maxQ 0
+ seed 12726 evals 0 0 0 0 0 0 0 0 -1 0 | pred-disc 1 1 0 0 0 | maxQ 0
+ seed 12827 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12928 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13029 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13130 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13231 evals 0 0 0 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13332 evals -1 0 0 0 0 0 -1 -1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13433 evals -1 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13534 evals 1 0 0 0 0 0 0 0 -1 0 | pred-disc 1 0 0 0 0 | maxQ 0
+ seed 13635 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13736 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13837 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13938 evals 0 0 0 -1 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14039 evals 0 0 1 -1 1 -1 0 0 0 0 | pred-disc 0 0 0 1 0 | maxQ 0
+ seed 14140 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14241 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 -1 0 | maxQ 0
+ seed 14342 evals 0 0 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14443 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14544 evals 0 0 0 0 1 -1 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14645 evals 0 1 0 0 0 1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14746 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14847 evals 0 1 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14948 evals 0 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15049 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15150 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15251 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15352 evals 0 0 0 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15453 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15554 evals 0 0 -3 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15655 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15756 evals -1 0 0 0 0 0 0 0 -1 0 | pred-disc 1 0 0 0 0 | maxQ 0
+ seed 15857 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15958 evals 0 0 0 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16059 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 -1 1 0 | maxQ 0
+ seed 16160 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16261 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16362 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16463 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16564 evals 0 1 0 0 0 0 0 -1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16665 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16766 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16867 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16968 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17069 evals 0 -1 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17170 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17271 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17372 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 1 0 | maxQ 0
+ seed 17473 evals 0 0 0 0 1 -1 0 -1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17574 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17675 evals -1 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17776 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17877 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17978 evals 0 1 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18079 evals 0 0 0 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18180 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18281 evals 0 0 0 0 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18382 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18483 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18584 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18685 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18786 evals -1 0 0 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18887 evals 1 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18988 evals -1 1 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19089 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19190 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19291 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 -1 0 | maxQ 0
+ seed 19392 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19493 evals 0 0 0 0 0 0 0 0 0 1 | pred-disc 0 0 -1 0 -1 | maxQ 0
+ seed 19594 evals 0 0 0 1 0 0 0 0 0 0 | pred-disc 0 1 0 0 0 | maxQ 0
+ seed 19695 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19796 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19897 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19998 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 -1 1 0 1 | maxQ 0
+ seed 20099 evals 0 0 0 0 0 0 0 -1 0 0 | pred-disc 0 1 0 -1 0 | maxQ 0
+ seed 20200 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20301 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20402 evals 0 0 0 0 0 0 0 -1 0 0 | pred-disc 0 1 0 1 0 | maxQ 0
+ seed 20503 evals -1 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20604 evals -1 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20705 evals 0 -1 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20806 evals 0 0 0 0 0 0 0 -1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20907 evals -1 0 0 0 0 -1 0 2 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21008 evals 0 0 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21109 evals 0 -1 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21210 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21311 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21412 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21513 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21614 evals 0 0 0 -1 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21715 evals 0 0 0 0 0 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21816 evals 0 0 0 0 0 0 0 0 0 -1 | pred-disc 0 0 0 0 1 | maxQ 0
+ seed 21917 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22018 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22119 evals 0 -1 -1 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22220 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22321 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22422 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22523 evals -1 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22624 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22725 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22826 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22927 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23028 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23129 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 -1 0 0 0 | maxQ 0
+ seed 23230 evals 0 1 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23331 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23432 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23533 evals -2 0 0 0 0 0 0 0 0 -1 | pred-disc 0 0 0 0 1 | maxQ 0
+ seed 23634 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23735 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23836 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23937 evals 0 1 -1 0 0 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24038 evals 0 0 -1 -1 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24139 evals 0 0 0 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24240 evals 0 1 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24341 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24442 evals 1 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24543 evals 0 1 0 0 0 0 0 0 0 -1 | pred-disc 0 0 0 -1 1 | maxQ 0
+ seed 24644 evals -1 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24745 evals 1 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24846 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24947 evals 0 0 0 -1 0 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25048 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 1 0 0 | maxQ 0
+ seed 25149 evals -1 -1 0 0 0 0 0 0 0 -1 | pred-disc 0 0 0 0 1 | maxQ 0
+ seed 25250 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25351 evals 0 0 -1 0 0 0 0 1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25452 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 1 0 | maxQ 0
+ seed 25553 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25654 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 -1 0 0 | maxQ 0
+ seed 25755 evals -1 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25856 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25957 evals 0 0 0 0 0 -1 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26058 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26159 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26260 evals 0 -1 0 0 0 0 1 -1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26361 evals 1 0 0 0 0 0 0 -1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26462 evals 1 0 0 1 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26563 evals -1 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26664 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26765 evals -1 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26866 evals 0 0 -1 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26967 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27068 evals 0 0 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27169 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27270 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27371 evals 1 0 1 0 0 1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27472 evals -1 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27573 evals -1 1 0 1 -1 1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27674 evals 0 -1 0 0 0 0 0 0 0 -1 | pred-disc 0 0 0 0 1 | maxQ 0
+ seed 27775 evals -1 0 0 0 0 0 0 0 -1 0 | pred-disc 1 0 0 0 0 | maxQ 0
+ seed 27876 evals 1 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 1
+ seed 27977 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28078 evals 0 0 0 0 1 2 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28179 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28280 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28381 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28482 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28583 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28684 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28785 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28886 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28987 evals -1 0 1 0 0 0 0 1 0 0 | pred-disc 1 0 0 0 0 | maxQ 0
+ seed 29088 evals 0 -2 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29189 evals -1 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29290 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29391 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29492 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29593 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29694 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29795 evals -1 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29896 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29997 evals 0 0 0 0 0 0 0 0 0 -1 | pred-disc 0 1 0 0 1 | maxQ 0
+ seed 30098 evals -2 0 0 0 0 0 0 0 -1 0 | pred-disc 1 0 0 0 0 | maxQ 0
+ seed 30199 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 30300 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ summary {"leftEarly":0.66,"leftPeak":0.71,"leftLate":0.13,"qLeft":-0.03,"trueLeft":-0.1,"episodes":364,"seeds":300}
+  bad Chases the mirage - Left door in 71% of episodes at the worst point, 13% at the end (about 5% is only exploration). Q(A, left) = -0.03, true value -0.1. Mean of 300 runs.
+
+== mirage expected sarsa
+{"agg":"mean"} {} {"epsStart":0.1,"epsEnd":0.1} 0.5s
+ seed 101 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 202 evals 0 0 0 1 0 0 0 -1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 303 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 404 evals 1 0 -1 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 505 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 606 evals 0 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 707 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 808 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 909 evals 0 0 1 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1010 evals 0 0 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1111 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1212 evals 0 0 0 0 0 0 1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1313 evals 0 0 0 0 0 0 -1 0 -1 0 | pred-disc 1 0 1 0 0 | maxQ 0
+ seed 1414 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1515 evals 0 0 0 0 1 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1616 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1717 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1818 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 1919 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2020 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2121 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2222 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2323 evals 0 0 0 0 -1 0 0 0 0 0 | pred-disc 0 1 0 1 0 | maxQ 0
+ seed 2424 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2525 evals 0 -1 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2626 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2727 evals 0 0 0 -1 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2828 evals 0 0 0 0 0 0 0 -1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 2929 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3030 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3131 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3232 evals 0 0 -1 0 0 0 0 -1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3333 evals 0 0 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3434 evals 0 0 -1 0 0 0 0 1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3535 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3636 evals 0 0 0 1 0 0 0 0 0 0 | pred-disc 0 0 0 -1 0 | maxQ 0
+ seed 3737 evals 0 0 -1 0 0 0 0 -1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3838 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 3939 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4040 evals 0 0 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4141 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4242 evals 0 -1 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4343 evals -1 -2 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4444 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4545 evals 0 -1 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4646 evals 0 0 0 0 0 0 1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4747 evals -1 0 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4848 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 4949 evals 0 0 -1 0 0 0 0 0 0 1 | pred-disc 0 0 0 1 -1 | maxQ 0
+ seed 5050 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 1 0 0 0 | maxQ 0
+ seed 5151 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5252 evals 0 -1 0 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5353 evals -1 0 0 1 0 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5454 evals -1 0 -1 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5555 evals 0 0 0 0 0 0 1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5656 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5757 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5858 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 5959 evals 0 -1 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6060 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6161 evals -1 0 0 0 0 0 0 -1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6262 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6363 evals 0 0 0 0 0 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6464 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6565 evals 0 0 0 0 -1 0 0 0 -1 0 | pred-disc 1 1 1 0 0 | maxQ 0
+ seed 6666 evals 0 -2 -1 0 0 0 0 0 1 0 | pred-disc -1 0 0 0 0 | maxQ 0
+ seed 6767 evals 0 0 2 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6868 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 6969 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 1 0 | maxQ 0
+ seed 7070 evals 0 -1 0 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7171 evals 0 0 0 0 0 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7272 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7373 evals 0 0 -2 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7474 evals -1 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7575 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7676 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 1 1 0 0 | maxQ 0
+ seed 7777 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 1 0 | maxQ 0
+ seed 7878 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 7979 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8080 evals -2 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8181 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8282 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 1 1 0 0 | maxQ 0
+ seed 8383 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8484 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8585 evals 1 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8686 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8787 evals 0 -1 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8888 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 8989 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9090 evals 1 0 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9191 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9292 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9393 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9494 evals 0 0 0 0 1 0 0 0 1 0 | pred-disc -1 1 1 1 0 | maxQ 0
+ seed 9595 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9696 evals 1 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9797 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9898 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 9999 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10100 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10201 evals 0 -1 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10302 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 1 0 0 0 | maxQ 0
+ seed 10403 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10504 evals -1 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10605 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10706 evals -1 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10807 evals 0 0 -1 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 10908 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11009 evals 0 0 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11110 evals -1 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11211 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11312 evals -1 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11413 evals 1 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11514 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 1 0 0 0 0 | maxQ 0
+ seed 11615 evals 0 0 0 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11716 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11817 evals 0 0 0 0 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 11918 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12019 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12120 evals -1 0 0 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12221 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12322 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12423 evals -1 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12524 evals -1 0 0 0 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12625 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12726 evals 0 0 0 0 0 0 1 0 -2 0 | pred-disc 2 0 0 0 0 | maxQ 0
+ seed 12827 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 12928 evals 0 -1 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13029 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13130 evals -1 0 1 0 0 0 0 0 -1 0 | pred-disc 1 0 0 0 0 | maxQ 0
+ seed 13231 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13332 evals -1 0 0 0 -1 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13433 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13534 evals -1 0 0 0 0 -1 0 0 0 0 | pred-disc 0 1 1 0 0 | maxQ 0
+ seed 13635 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13736 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13837 evals -1 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 13938 evals 0 0 -1 0 -2 1 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14039 evals 1 0 -1 -1 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14140 evals 0 -1 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14241 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14342 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14443 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14544 evals 0 0 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14645 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14746 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14847 evals 0 0 0 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 14948 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15049 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15150 evals -1 0 0 0 0 0 0 0 1 0 | pred-disc -1 0 1 1 0 | maxQ 0
+ seed 15251 evals 0 0 0 0 0 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15352 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15453 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15554 evals -1 1 0 0 -1 -1 1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15655 evals 0 0 0 0 0 0 0 0 1 0 | pred-disc -1 0 0 1 0 | maxQ 0
+ seed 15756 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15857 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 15958 evals -1 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16059 evals 0 0 0 0 0 0 0 0 1 0 | pred-disc -1 0 0 0 0 | maxQ 0
+ seed 16160 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16261 evals -1 0 -2 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16362 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16463 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16564 evals 0 1 -1 0 0 0 1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16665 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16766 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16867 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 16968 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17069 evals 0 -1 0 0 0 2 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17170 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17271 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17372 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17473 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17574 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17675 evals -1 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17776 evals 0 0 0 0 0 0 0 0 0 -1 | pred-disc 1 0 1 -1 1 | maxQ 0
+ seed 17877 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 17978 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18079 evals -1 0 1 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18180 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18281 evals 0 0 0 0 0 0 0 1 1 -1 | pred-disc -1 2 0 0 1 | maxQ 0
+ seed 18382 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18483 evals 0 1 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18584 evals 0 -1 0 0 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18685 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18786 evals 0 1 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18887 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 18988 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19089 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19190 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19291 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19392 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19493 evals 1 0 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19594 evals 0 1 0 0 -1 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19695 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19796 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19897 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 19998 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20099 evals 0 0 -1 0 0 0 -1 1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20200 evals 0 0 0 0 0 -1 1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20301 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20402 evals -1 0 -1 0 0 -1 -1 -1 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20503 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20604 evals 1 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20705 evals 0 -1 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20806 evals 1 0 -2 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 20907 evals 0 0 0 -1 0 0 0 2 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21008 evals -1 -1 0 0 0 1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21109 evals 0 -1 0 -1 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21210 evals 0 0 -1 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21311 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21412 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21513 evals 0 0 -1 1 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21614 evals -1 0 -1 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21715 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21816 evals 0 -1 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 21917 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22018 evals 0 1 0 0 0 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22119 evals 0 -1 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22220 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22321 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22422 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22523 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22624 evals -1 0 0 0 0 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22725 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22826 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 22927 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23028 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23129 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 1 1 -1 0 | maxQ 0
+ seed 23230 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23331 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23432 evals 0 1 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23533 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23634 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23735 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23836 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 23937 evals -2 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24038 evals 0 0 1 0 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24139 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24240 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24341 evals 0 0 -2 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24442 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24543 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24644 evals -1 -1 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24745 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24846 evals -1 0 0 0 1 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 24947 evals 0 0 0 0 0 -1 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25048 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25149 evals 0 0 0 -1 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25250 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25351 evals 0 0 0 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25452 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25553 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25654 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25755 evals 0 1 -1 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 25856 evals 0 -1 0 1 0 0 0 0 0 0 | pred-disc 0 2 0 0 1 | maxQ 0
+ seed 25957 evals 0 0 0 0 0 0 0 -1 -1 0 | pred-disc 1 0 0 0 0 | maxQ 0
+ seed 26058 evals 0 -1 0 -1 0 0 0 0 0 1 | pred-disc 0 0 0 0 -1 | maxQ 0
+ seed 26159 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26260 evals -1 -1 -1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26361 evals 0 0 1 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26462 evals 0 -1 0 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26563 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26664 evals 0 0 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26765 evals 0 0 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26866 evals 0 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 26967 evals -1 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27068 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27169 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27270 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27371 evals -1 0 0 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27472 evals 0 0 -1 0 0 0 0 0 0 0 | pred-disc 0 -1 0 0 0 | maxQ 0
+ seed 27573 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27674 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27775 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 1 0 0 0 | maxQ 0
+ seed 27876 evals 0 0 0 0 0 0 1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 27977 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28078 evals 0 -1 0 0 -1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28179 evals 0 0 0 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28280 evals 0 1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28381 evals 1 0 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28482 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28583 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28684 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28785 evals 0 0 -1 -1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28886 evals 1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 28987 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29088 evals 0 -1 0 0 0 0 -1 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29189 evals 0 0 1 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29290 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29391 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29492 evals 0 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29593 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29694 evals 0 -1 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29795 evals 0 0 0 1 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29896 evals -2 -1 1 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 29997 evals 0 0 1 0 1 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 30098 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 30199 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ seed 30300 evals -1 0 0 0 0 0 0 0 0 0 | pred-disc 0 0 0 0 0 | maxQ 0
+ summary {"leftEarly":0.59,"leftPeak":0.79,"leftLate":0.11,"qLeft":-0.04,"trueLeft":-0.1,"episodes":358,"seeds":300}
+  bad Chases the mirage - Left door in 79% of episodes at the worst point, 11% at the end (about 5% is only exploration). Q(A, left) = -0.04, true value -0.1. Mean of 300 runs.
+
+== cliff Q
+{} {} {"epsStart":0.1,"epsEnd":0.1,"lrTable":0.5} 0.5s
+ seed 101 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 202 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 303 evals -200 -15 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 404 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 505 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 606 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 707 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 808 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 909 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1010 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1111 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1212 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1313 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1414 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1515 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1616 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1717 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1818 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 1919 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ seed 2020 evals -200 -200 -13 -13 -13 -13 -13 -13 -13 -13 | pred-disc 0 0 0 0 0 | maxQ 112
+ summary {"finalReturn":-13,"finalSd":0,"peak":-13,"seeds":20,"maxQ":112.13,"overestimate":0,"realized":-12.25,"collapsedSeeds":0,"fallsPerEpisode":0.32}
+  warn Falls off while learning - 0.32 falls per episode in the second half of training.
+
+== cliff Sarsa
+{"agg":"taken"} {} {"epsStart":0.1,"epsEnd":0.1,"lrTable":0.5} 0.5s
+ seed 101 evals -200 -200 -200 -200 -17 -200 -17 -17 -17 -17 | pred-disc -5 -4 -2 -4 -3 | maxQ 150
+ seed 202 evals -200 -200 -200 -17 -200 -200 -19 -19 -19 -200 | pred-disc -5 -7 61 64 61 | maxQ 132
+ seed 303 evals -200 -200 -17 -17 -17 -200 -200 -200 -17 -19 | pred-disc -8 -5 59 -3 -4 | maxQ 137
+ seed 404 evals -200 -200 -15 -200 -17 -17 -200 -17 -17 -200 | pred-disc -2 -3 -7 69 68 | maxQ 147
+ seed 505 evals -200 -200 -200 -17 -17 -200 -17 -17 -17 -17 | pred-disc -3 -3 -1 67 -1 | maxQ 138
+ seed 606 evals -200 -200 -200 -200 -17 -17 -17 -17 -200 -17 | pred-disc 68 -3 66 68 -3 | maxQ 133
+ seed 707 evals -200 -200 -200 -17 -17 -17 -17 -17 -17 -17 | pred-disc -5 -2 -1 -2 -5 | maxQ 145
+ seed 808 evals -200 -200 -17 -200 -17 -17 -17 -17 -17 -17 | pred-disc -2 -2 -2 -1 -2 | maxQ 117
+ seed 909 evals -200 -200 -200 -200 -200 -200 -17 -200 -19 -17 | pred-disc 0 -2 -2 -4 -2 | maxQ 117
+ seed 1010 evals -200 -200 -15 -200 -17 -17 -200 -17 -200 -200 | pred-disc 65 -4 -1 -3 69 | maxQ 126
+ seed 1111 evals -200 -200 -200 -17 -17 -200 -200 -200 -200 -17 | pred-disc 65 -4 65 -6 -5 | maxQ 146
+ seed 1212 evals -200 -200 -200 -200 -200 -200 -200 -200 -17 -200 | pred-disc -12 -10 -11 62 63 | maxQ 127
+ seed 1313 evals -200 -200 -200 -17 -17 -200 -200 -200 -17 -200 | pred-disc -7 60 -9 -3 66 | maxQ 118
+ seed 1414 evals -200 -200 -17 -200 -17 -17 -17 -200 -200 -200 | pred-disc 65 64 64 64 64 | maxQ 144
+ seed 1515 evals -200 -200 -200 -17 -200 -17 -200 -17 -200 -17 | pred-disc 66 64 68 -12 -5 | maxQ 140
+ seed 1616 evals -200 -200 -200 -200 -200 -17 -200 -17 -17 -17 | pred-disc -3 69 -4 -3 -3 | maxQ 131
+ seed 1717 evals -200 -200 -17 -200 -17 -17 -200 -200 -17 -200 | pred-disc -5 66 66 66 63 | maxQ 144
+ seed 1818 evals -200 -200 -15 -17 -17 -200 -17 -200 -17 -200 | pred-disc -2 -2 -2 -2 69 | maxQ 122
+ seed 1919 evals -200 -200 -17 -200 -200 -17 -17 -17 -17 -17 | pred-disc -2 -3 -1 68 -2 | maxQ 142
+ seed 2020 evals -200 -200 -17 -17 -17 -19 -17 -17 -17 -17 | pred-disc -3 -2 -2 -12 -3 | maxQ 138
+ summary {"finalReturn":-82.09,"finalSd":47.3,"peak":-16.6,"seeds":20,"maxQ":149.6,"overestimate":20.96,"realized":-40.91,"collapsedSeeds":0,"fallsPerEpisode":0.06}
+  bad Predicts more than it earns - Q says -20 at the start; the greedy run earned -41 (discounted). Gap 21.
+
+== cliff ExpSarsa
+{"agg":"mean"} {} {"epsStart":0.1,"epsEnd":0.1,"lrTable":0.5} 0.4s
+ seed 101 evals -200 -200 -15 -15 -15 -15 -15 -15 -15 -15 | pred-disc -2 -2 -2 -2 -2 | maxQ 118
+ seed 202 evals -200 -200 -15 -15 -15 -15 -15 -15 -15 -15 | pred-disc -2 -2 -2 -2 -2 | maxQ 118
+ seed 303 evals -200 -200 -15 -15 -15 -15 -15 -15 -15 -15 | pred-disc -2 -2 -2 -2 -2 | maxQ 118
+ seed 404 evals -200 -200 -15 -15 -15 -15 -15 -15 -15 -15 | pred-disc -2 -2 -2 -2 -2 | maxQ 119
+ seed 505 evals -200 -200 -15 -15 -15 -15 -15 -15 -15 -15 | pred-disc -2 -2 -2 -2 -2 | maxQ 118
+ seed 606 evals -200 -200 -15 -15 -15 -15 -15 -15 -15 -15 | pred-disc -2 -2 -2 -2 -2 | maxQ 119
+ seed 707 evals -200 -200 -15 -15 -15 -15 -15 -15 -15 -15 | pred-disc -2 -2 -2 -2 -2 | maxQ 118
+ seed 808 evals -200 -200 -15 -15 -15 -15 -15 -15 -15 -15 | pred-disc -2 -2 -2 -2 -2 | maxQ 119
+ seed 909 evals -200 -200 -15 -15 -15 -15 -15 -15 -15 -15 | pred-disc -2 -2 -2 -2 -2 | maxQ 119
+ seed 1010 evals -200 -200 -200 -15 -15 -15 -15 -15 -15 -15 | pred-disc -2 -2 -2 -2 -2 | maxQ 118
+ seed 1111 evals -200 -200 -200 -200 -15 -200 -15 -15 -15 -15 | pred-disc -2 -2 -2 -2 -2 | maxQ 119
+ seed 1212 evals -200 -200 -15 -15 -15 -15 -15 -15 -15 -15 | pred-disc -2 -2 -2 -2 -2 | maxQ 118
+ seed 1313 evals -200 -200 -15 -15 -15 -15 -15 -15 -15 -15 | pred-disc -2 -2 -2 -2 -2 | maxQ 118
+ seed 1414 evals -200 -200 -15 -15 -15 -15 -15 -15 -15 -15 | pred-disc -2 -2 -2 -2 -2 | maxQ 119
+ seed 1515 evals -200 -200 -15 -15 -15 -15 -15 -15 -15 -15 | pred-disc -2 -2 -2 -2 -2 | maxQ 119
+ seed 1616 evals -200 -200 -15 -15 -15 -15 -200 -15 -15 -15 | pred-disc -2 -2 -2 -2 -2 | maxQ 118
+ seed 1717 evals -200 -200 -15 -15 -15 -15 -15 -15 -15 -15 | pred-disc -2 -2 -2 -2 -2 | maxQ 119
+ seed 1818 evals -200 -200 -15 -200 -15 -15 -15 -15 -15 -15 | pred-disc -2 -2 -2 -2 -2 | maxQ 118
+ seed 1919 evals -200 -200 -15 -15 -15 -15 -15 -15 -15 -15 | pred-disc -2 -2 -2 -2 -2 | maxQ 119
+ seed 2020 evals -200 -200 -15 -15 -15 -15 -15 -15 -15 -15 | pred-disc -2 -2 -2 -2 -2 | maxQ 118
+ summary {"finalReturn":-15,"finalSd":0,"peak":-15,"seeds":20,"maxQ":118.64,"overestimate":-1.97,"realized":-13.99,"collapsedSeeds":0,"fallsPerEpisode":0.04}
+
+== cliff MC
+{"nstep":0} {} {"epsStart":0.1,"epsEnd":0.1,"lrTable":0.5} 0.6s
+ seed 101 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 7 2 5 72 23 | maxQ 1093
+ seed 202 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 3 11 73 45 84 | maxQ 299
+ seed 303 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 1 29 7 84 84 | maxQ 284
+ seed 404 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 34 17 17 5 79 | maxQ 283
+ seed 505 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc -14 82 21 3 16 | maxQ 485
+ seed 606 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 78 74 8 8 85 | maxQ 253
+ seed 707 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 17 -16 37 19 47 | maxQ 404
+ seed 808 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 0 0 14 7 2 | maxQ 345
+ seed 909 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 0 0 0 0 0 | maxQ 1115
+ seed 1010 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 0 -24 -12 -4 -7 | maxQ 430
+ seed 1111 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 0 15 1 2 1 | maxQ 265
+ seed 1212 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc -14 7 16 5 5 | maxQ 329
+ seed 1313 evals -20000 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 0 0 0 0 0 | maxQ 2829
+ seed 1414 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 8 33 81 80 82 | maxQ 374
+ seed 1515 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 18 15 10 83 8 | maxQ 485
+ seed 1616 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 1 19 10 9 85 | maxQ 371
+ seed 1717 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 18 5 3 -16 -4 | maxQ 509
+ seed 1818 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 4 11 6 31 31 | maxQ 650
+ seed 1919 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 1 -9 -5 -1 -1 | maxQ 351
+ seed 2020 evals -200 -200 -200 -200 -200 -200 -200 -200 -200 -200 | pred-disc 5 16 6 4 1 | maxQ 331
+ summary {"finalReturn":-200,"finalSd":0,"peak":-200,"seeds":20,"maxQ":2828.98,"overestimate":16.77,"realized":-86.6,"collapsedSeeds":0,"fallsPerEpisode":0.94}
+  warn Predicts a bit more than it earns - Q says -70; earned -87. Gap 17.
+  warn Falls off while learning - 0.94 falls per episode in the second half of training.
+
+== cliff n4
+{"nstep":4} {} {"epsStart":0.1,"epsEnd":0.1,"lrTable":0.5} 0.5s
+ seed 101 evals -200 -19 -17 -19 -19 -19 -19 -19 -200 -17 | pred-disc 66 -4 -3 -1 -2 | maxQ 142
+ seed 202 evals -200 -200 -200 -19 -19 -21 -17 -200 -17 -200 | pred-disc -1 -1 54 -3 70 | maxQ 128
+ seed 303 evals -200 -17 -17 -17 -17 -200 -17 -17 -17 -17 | pred-disc -1 -1 -1 -1 -1 | maxQ 171
+ seed 404 evals -200 -200 -19 -200 -17 -17 -17 -17 -17 -17 | pred-disc 0 -5 -1 -2 -1 | maxQ 145
+ seed 505 evals -200 -17 -17 -19 -19 -19 -17 -19 -17 -17 | pred-disc -2 0 -2 0 -1 | maxQ 143
+ seed 606 evals -200 -17 -200 -200 -200 -200 -17 -200 -200 -17 | pred-disc 70 -4 64 -2 -3 | maxQ 168
+ seed 707 evals -200 -200 -200 -19 -21 -17 -17 -17 -200 -200 | pred-disc 69 -2 -1 -2 70 | maxQ 134
+ seed 808 evals -200 -19 -19 -17 -17 -19 -200 -200 -200 -200 | pred-disc 41 39 36 37 34 | maxQ 122
+ seed 909 evals -200 -17 -200 -17 -200 -19 -19 -200 -200 -17 | pred-disc 67 -2 -2 -3 -2 | maxQ 127
+ seed 1010 evals -200 -200 -200 -17 -19 -17 -17 -19 -17 -200 | pred-disc -1 -2 68 69 68 | maxQ 197
+ seed 1111 evals -200 -17 -17 -19 -200 -200 -200 -200 -19 -17 | pred-disc -3 -1 -3 -2 -2 | maxQ 141
+ seed 1212 evals -200 -200 -17 -19 -19 -19 -17 -200 -200 -17 | pred-disc 67 -2 -2 -2 -1 | maxQ 142
+ seed 1313 evals -200 -200 -200 -15 -17 -200 -200 -17 -17 -200 | pred-disc -2 -6 69 -1 68 | maxQ 142
+ seed 1414 evals -200 -200 -17 -17 -19 -17 -17 -17 -17 -200 | pred-disc -3 70 -1 -2 70 | maxQ 122
+ seed 1515 evals -200 -19 -17 -17 -17 -17 -200 -200 -200 -17 | pred-disc 57 56 -16 -3 0 | maxQ 192
+ seed 1616 evals -200 -17 -200 -17 -200 -17 -200 -200 -17 -200 | pred-disc -1 -1 -2 67 67 | maxQ 180
+ seed 1717 evals -200 -17 -17 -17 -200 -200 -21 -17 -17 -19 | pred-disc -1 -1 68 -1 -4 | maxQ 134
+ seed 1818 evals -200 -17 -17 -200 -200 -17 -17 -19 -19 -19 | pred-disc -3 -1 -3 -1 -1 | maxQ 136
+ seed 1919 evals -200 -200 -19 -200 -19 -19 -200 -17 -200 -200 | pred-disc 57 55 53 49 47 | maxQ 147
+ seed 2020 evals -200 -17 -200 -17 -17 -17 -17 -17 -17 -200 | pred-disc -1 69 -1 -1 70 | maxQ 156
+ summary {"finalReturn":-87.73,"finalSd":43.9,"peak":-16.9,"seeds":20,"maxQ":196.78,"overestimate":21.89,"realized":-43.13,"collapsedSeeds":0,"fallsPerEpisode":0.07}
+  bad Predicts more than it earns - Q says -21 at the start; the greedy run earned -43 (discounted). Gap 22.
+

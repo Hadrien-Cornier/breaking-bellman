@@ -1,0 +1,144 @@
+[
+ {
+  "name": "cart-dqn-max-sync50",
+  "sec": 8.611,
+  "summary": {
+   "finalReturn": 118.411,
+   "finalSd": 50.414,
+   "peak": 200,
+   "seeds": 3,
+   "maxQ": 364.898,
+   "overestimate": 81.674,
+   "realized": 69.683,
+   "collapsedSeeds": 0
+  },
+  "symptoms": [
+   "bad:overestimate",
+   "warn:unsolved"
+  ],
+  "perSeed": [
+   null,
+   null,
+   null
+  ],
+  "notes": []
+ },
+ {
+  "name": "cart-dqn-min-sync50",
+  "sec": 8.701,
+  "summary": {
+   "finalReturn": 90.5,
+   "finalSd": 70.404,
+   "peak": 200,
+   "seeds": 3,
+   "maxQ": 4719.318,
+   "overestimate": -346.516,
+   "realized": 46.276,
+   "collapsedSeeds": 1
+  },
+  "symptoms": [
+   "bad:diverge",
+   "warn:collapse",
+   "warn:spread",
+   "bad:unsolved"
+  ],
+  "perSeed": [
+   null,
+   null,
+   null
+  ],
+  "notes": []
+ },
+ {
+  "name": "cart-dqn-max-sync250",
+  "sec": 8.635,
+  "summary": {
+   "finalReturn": 147.722,
+   "finalSd": 38.446,
+   "peak": 200,
+   "seeds": 3,
+   "maxQ": 65.384,
+   "overestimate": -21.319,
+   "realized": 76.33,
+   "collapsedSeeds": 0
+  },
+  "symptoms": [
+   "warn:unsolved"
+  ],
+  "perSeed": [
+   null,
+   null,
+   null
+  ],
+  "notes": []
+ },
+ {
+  "name": "cart-dqn-min-sync250",
+  "sec": 8.564,
+  "summary": {
+   "finalReturn": 156.967,
+   "finalSd": 8.773,
+   "peak": 200,
+   "seeds": 3,
+   "maxQ": 21.024,
+   "overestimate": -70.871,
+   "realized": 80.953,
+   "collapsedSeeds": 0
+  },
+  "symptoms": [
+   "warn:unsolved"
+  ],
+  "perSeed": [
+   null,
+   null,
+   null
+  ],
+  "notes": []
+ },
+ {
+  "name": "cart-dqn-max-sync1000",
+  "sec": 8.482,
+  "summary": {
+   "finalReturn": 169.1,
+   "finalSd": 33.082,
+   "peak": 191.333,
+   "seeds": 3,
+   "maxQ": 20.566,
+   "overestimate": -69.406,
+   "realized": 85.63,
+   "collapsedSeeds": 0
+  },
+  "symptoms": [
+   "warn:unsolved"
+  ],
+  "perSeed": [
+   null,
+   null,
+   null
+  ],
+  "notes": []
+ },
+ {
+  "name": "cart-dqn-min-sync1000",
+  "sec": 8.508,
+  "summary": {
+   "finalReturn": 191.133,
+   "finalSd": 15.358,
+   "peak": 200,
+   "seeds": 3,
+   "maxQ": 11.929,
+   "overestimate": -86.517,
+   "realized": 95.115,
+   "collapsedSeeds": 0
+  },
+  "symptoms": [
+   "ok:solved"
+  ],
+  "perSeed": [
+   null,
+   null,
+   null
+  ],
+  "notes": []
+ }
+]

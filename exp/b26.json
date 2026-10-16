@@ -1,0 +1,391 @@
+[
+ {
+  "name": "cliff-max",
+  "world": "cliff",
+  "parts": {
+   "store": "table",
+   "eps": true,
+   "ucb": false,
+   "optimistic": false,
+   "data": "latest",
+   "memory": 10000,
+   "step": "const",
+   "nstep": 1,
+   "agg": "max",
+   "picker": "live",
+   "scorer": "live",
+   "sync": 250
+  },
+  "hyper": {
+   "epsStart": 0.1,
+   "epsEnd": 0.1,
+   "lrTable": 0.5
+  },
+  "steps": 10000,
+  "seeds": 20
+ },
+ {
+  "name": "cliff-taken",
+  "world": "cliff",
+  "parts": {
+   "store": "table",
+   "eps": true,
+   "ucb": false,
+   "optimistic": false,
+   "data": "latest",
+   "memory": 10000,
+   "step": "const",
+   "nstep": 1,
+   "agg": "taken",
+   "picker": "live",
+   "scorer": "live",
+   "sync": 250
+  },
+  "hyper": {
+   "epsStart": 0.1,
+   "epsEnd": 0.1,
+   "lrTable": 0.5
+  },
+  "steps": 10000,
+  "seeds": 20
+ },
+ {
+  "name": "cliff-mean",
+  "world": "cliff",
+  "parts": {
+   "store": "table",
+   "eps": true,
+   "ucb": false,
+   "optimistic": false,
+   "data": "latest",
+   "memory": 10000,
+   "step": "const",
+   "nstep": 1,
+   "agg": "mean",
+   "picker": "live",
+   "scorer": "live",
+   "sync": 250
+  },
+  "hyper": {
+   "epsStart": 0.1,
+   "epsEnd": 0.1,
+   "lrTable": 0.5
+  },
+  "steps": 10000,
+  "seeds": 20
+ },
+ {
+  "name": "cliff-min",
+  "world": "cliff",
+  "parts": {
+   "store": "table",
+   "eps": true,
+   "ucb": false,
+   "optimistic": false,
+   "data": "latest",
+   "memory": 10000,
+   "step": "const",
+   "nstep": 1,
+   "agg": "min",
+   "picker": "live",
+   "scorer": "live",
+   "sync": 250
+  },
+  "hyper": {
+   "epsStart": 0.1,
+   "epsEnd": 0.1,
+   "lrTable": 0.5
+  },
+  "steps": 10000,
+  "seeds": 20
+ },
+ {
+  "name": "cliff-max-second",
+  "world": "cliff",
+  "parts": {
+   "store": "table",
+   "eps": true,
+   "ucb": false,
+   "optimistic": false,
+   "data": "latest",
+   "memory": 10000,
+   "step": "const",
+   "nstep": 1,
+   "agg": "max",
+   "picker": "live",
+   "scorer": "second",
+   "sync": 250
+  },
+  "hyper": {
+   "epsStart": 0.1,
+   "epsEnd": 0.1,
+   "lrTable": 0.5
+  },
+  "steps": 10000,
+  "seeds": 20
+ },
+ {
+  "name": "cliff-max-minpair",
+  "world": "cliff",
+  "parts": {
+   "store": "table",
+   "eps": true,
+   "ucb": false,
+   "optimistic": false,
+   "data": "latest",
+   "memory": 10000,
+   "step": "const",
+   "nstep": 1,
+   "agg": "max",
+   "picker": "live",
+   "scorer": "minpair",
+   "sync": 250
+  },
+  "hyper": {
+   "epsStart": 0.1,
+   "epsEnd": 0.1,
+   "lrTable": 0.5
+  },
+  "steps": 10000,
+  "seeds": 20
+ },
+ {
+  "name": "cart-table-max",
+  "world": "cartpole",
+  "parts": {
+   "store": "table",
+   "eps": true,
+   "ucb": false,
+   "optimistic": false,
+   "data": "latest",
+   "memory": 10000,
+   "step": "const",
+   "nstep": 1,
+   "agg": "max",
+   "picker": "live",
+   "scorer": "live",
+   "sync": 250
+  },
+  "hyper": {},
+  "steps": 20000,
+  "seeds": 5
+ },
+ {
+  "name": "cart-table-taken",
+  "world": "cartpole",
+  "parts": {
+   "store": "table",
+   "eps": true,
+   "ucb": false,
+   "optimistic": false,
+   "data": "latest",
+   "memory": 10000,
+   "step": "const",
+   "nstep": 1,
+   "agg": "taken",
+   "picker": "live",
+   "scorer": "live",
+   "sync": 250
+  },
+  "hyper": {},
+  "steps": 20000,
+  "seeds": 5
+ },
+ {
+  "name": "cart-table-mean",
+  "world": "cartpole",
+  "parts": {
+   "store": "table",
+   "eps": true,
+   "ucb": false,
+   "optimistic": false,
+   "data": "latest",
+   "memory": 10000,
+   "step": "const",
+   "nstep": 1,
+   "agg": "mean",
+   "picker": "live",
+   "scorer": "live",
+   "sync": 250
+  },
+  "hyper": {},
+  "steps": 20000,
+  "seeds": 5
+ },
+ {
+  "name": "cart-table-min",
+  "world": "cartpole",
+  "parts": {
+   "store": "table",
+   "eps": true,
+   "ucb": false,
+   "optimistic": false,
+   "data": "latest",
+   "memory": 10000,
+   "step": "const",
+   "nstep": 1,
+   "agg": "min",
+   "picker": "live",
+   "scorer": "live",
+   "sync": 250
+  },
+  "hyper": {},
+  "steps": 20000,
+  "seeds": 5
+ },
+ {
+  "name": "cart-dqn-max",
+  "world": "cartpole",
+  "parts": {
+   "store": "net",
+   "eps": true,
+   "ucb": false,
+   "optimistic": false,
+   "data": "replay",
+   "memory": 10000,
+   "step": "const",
+   "nstep": 1,
+   "agg": "max",
+   "picker": "frozen",
+   "scorer": "frozen",
+   "sync": 250
+  },
+  "hyper": {},
+  "steps": 20000,
+  "seeds": 3
+ },
+ {
+  "name": "cart-dqn-mean",
+  "world": "cartpole",
+  "parts": {
+   "store": "net",
+   "eps": true,
+   "ucb": false,
+   "optimistic": false,
+   "data": "replay",
+   "memory": 10000,
+   "step": "const",
+   "nstep": 1,
+   "agg": "mean",
+   "picker": "frozen",
+   "scorer": "frozen",
+   "sync": 250
+  },
+  "hyper": {},
+  "steps": 20000,
+  "seeds": 3
+ },
+ {
+  "name": "cart-dqn-min",
+  "world": "cartpole",
+  "parts": {
+   "store": "net",
+   "eps": true,
+   "ucb": false,
+   "optimistic": false,
+   "data": "replay",
+   "memory": 10000,
+   "step": "const",
+   "nstep": 1,
+   "agg": "min",
+   "picker": "frozen",
+   "scorer": "frozen",
+   "sync": 250
+  },
+  "hyper": {},
+  "steps": 20000,
+  "seeds": 3
+ },
+ {
+  "name": "cart-naive-max",
+  "world": "cartpole",
+  "parts": {
+   "store": "net",
+   "eps": true,
+   "ucb": false,
+   "optimistic": false,
+   "data": "latest",
+   "memory": 10000,
+   "step": "const",
+   "nstep": 1,
+   "agg": "max",
+   "picker": "live",
+   "scorer": "live",
+   "sync": 250
+  },
+  "hyper": {},
+  "steps": 20000,
+  "seeds": 3
+ },
+ {
+  "name": "cart-naive-min",
+  "world": "cartpole",
+  "parts": {
+   "store": "net",
+   "eps": true,
+   "ucb": false,
+   "optimistic": false,
+   "data": "latest",
+   "memory": 10000,
+   "step": "const",
+   "nstep": 1,
+   "agg": "min",
+   "picker": "live",
+   "scorer": "live",
+   "sync": 250
+  },
+  "hyper": {},
+  "steps": 20000,
+  "seeds": 3
+ },
+ {
+  "name": "mirage-max",
+  "world": "mirage",
+  "parts": {
+   "store": "table",
+   "eps": true,
+   "ucb": false,
+   "optimistic": false,
+   "data": "latest",
+   "memory": 10000,
+   "step": "const",
+   "nstep": 1,
+   "agg": "max",
+   "picker": "live",
+   "scorer": "live",
+   "sync": 250
+  },
+  "hyper": {
+   "epsStart": 0.1,
+   "epsEnd": 0.1,
+   "lrTable": 0.1
+  },
+  "steps": 600,
+  "seeds": 300
+ },
+ {
+  "name": "mirage-min",
+  "world": "mirage",
+  "parts": {
+   "store": "table",
+   "eps": true,
+   "ucb": false,
+   "optimistic": false,
+   "data": "latest",
+   "memory": 10000,
+   "step": "const",
+   "nstep": 1,
+   "agg": "min",
+   "picker": "live",
+   "scorer": "live",
+   "sync": 250
+  },
+  "hyper": {
+   "epsStart": 0.1,
+   "epsEnd": 0.1,
+   "lrTable": 0.1
+  },
+  "steps": 600,
+  "seeds": 300
+ }
+]

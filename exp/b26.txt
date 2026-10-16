@@ -1,0 +1,17 @@
+cliff-max                    {"finalReturn":-13,"finalSd":0,"peak":-13,"seeds":20,"maxQ":112.125,"overestimate":0,"realized":-12.248,"collapsedSeeds":0,"fallsPerEpisode":0.316} warn:falls 0.079s
+cliff-taken                  {"finalReturn":-82.095,"finalSd":47.299,"peak":-16.6,"seeds":20,"maxQ":149.603,"overestimate":20.955,"realized":-40.913,"collapsedSeeds":0,"fallsPerEpisode":0.06} bad:overestimate 0.082s
+cliff-mean                   {"finalReturn":-15,"finalSd":0,"peak":-15,"seeds":20,"maxQ":118.635,"overestimate":-1.973,"realized":-13.994,"collapsedSeeds":0,"fallsPerEpisode":0.038}  0.083s
+cliff-min                    {"finalReturn":-176.22,"finalSd":22.28,"peak":-35.3,"seeds":20,"maxQ":632.545,"overestimate":-230.851,"realized":-86.255,"collapsedSeeds":0,"fallsPerEpisode":0.089}  0.087s
+cliff-max-second             {"finalReturn":-104.84,"finalSd":85.752,"peak":-90,"seeds":20,"maxQ":273.423,"overestimate":-21.238,"realized":-50.268,"collapsedSeeds":0,"fallsPerEpisode":0.462} warn:falls 0.085s
+cliff-max-minpair            {"finalReturn":-98.435,"finalSd":87.356,"peak":-81.05,"seeds":20,"maxQ":256.208,"overestimate":-19.428,"realized":-47.609,"collapsedSeeds":0,"fallsPerEpisode":0.475} warn:falls 0.081s
+cart-table-max               {"finalReturn":50.4,"finalSd":10.62,"peak":96.867,"seeds":5,"maxQ":35.036,"overestimate":-13.302,"realized":36.772,"collapsedSeeds":0} bad:unsolved 0.088s
+cart-table-taken             {"finalReturn":67.313,"finalSd":25.13,"peak":113.667,"seeds":5,"maxQ":37.548,"overestimate":-20.78,"realized":43.447,"collapsedSeeds":0} bad:unsolved 0.086s
+cart-table-mean              {"finalReturn":50.487,"finalSd":14.236,"peak":87.067,"seeds":5,"maxQ":31.054,"overestimate":-16.333,"realized":36.94,"collapsedSeeds":0} bad:unsolved 0.083s
+cart-table-min               {"finalReturn":40.467,"finalSd":12.667,"peak":93.133,"seeds":5,"maxQ":7.629,"overestimate":-23.619,"realized":28.822,"collapsedSeeds":1} warn:collapse,bad:unsolved 0.09s
+cart-dqn-max                 {"finalReturn":147.722,"finalSd":38.446,"peak":200,"seeds":3,"maxQ":65.384,"overestimate":-21.319,"realized":76.33,"collapsedSeeds":0} warn:unsolved 8.401s
+cart-dqn-mean                {"finalReturn":160.778,"finalSd":36.427,"peak":200,"seeds":3,"maxQ":62.29,"overestimate":-29.031,"realized":82.637,"collapsedSeeds":0} warn:unsolved 8.431s
+cart-dqn-min                 {"finalReturn":156.967,"finalSd":8.773,"peak":200,"seeds":3,"maxQ":21.024,"overestimate":-70.871,"realized":80.953,"collapsedSeeds":0} warn:unsolved 8.569s
+cart-naive-max               {"finalReturn":9.489,"finalSd":0.184,"peak":10.222,"seeds":3,"maxQ":4689148.5,"overestimate":1382522.538,"realized":9.087,"collapsedSeeds":0} bad:diverge,bad:overestimate,bad:unsolved 0.588s
+cart-naive-min               {"finalReturn":27.278,"finalSd":16.775,"peak":128.889,"seeds":3,"maxQ":216.455,"overestimate":19.244,"realized":22.475,"collapsedSeeds":2} bad:overestimate,bad:collapse,bad:unsolved 0.573s
+mirage-max                   {"leftEarly":0.852,"leftPeak":0.822,"leftLate":0.129,"qLeft":null,"trueLeft":-0.1,"episodes":352,"seeds":300} bad:mirage 0.019s
+mirage-min                   {"leftEarly":0.117,"leftPeak":0.073,"leftLate":0.052,"qLeft":null,"trueLeft":-0.1,"episodes":548,"seeds":300} ok:mirage 0.014s

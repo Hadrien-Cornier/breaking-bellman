@@ -1,0 +1,9 @@
+[
+{"name":"bandit greedy noise0","world":"bandit","parts":{"repr":"table","target":"mc","explore":"greedy"},"steps":1000,"seeds":300,"knobs":{"noise":0}},
+{"name":"DQN obs0.5","world":"cartpole","parts":{"repr":"net","target":"td","explore":"epsilon","replay":true,"targetNet":true},"steps":20000,"seeds":3,"knobs":{"obsNoise":0.5}},
+{"name":"cliff Q slip0.2","world":"cliff","parts":{"repr":"table","target":"td","explore":"epsilon"},"steps":10000,"seeds":20,"hyper":{"epsStart":0.1,"epsEnd":0.1,"lrTable":0.5},"knobs":{"slip":0.2}},
+{"name":"naive net lr1e-4","world":"cartpole","parts":{"repr":"net","target":"td","explore":"epsilon"},"steps":20000,"seeds":3,"hyper":{"lrNet":0.0001}},
+{"name":"cliff MC limit500","world":"cliff","parts":{"repr":"table","target":"mc","explore":"epsilon"},"steps":10000,"seeds":20,"hyper":{"epsStart":0.1,"epsEnd":0.1,"lrTable":0.5},"knobs":{"maxSteps":500}},
+{"name":"cliff MC eps0.3","world":"cliff","parts":{"repr":"table","target":"mc","explore":"epsilon"},"steps":10000,"seeds":20,"hyper":{"epsStart":0.3,"epsEnd":0.3,"lrTable":0.5}},
+{"name":"bandit mc eps","world":"bandit","parts":{"repr":"table","target":"mc","explore":"epsilon"},"steps":1000,"seeds":300,"hyper":{"epsStart":0.1,"epsEnd":0.1}}
+]

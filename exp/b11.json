@@ -1,0 +1,20 @@
+[
+ {"name":"off-reach-bc-expert","world":"reach","parts":{"family":"ac","source":"fixed","demos":"expert","aim":"copy","critics":"none","entropy":"none"},"steps":4000,"seeds":3},
+ {"name":"off-reach-detbc-expert","world":"reach","parts":{"family":"ac","source":"fixed","demos":"expert","head":"det","aim":"copy","critics":"none","entropy":"none"},"steps":4000,"seeds":3},
+ {"name":"off-reach-bc-mixed","world":"reach","parts":{"family":"ac","source":"fixed","demos":"mixed","aim":"copy","critics":"none","entropy":"none"},"steps":4000,"seeds":3},
+ {"name":"off-reach-fbc-mixed","world":"reach","parts":{"family":"ac","source":"fixed","demos":"mixed","aim":"copybest","critics":"none","entropy":"none"},"steps":4000,"seeds":3},
+ {"name":"off-reach-awr-mixed","world":"reach","parts":{"family":"ac","source":"fixed","demos":"mixed","aim":"weighted","critics":"none","entropy":"none"},"steps":4000,"seeds":3},
+ {"name":"off-reach-iql-mixed","world":"reach","parts":{"family":"ac","source":"fixed","demos":"mixed","aim":"weighted","critics":"two","next":"expectile","entropy":"none"},"steps":4000,"seeds":3},
+ {"name":"off-reach-sac-mixed","world":"reach","parts":{"family":"ac","source":"fixed","demos":"mixed"},"steps":4000,"seeds":3},
+ {"name":"off-reach-ddpg-mixed","world":"reach","parts":{"family":"ac","source":"fixed","demos":"mixed","head":"det","critics":"one","entropy":"none"},"steps":4000,"seeds":3},
+ {"name":"off-reach-td3bc-mixed","world":"reach","parts":{"family":"ac","source":"fixed","demos":"mixed","head":"det","aim":"qclose","critics":"two","next":"smooth","delay":2,"entropy":"none"},"steps":4000,"seeds":3},
+ {"name":"off-reach-ddpg-expert","world":"reach","parts":{"family":"ac","source":"fixed","demos":"expert","head":"det","critics":"one","entropy":"none"},"steps":4000,"seeds":3},
+ {"name":"off-reach-sac-expert","world":"reach","parts":{"family":"ac","source":"fixed","demos":"expert"},"steps":4000,"seeds":3},
+ {"name":"off-reach-td3bc-expert","world":"reach","parts":{"family":"ac","source":"fixed","demos":"expert","head":"det","aim":"qclose","critics":"two","next":"smooth","delay":2,"entropy":"none"},"steps":4000,"seeds":3},
+ {"name":"gg7-critic-mc","world":"goalgrid","parts":{"family":"pg","batch":16,"baseline":"critic","adv":"mc","lr":0.01},"steps":60000,"seeds":3},
+ {"name":"gg7-critic-gae","world":"goalgrid","parts":{"family":"pg","batch":16,"baseline":"critic","adv":"gae","lr":0.01},"steps":60000,"seeds":3},
+ {"name":"gg7-grpo-plain-e10","world":"goalgrid","parts":{"family":"pg","batch":16,"group":"same","baseline":"group","scale":"std","ratio":"plain","epochs":10,"lr":0.01},"steps":60000,"seeds":3},
+ {"name":"gg7-grpo-clip-e10","world":"goalgrid","parts":{"family":"pg","batch":16,"group":"same","baseline":"group","scale":"std","ratio":"clip","epochs":10,"lr":0.01},"steps":60000,"seeds":3},
+ {"name":"cp-plain-e10-lr03","world":"cartpole","knobs":{"maxSteps":500},"parts":{"family":"pg","batch":8,"baseline":"critic","adv":"gae","scale":"std","ratio":"plain","epochs":10,"lr":0.03},"steps":40000,"seeds":4},
+ {"name":"cp-clip-e10-lr03","world":"cartpole","knobs":{"maxSteps":500},"parts":{"family":"pg","batch":8,"baseline":"critic","adv":"gae","scale":"std","ratio":"clip","epochs":10,"lr":0.03},"steps":40000,"seeds":4}
+]
