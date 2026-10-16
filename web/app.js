@@ -810,7 +810,12 @@
     const box2 = chartEl ? chartEl.closest('.chart-wrap') || chartEl.parentNode : null;
     const look = () => { if (!box2) return; box2.classList.remove('look'); void box2.offsetWidth; box2.classList.add('look'); box2.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
     const opts = wq.options.map(([t, ok], i) => [t, ok, i]).sort((x, y) => ((x[2] * 7 + S.found.length) % 3) - ((y[2] * 7 + S.found.length) % 3));
-    const reveal = h('div.stack', { hidden: true });
+    const reveal = h('div.stack', { hidden: true }, [
+      h('p', { html: '<b>What your run shows:</b> ' + wq.evidence }),
+      h('p', { html: '<b>Why:</b> ' + wq.why }),
+      // the expert notes button only when the expert card is there (h() drops a null child; raw append would print "null")
+      $('#expert-card').hidden ? null : h('div.row', null, [h('button.btn.ghost.tiny', { type: 'button', onclick: openExpert }, 'Read the expert notes on this run')]),
+    ]);
     const btns = opts.map(([t, ok]) => h('button.btn.ghost.wopt', { type: 'button', onclick: (e) => {
       for (const b of btns) { b.disabled = true; }
       e.currentTarget.classList.add(ok ? 'right' : 'wrong');
@@ -818,10 +823,6 @@
       recordAnswer('wonder:' + wq.id + ':' + S.wondered[wq.id], t, ok);
       reveal.hidden = false;
     } }, t));
-    reveal.append(
-      h('p', { html: '<b>What your run shows:</b> ' + wq.evidence }),
-      h('p', { html: '<b>Why:</b> ' + wq.why }),
-      $('#expert-card').hidden ? null : h('div.row', null, [h('button.btn.ghost.tiny', { type: 'button', onclick: openExpert }, 'Read the expert notes on this run')]));
     box.replaceChildren(
       h('div.row', { style: 'justify-content:space-between' }, [h('div.eyebrow', { text: 'Did you notice?' }), box2 ? h('button.btn.ghost.tiny', { type: 'button', onclick: look }, 'Show me the chart') : null]),
       h('h3', { text: 'Something surprising happened in this run' }),

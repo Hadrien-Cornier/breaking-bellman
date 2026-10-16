@@ -150,6 +150,21 @@ await session(1280, 900, 'desktop', async (page) => {
   await runDone(page);
   console.log('mirage run:', await page.locator('#run-result').innerText());
   await page.screenshot({ path: out + '/desktop-mirage.png' });
+  // "Did you notice?": the mirage run opens the maximization-bias card. Open it the way a player
+  // does ("Show me the chart", then one of the 3 choices) and check the reveal text.
+  const wq = page.locator('#wonder');
+  check(await wq.isVisible(), 'the wonder card shows after the mirage run');
+  const look = wq.locator('button', { hasText: 'Show me the chart' });
+  if (await look.count()) await look.first().click();
+  await wq.locator('button.wopt').first().click();
+  console.log('wonder reveal:', (await wq.innerText()).trim().split('\n').slice(-3).join(' | '));
+  const stray = await wq.evaluate((el) => {
+    const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); let n = 0;
+    while (w.nextNode()) { const t = w.currentNode.textContent.trim(); if (t === 'null' || t === 'undefined') n++; }
+    return n;
+  });
+  check(stray === 0, 'the wonder card shows no standalone "null" or "undefined" after a choice (found ' + stray + ')');
+  await wq.screenshot({ path: out + '/desktop-wonder.png' });
   await page.getByRole('tab', { name: 'Review' }).click();
   await page.screenshot({ path: out + '/desktop-review.png' });
   await page.getByRole('tab', { name: 'Codex' }).click();
