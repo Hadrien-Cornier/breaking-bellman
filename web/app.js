@@ -2203,9 +2203,17 @@
       { name: 'set_words', description: 'Change some words of the update-rule sentence. Words not given keep their value.', inputSchema: { type: 'object', properties: props },
         execute: (ws) => {
           if (ws.family && C.families[ws.family] && ws.family !== fam(S.parts)) { S.parts = C.cfg({ family: ws.family }); if (!C.families[ws.family].worlds.includes(S.world)) setWorld(C.families[ws.family].worlds[0]); else budgetOptions(); }
-          const keys = C.families[fam(S.parts)].keys;
-          for (const k in ws) if (keys.includes(k) && optOf(k, ws[k])) S.parts[k] = ws[k];
-          onPartsChanged(); note('words → ' + JSON.stringify(ws)); return { words: S.parts, name: nameOf(S.parts, S.world), idle: idleWords(S.parts, S.world) };
+          // a value may also come as its text ('true', '4'), as the brief prints it; anything else is returned as rejected, never dropped silently
+          const keys = C.families[fam(S.parts)].keys, rejected = {};
+          for (const k in ws) {
+            if (k === 'family') continue;
+            const o = keys.includes(k) && (optOf(k, ws[k]) || W[k].options.find((x) => String(x[0]) === String(ws[k])));
+            if (o) S.parts[k] = o[0]; else rejected[k] = ws[k];
+          }
+          onPartsChanged(); note('words → ' + JSON.stringify(ws));
+          const out = { words: S.parts, name: nameOf(S.parts, S.world), idle: idleWords(S.parts, S.world) };
+          if (Object.keys(rejected).length) { out.rejected = rejected; out.hint = 'Unknown word or value for this sentence. bellman.help() lists each word and its values.'; }
+          return out;
         } },
       { name: 'set_world', description: 'Change the world and its knobs (knobs not given keep their defaults).', inputSchema: { type: 'object', properties: { world: { type: 'string', enum: Object.keys(C.worldNames) }, knobs: { type: 'object' } }, required: ['world'] },
         execute: ({ world, knobs }) => { setWorld(world, knobs || {}); note('world → ' + world + ' ' + JSON.stringify(knobs || {})); return { world: S.world, knobs: S.knobs }; } },
@@ -2259,7 +2267,7 @@
       'bellman.state()           // world, knobs, words, last run',
       'bellman.levels()          // all levels; any order is fine',
       'bellman.level(3)          // open level 3 (or its id)',
-      "bellman.words({ eps: 'eps' })   // change words (keys above)",
+      "bellman.words({ eps: true })     // change words (keys and values above)",
       "bellman.world('cliff', { slip: 0.1 })",
       'await bellman.run()       // train for real; returns the autopsy',
       '```',

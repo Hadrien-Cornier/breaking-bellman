@@ -123,6 +123,14 @@ await session(1280, 900, 'phases', async (page) => {
   check(await page.locator('#mode-pane .savebar button', { hasText: 'Download save file' }).count() === 1, 'the level map offers a save file');
   const brief = await page.evaluate(() => window.bellman.help());
   check(/Level \d+ of 17/.test(brief) && /bellman\.run\(\)/.test(brief), 'window.bellman gives a brief for an AI helper');
+  const wr = await page.evaluate(() => {
+    const b = window.bellman, w0 = Object.assign({}, b.words().words);
+    const a = b.words({ eps: true }), ae = a.words.eps, ar = a.rejected;
+    const t = b.words({ eps: 'false' }).words.eps, bad = b.words({ eps: 'sometimes', nope: 1 }).rejected;
+    b.words(w0);
+    return { ae, ar: ar || null, t, bad: bad || null };
+  });
+  check(wr.ae === true && wr.ar === null && wr.t === false && JSON.stringify(wr.bad) === '{"eps":"sometimes","nope":1}', 'bellman.words takes true or "false" and returns bad words as rejected');
   await page.locator('#mode-pane .node', { hasText: 'Learn the policy itself' }).click();
   await page.locator('#mode-pane .mc').first().locator('.opt').nth(1).click();
   await page.getByText('Run the starting sentence').click();

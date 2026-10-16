@@ -135,3 +135,4 @@ Calibration workflow for any number quoted in `web/content3.js`:
   flag `f` on each test-trace step.
 - `window.bellman` lets a browser agent drive the page: `help()` (a Markdown brief), `state()`, `levels()`, `level(n or id)`,
   `words({...})`, `world(name, knobs)`, `run(opts)`. It reuses the Chat tab's tools. "Copy for your AI" copies the brief.
+  `words` accepts a value or its text (`true` or `'true'`); it returns any unknown word or value under `rejected`.
