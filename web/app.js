@@ -1684,6 +1684,10 @@
             for (const id of [].concat(lv.revealOnDone || [])) if (!S.given.includes(id)) S.given.push(id);
             const rec = recognize(S.parts, S.world);
             S.made[lv.id] = { parts: Object.assign({}, S.parts), recipe: rec ? rec.id : null, notes, knobs: lv.repairKnobs ? Object.assign({}, S.knobs) : undefined };
+            if (lv.id === 'cells') S.made[lv.id].outcome = {
+              works: C.works[lv.world](a),
+              triad: C.failures.find((f) => f.card === 'triad').when(a, S.lastCfg),
+            };
             setStep(lv, lv.explain ? 4 : 5); save(); render();
           } else status.textContent = (notes.length ? notes.join(' ') + ' ' : '') + 'Not fixed yet: ' + lv.goal.text + ' Read the autopsy, or pin this run as A and change one word.';
         } }, 'Run this sentence')]),
@@ -1733,9 +1737,15 @@
     }
     const rec = C.recipes.find((r) => r.id === made.recipe);
     const box = h('div.stack');
-    if (lv.id === 'cells') {
-      box.append(h('p', { text: 'You found a new failure. The next level asks you to stop it.' }));
-      if (S.found.includes('triad')) box.append(cardView('triad', true));
+    // Discoveries last across runs; this conclusion belongs only to the completed sentence.
+    const triad = lv.id === 'cells' && made.outcome && made.outcome.triad;
+    if (triad) {
+      box.append(h('p', { text: 'This run showed the deadly triad. The next level asks you to stop it.' }));
+      box.append(cardView('triad', true));
+    } else if (lv.id === 'cells' && !(made.outcome && made.outcome.works)) {
+      box.append(h('p', { text: made.outcome
+        ? 'Your network shares estimates across similar states, but this run did not pass CartPole\'s test. Try another sentence, or continue to the next level.'
+        : 'Your saved sentence uses a network. Run it again to see whether it passes CartPole\'s test or shows a failure.' }));
     } else if (rec && rec.card) {
       box.append(h('p', { html: 'Your sentence is <b>' + rec.name + '</b>. Here are the words that define it, next to yours.' }), compareTable(made.parts, rec, lv.world));
       box.append(cardView(rec.card, true));
@@ -1745,7 +1755,7 @@
       if (near) box.append(compareTable(made.parts, near.rec, lv.world));
     }
     for (const n of made.notes || []) box.append(h('p.small', { text: n }));
-    box.append(discoveryMap(groupOf(lv.id === 'cells' ? 'triad' : rec && rec.card, lv.world, fam(made.parts))));
+    box.append(discoveryMap(groupOf(triad ? 'triad' : rec && rec.card, lv.world, fam(made.parts))));
     box.append(h('p', { html: '<b>On a real robot:</b> ' + lv.soWhat }), h('p.small', { html: '<b>What this toy world cannot teach:</b> ' + lv.cannotTeach }), nextLevelButton(lv));
     return box;
   }

@@ -85,7 +85,9 @@ window.CONTENT = (function () {
   const failures = [
     { card: 'lockin', when: (a, c) => c.world === 'bandit' && a.symptoms.some((s) => s.id === 'lockIn' && s.level === 'bad') },
     { card: 'noend', when: (a, c) => c.world === 'cliff' && c.parts.nstep === 0 && a.summary.finalReturn <= -150 },
-    { card: 'triad', when: (a) => a.symptoms.some((s) => s.id === 'diverge') },
+    { card: 'triad', when: (a, c) => (c.parts.family || 'value') === 'value' && c.parts.store === 'net' && c.parts.nstep > 0
+      && (c.parts.data === 'replay' || (c.parts.eps && ['max', 'min'].includes(c.parts.agg)) || (c.parts.agg === 'mean' && c.parts.picker !== 'live'))
+      && a.symptoms.some((s) => s.id === 'diverge' && s.level === 'bad') },
     { card: 'maxbias', when: (a) => a.symptoms.some((s) => s.id === 'mirage' && s.level === 'bad') },
   ];
 
