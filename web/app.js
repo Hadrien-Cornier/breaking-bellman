@@ -977,10 +977,11 @@
   }
   function discover(cardId, cfg, a) {
     if (S.found.includes(cardId)) return;
+    const alreadyKnown = S.given.includes(cardId); // already on the tree as a level's gift
     S.found.push(cardId);
     S.discoveries[cardId] = discoveryRecord(cfg, a);
     save(); updateScore();
-    queueCelebration(cardId);
+    if (!alreadyKnown) queueCelebration(cardId); // only a first-ever card celebrates
   }
   // the words that matter in a sentence, as text
   function sentenceText(p, world) {
@@ -1771,7 +1772,7 @@
       h('div.row', null, [h('button.btn', { type: 'button', onclick: async () => {
         enterLevel(lv, true);
         const a = await run();
-        if (a) { for (const id of [].concat(lv.reveal || [])) if (!S.given.includes(id)) { S.given.push(id); queueCelebration(id); } save(); setStep(lv, 2); }
+        if (a) { for (const id of [].concat(lv.reveal || [])) if (!S.given.includes(id)) { const alreadyKnown = S.found.includes(id); S.given.push(id); if (!alreadyKnown) queueCelebration(id); } save(); setStep(lv, 2); }
       } }, 'Run the starting sentence'), h('span.small', { text: 'Real training in your browser, ' + lv.seeds + ' runs.' })]),
     ])));
     if (st >= 2) steps.append(mk(2, 'Diagnose', h('div.stack', null, [
@@ -1790,7 +1791,7 @@
           const notes = (lv.notes || []).filter((n) => n.when(a, S.parts, S.knobs)).map((n) => (typeof n.text === 'function' ? n.text(a, S.parts, S.knobs) : n.text.replace('{final}', fmt(a.summary.finalReturn))));
           if (ok) {
             if (!S.done.includes(lv.id)) S.done.push(lv.id);
-            for (const id of [].concat(lv.revealOnDone || [])) if (!S.given.includes(id)) { S.given.push(id); queueCelebration(id); }
+            for (const id of [].concat(lv.revealOnDone || [])) if (!S.given.includes(id)) { const alreadyKnown = S.found.includes(id); S.given.push(id); if (!alreadyKnown) queueCelebration(id); }
             const rec = recognize(S.parts, S.world);
             S.made[lv.id] = { parts: Object.assign({}, S.parts), recipe: rec ? rec.id : null, notes, knobs: lv.repairKnobs ? Object.assign({}, S.knobs) : undefined };
             if (lv.id === 'cells') S.made[lv.id].outcome = {
