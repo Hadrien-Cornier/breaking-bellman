@@ -609,6 +609,13 @@
         F === 'ac' && P_.critics !== 'none' ? chartBox('ch-qq', 'Critic: value of the policy\'s actions vs the memory\'s actions', [[pol, 'policy\'s actions'], [val, 'actions in memory']]) : null,
       ].filter(Boolean));  // a null child would show as the text "null"
       if (F === 'value' && $('#ch-val')) $('#ch-val').parentNode.querySelector('.chart-title').append(h('button.btn.tiny.ghost', { type: 'button', onclick: openExpert }, 'Why this gap?'));
+    // the KL and entropy charts show policy-gradient metrics: their titles carry the shared help trigger
+    if (window.RLHELP && F === 'pg') {
+      const kT = $('#ch-kl');
+      if (kT) { const t = kT.parentNode.querySelector('.chart-title'); if (t) t.append(window.RLHELP.trigger('kl', undefined, metricCtx())); }
+      const eT = $('#ch-ent');
+      if (eT) { const t = eT.parentNode.querySelector('.chart-title'); if (t) t.append(window.RLHELP.trigger('entropy', undefined, metricCtx())); }
+    }
     }
     const maxSteps = (S.lastCfg && S.lastCfg.knobs && S.lastCfg.knobs.maxSteps) || RLA.knobDefaults(S.world).maxSteps;
     const per = partials.map((p) => p.evals);
@@ -797,6 +804,27 @@
 
 
   // ---------------------------------------------------------------- autopsy and headline numbers
+  // The metric-help context: the world's action space, so entropy anchors use the real action count
+  // and can tell a discrete softmax from a continuous bell curve. Derived from the world factory spec.
+  const _specCache = {};
+  function worldSpecOf(w, kn) {
+    const key = w + ':' + JSON.stringify(kn || {});
+    if (_specCache[key]) return _specCache[key];
+    let spec = null;
+    try { spec = RLA.worlds[w].make(Object.assign({}, kn || {}), RLA.rng.make(1)).spec; } catch (e) { spec = null; }
+    return (_specCache[key] = spec);
+  }
+  function metricCtx() {
+    const spec = worldSpecOf(S.world, S.knobs);
+    const cont = spec ? !!spec.continuous : false;
+    return {
+      continuous: cont,
+      actions: spec ? (cont ? 0 : (spec.nActions || 2)) : 2,
+      dims: spec ? (spec.actDim || spec.nActions || 1) : 1,
+      world: S.world,
+      family: fam(S.parts),
+    };
+  }
   function renderAutopsy() {
     const box = $('#symptoms'); box.replaceChildren();
     if (!S.results.length) { box.append(h('p.small', { text: 'No run yet.' })); return null; }
@@ -805,6 +833,7 @@
     for (const s of a.symptoms) box.append(h('div.sym.' + s.level, null, [h('span.dot'), h('div', null, [h('b', { text: s.label }), h('p', { text: s.evidence })])]));
     for (const n of S.results[0].notes || []) box.append(h('p.small', { text: 'Note: ' + n }));
     box.append(h('p.small', { text: 'Measured on ' + S.results.length + ' run' + (S.results.length > 1 ? 's' : '') + ' in this page. Simulation.' }));
+    if (window.RLHELP) window.RLHELP.enhance(box, metricCtx());
     return a;
   }
   // an expert reads the finished run: what the value chart shows and why the words cause it (web/expert.js)
@@ -816,6 +845,7 @@
       h('p.small.muted', { text: 'The first note reads your run. The others quote runs logged in this page\'s experiment log, with their settings. Simulation.' }));
     card.hidden = false;
     card.open = S.mode !== 'campaign';
+    if (window.RLHELP) window.RLHELP.enhance(box, metricCtx());
   }
   // "Did you notice?": ask the player to read one chart before the page explains the surprise
   function renderWonder(cfg, a) {
@@ -845,6 +875,7 @@
       h('h3', { text: 'Something surprising happened in this run' }),
       h('p', { text: wq.ask }), h('div.wopts', null, btns), reveal);
     box.hidden = false;
+    if (window.RLHELP) window.RLHELP.enhance(box, metricCtx());
   }
   function openExpert() {
     const d = $('#expert-card');
@@ -908,6 +939,7 @@
       for (const f of C.failures) if (!S.found.includes(f.card) && f.when(a, cfg)) discover(f.card, cfg, a);
       for (const f of C.knobFinds || []) if (!S.found.includes(f.card) && f.when(a, cfg)) discover(f.card, cfg, a);
       $('#run-result').replaceChildren(h('b', { text: works ? 'Works on ' + C.worldNames[cfg.world] + ': ' : 'Does not work yet: ' }), headline(a, cfg.world) + '.');
+    if (window.RLHELP) window.RLHELP.enhance($('#run-result'), metricCtx());
       save(); refreshSentences(); drawCompare();
       if (S.afterRun) S.afterRun(a);
       return a;
@@ -1102,6 +1134,7 @@
         h('button.btn.ghost', { type: 'button', onclick: () => { S.parts = Object.assign({}, A.parts); onPartsChanged(); drawCompare(); } }, 'Restore A\'s words'),
         h('button.btn.ghost', { type: 'button', onclick: () => { S.pinA = null; drawCompare(); $('#charts').replaceChildren(); if (S.results.length) renderCharts(S.results.map((r) => ({ evals: r.evals, diag: r.diag })), true); } }, 'Clear A')]),
     );
+    if (window.RLHELP) window.RLHELP.enhance(box, metricCtx());
   }
 
   // ---------------------------------------------------------------- try every combination of a few words (a full factorial table)
@@ -1115,6 +1148,12 @@
     if (world === 'reach') return { v: isFinite(s.testReturn) ? s.testReturn : s.finalReturn, up: true, label: 'test score' };
     if (world === 'fork' || world === 'goalgrid' || world === 'fetch') return { v: 100 * s.successRate, up: true, pct: true, label: '% of tests solved' };
     return { v: s.finalReturn, up: true, label: 'score' };
+  }
+  // The grid's metric header cell: the level's measure name plus the shared metric-help trigger
+  function gridMetricHead(m) {
+    const th = h('th', null, [m.label]);
+    if (window.RLHELP) th.append(window.RLHELP.trigger('gridmetric', undefined, Object.assign(metricCtx(), { label: m.label, pct: m.pct, up: m.up })));
+    return th;
   }
   // The +- on a cell: the standard error of the very number the cell shows. The number is
   // recomputed on bootstrap samples of the seeds (drawn again, with replacement), so the error
@@ -1233,7 +1272,7 @@
           name ? h('span.gname', { text: name }) : null, isNow ? h('span.gname', { text: '(your sentence)' }) : null])]);
     };
     const head = h('tr', null, [h('th', { text: rk.map((k) => SHORT[k]).join(' / ') + (ck.length ? ' ↓   ' + ck.map((k) => SHORT[k]).join(' / ') + ' →' : '') })]
-      .concat(ck.length ? cCombos.map((cv) => h('th', { text: cv.map((v, j) => wordText(ck[j], v)).join(' / ') })) : [h('th', { text: m.label })]));
+      .concat(ck.length ? cCombos.map((cv) => h('th', { text: cv.map((v, j) => wordText(ck[j], v)).join(' / ') })) : [gridMetricHead(m)]));
     const rows = rCombos.map((rv) => h('tr', null, [h('th', { text: rv.map((v, j) => wordText(rk[j], v)).join(' / ') })]
       .concat(ck.length ? cCombos.map((cv) => cell(find(rv, cv))) : [cell(find(rv, []))])));
     const idle = idleWords(G.base || S.parts, G.world), swept = G.runKeys.filter((k) => idle[k]);
@@ -1294,7 +1333,7 @@
     const rows = G.rows.slice().sort((a, b) => (m.up ? b.v - a.v : a.v - b.v));
     return h('details.gsub', null, [h('summary', { text: 'The same results as a list, best first' }),
       h('div.rp-scroll', null, [h('table.rp-table', null, [
-        h('thead', null, h('tr', null, keys.map((k) => h('th', { text: SHORT[k] })).concat([h('th', { text: m.label }), h('th', { text: 'test' }), h('th', { text: 'name' }), h('th')]))),
+        h('thead', null, h('tr', null, keys.map((k) => h('th', { text: SHORT[k] })).concat([gridMetricHead(m), h('th', { text: 'test' }), h('th', { text: 'name' }), h('th')]))),
         h('tbody', null, rows.map((r) => h('tr', null, r.vals.map((v, j) => h('td', { text: wordText(keys[j], v) })).concat([
           h('td.num', { text: gfmt(r.v) + gunit(m) + (isFinite(r.se) ? ' ± ' + gfmt(r.se) + gunit(m) : '') }), h('td', { text: r.works ? '✓' : '' }), h('td', { text: rowName(r) }),
           h('td', null, [h('button.btn.ghost.tiny', { type: 'button', onclick: () => useRow(r) }, 'Use')])])))),
@@ -1614,6 +1653,7 @@
         h('button.btn.ghost', { type: 'button', onclick: () => next(off ? 500 : 1000) }, off ? 'Train 500 more updates' : 'Train 1000 more moves'),
       ]);
       out.replaceChildren(nav, body, ctrls);
+      if (window.RLHELP) window.RLHELP.enhance(body, metricCtx());
     }
     const tbl = (head, rows, hi) => h('div.rp-scroll', null, [h('table.rp-table', null, [
       h('thead', null, h('tr', null, head.map((x) => h('th', { text: x })))),
@@ -1640,9 +1680,14 @@
         body.append(P_('After ' + p.epochs + ' pass' + (p.epochs > 1 ? 'es' : '') + ', how likely is each action of episode 1 now? Ratio = new / old probability.' + (P.ratio === 'clip' ? ' A highlighted row was clipped: it already moved 20% in the helpful direction, so it got no more push.' : '')));
         body.append(tbl(['step', 'action', 'weight', p.cont ? 'density before' : 'prob. before', p.cont ? 'after' : 'prob. after', 'ratio'],
           rows.slice(0, 14).map((r, i) => [i + 1, act(r.a), r.advScaled, r.pOld, r.pNew, r.ratio]), (i) => rows[i] && rows[i].clipped));
+        // the bare table numbers have no phrase: attach the shared help to their column headers
+        if (window.RLHELP) body.querySelectorAll('th').forEach((th) => {
+          if (th.textContent.trim() === 'ratio') th.append(window.RLHELP.trigger('ratio', undefined, metricCtx()));
+          else if (th.textContent.trim().indexOf('weight') === 0) th.append(window.RLHELP.trigger('advantage', undefined, metricCtx()));
+        });
         body.append(P_(right + ' of ' + rows.length + ' actions moved in the direction of their weight (more likely when the weight is above 0).'));
       } else {
-        body.append(P_('Mean change of the log-probability of the actions tried (an estimate of the KL divergence): <b>' + fmt(p.kl) + '</b>.' + (Math.abs(p.kl) > 0.05 ? ' That is a large step: PPO-sized steps are about 0.01 to 0.02.' : '') + (P.ratio === 'clip' ? ' Share of steps clipped: ' + fmt(p.clipFrac) + '.' : '')));
+        body.append(P_('Mean change of the log-probability of the actions tried (an estimate of the KL divergence): ' + fmt(p.kl) + '.' + (Math.abs(p.kl) > 0.05 ? ' That is a large step: PPO-sized steps are about 0.01 to 0.02.' : '') + (P.ratio === 'clip' ? ' Share of steps clipped: ' + fmt(p.clipFrac) + '.' : '')));
         const r0 = rows[0];
         if (r0 && r0.probsOld) body.append(P_('At the first state, the probability of each action: ' + r0.probsOld.map((x, a) => act(a) + ' ' + fmt(x) + ' → <b>' + fmt(r0.probsNew[a]) + '</b>').join(', ') + '.'));
         body.append(h('p.rp-verdict', { html: '<b>Only the policy moved.</b> A policy-gradient update has no target to chase: it makes actions with a positive weight more likely and the others less likely. The weights decide whether that helps.' }));
@@ -1705,6 +1750,7 @@
       return b;
     });
     wrap.append(...btns);
+    if (window.RLHELP) window.RLHELP.enhance(wrap, metricCtx());
     function show(i) {
       btns.forEach((b, j) => {
         const o = q.options[j];
@@ -1712,6 +1758,7 @@
         b.classList.toggle(o.correct ? 'right' : 'wrong', true);
         const why = b.querySelector('.why'); why.hidden = false; why.innerHTML = (o.correct ? '<b>Sound chain.</b> ' : '') + o.why;
       });
+      if (window.RLHELP) window.RLHELP.enhance(wrap, metricCtx());
     }
     function choose(i) {
       if (!S.answers[q.id]) recordAnswer(q.id, i, !!q.options[i].correct);
