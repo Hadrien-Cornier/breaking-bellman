@@ -304,3 +304,28 @@ ol.steps .num { display: grid; place-items: center; width: 30px; height: 30px; b
 .reward-panel { border: 1px dashed var(--line); border-radius: 8px; padding: 10px; }
 .reward-panel input[type="range"] { width: 100%; accent-color: var(--accent); }
 .muted { color: var(--muted); }
+
+/* Metric help: one small "?" trigger next to a number, and one shared popover that opens from it */
+.metric-help-btn {
+  display: inline-grid; place-items: center; position: relative; top: -0.12em;
+  width: 1.15em; height: 1.15em; margin: 0 0.15em; padding: 0; vertical-align: baseline;
+  font-family: var(--font-mono); font-size: 0.72em; font-weight: 700; line-height: 1;
+  color: var(--accent); background: var(--surface); border: 1px solid var(--line); border-radius: 50%;
+  cursor: pointer;
+}
+.metric-help-btn:hover, .metric-help-btn[aria-expanded="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.metric-help-pop {
+  position: fixed; z-index: 60; max-width: min(360px, calc(100vw - 24px));
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  border-radius: var(--r); box-shadow: 0 10px 30px rgb(0 0 0 / 0.18);
+  padding: 12px 14px; display: grid; gap: 8px; font-size: 0.86rem; line-height: 1.45;
+}
+.metric-help-pop[hidden] { display: none; }
+.metric-help-title { font-family: var(--font-display); font-weight: 700; padding-right: 24px; }
+.metric-help-close {
+  position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; display: grid; place-items: center;
+  border: 1px solid var(--line); background: var(--surface); border-radius: 6px; font-size: 16px; line-height: 1;
+}
+.metric-help-body { display: grid; gap: 6px; }
+.metric-help-body p { margin: 0; }
+.metric-help-anchor { font-family: var(--font-mono); font-size: 0.82em; color: var(--muted); background: var(--sunk); padding: 6px 8px; border-radius: 6px; }
