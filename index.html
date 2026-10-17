@@ -258,6 +258,11 @@ details[open] > summary { margin-bottom: 8px; }
 .entry dt { color: var(--muted); }
 .entry dd { margin: 0; }
 .genealogy { width: 100%; overflow-x: auto; }
+.genealogy svg { min-width: 560px; }
+.genealogy g.tnode { cursor: pointer; }
+.genealogy g.tnode rect { transition: stroke 0.15s, stroke-width 0.15s; }
+.genealogy g.tnode:hover rect, .genealogy g.tnode:focus-visible rect { stroke: var(--accent); stroke-width: 2; }
+.tree-detail:empty { display: none; }
 
 /* chat */
 .chat { display: grid; gap: 8px; }
@@ -3792,8 +3797,8 @@ window.CONTENT = (function () {
       qlearning: { x: 512, y: 184 }, nstep: { x: 590, y: 264 }, sarsa: { x: 250, y: 264 }, expsarsa: { x: 110, y: 344 },
       dqn: { x: 400, y: 264 }, doubleq: { x: 560, y: 344 }, ddqn: { x: 400, y: 424 }, clipped: { x: 590, y: 424 } },
     edges: [['root', 'egreedy', 'lock-in'], ['root', 'optimism', 'lock-in'], ['root', 'ucb', 'lock-in'], ['root', 'mc', 'many steps'],
-      ['mc', 'qlearning', 'no end'], ['mc', 'nstep', ''], ['qlearning', 'nstep', 'slow'], ['qlearning', 'sarsa', 'falls'], ['sarsa', 'expsarsa', 'noise'],
-      ['qlearning', 'dqn', 'triad'], ['qlearning', 'doubleq', 'max bias'], ['dqn', 'ddqn', 'overestimate'], ['doubleq', 'ddqn', ''], ['doubleq', 'clipped', 'pessimism']],
+      ['mc', 'qlearning', 'no end'], ['mc', 'nstep', 'waits for the end'], ['qlearning', 'nstep', 'slow'], ['qlearning', 'sarsa', 'falls'], ['sarsa', 'expsarsa', 'noise'],
+      ['qlearning', 'dqn', 'triad'], ['qlearning', 'doubleq', 'max bias', 0.72], ['dqn', 'ddqn', 'overestimate'], ['doubleq', 'ddqn', 'DQN overestimates', 0.75], ['doubleq', 'clipped', 'pessimism']],
   };
 
   const o = (steps, result, correct, why) => ({ steps, result, correct: !!correct, why });
@@ -4400,13 +4405,13 @@ window.CONTENT.M = {"cr-total-none":{"final":9.378,"finalSd":0.15,"peak":286.556
       edges: [['mc', 'reinforce', 'learn the policy'], ['reinforce', 'baseline', 'high variance'], ['baseline', 'a2c', 'slow returns'], ['a2c', 'ppo', 'big steps'], ['baseline', 'grpo', 'no critic'], ['ppo', 'grpo', 'end reward']] },
     { title: 'Phase 3: continuous actions', height: 270,
       nodes: { dqn: { x: 200, y: 24 }, clipped: { x: 460, y: 24 }, ddpg: { x: 200, y: 104 }, td3: { x: 330, y: 184 }, sac: { x: 330, y: 254 } },
-      edges: [['dqn', 'ddpg', 'continuous actions'], ['ddpg', 'td3', 'overestimates'], ['clipped', 'td3', ''], ['td3', 'sac', 'stops exploring']] },
+      edges: [['dqn', 'ddpg', 'continuous actions'], ['ddpg', 'td3', 'overestimates'], ['clipped', 'td3', 'the min of two'], ['td3', 'sac', 'stops exploring']] },
     { title: 'Phase 4: learning from a fixed dataset', height: 350,
       nodes: { bc: { x: 150, y: 24 }, filtbc: { x: 150, y: 104 }, awr: { x: 150, y: 184 }, td3: { x: 470, y: 24 }, td3bc: { x: 390, y: 104 }, cql: { x: 560, y: 104 }, iql: { x: 330, y: 264 }, recap: { x: 150, y: 334 } },
       edges: [['bc', 'filtbc', 'bad demos'], ['filtbc', 'awr', 'wastes data'], ['td3', 'td3bc', 'extrapolation'], ['td3', 'cql', 'extrapolation'], ['awr', 'iql', 'noisy returns'], ['td3bc', 'iql', 'unseen actions'], ['awr', 'recap', 'one bit']] },
     { title: 'Phase 5: the robotics frontier', height: 270,
       nodes: { bc: { x: 120, y: 24 }, sac: { x: 520, y: 24 }, flow: { x: 120, y: 104 }, act: { x: 260, y: 104 }, bestofn: { x: 120, y: 184 }, qplan: { x: 260, y: 254 }, expo: { x: 60, y: 254 }, residual: { x: 520, y: 104 }, criticfirst: { x: 520, y: 184 } },
-      edges: [['bc', 'flow', 'two ways'], ['bc', 'act', 'compounding'], ['flow', 'bestofn', 'no reward'], ['bestofn', 'qplan', ''], ['bestofn', 'expo', ''], ['sac', 'residual', 'from scratch'], ['residual', 'criticfirst', '']] },
+      edges: [['bc', 'flow', 'two ways'], ['bc', 'act', 'compounding'], ['flow', 'bestofn', 'no reward'], ['bestofn', 'qplan', 'frozen policy'], ['bestofn', 'expo', 'no editing'], ['sac', 'residual', 'from scratch'], ['residual', 'criticfirst', 'random critic']] },
   ];
 
   // ---- measured numbers (web/measured.js, generated from the calibration runs)
@@ -8996,6 +9001,7 @@ window.CONTENT.M = {"cr-total-none":{"final":9.378,"finalSd":0.15,"peak":286.556
     pane.append(h('div.card', null, [
       h('div.eyebrow', { text: 'Codex' }), h('h2', { text: 'The family tree of what you built' }),
       h('p', { text: 'A method card opens when you write its sentence and it works. A failure card opens when a run shows it. Each card says which paper the idea comes from, which failure it fixed, and how it still fails. "Checked" means its quotes were compared with the source text.' }),
+      h('p', { text: 'Click a box in the tree: a discovered method opens its card, and one you have not found yet gives a short hint. The label on each arrow is the problem or reason that led to the next method.' }),
       genealogy(),
     ]));
     pane.append(h('div.card', null, [discoveryMap()]));
@@ -9004,30 +9010,57 @@ window.CONTENT.M = {"cr-total-none":{"final":9.378,"finalSd":0.15,"peak":286.556
   function genealogy() {
     return h('div.stack', null, [C.tree].concat(C.trees || []).map((t) => h('div', null, [t.title ? h('div.eyebrow', { text: t.title }) : null, genealogyOf(t)])));
   }
+  // a method you have not found yet: a short hint only, never the full card
+  function hintView(id, T) {
+    const c = C.cards[id] || {};
+    const kindName = c.kind === 'failure' ? 'Failure' : c.kind === 'frontier' ? 'Frontier model' : 'Method';
+    const why = T.edges.filter(([, b]) => b === id).map(([, , l]) => l).filter(Boolean).join('; ');
+    const rec = recipeOfCard(id);
+    return h('div.entry.hidden-card', null, [
+      h('div.eyebrow', { text: kindName + ', not discovered yet' }),
+      h('h3', { text: '???' }),
+      h('p.small', { text: (why ? 'The tree above says why it was added: ' + why + '. ' : '') + (rec ? 'One-line hint: ' + rec.blurb : 'A failure card opens when a run shows it.') }),
+      h('p.small.muted', { text: 'The hint stops here. The full card opens when you discover it: the quotes, where the idea comes from, what it fixes and how it still fails.' }),
+    ]);
+  }
   function genealogyOf(T) {
-    const Wd = 640, Hh = T.height;
+    const pos = T.nodes, isKnown = (id) => id === 'root' || S.found.includes(id) || S.given.includes(id);
+    const set = (el, o) => { for (const k in o) el.setAttribute(k, o[k]); return el; };
+    // the viewBox must hold the widest node box: the browser clips anything outside it
+    const Wd = Math.max(640, ...Object.values(pos).map((p) => p.x + 58)) + 12, Hh = T.height;
     const NS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(NS, 'svg');
     svg.setAttribute('viewBox', `0 0 ${Wd} ${Hh}`); svg.setAttribute('width', '100%'); svg.setAttribute('role', 'img');
     svg.setAttribute('aria-label', 'Genealogy of the methods discovered so far');
     const ink = css('--ink'), muted = css('--muted'), line = css('--line'), acc = css('--accent'), surf = css('--surface');
-    const pos = T.nodes, isKnown = (id) => id === 'root' || S.found.includes(id) || S.given.includes(id);
-    const set = (el, o) => { for (const k in o) el.setAttribute(k, o[k]); return el; };
-    for (const [a, b, label] of T.edges) {
+    const detail = h('div.stack.tree-detail', { 'aria-live': 'polite' });
+    const show = (id) => detail.replaceChildren(isKnown(id) ? cardView(id, true) : hintView(id, T));
+    for (const [a, b, label, lf] of T.edges) {
       const p = pos[a], q = pos[b]; const known = isKnown(b);
       svg.append(set(document.createElementNS(NS, 'line'), { x1: p.x, y1: p.y + 14, x2: q.x, y2: q.y - 14, stroke: known ? acc : line, 'stroke-width': known ? 2 : 1.2, 'stroke-dasharray': known ? '' : '4 4' }));
-      const t = set(document.createElementNS(NS, 'text'), { x: (p.x + q.x) / 2 + 4, y: (p.y + q.y) / 2, fill: muted, 'font-size': 10, 'font-family': 'IBM Plex Mono, monospace' });
-      t.textContent = known ? label : '?'; svg.append(t);
+      // the label is the problem or reason that led to the next method; it is also the hint for what you miss
+      // lf moves the label along its arrow when the midpoint would touch another label
+      const f = lf == null ? 0.5 : lf;
+      const t = set(document.createElementNS(NS, 'text'), { x: p.x + (q.x - p.x) * f + 4, y: p.y + (q.y - p.y) * f, fill: muted, 'font-size': 10, 'font-family': 'IBM Plex Mono, monospace' });
+      t.textContent = label; svg.append(t);
     }
     for (const id in pos) {
       const p = pos[id], known = isKnown(id);
       const g = document.createElementNS(NS, 'g');
+      if (id !== 'root') {
+        g.setAttribute('role', 'button'); g.setAttribute('tabindex', '0');
+        g.setAttribute('aria-label', (known ? (C.cards[id].short || C.cards[id].name) : 'Not discovered yet') + (known ? ': open the card' : ': open a hint'));
+        g.classList.add('tnode');
+        const open = () => show(id);
+        g.addEventListener('click', open);
+        g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+      }
       g.append(set(document.createElementNS(NS, 'rect'), { x: p.x - 58, y: p.y - 14, width: 116, height: 28, rx: 6, fill: surf, stroke: known ? ink : line, 'stroke-width': known ? 1.5 : 1 }));
       const t = set(document.createElementNS(NS, 'text'), { x: p.x, y: p.y + 4, 'text-anchor': 'middle', fill: known ? ink : muted, 'font-size': 11, 'font-family': 'IBM Plex Sans, sans-serif', 'font-weight': known ? 600 : 400 });
       t.textContent = known ? (id === 'root' ? 'Trial and error' : C.cards[id].short || C.cards[id].name) : '???';
       g.append(t); svg.append(g);
     }
-    return h('div.genealogy', null, [svg]);
+    return h('div.stack', null, [h('div.genealogy', null, [svg]), detail]);
   }
 
   // --- Chat: ask Claude, who can change words and run experiments through page tools
