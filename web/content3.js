@@ -186,13 +186,13 @@
       edges: [['mc', 'reinforce', 'learn the policy'], ['reinforce', 'baseline', 'high variance'], ['baseline', 'a2c', 'slow returns'], ['a2c', 'ppo', 'big steps'], ['baseline', 'grpo', 'no critic'], ['ppo', 'grpo', 'end reward']] },
     { title: 'Phase 3: continuous actions', height: 270,
       nodes: { dqn: { x: 200, y: 24 }, clipped: { x: 460, y: 24 }, ddpg: { x: 200, y: 104 }, td3: { x: 330, y: 184 }, sac: { x: 330, y: 254 } },
-      edges: [['dqn', 'ddpg', 'continuous actions'], ['ddpg', 'td3', 'overestimates'], ['clipped', 'td3', ''], ['td3', 'sac', 'stops exploring']] },
+      edges: [['dqn', 'ddpg', 'continuous actions'], ['ddpg', 'td3', 'overestimates'], ['clipped', 'td3', 'the min of two'], ['td3', 'sac', 'stops exploring']] },
     { title: 'Phase 4: learning from a fixed dataset', height: 350,
       nodes: { bc: { x: 150, y: 24 }, filtbc: { x: 150, y: 104 }, awr: { x: 150, y: 184 }, td3: { x: 470, y: 24 }, td3bc: { x: 390, y: 104 }, cql: { x: 560, y: 104 }, iql: { x: 330, y: 264 }, recap: { x: 150, y: 334 } },
       edges: [['bc', 'filtbc', 'bad demos'], ['filtbc', 'awr', 'wastes data'], ['td3', 'td3bc', 'extrapolation'], ['td3', 'cql', 'extrapolation'], ['awr', 'iql', 'noisy returns'], ['td3bc', 'iql', 'unseen actions'], ['awr', 'recap', 'one bit']] },
     { title: 'Phase 5: the robotics frontier', height: 270,
       nodes: { bc: { x: 120, y: 24 }, sac: { x: 520, y: 24 }, flow: { x: 120, y: 104 }, act: { x: 260, y: 104 }, bestofn: { x: 120, y: 184 }, qplan: { x: 260, y: 254 }, expo: { x: 60, y: 254 }, residual: { x: 520, y: 104 }, criticfirst: { x: 520, y: 184 } },
-      edges: [['bc', 'flow', 'two ways'], ['bc', 'act', 'compounding'], ['flow', 'bestofn', 'no reward'], ['bestofn', 'qplan', ''], ['bestofn', 'expo', ''], ['sac', 'residual', 'from scratch'], ['residual', 'criticfirst', '']] },
+      edges: [['bc', 'flow', 'two ways'], ['bc', 'act', 'compounding'], ['flow', 'bestofn', 'no reward'], ['bestofn', 'qplan', 'frozen policy'], ['bestofn', 'expo', 'no editing'], ['sac', 'residual', 'from scratch'], ['residual', 'criticfirst', 'random critic']] },
   ];
 
   // ---- measured numbers (web/measured.js, generated from the calibration runs)
