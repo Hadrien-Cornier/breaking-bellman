@@ -1050,13 +1050,32 @@
   // One number per run, with its direction. Lower is better only in the mirage.
   function metricOf(a, world) {
     const s = a.summary;
-    if (world === 'bandit') return { v: 100 * s.optimalLast20, up: true, label: '% of late pulls on the best machine' };
-    if (world === 'mirage') return { v: 100 * s.leftPeak, up: false, label: '% left door at the worst point (lower is better)' };
+    if (world === 'bandit') return { v: 100 * s.optimalLast20, up: true, pct: true, label: '% of late pulls on the best machine' };
+    if (world === 'mirage') return { v: 100 * s.leftPeak, up: false, pct: true, label: '% left door at the worst point (lower is better)' };
     if (world === 'cliff') return { v: s.finalReturn, up: true, label: 'greedy score' };
     if (world === 'pendulum') return { v: isFinite(s.pendulumScore) ? s.pendulumScore : s.finalReturn, up: true, label: 'test score (0 is perfect)' };
     if (world === 'reach') return { v: isFinite(s.testReturn) ? s.testReturn : s.finalReturn, up: true, label: 'test score' };
-    if (world === 'fork' || world === 'goalgrid' || world === 'fetch') return { v: 100 * s.successRate, up: true, label: '% of tests solved' };
+    if (world === 'fork' || world === 'goalgrid' || world === 'fetch') return { v: 100 * s.successRate, up: true, pct: true, label: '% of tests solved' };
     return { v: s.finalReturn, up: true, label: 'score' };
+  }
+  // The +- on a cell: the standard error of the very number the cell shows. The number is
+  // recomputed on bootstrap samples of the seeds (drawn again, with replacement), so the error
+  // belongs to the same statistic as the center even when that statistic is not a plain mean
+  // over seeds (the mirage shows the worst of three windows). A fixed stream keeps every cell
+  // reproducible.
+  function metricSE(res, world) {
+    const n = res.length;
+    if (n < 2) return NaN;
+    const rng = RLA.rng.make(1337), draws = [];
+    for (let b = 0; b < 200; b++) {
+      const rs = [];
+      for (let i = 0; i < n; i++) rs.push(res[Math.floor(rng.next() * n)]);
+      const v = metricOf(RLA.autopsy(rs), world).v;
+      if (isFinite(v)) draws.push(v);
+    }
+    if (draws.length < 2) return NaN;
+    const m = draws.reduce((s, x) => s + x, 0) / draws.length;
+    return Math.sqrt(draws.reduce((s, x) => s + (x - m) ** 2, 0) / (draws.length - 1));
   }
   const gridKeys = (p, world) => (world === 'bandit' && fam(p) === 'value' ? ['eps', 'ucb', 'optimistic', 'step'] : C.families[fam(p)].keys);
   const optVals = (k) => W[k].options.map((o) => o[0]);
@@ -1112,9 +1131,7 @@
         G.status = 'Running combination ' + (i + 1) + ' of ' + combos.length + (left != null ? ', about ' + left + ' s left' : '') + '…'; drawGrid();
         const res = await runSeeds({ world, knobs, parts, hyper, steps }, seeds, () => {});
         const a = RLA.autopsy(res), m = metricOf(a, world);
-        const per = res.map((r) => metricOf(RLA.autopsy([r]), world).v).filter(isFinite);
-        const mean = per.reduce((s, x) => s + x, 0) / Math.max(1, per.length);
-        const se = per.length > 1 ? Math.sqrt(per.reduce((s, x) => s + (x - mean) ** 2, 0) / (per.length - 1) / per.length) : NaN;
+        const se = metricSE(res, world);
         G.metric = m;
         G.rows.push({ vals: combos[i], parts, v: m.v, se, works: C.works[world](a), rec: recognize(parts, world) });
       }
@@ -1126,6 +1143,8 @@
     }
   }
   const gfmt = (x) => (isFinite(x) && Math.abs(x) >= 1 ? x.toFixed(1) : fmt(x));
+  // a percent metric prints a % sign on its numbers; a score stays bare
+  const gunit = (m) => (m && m.pct ? '%' : '');
   function rowName(r) {
     const rec = r.rec;
     if (!rec) return '';
@@ -1151,7 +1170,7 @@
       const g = Math.max(-1, Math.min(1, gain * 2)), shade = 'background: color-mix(in srgb, var(--' + (g >= 0 ? 'good' : 'bad') + ') ' + Math.round(Math.abs(g) * 28) + '%, transparent)';
       return h('td.gcell' + (isNow ? '.now' : ''), { style: shade, title: (name ? name + '. ' : '') + 'Click to put these words in your sentence.' }, [
         h('button.gbtn', { type: 'button', onclick: () => useRow(r) }, [
-          h('b', { text: gfmt(r.v) }), isFinite(r.se) ? h('span.small', { text: ' ±' + gfmt(r.se) }) : null,
+          h('b', { text: gfmt(r.v) + gunit(m) }), isFinite(r.se) ? h('span.small', { text: ' ±' + gfmt(r.se) + gunit(m) }) : null,
           r.works ? h('span.gok', { text: ' ✓' }) : null,
           name ? h('span.gname', { text: name }) : null, isNow ? h('span.gname', { text: '(your sentence)' }) : null])]);
     };
@@ -1159,10 +1178,21 @@
       .concat(ck.length ? cCombos.map((cv) => h('th', { text: cv.map((v, j) => wordText(ck[j], v)).join(' / ') })) : [h('th', { text: m.label })]));
     const rows = rCombos.map((rv) => h('tr', null, [h('th', { text: rv.map((v, j) => wordText(rk[j], v)).join(' / ') })]
       .concat(ck.length ? cCombos.map((cv) => cell(find(rv, cv))) : [cell(find(rv, []))])));
+    const idle = idleWords(G.base || S.parts, G.world), swept = G.runKeys.filter((k) => idle[k]);
+    const why = [];
+    for (const k of swept) {
+      const r = idle[k], g = why.find((x) => x.r === r);
+      if (g) g.ks.push('"' + SHORT[k] + '"'); else why.push({ r, ks: ['"' + SHORT[k] + '"'] });
+    }
+    const idleNote = swept.length
+      ? 'Swept words that do nothing in this sentence: ' + why.map((x) => x.ks.join(' and ') + ' (' + x.r + ')').join('; ')
+        + (swept.length === G.runKeys.length ? ' So every combination runs the same method: the name column repeats it, and the cells can differ only by the seeds.' : '')
+      : '';
     return h('div.stack', null, [
       h('div.eyebrow', { text: 'The table: ' + m.label }),
       h('div.rp-scroll', null, [h('table.rp-table.gtable', null, [h('thead', null, head), h('tbody', null, rows)])]),
-      h('p.small', { text: '± is the standard error over seeds: two cells closer than about twice that are a tie. ✓: passes this world\'s test. Green: better than the middle of the table; red: worse. Click a cell to put its words in your sentence.' }),
+      h('p.small', { text: '± is the standard error over seeds of the number in the cell: two cells closer than about twice that are a tie. ✓: passes this world\'s test. Green: better than the middle of the table; red: worse. Click a cell to put its words in your sentence.' }),
+      idleNote ? h('p.small', { text: idleNote }) : null,
     ]);
   }
   // For each word change: its effect in every context (the other words fixed), and which other word changes that effect most.
@@ -1208,7 +1238,7 @@
       h('div.rp-scroll', null, [h('table.rp-table', null, [
         h('thead', null, h('tr', null, keys.map((k) => h('th', { text: SHORT[k] })).concat([h('th', { text: m.label }), h('th', { text: 'test' }), h('th', { text: 'name' }), h('th')]))),
         h('tbody', null, rows.map((r) => h('tr', null, r.vals.map((v, j) => h('td', { text: wordText(keys[j], v) })).concat([
-          h('td.num', { text: gfmt(r.v) + (isFinite(r.se) ? ' ± ' + gfmt(r.se) : '') }), h('td', { text: r.works ? '✓' : '' }), h('td', { text: rowName(r) }),
+          h('td.num', { text: gfmt(r.v) + gunit(m) + (isFinite(r.se) ? ' ± ' + gfmt(r.se) + gunit(m) : '') }), h('td', { text: r.works ? '✓' : '' }), h('td', { text: rowName(r) }),
           h('td', null, [h('button.btn.ghost.tiny', { type: 'button', onclick: () => useRow(r) }, 'Use')])])))),
       ])])]);
   }
