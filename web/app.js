@@ -2158,6 +2158,7 @@
     pane.append(h('div.card', null, [
       h('div.eyebrow', { text: 'Codex' }), h('h2', { text: 'The family tree of what you built' }),
       h('p', { text: 'A method card opens when you write its sentence and it works. A failure card opens when a run shows it. Each card says which paper the idea comes from, which failure it fixed, and how it still fails. "Checked" means its quotes were compared with the source text.' }),
+      h('p', { text: 'Click a box in the tree: a discovered method opens its card, and one you have not found yet gives a short hint. The label on each arrow is the problem or reason that led to the next method.' }),
       genealogy(),
     ]));
     pane.append(h('div.card', null, [discoveryMap()]));
@@ -2166,30 +2167,55 @@
   function genealogy() {
     return h('div.stack', null, [C.tree].concat(C.trees || []).map((t) => h('div', null, [t.title ? h('div.eyebrow', { text: t.title }) : null, genealogyOf(t)])));
   }
+  // a method you have not found yet: a short hint only, never the full card
+  function hintView(id, T) {
+    const c = C.cards[id] || {};
+    const kindName = c.kind === 'failure' ? 'Failure' : c.kind === 'frontier' ? 'Frontier model' : 'Method';
+    const why = T.edges.filter(([, b]) => b === id).map(([, , l]) => l).filter(Boolean).join('; ');
+    const rec = recipeOfCard(id);
+    return h('div.entry.hidden-card', null, [
+      h('div.eyebrow', { text: kindName + ' — not discovered yet' }),
+      h('h3', { text: '???' }),
+      h('p.small', { text: (why ? 'The tree above says why it was added: ' + why + '. ' : '') + (rec ? 'One-line hint: ' + rec.blurb : 'A failure card opens when a run shows it.') }),
+      h('p.small.muted', { text: 'The hint stops here. The full card — the quotes, where the idea comes from, what it fixes and how it still fails — opens when you discover it.' }),
+    ]);
+  }
   function genealogyOf(T) {
-    const Wd = 640, Hh = T.height;
+    const pos = T.nodes, isKnown = (id) => id === 'root' || S.found.includes(id) || S.given.includes(id);
+    const set = (el, o) => { for (const k in o) el.setAttribute(k, o[k]); return el; };
+    // the viewBox must hold the widest node box: the browser clips anything outside it
+    const Wd = Math.max(640, ...Object.values(pos).map((p) => p.x + 58)) + 12, Hh = T.height;
     const NS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(NS, 'svg');
     svg.setAttribute('viewBox', `0 0 ${Wd} ${Hh}`); svg.setAttribute('width', '100%'); svg.setAttribute('role', 'img');
     svg.setAttribute('aria-label', 'Genealogy of the methods discovered so far');
     const ink = css('--ink'), muted = css('--muted'), line = css('--line'), acc = css('--accent'), surf = css('--surface');
-    const pos = T.nodes, isKnown = (id) => id === 'root' || S.found.includes(id) || S.given.includes(id);
-    const set = (el, o) => { for (const k in o) el.setAttribute(k, o[k]); return el; };
+    const detail = h('div.stack.tree-detail', { 'aria-live': 'polite' });
+    const show = (id) => detail.replaceChildren(isKnown(id) ? cardView(id, true) : hintView(id, T));
     for (const [a, b, label] of T.edges) {
       const p = pos[a], q = pos[b]; const known = isKnown(b);
       svg.append(set(document.createElementNS(NS, 'line'), { x1: p.x, y1: p.y + 14, x2: q.x, y2: q.y - 14, stroke: known ? acc : line, 'stroke-width': known ? 2 : 1.2, 'stroke-dasharray': known ? '' : '4 4' }));
+      // the label is the problem or reason that led to the next method; it is also the hint for what you miss
       const t = set(document.createElementNS(NS, 'text'), { x: (p.x + q.x) / 2 + 4, y: (p.y + q.y) / 2, fill: muted, 'font-size': 10, 'font-family': 'IBM Plex Mono, monospace' });
-      t.textContent = known ? label : '?'; svg.append(t);
+      t.textContent = label; svg.append(t);
     }
     for (const id in pos) {
       const p = pos[id], known = isKnown(id);
       const g = document.createElementNS(NS, 'g');
+      if (id !== 'root') {
+        g.setAttribute('role', 'button'); g.setAttribute('tabindex', '0');
+        g.setAttribute('aria-label', (known ? (C.cards[id].short || C.cards[id].name) : 'Not discovered yet') + (known ? ': open the card' : ': open a hint'));
+        g.classList.add('tnode');
+        const open = () => show(id);
+        g.addEventListener('click', open);
+        g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+      }
       g.append(set(document.createElementNS(NS, 'rect'), { x: p.x - 58, y: p.y - 14, width: 116, height: 28, rx: 6, fill: surf, stroke: known ? ink : line, 'stroke-width': known ? 1.5 : 1 }));
       const t = set(document.createElementNS(NS, 'text'), { x: p.x, y: p.y + 4, 'text-anchor': 'middle', fill: known ? ink : muted, 'font-size': 11, 'font-family': 'IBM Plex Sans, sans-serif', 'font-weight': known ? 600 : 400 });
       t.textContent = known ? (id === 'root' ? 'Trial and error' : C.cards[id].short || C.cards[id].name) : '???';
       g.append(t); svg.append(g);
     }
-    return h('div.genealogy', null, [svg]);
+    return h('div.stack', null, [h('div.genealogy', null, [svg]), detail]);
   }
 
   // --- Chat: ask Claude, who can change words and run experiments through page tools

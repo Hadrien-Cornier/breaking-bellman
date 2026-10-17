@@ -138,6 +138,11 @@ details[open] > summary { margin-bottom: 8px; }
 .entry dt { color: var(--muted); }
 .entry dd { margin: 0; }
 .genealogy { width: 100%; overflow-x: auto; }
+.genealogy svg { min-width: 560px; }
+.genealogy g.tnode { cursor: pointer; }
+.genealogy g.tnode rect { transition: stroke 0.15s, stroke-width 0.15s; }
+.genealogy g.tnode:hover rect, .genealogy g.tnode:focus-visible rect { stroke: var(--accent); stroke-width: 2; }
+.tree-detail:empty { display: none; }
 
 /* chat */
 .chat { display: grid; gap: 8px; }
