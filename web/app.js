@@ -2232,10 +2232,10 @@
     const why = T.edges.filter(([, b]) => b === id).map(([, , l]) => l).filter(Boolean).join('; ');
     const rec = recipeOfCard(id);
     return h('div.entry.hidden-card', null, [
-      h('div.eyebrow', { text: kindName + ' — not discovered yet' }),
+      h('div.eyebrow', { text: kindName + ', not discovered yet' }),
       h('h3', { text: '???' }),
       h('p.small', { text: (why ? 'The tree above says why it was added: ' + why + '. ' : '') + (rec ? 'One-line hint: ' + rec.blurb : 'A failure card opens when a run shows it.') }),
-      h('p.small.muted', { text: 'The hint stops here. The full card — the quotes, where the idea comes from, what it fixes and how it still fails — opens when you discover it.' }),
+      h('p.small.muted', { text: 'The hint stops here. The full card opens when you discover it: the quotes, where the idea comes from, what it fixes and how it still fails.' }),
     ]);
   }
   function genealogyOf(T) {
@@ -2250,11 +2250,13 @@
     const ink = css('--ink'), muted = css('--muted'), line = css('--line'), acc = css('--accent'), surf = css('--surface');
     const detail = h('div.stack.tree-detail', { 'aria-live': 'polite' });
     const show = (id) => detail.replaceChildren(isKnown(id) ? cardView(id, true) : hintView(id, T));
-    for (const [a, b, label] of T.edges) {
+    for (const [a, b, label, lf] of T.edges) {
       const p = pos[a], q = pos[b]; const known = isKnown(b);
       svg.append(set(document.createElementNS(NS, 'line'), { x1: p.x, y1: p.y + 14, x2: q.x, y2: q.y - 14, stroke: known ? acc : line, 'stroke-width': known ? 2 : 1.2, 'stroke-dasharray': known ? '' : '4 4' }));
       // the label is the problem or reason that led to the next method; it is also the hint for what you miss
-      const t = set(document.createElementNS(NS, 'text'), { x: (p.x + q.x) / 2 + 4, y: (p.y + q.y) / 2, fill: muted, 'font-size': 10, 'font-family': 'IBM Plex Mono, monospace' });
+      // lf moves the label along its arrow when the midpoint would touch another label
+      const f = lf == null ? 0.5 : lf;
+      const t = set(document.createElementNS(NS, 'text'), { x: p.x + (q.x - p.x) * f + 4, y: p.y + (q.y - p.y) * f, fill: muted, 'font-size': 10, 'font-family': 'IBM Plex Mono, monospace' });
       t.textContent = label; svg.append(t);
     }
     for (const id in pos) {

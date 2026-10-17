@@ -167,7 +167,7 @@ window.CONTENT = (function () {
       dqn: { x: 400, y: 264 }, doubleq: { x: 560, y: 344 }, ddqn: { x: 400, y: 424 }, clipped: { x: 590, y: 424 } },
     edges: [['root', 'egreedy', 'lock-in'], ['root', 'optimism', 'lock-in'], ['root', 'ucb', 'lock-in'], ['root', 'mc', 'many steps'],
       ['mc', 'qlearning', 'no end'], ['mc', 'nstep', 'waits for the end'], ['qlearning', 'nstep', 'slow'], ['qlearning', 'sarsa', 'falls'], ['sarsa', 'expsarsa', 'noise'],
-      ['qlearning', 'dqn', 'triad'], ['qlearning', 'doubleq', 'max bias'], ['dqn', 'ddqn', 'overestimate'], ['doubleq', 'ddqn', 'DQN overestimates'], ['doubleq', 'clipped', 'pessimism']],
+      ['qlearning', 'dqn', 'triad'], ['qlearning', 'doubleq', 'max bias', 0.72], ['dqn', 'ddqn', 'overestimate'], ['doubleq', 'ddqn', 'DQN overestimates', 0.75], ['doubleq', 'clipped', 'pessimism']],
   };
 
   const o = (steps, result, correct, why) => ({ steps, result, correct: !!correct, why });
