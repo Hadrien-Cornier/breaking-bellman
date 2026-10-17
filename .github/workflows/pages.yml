@@ -1,0 +1,69 @@
+# Publish the site with CI: test, smoke and build every PR and main push, deploy dist to GitHub Pages.
+# Site: https://hadrien-cornier.github.io/breaking-bellman/
+# Staged activation: the deploy job is skipped until the repository variable PAGES_ACTIONS_ACTIVE is "true"
+# and the Pages source is "GitHub Actions" (firstmate switches both only after the first fully green main run).
+# Rollback: unset the variable and every later main push stops deploying; gh-pages branch is untouched.
+name: CI and Pages
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Test, smoke and build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Set up Node
+        # v7.1.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Unit tests
+        run: npm test
+      - name: Build and UI smoke test
+        run: npm run smoke
+      - name: Stage the Pages artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          mkdir pages-out
+          cp dist/breaking-bellman.html pages-out/index.html
+          touch pages-out/.nojekyll
+      - name: Upload Pages artifact
+        # v5.0.0; include-hidden-files so .nojekyll travels with the artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          path: pages-out
+          include-hidden-files: true
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    # Withheld while Pages is still served from the legacy gh-pages branch: skipped, not failed.
+    # Activation: repository Settings, Pages, Source "GitHub Actions"; then Actions variable PAGES_ACTIONS_ACTIVE=true.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.PAGES_ACTIONS_ACTIVE == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages-deploy
+      cancel-in-progress: true
+    steps:
+      - name: Deploy
+        # v5.0.1
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346
