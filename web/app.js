@@ -918,12 +918,69 @@
       S.running = false; $('#run-btn').disabled = false; prog.style.width = '100%';
     }
   }
+  // ---------------------------------------------------------------- discovery celebration
+  // One short burst + name reveal for any card the player sees for the first time. Every true
+  // discovery funnels here: discover() below (methods built and working, failures seen, knob finds),
+  // and a level's genuine first reveal (reveal / revealOnDone). A known card, a reload or revisiting
+  // a node never queues, so nothing replays.
+  const freshNodes = new Set();          // cards revealed this session: their tree node lights up once
+  let celQueue = [], celTimer = null, celActive = null;
+  const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function queueCelebration(cardId) {
+    if (!C.cards[cardId]) return;
+    freshNodes.add(cardId);
+    celQueue.push(cardId);
+    // debounce so one run's discoveries (a method plus failures, or a run plus a level reveal) land together
+    clearTimeout(celTimer); celTimer = setTimeout(flushCelebration, 120);
+  }
+  function flushCelebration() {
+    const ids = celQueue; celQueue = [];
+    if (ids.length) showCelebration(ids);
+  }
+  function dcItem(id) {
+    const c = C.cards[id];
+    const kind = c.kind === 'failure' ? 'Failure' : c.kind === 'frontier' ? 'Frontier model'
+      : S.found.includes(id) ? 'Method, built by you' : 'Method, given by a level';
+    return h('div.dc-item', null, [
+      h('div.dc-kind', { text: kind }),
+      h('div.dc-name', null, [h('span.dc-q', { 'aria-hidden': 'true', text: '???' }), h('span.dc-real', { text: c.name })]),
+      h('div.dc-node', { 'aria-hidden': 'true' }, [h('span', { text: c.short || c.name })]),
+    ]);
+  }
+  function showCelebration(ids) {
+    if (celActive && celActive._dismiss) celActive._dismiss();
+    let done = false, onKey = null;
+    const overlay = h('div.dc', { role: 'status', 'aria-live': 'polite', 'aria-atomic': 'true' }, [
+      h('div.dc-burst', { 'aria-hidden': 'true' }),
+      h('div.dc-card', null, [
+        h('div.dc-eyebrow', { text: ids.length > 1 ? ids.length + ' new discoveries' : 'New discovery' }),
+        h('div.dc-items', null, ids.map(dcItem)),
+        h('div.dc-skip', { 'aria-hidden': 'true', text: 'click or press any key to continue' }),
+      ]),
+    ]);
+    const dismiss = () => {
+      if (done) return; done = true;
+      if (onKey) window.removeEventListener('keydown', onKey);
+      overlay.classList.add('dc-out');
+      if (celActive === overlay) celActive = null;
+      setTimeout(() => overlay.remove(), reducedMotion() ? 130 : 220);
+    };
+    // a deliberate click or key dismisses the celebration (it does not activate anything behind it);
+    // focus is never moved and no key is swallowed, so the game keeps working underneath
+    onKey = (e) => { if (e.key === 'Tab' || /^(Shift|Control|Alt|Meta)$/.test(e.key)) return; dismiss(); };
+    overlay._dismiss = dismiss;
+    celActive = overlay;
+    document.body.append(overlay);
+    overlay.addEventListener('click', dismiss);
+    window.addEventListener('keydown', onKey);
+    setTimeout(dismiss, 1900); // short: the reveal plays, then it gets out of the way
+  }
   function discover(cardId, cfg, a) {
     if (S.found.includes(cardId)) return;
     S.found.push(cardId);
     S.discoveries[cardId] = discoveryRecord(cfg, a);
     save(); updateScore();
-    toast('New discovery: ' + C.cards[cardId].name);
+    queueCelebration(cardId);
   }
   // the words that matter in a sentence, as text
   function sentenceText(p, world) {
@@ -1714,7 +1771,7 @@
       h('div.row', null, [h('button.btn', { type: 'button', onclick: async () => {
         enterLevel(lv, true);
         const a = await run();
-        if (a) { for (const id of [].concat(lv.reveal || [])) if (!S.given.includes(id)) S.given.push(id); save(); setStep(lv, 2); }
+        if (a) { for (const id of [].concat(lv.reveal || [])) if (!S.given.includes(id)) { S.given.push(id); queueCelebration(id); } save(); setStep(lv, 2); }
       } }, 'Run the starting sentence'), h('span.small', { text: 'Real training in your browser, ' + lv.seeds + ' runs.' })]),
     ])));
     if (st >= 2) steps.append(mk(2, 'Diagnose', h('div.stack', null, [
@@ -1733,7 +1790,7 @@
           const notes = (lv.notes || []).filter((n) => n.when(a, S.parts, S.knobs)).map((n) => (typeof n.text === 'function' ? n.text(a, S.parts, S.knobs) : n.text.replace('{final}', fmt(a.summary.finalReturn))));
           if (ok) {
             if (!S.done.includes(lv.id)) S.done.push(lv.id);
-            for (const id of [].concat(lv.revealOnDone || [])) if (!S.given.includes(id)) S.given.push(id);
+            for (const id of [].concat(lv.revealOnDone || [])) if (!S.given.includes(id)) { S.given.push(id); queueCelebration(id); }
             const rec = recognize(S.parts, S.world);
             S.made[lv.id] = { parts: Object.assign({}, S.parts), recipe: rec ? rec.id : null, notes, knobs: lv.repairKnobs ? Object.assign({}, S.knobs) : undefined };
             if (lv.id === 'cells') S.made[lv.id].outcome = {
@@ -2163,6 +2220,7 @@
     ]));
     pane.append(h('div.card', null, [discoveryMap()]));
     pane.append(h('div.codex', null, Object.keys(C.cards).map((id) => cardView(id, false))));
+    freshNodes.clear(); // the freshly discovered tree nodes light up once, then settle
   };
   function genealogy() {
     return h('div.stack', null, [C.tree].concat(C.trees || []).map((t) => h('div', null, [t.title ? h('div.eyebrow', { text: t.title }) : null, genealogyOf(t)])));
@@ -2206,6 +2264,7 @@
         g.setAttribute('role', 'button'); g.setAttribute('tabindex', '0');
         g.setAttribute('aria-label', (known ? (C.cards[id].short || C.cards[id].name) : 'Not discovered yet') + (known ? ': open the card' : ': open a hint'));
         g.classList.add('tnode');
+        if (freshNodes.has(id)) g.classList.add('lit');
         const open = () => show(id);
         g.addEventListener('click', open);
         g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
