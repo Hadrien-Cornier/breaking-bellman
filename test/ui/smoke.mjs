@@ -8,13 +8,20 @@ const load = (m) => { try { return require(m); } catch (e) { return null; } };
 const pw = (process.env.PW_CORE && load(process.env.PW_CORE)) || load('playwright') || load('playwright-core');
 if (!pw) { console.error('Playwright not found. Run: npm i -D playwright && npx playwright install chromium'); process.exit(2); }
 const { chromium } = pw;
-const exe = process.env.PW_CHROMIUM || '';
 const fs = await import('fs');
 const os = await import('os');
+// Portable Chromium selection: PW_CHROMIUM wins, then a playwright-installed browser,
+// then common system installs (GitHub Actions ubuntu runners ship Google Chrome, macOS ships it in /Applications).
+const candidates = [process.env.PW_CHROMIUM];
+try { if (chromium.executablePath) candidates.push(chromium.executablePath()); } catch {}
+candidates.push('/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser',
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome');
+const exe = candidates.filter(Boolean).find((p) => fs.existsSync(p));
+console.log('Chromium:', exe || 'playwright default');
 const out = process.argv[2] || (os.tmpdir() + '/breaking-bellman-shots');
 fs.mkdirSync(out, { recursive: true });
 fs.copyFileSync(new URL('../../dist/breaking-bellman.html', import.meta.url), out + '/page.html');
-const browser = await chromium.launch({ executablePath: fs.existsSync(exe) ? exe : undefined });
+const browser = await chromium.launch({ executablePath: exe || undefined });
 const errors = [];
 const fails = [];
 const check = (cond, msg) => { if (!cond) fails.push(msg); console.log((cond ? 'ok   ' : 'FAIL ') + msg); };
