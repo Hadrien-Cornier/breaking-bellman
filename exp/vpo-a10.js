@@ -452,7 +452,7 @@ const PROTO = {
   mode: MODE,
   seeds: MODE === 'smoke' ? [2] : [1, 3, 5, 7, 9],
   updates: MODE === 'smoke' ? 300 : 12000,
-  trainSeeds: Array.from({ length: 96 }, (_, i) => 1000 + i),
+  trainSeeds: Array.from({ length: 16 }, (_, i) => 1000 + i), // A11: written 16-maze protocol restored (A10's 96 was a disclosed deviation)
   testSeeds: Array.from({ length: 8 }, (_, i) => 2000 + i),
   m: 3, K: VPO_K, G_single: 12, G_chain: 4,
   lr: 0.003, lrNote: 'Adam lr for the MLP policy (nn.adam default family value used by the pg learner)',
@@ -469,6 +469,8 @@ const PROTO = {
 
 if (require.main !== module) { Object.assign(module.exports, { setRewardMean, groupAdv, mixProb, mixIW, rewardVec, WSTAR, dot, makeMaze, chain, route, features, FDIM, dirichlet, PROTO, buildBase, finetune, evaluate }); }
 else {
+// Startup assertion (per 050): freeze the actual generated settings before launch.
+if (PROTO.trainSeeds.length !== 16 || PROTO.trainSeeds[0] !== 1000 || PROTO.trainSeeds[PROTO.trainSeeds.length - 1] !== 1015) throw new Error('A11 protocol assertion failed: expected 16 training seeds 1000-1015, got ' + JSON.stringify(PROTO.trainSeeds));
 const trainMazes = PROTO.trainSeeds.map(makeMaze);
 const testMazes = PROTO.testSeeds.map(makeMaze);
 const out = { protocol: PROTO, mazes: { train: trainMazes.map((m) => ({ regime: m.regime, budget: m.budget })), test: testMazes.map((m) => ({ regime: m.regime, budget: m.budget })) }, runs: [] };
