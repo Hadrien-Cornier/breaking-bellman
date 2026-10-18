@@ -391,7 +391,7 @@ const PROTO = {
   m: 3, K: VPO_K, G_single: 12, G_chain: 4,
   lr: 0.003, lrNote: 'Adam lr for the MLP policy (nn.adam default family value used by the pg learner)',
   eps: 0.15,
-  bc: { lr: 0.01, epochs: 80 },
+  bc: { lr: 0.01, epochs: 200 },
   net: { sizes: [FDIM, 16, 4], act: 'tanh' },
   kValues: [1, 2, 4, 8, 16, 30],
   evalReps: 30,
