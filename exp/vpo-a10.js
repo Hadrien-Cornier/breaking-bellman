@@ -485,7 +485,8 @@ const PROTO = {
   trainSeeds: Array.from({ length: 16 }, (_, i) => 1000 + i), // A11: written 16-maze protocol restored (A10's 96 was a disclosed deviation)
   testSeeds: Array.from({ length: 8 }, (_, i) => 2000 + i),
   m: 3, K: VPO_K, G_single: 12, G_chain: 4,
-  lr: 0.003, lrNote: 'Adam lr for the MLP policy (nn.adam default family value used by the pg learner)',
+  lr: 0.001, // A14: fine-tune Adam lr 0.003 -> 0.001 (both arms identically; VPO width-64 collapse hypothesis)
+  lrNote: 'Adam lr for the MLP policy (nn.adam default family value used by the pg learner)',
   eps: 0.15,
   bc: { lr: 0.01, epochs: 400 }, // A12 named change: BC epochs 80 -> 400 (stronger sampled base)
   net: { sizes: [FDIM, HID, 4], act: 'tanh', hid: HID },
