@@ -219,6 +219,40 @@ function plan(mz) {
       }
     }
   }
+  // A11 named change: augment the planner with the EXHAUSTIVE per-maze best routes (all orders over
+  // reachable pocket cells, single-family full and the gold-then-diamond hybrid), train-only and
+  // documented. Raises base competence so the crossover gate is tested against a stronger scalar.
+  const exhaust = (() => {
+    let best = null, bestKey = null;
+    const consider = (cellsA, cellsB) => {
+      const orders = (arr) => arr.length <= 1 ? [arr] : arr.flatMap((x, i) => orders([...arr.slice(0, i), ...arr.slice(i + 1)]).map((r) => [x, ...r]));
+      const seqsA = cellsA.length ? orders(cellsA) : [[]];
+      const seqsB = cellsB.length ? orders(cellsB) : [[]];
+      for (const sa of seqsA) for (const sb of seqsB) {
+        const seq = [...sa, ...sb];
+        for (const perm of orders(seq)) {
+          let L = 0, cur = [0, 0], ok = true;
+          const pts = [[0, 0]];
+          for (const c of perm) { const d = traceDist(mz, cur, c); if (d === Infinity) { ok = false; break; } L += d; cur = c.slice(); pts.push(cur); }
+          if (!ok) continue;
+          const dExit = traceDist(mz, cur, GOAL);
+          if (dExit === Infinity || L + dExit > mz.budget) continue;
+          // rebuild full cell path via BFS traces
+          const parts = []; let from = [0, 0];
+          for (const c of [...perm, GOAL]) { const seg = trace(bfs(mz, from), from, c); if (!seg) { ok = false; break; } parts.push(seg); from = c.slice(); }
+          if (!ok) continue;
+          const full = concat(parts);
+          if (!full || full.length - 1 > mz.budget) continue;
+          const v = walkVec(full);
+          const key = [v[0], v[1] + v[2], -v[3], -(full.length - 1)];
+          if (!bestKey || key.some((x, i) => x > bestKey[i]) || (key.every((x, i) => x === bestKey[i]) && Math.random() < 0.5)) { bestKey = key; best = full; }
+        }
+      }
+    };
+    consider(reachGold, []); consider([], reachDiam); consider(reachGold, reachDiam);
+    return best;
+  })();
+  if (exhaust) routes.push(exhaust);
   const seen = new Set();
   return routes.filter((p) => { const k = p.map((c) => c.join(',')).join('|'); if (seen.has(k)) return false; seen.add(k); return true; })
     .map((p) => ({ path: p, vec: walkVec(p) }));
