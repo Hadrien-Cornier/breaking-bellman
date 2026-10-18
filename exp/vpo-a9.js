@@ -95,15 +95,32 @@ function makeMazeOnce(seed, attempt) {
   if (lens.some((l) => l.len === Infinity)) throw new Error('open pocket unreachable');
   const maxLen = Math.max(...lens.map((l) => l.len));
   const budget = maxLen + 2;
-  // conflict check: collecting cells of TWO open pockets must exceed the budget (min over pairs)
-  let twoBest = Infinity;
-  for (let i = 0; i < open.length; i++) for (let j = i + 1; j < open.length; j++) {
-    const ca = items[open[i]], cb = items[open[j]];
-    for (const a of ca) for (const b of cb) {
-      const L = traceDist(mz, [0, 0], a) + traceDist(mz, a, b) + traceDist(mz, b, GOAL);
-      if (L < twoBest) twoBest = L;
+  // conflict check (036/037-corrected): the minimum route collecting the FULL component (2 distinct
+  // cells) of TWO open pockets, over all cell choices AND both visitation orders; pockets are 3 cells
+  // so the search is tiny. Also check the same for pocket+joint via exact enumeration.
+  const twoBest = (() => {
+    let best = Infinity;
+    const orders = (arr) => arr.length <= 1 ? [arr] : arr.flatMap((x, i) => orders([...arr.slice(0, i), ...arr.slice(i + 1)]).map((r) => [x, ...r]));
+    for (let i = 0; i < open.length; i++) for (let j = i + 1; j < open.length; j++) {
+      const ca = items[open[i]], cb = items[open[j]];
+      // choose 2 of 3 cells from each pocket (the component saturates at 2), visit all 4 in any order
+      for (const sa of orders(ca)) for (const sb of orders(cb)) {
+        for (const takeA of [2, 1]) for (const takeB of [2, 1]) {
+          const seq = [...sa.slice(0, takeA), ...sb.slice(0, takeB)];
+          for (const perm of orders(seq)) {
+            let L = 0, cur = [0, 0], ok = true;
+            for (const c of perm) { const d = traceDist(mz, cur, c); if (d === Infinity) { ok = false; break; } L += d; cur = c; }
+            if (!ok) continue;
+            const dExit = traceDist(mz, cur, GOAL);
+            if (dExit === Infinity) continue;
+            const total = L + dExit;
+            if (total < best) best = total;
+          }
+        }
+      }
     }
-  }
+    return best;
+  })();
   Object.assign(mz, { budget, lens, twoBest });
   if (twoBest <= budget) throw new Error('two pockets fit the budget, no conflict');
   if (budget > 40 || budget < 14) throw new Error('budget out of range');
@@ -120,24 +137,36 @@ function rewardVec9(exit, own, lavaHit) {
 }
 
 // ---- one route with per-pocket pickups; obs flags: item coverage from earlier candidates or this route
-const FDIM9 = 4 + 81 * 5; // pos 2 + flags 2 + 4 item maps + lava map
+// Feature layout (pinned, executable assertions below): [0]=x/(N-1), [1]=y/(N-1),
+// [2..5]=GLOBAL pocket flags (pocket id order 0..3, NOT open-subset order),
+// [6..86]=item map pocket0, [87..167]=pocket1, [168..248]=pocket2, [249..329]=pocket3,
+// [330..410]=lava map. FDIM9 = 6 + 81*5 = 411. (A9a had maps at offset 4, overlapping flags - fixed.)
+const FDIM9 = 6 + 81 * 5;
+const MAP0 = 6;
 function features9(x, y, flags, mz) {
+  if (flags.length !== 4) throw new Error('flags must be global-indexed length 4');
   const v = new Float32Array(FDIM9);
   v[0] = x / (N - 1); v[1] = y / (N - 1);
   for (let p = 0; p < 4; p++) v[2 + p] = flags[p] ? 1 : 0;
-  for (let p = 0; p < 4; p++) for (const c of mz.pockets[p]) v[4 + p * 81 + c[0] * N + c[1]] = 1;
-  for (const c of mz.lava) v[4 + 4 * 81 + c[0] * N + c[1]] = 1;
+  for (let p = 0; p < 4; p++) for (const c of mz.pockets[p]) v[MAP0 + p * 81 + c[0] * N + c[1]] = 1;
+  for (const c of mz.lava) v[MAP0 + 4 * 81 + c[0] * N + c[1]] = 1;
   return v;
 }
 function route9(mz, pol, rng, explore, eps, flagsIn) {
+  // flagsIn is indexed by GLOBAL pocket id (length 4), never by open-subset position
   let [r, c] = [0, 0];
   let lavaHit = 0, exit = 0;
   const own = [0, 0, 0, 0];
-  const take = (x, y) => { for (let p = 0; p < 4; p++) if (mz.pockets[p].some((q) => q[0] === x && q[1] === y)) own[p]++; };
+  const taken = new Set(); // distinct item cells collected this route (revisits do not re-count)
+  const take = (x, y) => {
+    const key = x * N + y;
+    if (taken.has(key)) return;
+    for (let p = 0; p < 4; p++) if (mz.pockets[p].some((q) => q[0] === x && q[1] === y)) { own[p]++; taken.add(key); }
+  };
   take(0, 0);
   const steps = [];
   for (let t = 0; t < mz.budget; t++) {
-    const f = mz.open.map((p) => (flagsIn[p] || own[p] > 0) ? 1 : 0);
+    const f = [0, 1, 2, 3].map((p) => (flagsIn[p] || own[p] > 0) ? 1 : 0); // global pocket flags, fixed length 4
     const obs = features9(r, c, f, mz);
     const p = pol.probs(obs);
     let a;
@@ -150,10 +179,10 @@ function route9(mz, pol, rng, explore, eps, flagsIn) {
     if (mz.lava.some((l) => l[0] === r && l[1] === c)) { lavaHit = 1; break; }
     if (r === GOAL[0] && c === GOAL[1]) { exit = 1; break; }
   }
-  return { vec: rewardVec9(exit, own, lavaHit), steps, flagsEnd: mz.open.map((p) => (own[p] > 0 ? 1 : 0)) };
+  return { vec: rewardVec9(exit, own, lavaHit), steps, flagsEnd: [0, 1, 2, 3].map((p) => (own[p] > 0 ? 1 : 0)) }; // global-indexed, length 4
 }
 function chain9(mz, pol, rng, explore, eps, m) {
-  const out = []; const flags = [0, 0, 0, 0];
+  const out = []; const flags = [0, 0, 0, 0]; // global pocket flags
   for (let j = 0; j < m; j++) { const rt = route9(mz, pol, rng, explore, eps, flags); out.push(rt); for (let p = 0; p < 4; p++) flags[p] = Math.max(flags[p], rt.flagsEnd[p]); }
   return out;
 }
@@ -162,11 +191,13 @@ function dirichlet(rng, d) { const w = []; let s = 0; for (let i = 0; i < d; i++
 // ---- planner: per-open-pocket routes (nearest-neighbor over the pocket's cells) + direct
 function plan9(mz) {
   const routes = [];
-  const walkVec = (path) => {
+  const walkVec = (path) => { // same collection semantics as route9: distinct cells counted once
     let lavaHit = 0, exit = 0; const own = [0, 0, 0, 0];
+    const taken = new Set();
     for (const [r, c] of path) {
       if (mz.lava.some((l) => l[0] === r && l[1] === c)) { lavaHit = 1; break; }
-      for (let p = 0; p < 4; p++) if (mz.pockets[p].some((q) => q[0] === r && q[1] === c)) own[p]++;
+      const key = r * N + c;
+      if (!taken.has(key)) { for (let p = 0; p < 4; p++) if (mz.pockets[p].some((q) => q[0] === r && q[1] === c)) { own[p]++; taken.add(key); } }
       if (r === GOAL[0] && c === GOAL[1]) { exit = 1; break; }
     }
     return rewardVec9(exit, own, lavaHit);
@@ -193,7 +224,7 @@ function plan9(mz) {
       const p1 = trace(bfs(mz, [0, 0]), [0, 0], a), p2 = trace(bfs(mz, a), a, b), p3 = trace(bfs(mz, b), b, GOAL);
       if (!p1 || !p2 || !p3) continue;
       const L = p1.length + p2.length + p3.length - 3;
-      if (L <= mz.budget && L < bestL) { bestL = L; bestPath = p1.slice(0, -0).concat(p2.slice(1), p3.slice(1)); }
+      if (L <= mz.budget && L < bestL) { bestL = L; bestPath = p1.concat(p2.slice(1), p3.slice(1)); } // (037 fix: slice(0,-0) is empty and dropped the start->pocket leg)
     }
     if (bestPath) routes.push(bestPath);
   }
@@ -208,19 +239,20 @@ function buildBase9(seed, trainMazes, bc) {
   const opt = RLA.nn.adam(net, { lr: bc.lr });
   const probs = (obs) => { const z = Array.from(net.forward(obs)); let m = -Infinity; for (const x of z) m = Math.max(m, x); const e = z.map((x) => Math.exp(x - m)); const s = e.reduce((a, b) => a + b, 0); return e.map((x) => x / s); };
   const data = [];
-  const walkDemo = (mz, path, flagsIn) => {
+  const walkDemo = (mz, path, flagsIn) => { // flagsIn: global pocket flags (length 4)
     let [r, c] = [0, 0]; const own = [0, 0, 0, 0];
-    const take = (x, y) => { for (let p = 0; p < 4; p++) if (mz.pockets[p].some((q) => q[0] === x && q[1] === y)) own[p]++; };
+    const taken = new Set();
+    const take = (x, y) => { const key = x * N + y; if (taken.has(key)) return; for (let p = 0; p < 4; p++) if (mz.pockets[p].some((q) => q[0] === x && q[1] === y)) { own[p]++; taken.add(key); } };
     take(0, 0);
     const seq = [];
     for (let i = 1; i < path.length; i++) {
-      const f = mz.open.map((p) => (flagsIn[p] || own[p] > 0) ? 1 : 0);
+      const f = [0, 1, 2, 3].map((p) => (flagsIn[p] || own[p] > 0) ? 1 : 0);
       seq.push({ obs: features9(r, c, f, mz), a: actionOf(path[i - 1], path[i]) });
       const [nr, nc] = path[i]; r = nr; c = nc; take(r, c);
       if (mz.lava.some((l) => l[0] === r && l[1] === c)) break;
       if (r === GOAL[0] && c === GOAL[1]) break;
     }
-    return { seq, flagsEnd: mz.open.map((p) => (own[p] > 0 ? 1 : 0)) };
+    return { seq, flagsEnd: [0, 1, 2, 3].map((p) => (own[p] > 0 ? 1 : 0)) };
   };
   const actionOf = (a, b) => (b[0] === a[0] + 1 ? 0 : b[1] === a[1] + 1 ? 1 : b[0] === a[0] - 1 ? 2 : 3);
   const demos = [];
