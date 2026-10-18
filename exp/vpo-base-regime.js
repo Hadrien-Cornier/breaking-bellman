@@ -23,6 +23,16 @@ const N = 9, GOAL = [8, 8], GC = [8, 0], DC = [0, 8];
 const dist = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
 const dot = (w, v) => w.reduce((s, x, i) => s + x * v[i], 0);
 const WSTAR = [0.25, 0.25, 0.25, 0.25];
+// ---- pure production helpers (shared with exp/vpo-checks.js so the checker exercises THIS code)
+const setRewardMean = (vecs, draws) => draws.map((w) => Math.max(...vecs.map((v) => dot(w, v)))).reduce((s, x) => s + x, 0) / draws.length;
+const groupAdv = (vals) => { const m = vals.reduce((s, x) => s + x, 0) / vals.length; const sd = Math.sqrt(vals.reduce((s, x) => s + (x - m) * (x - m), 0) / vals.length); return vals.map((x) => (x - m) / (sd + 1e-6)); };
+const mixProb = (pa, eps, nA) => (1 - eps) * pa + eps / nA;             // the eps-soft sampler's probability of action a
+const mixIW = (pa, eps, nA) => (1 - eps) * pa / mixProb(pa, eps, nA);   // score weight of a mixture sample
+const REWARD_CONTRACT = process.env.VPO_CONTRACT || 'legacy';           // 'legacy' | 'paper' (paper: no exit => all-zero vector, App A.1)
+const rewardVec = (exit, gold, diam, lavaHit) => {
+  if (REWARD_CONTRACT === 'paper' && !exit) return [0, 0, 0, 0];
+  return [exit, Math.min(1, gold / 2), Math.min(1, diam / 2), 1 - lavaHit];
+};
 
 function bfs(mz, from) {
   const D = Array.from({ length: N }, () => Array(N).fill(-1));
@@ -227,7 +237,7 @@ function route(mz, pol, rng, explore, eps, flagsIn) {
     if (mz.lava.some((l) => l[0] === r && l[1] === c)) { lavaHit = 1; break; }
     if (r === GOAL[0] && c === GOAL[1]) { exit = 1; break; }
   }
-  return { vec: [exit, Math.min(1, ownGold / 2), Math.min(1, ownDiam / 2), 1 - lavaHit], steps, flagsEnd: [ownGold > 0 ? 1 : 0, ownDiam > 0 ? 1 : 0] };
+  return { vec: rewardVec(exit, ownGold, ownDiam, lavaHit), steps, flagsEnd: [ownGold > 0 ? 1 : 0, ownDiam > 0 ? 1 : 0] };
 }
 function chain(mz, pol, rng, explore, eps, m) {
   const out = []; let flags = [0, 0];
@@ -305,20 +315,18 @@ function finetune(baseNet, seed, method, trainMazes, updates, lr, eps, m, K, G) 
     for (let g = 0; g < G; g++) {
       if (method === 'grpo-single') {
         const rt = route(mz, { probs }, rng, true, eps, [0, 0]);
-        group.push({ routes: [rt], R: dot(WSTAR, rt.vec) });
+        group.push({ routes: [rt], R: setRewardMean([rt.vec], [WSTAR]) });
       } else {
         const routes = chain(mz, { probs }, rng, true, eps, m);
         const vecs = routes.map((r) => r.vec);
-        const per = method === 'vpo' ? draws.map((w) => Math.max(...vecs.map((v) => dot(w, v)))) : null;
-        if (method === 'vpo') group.push({ routes, R: per.reduce((s, x) => s + x, 0) / per.length });
+        if (method === 'vpo') group.push({ routes, R: setRewardMean(vecs, draws) });
       }
     }
-    const mean = group.reduce((s, x) => s + x.R, 0) / G;
-    const std = Math.sqrt(group.reduce((s, x) => s + (x.R - mean) * (x.R - mean), 0) / G);
     // one batch gradient: REINFORCE log-prob gradient with the group-normalized whole-chain advantage
+    const ADVs = groupAdv(group.map((x) => x.R));
     const S = [], A = [], ADV = [];
-    for (const ep of group) {
-      const adv = (ep.R - mean) / (std + 1e-6);
+    for (let gi = 0; gi < group.length; gi++) {
+      const adv = ADVs[gi];
       for (const rt of ep.routes) for (const st of rt.steps) { S.push(st.obs); A.push(st.a); ADV.push(adv); }
     }
     const B = S.length;
@@ -330,12 +338,10 @@ function finetune(baseNet, seed, method, trainMazes, updates, lr, eps, m, K, G) 
       const ex = []; let s = 0;
       for (let j = 0; j < 4; j++) { ex.push(Math.exp(Z[i * 4 + j] - m2)); s += ex[j]; }
       for (let j = 0; j < 4; j++) ex[j] /= s;
-      // A5 validity fix: the sampler is the mixture mu = (1-eps)*softmax + eps/4, so the score of a
-      // mixture sample is grad log mu(a) = (1-eps)*p(a)*(onehot(a)-p)/mu(a); the previous update used
-      // the pure-softmax score and mis-credited eps-random actions (see research log validity fact 1).
-      const pa = ex[A[i]];
-      const mu = (1 - eps) * pa + eps / 4;
-      const iw = eps > 0 ? ((1 - eps) * pa) / mu : 1;
+      // A5 validity fix (now via mixIW): the sampler is the eps-soft mixture, so the score of a
+      // mixture sample is (1-eps)*p(a)*(onehot(a)-p)/mu(a); pre-A5 the pure-softmax score
+      // mis-credited eps-random actions (research log validity fact 1).
+      const iw = mixIW(ex[A[i]], eps, 4);
       for (let j = 0; j < 4; j++) dZ[i * 4 + j] = -ADV[i] * iw * ((j === A[i] ? 1 : 0) - ex[j]) / B;
     }
     net.backwardBatch(dZ); opt.step();
@@ -392,8 +398,11 @@ const PROTO = {
   evalEps: EVAL_EPS,
   arms: ['base', 'grpo-single', 'vpo'],
   budgetNote: 'budget = min(max feasible single-family route, 24) + 3; both-pockets union chain excluded in C by check',
+  rewardContract: REWARD_CONTRACT,
 };
 
+if (require.main !== module) { Object.assign(module.exports, { setRewardMean, groupAdv, mixProb, mixIW, rewardVec, WSTAR, dot, makeMaze, chain, route, features, FDIM, dirichlet, PROTO, buildBase, finetune, evaluate }); }
+else {
 const trainMazes = PROTO.trainSeeds.map(makeMaze);
 const testMazes = PROTO.testSeeds.map(makeMaze);
 const out = { protocol: PROTO, mazes: { train: trainMazes.map((m) => ({ regime: m.regime, budget: m.budget })), test: testMazes.map((m) => ({ regime: m.regime, budget: m.budget })) }, runs: [] };
@@ -428,4 +437,5 @@ console.log('wrote', OUT);
 for (const name of PROTO.arms) {
   const line = (k) => out.runs.map((r) => r.arms[name].mean[k].toFixed(3)).join(',');
   console.log(name, 'best1', line(1), 'best30', line(30), 'spread', out.runs.map((r) => r.arms[name].spread.toFixed(2)).join(','));
+}
 }
