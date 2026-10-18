@@ -448,7 +448,7 @@ function finetune(baseNet, seed, method, trainMazes, updates, lr, eps, m, K, G) 
 // ---- evaluation: fresh chains, FIRST k entries in chain order (paper Sec 4.3 style)
 function evaluate(pol, testMazes, seed, m) {
   const rng = rngMake(seed * 7919 + 5);
-  const eps = EVAL_EPS, REPS = 30; // EVAL_EPS: frozen per attempt (A3: 0.05, all arms identically)
+  const eps = EVAL_EPS, REPS = PROTO.evalReps; // A18: evalReps 30 -> 6 (disclosed lower precision; 32x6=192 problem-reps per arm vs A17's 8x30=240) // EVAL_EPS: frozen per attempt (A3: 0.05, all arms identically)
   const ks = [1, 2, 4, 8, 16, 30];
   const perProblem = [];
   for (let pi = 0; pi < testMazes.length; pi++) {
@@ -483,7 +483,7 @@ const PROTO = {
   seeds: MODE === 'smoke' ? [2] : [1, 3, 5, 7, 9],
   updates: MODE === 'smoke' ? 300 : 12000,
   trainSeeds: Array.from({ length: 16 }, (_, i) => 1000 + i), // A11: written 16-maze protocol restored (A10's 96 was a disclosed deviation)
-  testSeeds: Array.from({ length: 8 }, (_, i) => 2000 + i),
+  testSeeds: Array.from({ length: 32 }, (_, i) => 2000 + i), // A18: 8 -> 32 test mazes (variable-problem axis)
   m: 3, K: VPO_K, G_single: 12, G_chain: 4,
   lr: 0.001, // A14: fine-tune Adam lr 0.003 -> 0.001 (both arms identically; VPO width-64 collapse hypothesis)
   lrNote: 'Adam lr for the MLP policy (nn.adam default family value used by the pg learner)',
@@ -491,7 +491,7 @@ const PROTO = {
   bc: { lr: 0.01, epochs: 1200 }, // A15 named change: BC epochs 400 -> 1200 (base-only; underfit hypothesis)
   net: { sizes: [FDIM, HID, 4], act: 'tanh', hid: HID },
   kValues: [1, 2, 4, 8, 16, 30],
-  evalReps: 30,
+  evalReps: 6,
   evalEps: EVAL_EPS,
   arms: ['base', 'grpo-single', 'vpo'],
   budgetNote: 'budget = min(max feasible single-family route, 24) + 3; both-pockets union chain excluded in C by check',
