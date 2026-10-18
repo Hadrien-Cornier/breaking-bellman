@@ -487,7 +487,7 @@ const PROTO = {
   m: 3, K: VPO_K, G_single: 12, G_chain: 4,
   lr: 0.001, // A14: fine-tune Adam lr 0.003 -> 0.001 (both arms identically; VPO width-64 collapse hypothesis)
   lrNote: 'Adam lr for the MLP policy (nn.adam default family value used by the pg learner)',
-  eps: 0.15,
+  eps: 0.05, // A19 named change: TRAINING sampling eps 0.15 -> 0.05, BOTH arms identically (entropy-collapse mechanism test; eval eps stays 0)
   bc: { lr: 0.01, epochs: 1200 }, // A15 named change: BC epochs 400 -> 1200 (base-only; underfit hypothesis)
   net: { sizes: [FDIM, HID, 4], act: 'tanh', hid: HID },
   kValues: [1, 2, 4, 8, 16, 30],
