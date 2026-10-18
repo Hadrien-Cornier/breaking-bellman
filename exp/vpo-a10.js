@@ -33,6 +33,25 @@ const rewardVec = (exit, gold, diam, lavaHit) => {
   if (REWARD_CONTRACT === 'paper' && !exit) return [0, 0, 0, 0];
   return [exit, Math.min(1, gold / 2), Math.min(1, diam / 2), 1 - lavaHit];
 };
+// A11b (per 051/052): production-faithful replay helper, shared by the planner and the guard.
+// Distinct-cell collection (revisiting a collected item cell cannot inflate the reward vector),
+// route truncated at the FIRST exit, fixed uniform deployment score w* = [0.25,0.25,0.25,0.25].
+const replayVec = (mz, path) => {
+  const gotGold = new Set(), gotDiam = new Set();
+  let lavaHit = 0, exit = 0;
+  for (const [r, c] of path) {
+    if (mz.lava.some((l) => l[0] === r && l[1] === c)) { lavaHit = 1; break; }
+    if (mz.gold.some((q) => q[0] === r && q[1] === c)) gotGold.add(r + ',' + c);
+    if (mz.diam.some((q) => q[0] === r && q[1] === c)) gotDiam.add(r + ',' + c);
+    if (r === GOAL[0] && c === GOAL[1]) { exit = 1; break; }
+  }
+  return rewardVec(exit, gotGold.size, gotDiam.size, lavaHit);
+};
+const truncExit = (path) => { // no route extends beyond the first exit
+  const i = path.findIndex((c) => c[0] === GOAL[0] && c[1] === GOAL[1]);
+  return i >= 0 ? path.slice(0, i + 1) : path;
+};
+const scoreOf = (mz, path) => dot(WSTAR, replayVec(mz, path)); // fixed uniform deployment score
 
 function bfs(mz, from) {
   const D = Array.from({ length: N }, () => Array(N).fill(-1));
@@ -161,16 +180,7 @@ function makeMazeOnce(seed, regime, attempt) {
 // ---- documented planner: route families on TRAINING mazes only (BFS legs + nearest-neighbor pickup)
 function plan(mz) {
   const routes = [];
-  const walkVec = (path) => {
-    let gold = 0, diam = 0, lavaHit = 0, exit = 0;
-    for (const [r, c] of path) {
-      if (mz.lava.some((l) => l[0] === r && l[1] === c)) { lavaHit = 1; break; }
-      if (mz.gold.some((q) => q[0] === r && q[1] === c)) gold++;
-      if (mz.diam.some((q) => q[0] === r && q[1] === c)) diam++;
-      if (r === GOAL[0] && c === GOAL[1]) { exit = 1; break; }
-    }
-    return [exit, Math.min(1, gold / 2), Math.min(1, diam / 2), 1 - lavaHit];
-  };
+  const walkVec = (path) => replayVec(mz, path);
   const trace = (D, from, to) => {
     if (D[to[0]][to[1]] < 0) return null;
     const p = []; let c = to.slice();
@@ -223,7 +233,10 @@ function plan(mz) {
   // reachable pocket cells, single-family full and the gold-then-diamond hybrid), train-only and
   // documented. Raises base competence so the crossover gate is tested against a stronger scalar.
   const exhaust = (() => {
-    let best = null, bestKey = null;
+    // A11b (per 051/052): deterministic scalar argmax over ALL enumerated candidates, each scored
+    // by PRODUCTION replay (walkVec) with the fixed uniform deployment score. No alternate key,
+    // no unseeded tie break: ties resolved by shorter route, then lexicographic cell key.
+    const cands = [];
     const consider = (cellsA, cellsB) => {
       const orders = (arr) => arr.length <= 1 ? [arr] : arr.flatMap((x, i) => orders([...arr.slice(0, i), ...arr.slice(i + 1)]).map((r) => [x, ...r]));
       const seqsA = cellsA.length ? orders(cellsA) : [[]];
@@ -241,20 +254,29 @@ function plan(mz) {
           const parts = []; let from = [0, 0];
           for (const c of [...perm, GOAL]) { const seg = trace(bfs(mz, from), from, c); if (!seg) { ok = false; break; } parts.push(seg); from = c.slice(); }
           if (!ok) continue;
-          const full = concat(parts);
+          const full = truncExit(concat(parts));
           if (!full || full.length - 1 > mz.budget) continue;
-          const v = walkVec(full);
-          const key = [v[0], v[1] + v[2], -v[3], -(full.length - 1)];
-          if (!bestKey || key.some((x, i) => x > bestKey[i]) || (key.every((x, i) => x === bestKey[i]) && Math.random() < 0.5)) { bestKey = key; best = full; }
+          cands.push(full);
         }
       }
     };
     consider(reachGold, []); consider([], reachDiam); consider(reachGold, reachDiam);
+    if (!cands.length) return null;
+    let best = null, bestScore = -Infinity, bestKey = null;
+    for (const p of cands) {
+      const s = scoreOf(mz, p);
+      const key = p.map((c) => c.join(',')).join('|');
+      if (s > bestScore || (s === bestScore && ((p.length < best.length) || (p.length === best.length && key < bestKey)))) { bestScore = s; best = p; bestKey = key; }
+    }
+    // A11b guard: the selected route's replayed score equals the maximum over the enumerated set
+    const maxScore = Math.max(...cands.map((p) => scoreOf(mz, p)));
+    if (scoreOf(mz, best) !== maxScore) throw new Error('A11b planner guard: selected score ' + scoreOf(mz, best) + ' != enumerated max ' + maxScore);
     return best;
   })();
   if (exhaust) routes.push(exhaust);
   const seen = new Set();
-  return routes.filter((p) => { const k = p.map((c) => c.join(',')).join('|'); if (seen.has(k)) return false; seen.add(k); return true; })
+  return routes.map(truncExit).filter((p) => p.length)
+    .filter((p) => { const k = p.map((c) => c.join(',')).join('|'); if (seen.has(k)) return false; seen.add(k); return true; })
     .map((p) => ({ path: p, vec: walkVec(p) }));
 }
 
@@ -285,12 +307,15 @@ function makeNet(seed) {
 // one route: obs flags = (collected by earlier candidates OR by this route so far)
 function route(mz, pol, rng, explore, eps, flagsIn) {
   let [r, c] = [0, 0];
-  let lavaHit = 0, exit = 0, ownGold = 0, ownDiam = 0;
-  const take = (x, y) => { if (mz.gold.some((q) => q[0] === x && q[1] === y)) ownGold++; if (mz.diam.some((q) => q[0] === x && q[1] === y)) ownDiam++; };
+  let lavaHit = 0, exit = 0;
+  // A11b named correction: distinct-cell collection (per A9b semantics). Revisiting an already
+  // collected item cell cannot inflate the reward vector; matches the planner's walkVec replay.
+  const gotGold = new Set(), gotDiam = new Set();
+  const take = (x, y) => { if (mz.gold.some((q) => q[0] === x && q[1] === y)) gotGold.add(x + ',' + y); if (mz.diam.some((q) => q[0] === x && q[1] === y)) gotDiam.add(x + ',' + y); };
   take(0, 0);
   const steps = [];
   for (let t = 0; t < mz.budget; t++) {
-    const goldSeen = flagsIn[0] || ownGold > 0, diamSeen = flagsIn[1] || ownDiam > 0;
+    const goldSeen = flagsIn[0] || gotGold.size > 0, diamSeen = flagsIn[1] || gotDiam.size > 0;
     const obs = features(r, c, [goldSeen ? 1 : 0, diamSeen ? 1 : 0], mz);
     const p = pol.probs(obs);
     let a;
@@ -303,7 +328,7 @@ function route(mz, pol, rng, explore, eps, flagsIn) {
     if (mz.lava.some((l) => l[0] === r && l[1] === c)) { lavaHit = 1; break; }
     if (r === GOAL[0] && c === GOAL[1]) { exit = 1; break; }
   }
-  return { vec: rewardVec(exit, ownGold, ownDiam, lavaHit), steps, flagsEnd: [ownGold > 0 ? 1 : 0, ownDiam > 0 ? 1 : 0] };
+  return { vec: rewardVec(exit, gotGold.size, gotDiam.size, lavaHit), steps, flagsEnd: [gotGold.size > 0 ? 1 : 0, gotDiam.size > 0 ? 1 : 0] };
 }
 function chain(mz, pol, rng, explore, eps, m) {
   const out = []; let flags = [0, 0];
@@ -322,18 +347,19 @@ function buildBase(seed, trainMazes, bc) {
   for (const mz of trainMazes) for (const r of plan(mz)) demos.push({ mz, path: r.path });
   const data = []; // {obs, a}
   const walk = (mz, path, flagsIn) => {
-    let [r, c] = [0, 0]; let ownGold = 0, ownDiam = 0;
-    const take = (x, y) => { if (mz.gold.some((q) => q[0] === x && q[1] === y)) ownGold++; if (mz.diam.some((q) => q[0] === x && q[1] === y)) ownDiam++; };
+    let [r, c] = [0, 0];
+    const gotGold = new Set(), gotDiam = new Set(); // A11b: distinct-cell collection (per A9b)
+    const take = (x, y) => { if (mz.gold.some((q) => q[0] === x && q[1] === y)) gotGold.add(x + ',' + y); if (mz.diam.some((q) => q[0] === x && q[1] === y)) gotDiam.add(x + ',' + y); };
     take(0, 0);
     const seq = [];
     for (let i = 1; i < path.length; i++) {
-      const goldSeen = flagsIn[0] || ownGold > 0, diamSeen = flagsIn[1] || ownDiam > 0;
+      const goldSeen = flagsIn[0] || gotGold.size > 0, diamSeen = flagsIn[1] || gotDiam.size > 0;
       seq.push({ obs: features(r, c, [goldSeen ? 1 : 0, diamSeen ? 1 : 0], mz), a: actionOf(path[i - 1], path[i]) });
       const [nr, nc] = path[i]; r = nr; c = nc; take(r, c);
       if (mz.lava.some((l) => l[0] === r && l[1] === c)) break;
       if (r === GOAL[0] && c === GOAL[1]) break;
     }
-    return { seq, flagsEnd: [ownGold > 0 ? 1 : 0, ownDiam > 0 ? 1 : 0] };
+    return { seq, flagsEnd: [gotGold.size > 0 ? 1 : 0, gotDiam.size > 0 ? 1 : 0] };
   };
   const actionOf = (a, b) => (b[0] === a[0] + 1 ? 0 : b[1] === a[1] + 1 ? 1 : b[0] === a[0] - 1 ? 2 : 3);
   for (const { mz, path } of demos) {
@@ -467,7 +493,7 @@ const PROTO = {
   rewardContract: REWARD_CONTRACT,
 };
 
-if (require.main !== module) { Object.assign(module.exports, { setRewardMean, groupAdv, mixProb, mixIW, rewardVec, WSTAR, dot, makeMaze, chain, route, features, FDIM, dirichlet, PROTO, buildBase, finetune, evaluate }); }
+if (require.main !== module) { Object.assign(module.exports, { setRewardMean, groupAdv, mixProb, mixIW, rewardVec, WSTAR, dot, makeMaze, chain, route, features, FDIM, dirichlet, PROTO, buildBase, finetune, evaluate, replayVec, truncExit, scoreOf, plan }); }
 else {
 // Startup assertion (per 050): freeze the actual generated settings before launch.
 if (PROTO.trainSeeds.length !== 16 || PROTO.trainSeeds[0] !== 1000 || PROTO.trainSeeds[PROTO.trainSeeds.length - 1] !== 1015) throw new Error('A11 protocol assertion failed: expected 16 training seeds 1000-1015, got ' + JSON.stringify(PROTO.trainSeeds));
