@@ -488,7 +488,7 @@ const PROTO = {
   lr: 0.001, // A14: fine-tune Adam lr 0.003 -> 0.001 (both arms identically; VPO width-64 collapse hypothesis)
   lrNote: 'Adam lr for the MLP policy (nn.adam default family value used by the pg learner)',
   eps: 0.15,
-  bc: { lr: 0.01, epochs: 400 }, // A12 named change: BC epochs 80 -> 400 (stronger sampled base)
+  bc: { lr: 0.01, epochs: 1200 }, // A15 named change: BC epochs 400 -> 1200 (base-only; underfit hypothesis)
   net: { sizes: [FDIM, HID, 4], act: 'tanh', hid: HID },
   kValues: [1, 2, 4, 8, 16, 30],
   evalReps: 30,
