@@ -20,6 +20,7 @@ const OUT = process.argv[3] || ('/tmp/vpo-br-' + MODE + '.json');
 
 const rngMake = RLA.rng.make;
 const N = 9, GOAL = [8, 8], GC = [8, 0], DC = [0, 8];
+const HID = parseInt(process.env.VPO_HID || '64', 10); // A13: hidden width (was hard-coded 16)
 const dist = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
 const dot = (w, v) => w.reduce((s, x, i) => s + x * v[i], 0);
 const WSTAR = [0.25, 0.25, 0.25, 0.25];
@@ -293,7 +294,7 @@ function features(x, y, flags, mz) {
 }
 function makeNet(seed) {
   const rng = rngMake(seed);
-  const net = RLA.nn.mlp({ sizes: [FDIM, 16, 4], act: 'tanh', rng, outScale: 0.01 });
+  const net = RLA.nn.mlp({ sizes: [FDIM, HID, 4], act: 'tanh', rng, outScale: 0.01 });
   const opt = RLA.nn.adam(net, { lr: 0.003 });
   const logits = (obs) => Array.from(net.forward(obs));
   const probs = (obs) => {
@@ -399,7 +400,7 @@ function buildBase(seed, trainMazes, bc) {
 // ---- fine-tuning arms from the SAME base tensor
 function finetune(baseNet, seed, method, trainMazes, updates, lr, eps, m, K, G) {
   const rng = rngMake(seed * 1000 + 17);
-  const net = RLA.nn.mlp({ sizes: [FDIM, 16, 4], act: 'tanh', rng: rngMake(1), outScale: 0 });
+  const net = RLA.nn.mlp({ sizes: [FDIM, HID, 4], act: 'tanh', rng: rngMake(1), outScale: 0 });
   net.params.forEach((p, i) => p.set(baseNet.params[i])); // clone the exact base weights
   const opt = RLA.nn.adam(net, { lr });
   const probs = (obs) => { const z = Array.from(net.forward(obs)); let mx = -Infinity; for (const x of z) mx = Math.max(mx, x); const e = z.map((x) => Math.exp(x - mx)); const s = e.reduce((a, b) => a + b, 0); return e.map((x) => x / s); };
@@ -487,7 +488,7 @@ const PROTO = {
   lr: 0.003, lrNote: 'Adam lr for the MLP policy (nn.adam default family value used by the pg learner)',
   eps: 0.15,
   bc: { lr: 0.01, epochs: 400 }, // A12 named change: BC epochs 80 -> 400 (stronger sampled base)
-  net: { sizes: [FDIM, 16, 4], act: 'tanh' },
+  net: { sizes: [FDIM, HID, 4], act: 'tanh', hid: HID },
   kValues: [1, 2, 4, 8, 16, 30],
   evalReps: 30,
   evalEps: EVAL_EPS,
@@ -512,7 +513,7 @@ for (const seed of PROTO.seeds) {
   const baseTh = b.pol.net.params;
   if (CKPT_DIR) { fs.mkdirSync(CKPT_DIR, { recursive: true }); fs.writeFileSync(CKPT_DIR + '/base-' + seed + '.json', JSON.stringify(baseTh.map((p) => Array.from(p)))); }
   const mkEval = (netParams, single) => {
-    const net = RLA.nn.mlp({ sizes: [FDIM, 16, 4], act: 'tanh', rng: rngMake(1), outScale: 0 });
+    const net = RLA.nn.mlp({ sizes: [FDIM, HID, 4], act: 'tanh', rng: rngMake(1), outScale: 0 });
     net.params.forEach((p, i) => p.set(netParams[i]));
     const probs = (obs) => { const z = Array.from(net.forward(obs)); let mx = -Infinity; for (const x of z) mx = Math.max(mx, x); const e = z.map((x) => Math.exp(x - mx)); const s = e.reduce((a, b2) => a + b2, 0); return e.map((x) => x / s); };
     return single ? { probs, single: true } : { probs };
