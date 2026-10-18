@@ -330,7 +330,13 @@ function finetune(baseNet, seed, method, trainMazes, updates, lr, eps, m, K, G) 
       const ex = []; let s = 0;
       for (let j = 0; j < 4; j++) { ex.push(Math.exp(Z[i * 4 + j] - m2)); s += ex[j]; }
       for (let j = 0; j < 4; j++) ex[j] /= s;
-      for (let j = 0; j < 4; j++) dZ[i * 4 + j] = -ADV[i] * ((j === A[i] ? 1 : 0) - ex[j]) / B;
+      // A5 validity fix: the sampler is the mixture mu = (1-eps)*softmax + eps/4, so the score of a
+      // mixture sample is grad log mu(a) = (1-eps)*p(a)*(onehot(a)-p)/mu(a); the previous update used
+      // the pure-softmax score and mis-credited eps-random actions (see research log validity fact 1).
+      const pa = ex[A[i]];
+      const mu = (1 - eps) * pa + eps / 4;
+      const iw = eps > 0 ? ((1 - eps) * pa) / mu : 1;
+      for (let j = 0; j < 4; j++) dZ[i * 4 + j] = -ADV[i] * iw * ((j === A[i] ? 1 : 0) - ex[j]) / B;
     }
     net.backwardBatch(dZ); opt.step();
   }
