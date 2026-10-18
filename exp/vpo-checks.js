@@ -144,3 +144,4 @@ for (const [tag, dir] of [['a4', 'a4-ckpt'], ['a5', 'a5-ckpt']]) {
 
 fs.writeFileSync(`/Users/hcornier/Robotics/fm-homes/bellman/data/bb-vpo-design/evidence/checks-main080-${label}.json`, JSON.stringify({ ckptDir, label, rABC, rAAA, adv, banditV: bV, banditG: bG, poolReports: reports }, null, 1));
 console.log(failures === 0 ? 'ALL CHECKS PASS' : failures + ' CHECK(S) FAILED');
+process.exit(failures === 0 ? 0 : 1);
