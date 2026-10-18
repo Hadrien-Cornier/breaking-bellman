@@ -340,7 +340,7 @@ function finetune(baseNet, seed, method, trainMazes, updates, lr, eps, m, K, G) 
 // ---- evaluation: fresh chains, FIRST k entries in chain order (paper Sec 4.3 style)
 function evaluate(pol, testMazes, seed, m) {
   const rng = rngMake(seed * 7919 + 5);
-  const eps = 0.15, REPS = 30;
+  const eps = EVAL_EPS, REPS = 30; // EVAL_EPS: frozen per attempt (A3: 0.05, all arms identically)
   const ks = [1, 2, 4, 8, 16, 30];
   const perProblem = [];
   for (let pi = 0; pi < testMazes.length; pi++) {
@@ -367,6 +367,7 @@ function evaluate(pol, testMazes, seed, m) {
 }
 
 // ---- protocol (rev 3)
+const EVAL_EPS = parseFloat(process.env.VPO_EVAL_EPS || '0.15');
 const PROTO = {
   mode: MODE,
   seeds: MODE === 'smoke' ? [2] : [1, 3, 5, 7, 9],
@@ -380,6 +381,7 @@ const PROTO = {
   net: { sizes: [FDIM, 16, 4], act: 'tanh' },
   kValues: [1, 2, 4, 8, 16, 30],
   evalReps: 30,
+  evalEps: EVAL_EPS,
   arms: ['base', 'grpo-single', 'vpo'],
   budgetNote: 'budget = min(max feasible single-family route, 24) + 3; both-pockets union chain excluded in C by check',
 };
