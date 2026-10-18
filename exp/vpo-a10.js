@@ -78,7 +78,12 @@ const onCorr = (c) => CORR.some((q) => q[0] === c[0] && q[1] === c[1]);
 const GOLD_POOL = [[5, 2], [5, 3], [6, 2], [6, 3]];
 const DIAM_POOL = [[2, 5], [3, 6], [4, 6]];
 function makeMaze(seed) {
-  const regime = ['A', 'B', 'C', 'D'][(seed % 4)];
+  // A20 named change (environment/task-structure): balanced two-family task world. Every maze has
+  // exactly ONE paying family; the other is fully enclosed by a visible lava ring (observable task
+  // cue in the lava map). Even seed: gold enclosed, diamond pays (E); odd seed: diamond enclosed,
+  // gold pays (F). No anti-diagonal barrier, no C hybrid, no D. Families are mutually exclusive
+  // (no co-optimal ties). Everything downstream (planner/BC/arms/score) unchanged.
+  const regime = seed % 2 === 0 ? 'E' : 'F';
   let lastErr = null;
   for (let attempt = 0; attempt < 120; attempt++) {
     try { return makeMazeOnce(seed, regime, attempt); } catch (e) { lastErr = e; }
@@ -93,7 +98,7 @@ function makeMazeOnce(seed, regime, attempt) {
     if (onCorr(c) || (c[0] === 0 && c[1] === 0) || (c[0] === GOAL[0] && c[1] === GOAL[1])) return false;
     lava.push(c); return true;
   };
-  if (regime !== 'D') for (let i = 2; i <= 4; i++) tryLava([i, 8 - i]); // anti-diagonal barrier
+  if (regime === 'A' || regime === 'B' || regime === 'C') for (let i = 2; i <= 4; i++) tryLava([i, 8 - i]); // anti-diagonal barrier (E/F: none)
   const pick = (pool, n) => { const p = pool.slice(); const out = []; while (out.length < n && p.length) out.push(p.splice(rng.int(p.length), 1)[0]); return out; };
   const gold = pick(GOLD_POOL, 3);
   const diam = regime === 'C' ? [[6, 4]].concat(pick(DIAM_POOL, 2)) : pick(DIAM_POOL, 3); // C: outlier diamond detour near the gold pocket
@@ -107,6 +112,8 @@ function makeMazeOnce(seed, regime, attempt) {
     }
     return true;
   };
+  if (regime === 'E' && !enclose(gold)) throw new Error('E enclosure failed');
+  if (regime === 'F' && !enclose(diam)) throw new Error('F enclosure failed');
   if (regime === 'A' && !enclose(diam)) throw new Error('A enclosure failed');
   if (regime === 'B' && !enclose(gold)) throw new Error('B enclosure failed');
   if (regime === 'D') { if (!enclose(gold) || !enclose(diam)) throw new Error('D enclosure failed'); }
@@ -135,9 +142,10 @@ function makeMazeOnce(seed, regime, attempt) {
   const bothLen = goldLen < Infinity && diamLen < Infinity ? routeLen(mz.gold.concat(mz.diam)) : Infinity; // full both-clusters chain
   const feasible = [goldLen, diamLen, direct].filter((x) => x < Infinity);
   const base = Math.max(...feasible);
+  if ((regime === 'E' || regime === 'F') && !(goldLen === Infinity || diamLen === Infinity)) throw new Error('E/F requires exactly one closed family');
   // A10: corrected conflict threshold - the minimum route collecting the FULL component (2 distinct
   // cells) of BOTH pockets, over all 2-subsets and both visitation orders (the reward saturates at 2).
-  const twoBestSat = (() => {
+  const twoBestSat = regime === 'E' || regime === 'F' ? Infinity : (() => {
     let best = Infinity;
     const orders = (arr) => arr.length <= 1 ? [arr] : arr.flatMap((x, i) => orders([...arr.slice(0, i), ...arr.slice(i + 1)]).map((r) => [x, ...r]));
     for (const ca of [mz.gold, mz.diam]) {
@@ -174,6 +182,8 @@ function makeMazeOnce(seed, regime, attempt) {
   if (regime === 'B' && !(diamCells === 3 && goldCells === 0 && diamLen <= budget)) throw new Error('B constraints fail');
   if (regime === 'C' && !(goldCells === 3 && diamCells === 3 && goldLen <= budget && diamLen <= budget && twoBestSat > budget)) throw new Error('C constraints fail (corrected threshold)');
   if (regime === 'D' && !(goldCells === 0 && diamCells === 0)) throw new Error('D constraints fail');
+  if (regime === 'E' && !(goldCells === 0 && diamCells === 3 && diamLen <= budget)) throw new Error('E constraints fail');
+  if (regime === 'F' && !(diamCells === 0 && goldCells === 3 && goldLen <= budget)) throw new Error('F constraints fail');
   if (budget > 40 || budget < 18) throw new Error('budget out of range');
   return mz;
 }
