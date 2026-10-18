@@ -1,0 +1,441 @@
+// Base-policy crossover experiment (frozen protocol rev 3 in data/bb-vpo-design/base-regime-protocol.md).
+// Variant (a): a navigation task distribution where the best route strategy varies by problem.
+// Base = behavior cloning of a documented mixture of valid routes on TRAINING mazes only, including
+// chain contexts (later candidates conditioned on earlier candidates' coverage).
+// Arms: base (untouched clone), grpo-single (per-response scalar, one answer), vpo (chains, shared
+// Dirichlet draws). Same fixed deployment score w* = uniform everywhere. best@k uses fresh chains
+// and the FIRST k entries in chain order (paper Sec 4.3 style), never a sorted-pool shortcut.
+// Policy: small MLP over a documented map representation (full item/lava maps + position + flags),
+// so the problem context is available without any oracle regime label.
+//
+// Usage: node exp/vpo-base-regime.js frozen|smoke [outPath]
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const RLA = globalThis.RLA = globalThis.RLA || {};
+require(path.join(__dirname, '..', 'src', 'core', 'rng.js'));
+require(path.join(__dirname, '..', 'src', 'core', 'nn.js'));
+const MODE = process.argv[2] || 'frozen';
+const OUT = process.argv[3] || ('/tmp/vpo-br-' + MODE + '.json');
+
+const rngMake = RLA.rng.make;
+const N = 9, GOAL = [8, 8], GC = [8, 0], DC = [0, 8];
+const dist = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
+const dot = (w, v) => w.reduce((s, x, i) => s + x * v[i], 0);
+const WSTAR = [0.25, 0.25, 0.25, 0.25];
+// ---- pure production helpers (shared with exp/vpo-checks.js so the checker exercises THIS code)
+const setRewardMean = (vecs, draws) => draws.map((w) => Math.max(...vecs.map((v) => dot(w, v)))).reduce((s, x) => s + x, 0) / draws.length;
+const groupAdv = (vals) => { const m = vals.reduce((s, x) => s + x, 0) / vals.length; const sd = Math.sqrt(vals.reduce((s, x) => s + (x - m) * (x - m), 0) / vals.length); return vals.map((x) => (x - m) / (sd + 1e-6)); };
+const mixProb = (pa, eps, nA) => (1 - eps) * pa + eps / nA;             // the eps-soft sampler's probability of action a
+const mixIW = (pa, eps, nA) => (1 - eps) * pa / mixProb(pa, eps, nA);   // score weight of a mixture sample
+const REWARD_CONTRACT = process.env.VPO_CONTRACT || 'legacy';           // 'legacy' | 'paper' (paper: no exit => all-zero vector, App A.1)
+const rewardVec = (exit, gold, diam, lavaHit) => {
+  if (REWARD_CONTRACT === 'paper' && !exit) return [0, 0, 0, 0];
+  return [exit, Math.min(1, gold / 2), Math.min(1, diam / 2), 1 - lavaHit];
+};
+
+function bfs(mz, from) {
+  const D = Array.from({ length: N }, () => Array(N).fill(-1));
+  if (mz.lava.some((l) => l[0] === from[0] && l[1] === from[1])) return D;
+  D[from[0]][from[1]] = 0;
+  const q = [from];
+  while (q.length) {
+    const c = q.shift();
+    for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const r = c[0] + dr, cc = c[1] + dc;
+      if (r < 0 || r >= N || cc < 0 || cc >= N || D[r][cc] !== -1) continue;
+      if (mz.lava.some((l) => l[0] === r && l[1] === cc)) continue;
+      D[r][cc] = D[c[0]][c[1]] + 1; q.push([r, cc]);
+    }
+  }
+  return D;
+}
+const traceDist = (mz, from, to) => { const D = bfs(mz, from); return D[to[0]][to[1]] >= 0 ? D[to[0]][to[1]] : Infinity; };
+
+// ---- regime-parameterized generator (pockets off-corridor; blocked pockets fully enclosed by lava)
+const CORR = (() => { const cs = []; for (let i = 0; i < N; i++) { cs.push([i, 0]); cs.push([8, i]); cs.push([0, i]); cs.push([i, 8]); } return cs; })();
+const onCorr = (c) => CORR.some((q) => q[0] === c[0] && q[1] === c[1]);
+const GOLD_POOL = [[5, 2], [5, 3], [6, 2], [6, 3]];
+const DIAM_POOL = [[2, 5], [3, 6], [4, 6]];
+function makeMaze(seed) {
+  const regime = ['A', 'B', 'C', 'D'][(seed % 4)];
+  let lastErr = null;
+  for (let attempt = 0; attempt < 120; attempt++) {
+    try { return makeMazeOnce(seed, regime, attempt); } catch (e) { lastErr = e; }
+  }
+  throw new Error('no valid layout for seed ' + seed + ': ' + lastErr);
+}
+function makeMazeOnce(seed, regime, attempt) {
+  const rng = rngMake(seed * 131 + attempt * 7919 + 3);
+  const lava = [];
+  const tryLava = (c) => {
+    if (lava.some((q) => q[0] === c[0] && q[1] === c[1])) return false;
+    if (onCorr(c) || (c[0] === 0 && c[1] === 0) || (c[0] === GOAL[0] && c[1] === GOAL[1])) return false;
+    lava.push(c); return true;
+  };
+  if (regime !== 'D') for (let i = 2; i <= 4; i++) tryLava([i, 8 - i]); // anti-diagonal barrier
+  const pick = (pool, n) => { const p = pool.slice(); const out = []; while (out.length < n && p.length) out.push(p.splice(rng.int(p.length), 1)[0]); return out; };
+  const gold = pick(GOLD_POOL, 3);
+  const diam = regime === 'C' ? [[6, 4]].concat(pick(DIAM_POOL, 2)) : pick(DIAM_POOL, 3); // C: outlier diamond detour near the gold pocket
+  const mz = { lava, gold, diam, regime };
+  const enclose = (cells) => { // lava at every free neighbor; pockets never touch corridors by construction
+    for (const c of cells) for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const q = [c[0] + dr, c[1] + dc];
+      if (q[0] < 0 || q[0] >= N || q[1] < 0 || q[1] >= N) continue;
+      if (cells.some((z) => z[0] === q[0] && z[1] === q[1])) continue;
+      if (!lava.some((l) => l[0] === q[0] && l[1] === q[1]) && !tryLava(q)) return false;
+    }
+    return true;
+  };
+  if (regime === 'A' && !enclose(diam)) throw new Error('A enclosure failed');
+  if (regime === 'B' && !enclose(gold)) throw new Error('B enclosure failed');
+  if (regime === 'D') { if (!enclose(gold) || !enclose(diam)) throw new Error('D enclosure failed'); }
+  if (regime === 'D') { let extra = 2, gn = 0; while (extra > 0 && gn++ < 100) { const c = [rng.int(N), rng.int(N)]; if (tryLava(c)) extra--; } }
+  const d0 = bfs(mz, [0, 0]);
+  const routeLen = (cells) => {
+    const open = cells.filter((c) => d0[c[0]][c[1]] >= 0);
+    if (!open.length) return Infinity;
+    let cur = [0, 0], used = 0;
+    const rem = open.slice();
+    while (rem.length) {
+      rem.sort((a, b) => (d0[a[0]][a[1]] + dist(a, GOAL)) - (d0[b[0]][b[1]] + dist(b, GOAL)));
+      const nxt = rem.shift();
+      const seg = traceDist(mz, cur, nxt);
+      const dExit = traceDist(mz, nxt, GOAL);
+      if (seg === Infinity || dExit === Infinity) return Infinity;
+      used += seg; cur = nxt;
+    }
+    const last = traceDist(mz, cur, GOAL);
+    return last === Infinity ? Infinity : used + last;
+  };
+  const goldLen = routeLen(gold), diamLen = routeLen(diam);
+  const direct = traceDist(mz, [0, 0], GOAL);
+  const bothLen = goldLen < Infinity && diamLen < Infinity ? routeLen(mz.gold.concat(mz.diam)) : Infinity; // full both-clusters chain
+  const feasible = [goldLen, diamLen, direct].filter((x) => x < Infinity);
+  const base = Math.max(...feasible);
+  const budget = Math.min(base, 24) + 3; // slack 3 (amended rev 3): one pocket detour fits, both never do in C
+  Object.assign(mz, { goldLen, diamLen, bothLen, budget, direct });
+  const goldCells = mz.gold.filter((c) => d0[c[0]][c[1]] >= 0).length;
+  const diamCells = mz.diam.filter((c) => d0[c[0]][c[1]] >= 0).length;
+  if (direct === Infinity) throw new Error('exit unreachable');
+  if (regime === 'A' && !(goldCells === 3 && diamCells === 0 && goldLen <= budget)) throw new Error('A constraints fail');
+  if (regime === 'B' && !(diamCells === 3 && goldCells === 0 && diamLen <= budget)) throw new Error('B constraints fail');
+  if (regime === 'C' && !(goldCells === 3 && diamCells === 3 && goldLen <= budget && diamLen <= budget && bothLen > budget)) throw new Error('C constraints fail');
+  if (regime === 'D' && !(goldCells === 0 && diamCells === 0)) throw new Error('D constraints fail');
+  if (budget > 40 || budget < 18) throw new Error('budget out of range');
+  return mz;
+}
+
+// ---- documented planner: route families on TRAINING mazes only (BFS legs + nearest-neighbor pickup)
+function plan(mz) {
+  const routes = [];
+  const walkVec = (path) => {
+    let gold = 0, diam = 0, lavaHit = 0, exit = 0;
+    for (const [r, c] of path) {
+      if (mz.lava.some((l) => l[0] === r && l[1] === c)) { lavaHit = 1; break; }
+      if (mz.gold.some((q) => q[0] === r && q[1] === c)) gold++;
+      if (mz.diam.some((q) => q[0] === r && q[1] === c)) diam++;
+      if (r === GOAL[0] && c === GOAL[1]) { exit = 1; break; }
+    }
+    return [exit, Math.min(1, gold / 2), Math.min(1, diam / 2), 1 - lavaHit];
+  };
+  const trace = (D, from, to) => {
+    if (D[to[0]][to[1]] < 0) return null;
+    const p = []; let c = to.slice();
+    while (!(c[0] === from[0] && c[1] === from[1])) {
+      p.push(c); let best = null;
+      for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const r = c[0] + dr, cc = c[1] + dc; if (r < 0 || r >= N || cc < 0 || cc >= N) continue; if (D[r][cc] === D[c[0]][c[1]] - 1) { best = [r, cc]; break; } }
+      if (!best) return null; c = best;
+    }
+    p.push(from.slice());
+    return p.reverse();
+  };
+  const concat = (parts) => { const out = []; for (const p of parts) { if (!p) return null; for (const c of p) if (!out.length || out[out.length - 1][0] !== c[0] || out[out.length - 1][1] !== c[1]) out.push(c); } return out; };
+  const viaCells = (cells, start, used0) => {
+    const dStart = bfs(mz, start);
+    const rem = cells.filter((c) => dStart[c[0]][c[1]] >= 0);
+    const path = [start.slice()]; let cur = start.slice(), used = used0;
+    while (rem.length) {
+      rem.sort((a, b) => (dStart[a[0]][a[1]] + dist(a, GOAL)) - (dStart[b[0]][b[1]] + dist(b, GOAL)));
+      const nxt = rem.shift();
+      const seg = trace(bfs(mz, cur), cur, nxt);
+      const dExit = traceDist(mz, nxt, GOAL);
+      if (!seg || dExit === Infinity || used + (seg.length - 1) + dExit > mz.budget) break;
+      path.push(...seg.slice(1)); used += seg.length - 1; cur = nxt;
+    }
+    const seg = trace(bfs(mz, cur), cur, GOAL);
+    if (!seg) return null;
+    path.push(...seg.slice(1));
+    return path;
+  };
+  const d0 = bfs(mz, [0, 0]);
+  const reachGold = mz.gold.filter((c) => d0[c[0]][c[1]] >= 0);
+  const reachDiam = mz.diam.filter((c) => d0[c[0]][c[1]] >= 0);
+  const direct = trace(d0, [0, 0], GOAL);
+  if (direct) routes.push(direct);
+  if (reachGold.length) { const p = viaCells(reachGold, [0, 0], 0); if (p && p.length - 1 <= mz.budget) routes.push(p); }
+  if (reachDiam.length) { const p = viaCells(reachDiam, [0, 0], 0); if (p && p.length - 1 <= mz.budget) routes.push(p); }
+  if (reachGold.length && reachDiam.length) { // gold first, then the nearest reachable diamond on the way out
+    const g = viaCells(reachGold, [0, 0], 0);
+    if (g && g.length - 1 <= mz.budget) {
+      const cur = g[g.length - 1], used = g.length - 1;
+      const dCur = bfs(mz, cur);
+      const dets = reachDiam.map((c) => ({ c, d: dCur[c[0]][c[1]] >= 0 ? dCur[c[0]][c[1]] + traceDist(mz, c, GOAL) : Infinity })).sort((a, b) => a.d - b.d);
+      if (dets.length && dets[0].d < Infinity && used + dets[0].d <= mz.budget) {
+        const full = concat([g, trace(dCur, cur, dets[0].c), trace(bfs(mz, dets[0].c), dets[0].c, GOAL)]);
+        if (full && full.length - 1 <= mz.budget) routes.push(full);
+      }
+    }
+  }
+  const seen = new Set();
+  return routes.filter((p) => { const k = p.map((c) => c.join(',')).join('|'); if (seen.has(k)) return false; seen.add(k); return true; })
+    .map((p) => ({ path: p, vec: walkVec(p) }));
+}
+
+// ---- policy: MLP over a documented map representation (no oracle regime label)
+// features: [x/N, y/N, goldSeen, diamSeen, goldMap(81 in {0,1}), diamMap(81), lavaMap(81)] = 247 dims
+const FDIM = 4 + 81 * 3;
+function features(x, y, flags, mz) {
+  const v = new Float32Array(FDIM);
+  v[0] = x / (N - 1); v[1] = y / (N - 1); v[2] = flags[0]; v[3] = flags[1];
+  for (const c of mz.gold) v[4 + c[0] * N + c[1]] = 1;
+  for (const c of mz.diam) v[4 + 81 + c[0] * N + c[1]] = 1;
+  for (const c of mz.lava) v[4 + 162 + c[0] * N + c[1]] = 1;
+  return v;
+}
+function makeNet(seed) {
+  const rng = rngMake(seed);
+  const net = RLA.nn.mlp({ sizes: [FDIM, 16, 4], act: 'tanh', rng, outScale: 0.01 });
+  const opt = RLA.nn.adam(net, { lr: 0.003 });
+  const logits = (obs) => Array.from(net.forward(obs));
+  const probs = (obs) => {
+    const z = logits(obs); let m = -Infinity; for (const x of z) m = Math.max(m, x);
+    const e = z.map((x) => Math.exp(x - m)); const s = e.reduce((a, b) => a + b, 0);
+    return e.map((x) => x / s);
+  };
+  return { net, opt, logits, probs };
+}
+
+// one route: obs flags = (collected by earlier candidates OR by this route so far)
+function route(mz, pol, rng, explore, eps, flagsIn) {
+  let [r, c] = [0, 0];
+  let lavaHit = 0, exit = 0, ownGold = 0, ownDiam = 0;
+  const take = (x, y) => { if (mz.gold.some((q) => q[0] === x && q[1] === y)) ownGold++; if (mz.diam.some((q) => q[0] === x && q[1] === y)) ownDiam++; };
+  take(0, 0);
+  const steps = [];
+  for (let t = 0; t < mz.budget; t++) {
+    const goldSeen = flagsIn[0] || ownGold > 0, diamSeen = flagsIn[1] || ownDiam > 0;
+    const obs = features(r, c, [goldSeen ? 1 : 0, diamSeen ? 1 : 0], mz);
+    const p = pol.probs(obs);
+    let a;
+    if (!explore) { a = 0; for (let j = 1; j < 4; j++) if (p[j] > p[a]) a = j; }
+    else { if (rng.next() < eps) a = rng.int(4); else { let u = rng.next(), j = 0; for (; j < 3; j++) { u -= p[j]; if (u < 0) break; } a = j; } }
+    steps.push({ obs, a, p: Array.from(p) });
+    const nr = r + (a === 0 ? 1 : a === 2 ? -1 : 0), nc = c + (a === 1 ? 1 : a === 3 ? -1 : 0);
+    if (nr < 0 || nr >= N || nc < 0 || nc >= N) continue;
+    r = nr; c = nc; take(r, c);
+    if (mz.lava.some((l) => l[0] === r && l[1] === c)) { lavaHit = 1; break; }
+    if (r === GOAL[0] && c === GOAL[1]) { exit = 1; break; }
+  }
+  return { vec: rewardVec(exit, ownGold, ownDiam, lavaHit), steps, flagsEnd: [ownGold > 0 ? 1 : 0, ownDiam > 0 ? 1 : 0] };
+}
+function chain(mz, pol, rng, explore, eps, m) {
+  const out = []; let flags = [0, 0];
+  for (let j = 0; j < m; j++) { const rt = route(mz, pol, rng, explore, eps, flags); out.push(rt); flags = [Math.max(flags[0], rt.flagsEnd[0]), Math.max(flags[1], rt.flagsEnd[1])]; }
+  return out;
+}
+function dirichlet(rng, d) { const w = []; let s = 0; for (let i = 0; i < d; i++) { const e = -Math.log(1 - rng.next()); w.push(e); s += e; } return w.map((x) => x / s); }
+
+// ---- base: behavior cloning on the documented route mixture, INCLUDING chain contexts.
+// For every training maze the planner emits its route families; demos are generated for every
+// ordered pair (first route, second route) of distinct families plus the single-family routes, so
+// candidate contexts with flags (1,0), (0,1), (1,1) are covered by real demonstrated behavior.
+function buildBase(seed, trainMazes, bc) {
+  const pol = makeNet(seed * 7 + 1);
+  const demos = []; // {mz, path}
+  for (const mz of trainMazes) for (const r of plan(mz)) demos.push({ mz, path: r.path });
+  const data = []; // {obs, a}
+  const walk = (mz, path, flagsIn) => {
+    let [r, c] = [0, 0]; let ownGold = 0, ownDiam = 0;
+    const take = (x, y) => { if (mz.gold.some((q) => q[0] === x && q[1] === y)) ownGold++; if (mz.diam.some((q) => q[0] === x && q[1] === y)) ownDiam++; };
+    take(0, 0);
+    const seq = [];
+    for (let i = 1; i < path.length; i++) {
+      const goldSeen = flagsIn[0] || ownGold > 0, diamSeen = flagsIn[1] || ownDiam > 0;
+      seq.push({ obs: features(r, c, [goldSeen ? 1 : 0, diamSeen ? 1 : 0], mz), a: actionOf(path[i - 1], path[i]) });
+      const [nr, nc] = path[i]; r = nr; c = nc; take(r, c);
+      if (mz.lava.some((l) => l[0] === r && l[1] === c)) break;
+      if (r === GOAL[0] && c === GOAL[1]) break;
+    }
+    return { seq, flagsEnd: [ownGold > 0 ? 1 : 0, ownDiam > 0 ? 1 : 0] };
+  };
+  const actionOf = (a, b) => (b[0] === a[0] + 1 ? 0 : b[1] === a[1] + 1 ? 1 : b[0] === a[0] - 1 ? 2 : 3);
+  for (const { mz, path } of demos) {
+    const w1 = walk(mz, path, [0, 0]);
+    for (const s of w1.seq) data.push(s);
+    // chain context: a second candidate that starts after this route's coverage
+    if (w1.flagsEnd[0] || w1.flagsEnd[1]) {
+      const alt = plan(mz).find((r) => r.path !== path);
+      if (alt) { const w2 = walk(mz, alt.path, w1.flagsEnd); for (const s of w2.seq) data.push(s); }
+    }
+  }
+  for (let e = 0; e < bc.epochs; e++) {
+    // one gradient pass over all demo steps (cross-entropy on the demonstrated action)
+    const B = data.length;
+    const X = new Float32Array(B * FDIM); const A = new Int32Array(B);
+    data.forEach((d, i) => { X.set(d.obs, i * FDIM); A[i] = d.a; });
+    const Z = pol.net.forwardBatch(X, B);
+    const dZ = new Float32Array(B * 4);
+    let loss = 0;
+    for (let i = 0; i < B; i++) {
+      let m = -Infinity; for (let j = 0; j < 4; j++) m = Math.max(m, Z[i * 4 + j]);
+      const ex = []; let s = 0;
+      for (let j = 0; j < 4; j++) { ex.push(Math.exp(Z[i * 4 + j] - m)); s += ex[j]; }
+      for (let j = 0; j < 4; j++) ex[j] /= s;
+      loss -= Math.log(ex[A[i]] + 1e-12);
+      for (let j = 0; j < 4; j++) dZ[i * 4 + j] = (ex[j] - (j === A[i] ? 1 : 0)) / B;
+    }
+    pol.net.backwardBatch(dZ); pol.opt.step();
+    if (e === bc.epochs - 1) var bcLoss = loss / B;
+  }
+  return { pol, nDemo: data.length, bcLoss };
+}
+
+// ---- fine-tuning arms from the SAME base tensor
+function finetune(baseNet, seed, method, trainMazes, updates, lr, eps, m, K, G) {
+  const rng = rngMake(seed * 1000 + 17);
+  const net = RLA.nn.mlp({ sizes: [FDIM, 16, 4], act: 'tanh', rng: rngMake(1), outScale: 0 });
+  net.params.forEach((p, i) => p.set(baseNet.params[i])); // clone the exact base weights
+  const opt = RLA.nn.adam(net, { lr });
+  const probs = (obs) => { const z = Array.from(net.forward(obs)); let mx = -Infinity; for (const x of z) mx = Math.max(mx, x); const e = z.map((x) => Math.exp(x - mx)); const s = e.reduce((a, b) => a + b, 0); return e.map((x) => x / s); };
+  for (let u = 1; u <= updates; u++) {
+    const mz = trainMazes[u % trainMazes.length];
+    const draws = method === 'vpo' ? Array.from({ length: K }, () => dirichlet(rng, 4)) : null;
+    const group = [];
+    for (let g = 0; g < G; g++) {
+      if (method === 'grpo-single') {
+        const rt = route(mz, { probs }, rng, true, eps, [0, 0]);
+        group.push({ routes: [rt], R: setRewardMean([rt.vec], [WSTAR]) });
+      } else {
+        const routes = chain(mz, { probs }, rng, true, eps, m);
+        const vecs = routes.map((r) => r.vec);
+        if (method === 'vpo') group.push({ routes, R: setRewardMean(vecs, draws) });
+      }
+    }
+    // one batch gradient: REINFORCE log-prob gradient with the group-normalized whole-chain advantage
+    const ADVs = groupAdv(group.map((x) => x.R));
+    const S = [], A = [], ADV = [];
+    for (let gi = 0; gi < group.length; gi++) {
+      const adv = ADVs[gi];
+      for (const rt of group[gi].routes) for (const st of rt.steps) { S.push(st.obs); A.push(st.a); ADV.push(adv); }
+    }
+    const B = S.length;
+    const X = new Float32Array(B * FDIM); S.forEach((o, i) => X.set(o, i * FDIM));
+    const Z = net.forwardBatch(X, B);
+    const dZ = new Float32Array(B * 4);
+    for (let i = 0; i < B; i++) {
+      let m2 = -Infinity; for (let j = 0; j < 4; j++) m2 = Math.max(m2, Z[i * 4 + j]);
+      const ex = []; let s = 0;
+      for (let j = 0; j < 4; j++) { ex.push(Math.exp(Z[i * 4 + j] - m2)); s += ex[j]; }
+      for (let j = 0; j < 4; j++) ex[j] /= s;
+      // A5 validity fix (now via mixIW): the sampler is the eps-soft mixture, so the score of a
+      // mixture sample is (1-eps)*p(a)*(onehot(a)-p)/mu(a); pre-A5 the pure-softmax score
+      // mis-credited eps-random actions (research log validity fact 1).
+      const iw = mixIW(ex[A[i]], eps, 4);
+      for (let j = 0; j < 4; j++) dZ[i * 4 + j] = -ADV[i] * iw * ((j === A[i] ? 1 : 0) - ex[j]) / B;
+    }
+    net.backwardBatch(dZ); opt.step();
+  }
+  return { probs, net };
+}
+
+// ---- evaluation: fresh chains, FIRST k entries in chain order (paper Sec 4.3 style)
+function evaluate(pol, testMazes, seed, m) {
+  const rng = rngMake(seed * 7919 + 5);
+  const eps = EVAL_EPS, REPS = 30; // EVAL_EPS: frozen per attempt (A3: 0.05, all arms identically)
+  const ks = [1, 2, 4, 8, 16, 30];
+  const perProblem = [];
+  for (let pi = 0; pi < testMazes.length; pi++) {
+    const mz = testMazes[pi];
+    const sums = {}; ks.forEach((k) => sums[k] = 0);
+    let L1 = 0, np = 0, nRoutes = 0;
+    const lastPool = [];
+    for (let rep = 0; rep < REPS; rep++) {
+      const vecs = [];
+      if (pol.single) { for (let i = 0; i < 30; i++) vecs.push(route(mz, pol, rng, true, eps, [0, 0]).vec); }
+      else { const nChains = Math.ceil(30 / m); const got = []; for (let c2 = 0; c2 < nChains && got.length < 30; c2++) for (const rt of chain(mz, pol, rng, true, eps, m)) { if (got.length < 30) got.push(rt.vec); } vecs.push(...got); }
+      for (const k of ks) { let mx = -1; for (let i = 0; i < k; i++) if (dot(WSTAR, vecs[i]) > mx) mx = dot(WSTAR, vecs[i]); sums[k] += mx; }
+      for (let i = 0; i < vecs.length; i++) for (let j = i + 1; j < vecs.length; j++) { let d = 0; for (let q = 0; q < 4; q++) d += Math.abs(vecs[i][q] - vecs[j][q]); L1 += d; np++; }
+      if (rep === REPS - 1) lastPool.push(...vecs);
+      nRoutes += vecs.length;
+    }
+    const best = {}; for (const k of ks) best[k] = sums[k] / REPS;
+    perProblem.push({ problem: pi, regime: mz.regime, best, spread: L1 / np });
+  }
+  const agg = {}; ks.forEach((k) => agg[k] = 0); let sp = 0;
+  for (const p of perProblem) { for (const k of ks) agg[k] += p.best[k]; sp += p.spread; }
+  for (const k of ks) agg[k] /= testMazes.length;
+  return { perProblem, mean: agg, spread: sp / testMazes.length };
+}
+
+// ---- protocol (rev 3)
+const EVAL_EPS = parseFloat(process.env.VPO_EVAL_EPS || '0.15');
+const VPO_K = parseInt(process.env.VPO_K || '8', 10);
+const CKPT_DIR = process.env.VPO_CKPT || null;
+const PROTO = {
+  mode: MODE,
+  seeds: MODE === 'smoke' ? [2] : [1, 3, 5, 7, 9],
+  updates: 3,
+  trainSeeds: Array.from({ length: 96 }, (_, i) => 1000 + i),
+  testSeeds: Array.from({ length: 8 }, (_, i) => 2000 + i),
+  m: 3, K: VPO_K, G_single: 12, G_chain: 4,
+  lr: 0.003, lrNote: 'Adam lr for the MLP policy (nn.adam default family value used by the pg learner)',
+  eps: 0.15,
+  bc: { lr: 0.01, epochs: 80 },
+  net: { sizes: [FDIM, 16, 4], act: 'tanh' },
+  kValues: [1, 2, 4, 8, 16, 30],
+  evalReps: 30,
+  evalEps: EVAL_EPS,
+  arms: ['base', 'grpo-single', 'vpo'],
+  budgetNote: 'budget = min(max feasible single-family route, 24) + 3; both-pockets union chain excluded in C by check',
+  rewardContract: REWARD_CONTRACT,
+};
+
+if (require.main !== module) { Object.assign(module.exports, { setRewardMean, groupAdv, mixProb, mixIW, rewardVec, WSTAR, dot, makeMaze, chain, route, features, FDIM, dirichlet, PROTO, buildBase, finetune, evaluate }); }
+else {
+const trainMazes = PROTO.trainSeeds.map(makeMaze);
+const testMazes = PROTO.testSeeds.map(makeMaze);
+const out = { protocol: PROTO, mazes: { train: trainMazes.map((m) => ({ regime: m.regime, budget: m.budget })), test: testMazes.map((m) => ({ regime: m.regime, budget: m.budget })) }, runs: [] };
+
+const T_CAP = 30 * 60 * 1000, T0 = Date.now();
+for (const seed of PROTO.seeds) {
+  if (Date.now() - T0 > T_CAP) { out.aborted = 'wall-time cap 30 min exceeded before seed ' + seed; console.error(out.aborted); fs.writeFileSync(OUT, JSON.stringify(out)); process.exit(2); }
+  const t0 = Date.now();
+  const b = buildBase(seed, trainMazes, PROTO.bc);
+  const baseTh = b.pol.net.params;
+  if (CKPT_DIR) { fs.mkdirSync(CKPT_DIR, { recursive: true }); fs.writeFileSync(CKPT_DIR + '/base-' + seed + '.json', JSON.stringify(baseTh.map((p) => Array.from(p)))); }
+  const mkEval = (netParams, single) => {
+    const net = RLA.nn.mlp({ sizes: [FDIM, 16, 4], act: 'tanh', rng: rngMake(1), outScale: 0 });
+    net.params.forEach((p, i) => p.set(netParams[i]));
+    const probs = (obs) => { const z = Array.from(net.forward(obs)); let mx = -Infinity; for (const x of z) mx = Math.max(mx, x); const e = z.map((x) => Math.exp(x - mx)); const s = e.reduce((a, b2) => a + b2, 0); return e.map((x) => x / s); };
+    return single ? { probs, single: true } : { probs };
+  };
+  const arms = { base: mkEval(baseTh, false) };
+  arms['grpo-single'] = (() => { const f = finetune(b.pol.net, seed, 'grpo-single', trainMazes, PROTO.updates, PROTO.lr, PROTO.eps, 1, PROTO.K, PROTO.G_single); if (CKPT_DIR) fs.writeFileSync(CKPT_DIR + '/grpo-' + seed + '.json', JSON.stringify(f.net.params.map((p) => Array.from(p)))); return { probs: f.probs, single: true }; })();
+  arms['vpo'] = (() => { const f = finetune(b.pol.net, seed, 'vpo', trainMazes, PROTO.updates, PROTO.lr, PROTO.eps, PROTO.m, PROTO.K, PROTO.G_chain); if (CKPT_DIR) fs.writeFileSync(CKPT_DIR + '/vpo-' + seed + '.json', JSON.stringify(f.net.params.map((p) => Array.from(p)))); return { probs: f.probs }; })();
+  const res = { seed, ms: Date.now() - t0, bc: { nDemo: b.nDemo, bcLoss: b.bcLoss }, arms: {} };
+  for (const name of PROTO.arms) {
+    const e = evaluate(arms[name], testMazes, seed, PROTO.m);
+    res.arms[name] = { mean: e.mean, spread: e.spread, perProblem: e.perProblem };
+  }
+  out.runs.push(res);
+  console.error('seed', seed, 'done in', ((Date.now() - t0) / 60000).toFixed(1), 'min');
+  fs.writeFileSync(OUT, JSON.stringify(out));
+}
+fs.writeFileSync(OUT, JSON.stringify(out));
+console.log('wrote', OUT);
+for (const name of PROTO.arms) {
+  const line = (k) => out.runs.map((r) => r.arms[name].mean[k].toFixed(3)).join(',');
+  console.log(name, 'best1', line(1), 'best30', line(30), 'spread', out.runs.map((r) => r.arms[name].spread.toFixed(2)).join(','));
+}
+}
