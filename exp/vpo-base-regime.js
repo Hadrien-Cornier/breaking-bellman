@@ -327,7 +327,7 @@ function finetune(baseNet, seed, method, trainMazes, updates, lr, eps, m, K, G) 
     const S = [], A = [], ADV = [];
     for (let gi = 0; gi < group.length; gi++) {
       const adv = ADVs[gi];
-      for (const rt of ep.routes) for (const st of rt.steps) { S.push(st.obs); A.push(st.a); ADV.push(adv); }
+      for (const rt of group[gi].routes) for (const st of rt.steps) { S.push(st.obs); A.push(st.a); ADV.push(adv); }
     }
     const B = S.length;
     const X = new Float32Array(B * FDIM); S.forEach((o, i) => X.set(o, i * FDIM));
