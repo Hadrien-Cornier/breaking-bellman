@@ -370,25 +370,27 @@ function evaluate(pol, testMazes, seed, m) {
 const PROTO = {
   mode: MODE,
   seeds: MODE === 'smoke' ? [2] : [1, 3, 5, 7, 9],
-  updates: MODE === 'smoke' ? 300 : 3000,
+  updates: MODE === 'smoke' ? 300 : 12000,
   trainSeeds: Array.from({ length: 16 }, (_, i) => 1000 + i),
   testSeeds: Array.from({ length: 8 }, (_, i) => 2000 + i),
   m: 3, K: 8, G_single: 12, G_chain: 4,
   lr: 0.003, lrNote: 'Adam lr for the MLP policy (nn.adam default family value used by the pg learner)',
   eps: 0.15,
-  bc: { lr: 0.003, epochs: 30 },
+  bc: { lr: 0.01, epochs: 80 },
   net: { sizes: [FDIM, 16, 4], act: 'tanh' },
   kValues: [1, 2, 4, 8, 16, 30],
   evalReps: 30,
   arms: ['base', 'grpo-single', 'vpo'],
-  budgetNote: 'budget = min(max feasible single-family route, 24) + 6; both-pockets route excluded in C by check',
+  budgetNote: 'budget = min(max feasible single-family route, 24) + 3; both-pockets union chain excluded in C by check',
 };
 
 const trainMazes = PROTO.trainSeeds.map(makeMaze);
 const testMazes = PROTO.testSeeds.map(makeMaze);
 const out = { protocol: PROTO, mazes: { train: trainMazes.map((m) => ({ regime: m.regime, budget: m.budget })), test: testMazes.map((m) => ({ regime: m.regime, budget: m.budget })) }, runs: [] };
 
+const T_CAP = 30 * 60 * 1000, T0 = Date.now();
 for (const seed of PROTO.seeds) {
+  if (Date.now() - T0 > T_CAP) { out.aborted = 'wall-time cap 30 min exceeded before seed ' + seed; console.error(out.aborted); fs.writeFileSync(OUT, JSON.stringify(out)); process.exit(2); }
   const t0 = Date.now();
   const b = buildBase(seed, trainMazes, PROTO.bc);
   const baseTh = b.pol.net.params;
