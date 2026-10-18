@@ -334,7 +334,7 @@ function finetune(baseNet, seed, method, trainMazes, updates, lr, eps, m, K, G) 
     }
     net.backwardBatch(dZ); opt.step();
   }
-  return { probs };
+  return { probs, net };
 }
 
 // ---- evaluation: fresh chains, FIRST k entries in chain order (paper Sec 4.3 style)
@@ -368,13 +368,15 @@ function evaluate(pol, testMazes, seed, m) {
 
 // ---- protocol (rev 3)
 const EVAL_EPS = parseFloat(process.env.VPO_EVAL_EPS || '0.15');
+const VPO_K = parseInt(process.env.VPO_K || '8', 10);
+const CKPT_DIR = process.env.VPO_CKPT || null;
 const PROTO = {
   mode: MODE,
   seeds: MODE === 'smoke' ? [2] : [1, 3, 5, 7, 9],
   updates: MODE === 'smoke' ? 300 : 12000,
   trainSeeds: Array.from({ length: 16 }, (_, i) => 1000 + i),
   testSeeds: Array.from({ length: 8 }, (_, i) => 2000 + i),
-  m: 3, K: 8, G_single: 12, G_chain: 4,
+  m: 3, K: VPO_K, G_single: 12, G_chain: 4,
   lr: 0.003, lrNote: 'Adam lr for the MLP policy (nn.adam default family value used by the pg learner)',
   eps: 0.15,
   bc: { lr: 0.01, epochs: 80 },
@@ -396,6 +398,7 @@ for (const seed of PROTO.seeds) {
   const t0 = Date.now();
   const b = buildBase(seed, trainMazes, PROTO.bc);
   const baseTh = b.pol.net.params;
+  if (CKPT_DIR) { fs.mkdirSync(CKPT_DIR, { recursive: true }); fs.writeFileSync(CKPT_DIR + '/base-' + seed + '.json', JSON.stringify(baseTh.map((p) => Array.from(p)))); }
   const mkEval = (netParams, single) => {
     const net = RLA.nn.mlp({ sizes: [FDIM, 16, 4], act: 'tanh', rng: rngMake(1), outScale: 0 });
     net.params.forEach((p, i) => p.set(netParams[i]));
@@ -403,8 +406,8 @@ for (const seed of PROTO.seeds) {
     return single ? { probs, single: true } : { probs };
   };
   const arms = { base: mkEval(baseTh, false) };
-  arms['grpo-single'] = (() => { const f = finetune(b.pol.net, seed, 'grpo-single', trainMazes, PROTO.updates, PROTO.lr, PROTO.eps, 1, PROTO.K, PROTO.G_single); return { probs: f.probs, single: true }; })();
-  arms['vpo'] = (() => { const f = finetune(b.pol.net, seed, 'vpo', trainMazes, PROTO.updates, PROTO.lr, PROTO.eps, PROTO.m, PROTO.K, PROTO.G_chain); return { probs: f.probs }; })();
+  arms['grpo-single'] = (() => { const f = finetune(b.pol.net, seed, 'grpo-single', trainMazes, PROTO.updates, PROTO.lr, PROTO.eps, 1, PROTO.K, PROTO.G_single); if (CKPT_DIR) fs.writeFileSync(CKPT_DIR + '/grpo-' + seed + '.json', JSON.stringify(f.net.params.map((p) => Array.from(p)))); return { probs: f.probs, single: true }; })();
+  arms['vpo'] = (() => { const f = finetune(b.pol.net, seed, 'vpo', trainMazes, PROTO.updates, PROTO.lr, PROTO.eps, PROTO.m, PROTO.K, PROTO.G_chain); if (CKPT_DIR) fs.writeFileSync(CKPT_DIR + '/vpo-' + seed + '.json', JSON.stringify(f.net.params.map((p) => Array.from(p)))); return { probs: f.probs }; })();
   const res = { seed, ms: Date.now() - t0, bc: { nDemo: b.nDemo, bcLoss: b.bcLoss }, arms: {} };
   for (const name of PROTO.arms) {
     const e = evaluate(arms[name], testMazes, seed, PROTO.m);
