@@ -365,10 +365,13 @@ function buildBase(seed, trainMazes, bc) {
   for (const { mz, path } of demos) {
     const w1 = walk(mz, path, [0, 0]);
     for (const s of w1.seq) data.push(s);
-    // chain context: a second candidate that starts after this route's coverage
+    // A12 named change: chain-context demos for EVERY distinct alternative route (all ordered pairs),
+    // not just the first other family, so flags (1,0), (0,1), (1,1) contexts are fully covered.
     if (w1.flagsEnd[0] || w1.flagsEnd[1]) {
-      const alt = plan(mz).find((r) => r.path !== path);
-      if (alt) { const w2 = walk(mz, alt.path, w1.flagsEnd); for (const s of w2.seq) data.push(s); }
+      for (const alt of demos.filter((d) => d.mz === mz && d.path !== path)) {
+        const w2 = walk(mz, alt.path, w1.flagsEnd);
+        for (const s of w2.seq) data.push(s);
+      }
     }
   }
   for (let e = 0; e < bc.epochs; e++) {
@@ -483,7 +486,7 @@ const PROTO = {
   m: 3, K: VPO_K, G_single: 12, G_chain: 4,
   lr: 0.003, lrNote: 'Adam lr for the MLP policy (nn.adam default family value used by the pg learner)',
   eps: 0.15,
-  bc: { lr: 0.01, epochs: 80 },
+  bc: { lr: 0.01, epochs: 400 }, // A12 named change: BC epochs 80 -> 400 (stronger sampled base)
   net: { sizes: [FDIM, 16, 4], act: 'tanh' },
   kValues: [1, 2, 4, 8, 16, 30],
   evalReps: 30,
