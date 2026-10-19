@@ -109,7 +109,7 @@ function makeMazeOnce(seed, regime, attempt) {
     if (onCorr(c) || (c[0] === 0 && c[1] === 0) || (c[0] === GOAL[0] && c[1] === GOAL[1])) return false;
     lava.push(c); return true;
   };
-  if (regime === 'A' || regime === 'B' || regime === 'C') for (let i = 2; i <= 4; i++) tryLava([i, 8 - i]); // anti-diagonal barrier (E/F: none)
+  if (regime !== 'D') for (let i = 2; i <= 4; i++) tryLava([i, 8 - i]); // anti-diagonal barrier: A/B/C and the A22 G/H conflict tasks (self-mirror cells)
   const pick = (pool, n) => { const p = pool.slice(); const out = []; while (out.length < n && p.length) out.push(p.splice(rng.int(p.length), 1)[0]); return out; };
   // H is a ROLE SWAP of G (not a cell mirror): the diamond pool takes G's start-side gold positions,
   // the gold pool takes G's far-side diamond positions, and the outlier GOLD sits at [6,4] - adjacent
