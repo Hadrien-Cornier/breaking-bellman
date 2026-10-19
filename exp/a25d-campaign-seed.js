@@ -32,7 +32,10 @@ const writePartial = (interrupted) => {
   const tmp = PARTIAL + '.tmp-' + process.pid;
   fs.writeFileSync(tmp, body); fs.renameSync(tmp, PARTIAL);
 };
-process.on('SIGTERM', () => { ap({ stage: 'sigterm', seedRemainingMs: left() }); writePartial(true); process.exit(143); });
+// NOTE (per 180): a SIGTERM during a synchronous finetune CANNOT reliably run this handler; the
+// preserved evidence on a kill is therefore the LAST PRE-STAGE partial (written before the
+// interrupted stage), never claimed as a guaranteed post-stage flush. Driver escalates to SIGKILL.
+process.on('SIGTERM', () => { ap({ stage: 'sigterm-best-effort', seedRemainingMs: left() }); try { writePartial(true); } catch (e) {} process.exit(143); });
 const mark = (name, extra) => { const s = Object.assign({ stage: name, atMs: Date.now() - t0 }, extra); stages.push(s); ap(s); writePartial(false); return s; };
 const timeGuard = (stage) => { if (left() <= 0) { ap({ stage: 'seed-cap-hit', before: stage }); writePartial(false); process.exit(2); } };
 
@@ -48,7 +51,13 @@ mark('maps', { train: train.length, test: test.length, scannedFail: sf });
 // finite-menu reference tops per test problem (established definition; NOT a global-optimum claim)
 timeGuard('menu');
 const mT0 = Date.now();
-const menuTops = test.map((mz) => { const p = A25.plan(mz); return p ? Math.max(0, require(__dirname + '/vpo-a25.js').WSTAR.reduce((s2, w, i) => s2 + w * A25.replayVec(mz, p)[i], 0)) : null; });
+// finite-menu reference tops per test problem (established definition; NOT a global-optimum claim).
+// plan() enumerates ALL orderings of reachable golds/diamonds (BFS-shortest legs) and returns the
+// ARGMAX route of each family (gold-only, diam-only, hybrid); the menu top = MAX dot(WSTAR, vec)
+// over those returned routes = the actual maximum uniform score over the frozen finite menu,
+// not one BC planner route (per 180 point 5).
+const dotW = (v) => A25.WSTAR.reduce((s2, w, i) => s2 + w * v[i], 0);
+const menuTops = test.map((mz) => { const rts = A25.plan(mz); if (!rts || !rts.length) return null; return Math.max(...rts.map((p) => dotW(A25.replayVec(mz, p)))); });
 mark('menu-tops', { wallMs: Date.now() - mT0, nullCount: menuTops.filter((x) => x === null).length });
 state.menuTops = menuTops;
 
