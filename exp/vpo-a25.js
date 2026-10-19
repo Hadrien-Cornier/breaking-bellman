@@ -126,7 +126,10 @@ function features(x, y, st, mz) {
   for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) { let g = 0, d2 = 0, l = 0; if (mz.gold.some((q) => q[0] === r && q[1] === c)) g = 1; if (mz.diam.some((q) => q[0] === r && q[1] === c)) d2 = 1; if (mz.lava.some((q) => q[0] === r && q[1] === c)) l = 1; v[i++] = g; v[i++] = d2; v[i++] = l; }
   for (const c of mz.gold) v[i + mz.gold.indexOf(c)] = st.got.has(c.join(',')) ? 1 : 0; i += FIXED_ITEMS;
   for (const c of mz.diam) v[i + mz.diam.indexOf(c)] = st.got.has(c.join(',')) ? 1 : 0; i += FIXED_ITEMS;
-  for (const cell of st.cover) v[i + cell[0] * N + cell[1]] = 1; i += 81;
+  for (const cell of st.cover) { // canonical string representation 'r,c' (also accepts [r,c])
+    const parts = Array.isArray(cell) ? cell : String(cell).split(',');
+    v[i + Number(parts[0]) * N + Number(parts[1])] = 1; }
+  i += 81;
   return v;
 }
 // ---- route: walkable counted lava, distinct-cell collection, all-zero on no-exit ----
@@ -140,6 +143,7 @@ function route(mz, pol, rng, explore, eps, coverIn) {
   take(r, c);
   if (mz.lava.some((q) => q[0] === r && q[1] === c)) lavaStepped.add(r + ',' + c);
   for (let t = 0; t < mz.budget; t++) {
+    remaining = mz.budget - t; // every attempt (incl. blocked/wall/border) costs exactly one step
     const obs = features(r, c, { remaining, got, cover }, mz);
     const p = pol.probs(obs);
     let a;
@@ -149,10 +153,10 @@ function route(mz, pol, rng, explore, eps, coverIn) {
     const nr = r + (a === 0 ? 1 : a === 2 ? -1 : 0), nc = c + (a === 1 ? 1 : a === 3 ? -1 : 0);
     if (nr < 0 || nr >= N || nc < 0 || nc >= N) continue; // walls/borders block (stay)
     if (mz.grid[nr][nc] === WALL) continue; // wall cell: stay in place
-    r = nr; c = nc; remaining--;
+    r = nr; c = nc;
     take(r, c);
     if (mz.lava.some((q) => q[0] === r && q[1] === c)) lavaStepped.add(r + ',' + c); // WALKABLE: no break
-    if (r === mz.E[0] && c === mz.E[1]) { remaining--; return { vec: [1, Math.min(1, mz.gold.filter((q) => got.has(q.join(','))).length / mz.nGold), Math.min(1, mz.diam.filter((q) => got.has(q.join(','))).length / mz.nDiam), 1 - lavaStepped.size / mz.nLava], steps, cover: [...cover] }; }
+    if (r === mz.E[0] && c === mz.E[1]) { return { vec: [1, Math.min(1, mz.gold.filter((q) => got.has(q.join(','))).length / mz.nGold), Math.min(1, mz.diam.filter((q) => got.has(q.join(','))).length / mz.nDiam), 1 - lavaStepped.size / mz.nLava], steps, cover: [...cover] }; }
   }
   return { vec: [0, 0, 0, 0], steps, cover: [...cover] }; // paper contract: no exit => all-zero
 }
@@ -259,7 +263,7 @@ function buildBase(seed, trainMazes) {
         if (mz.gold.some((q) => q.join(',') === k)) got.add(k);
         if (mz.diam.some((q) => q.join(',') === k)) got.add(k);
         if (mz.lava.some((q) => q.join(',') === k)) lavaStepped.add(k);
-        if (i < acts.length) { S.push(features(r, c, { remaining, got, cover }, mz)); A.push(acts[i]); remaining--; }
+        if (i < acts.length) { S.push(features(r, c, { remaining: mz.budget - i, got, cover }, mz)); A.push(acts[i]); }
       }
       if (!S.length) continue;
       const B = S.length;
@@ -277,7 +281,10 @@ function buildBase(seed, trainMazes) {
   }
   return { probs, net, nDemo: data.length };
 }
-function coverOf(mz, rt) { return rt.cover || []; }
+function coverOf(mz, rt) { // canonical coverage from a route object OR a raw planner path (array)
+  if (rt && rt.cover) return rt.cover;
+  if (Array.isArray(rt)) return rt.map((c) => Array.isArray(c) ? c.join(',') : String(c));
+  return []; }
 function finetune(baseNet, baseRef, seed, method, trainMazes, updates, lr, eps, m, K, G) {
   const rng = rngMake(seed * 1000 + 17);
   const net = RLA.nn.mlp({ sizes: [FDIM, HID, 4], act: 'tanh', rng: rngMake(1), outScale: 0 });
@@ -336,7 +343,7 @@ function evaluate(pol, testMazes, seed, m, single) {
 }
 // ---- frozen protocol ----
 const UPDATES = MODE === 'smoke' ? 60 : 12000;
-const PROTO = { mode: MODE, updates: UPDATES, discoverySeeds: [2, 4, 6, 8, 10], confirmationSeeds: [31, 33, 35, 37, 39, 41, 43, 45, 47, 49], trainMapSeeds: 'first 16 survivors from 42', testMapSeeds: 'first 32 survivors from 4242', m: 3, K: 8, G_single: 12, G_chain: 4, lr: 0.001, eps: 0.05, evalEps: 0, evalReps: 6, kValues: KVALUES, clip: 0.2, dualClip: 3.0, kl: 1e-3, entropyBonus: 0, contract: 'paper-appA1-walkable-lava', approximations: ['MLP vs LLM', 'coverage-mask context vs full text', '16/32 maps vs 1000/100', 'AdamW-family lr 1e-3 vs paper 1e-6', 'MultiRLVR mean aggregation = our adaptation'] };
+const PROTO = { mode: MODE, updates: UPDATES, discoverySeeds: [2, 4, 6, 8, 10], confirmationSeeds: [31, 33, 35, 37, 39, 41, 43, 45, 47, 49], trainMapSeeds: 'first 16 survivors from 42', testMapSeeds: 'first 32 survivors from 4242', m: 3, K: 8, G_single: 12, G_chain: 4, lr: 0.001, eps: 0.05, evalEps: 0, evalReps: 6, kValues: KVALUES, clip: 0.2, dualClip: 3.0, kl: 1e-3, entropyBonus: 0, contract: 'paper-appA1-walkable-lava', approximations: ['MLP vs LLM', 'coverage-mask context vs full text', '16/32 maps vs 1000/100', 'Adam lr 1e-3 (no weight decay) vs paper AdamW 1e-6', 'MultiRLVR mean aggregation = our adaptation'] };
 function buildMapSplits() {
   const train = []; for (let s = 42; train.length < 16 && s < 42 + 400; s++) { try { train.push(makeMaze(s)); } catch (e) {} }
   const test = []; for (let s = 4242; test.length < 32 && s < 4242 + 800; s++) { try { test.push(makeMaze(s)); } catch (e) {} }
@@ -362,5 +369,5 @@ async function main() {
   fs.writeFileSync(OUT, JSON.stringify({ protocol: PROTO, arms }, null, 1));
   console.log('wrote', OUT);
 }
-if (require.main !== module) { module.exports = { makeMaze, features, route, chain, plan, replayVec, finetune, evaluate, buildMapSplits, setRewardMean, groupAdv, dirichlet, dot, WSTAR, FDIM, PROTO, ppoKLdZ, WALL, EMPTY }; }
+if (require.main !== module) { module.exports = { makeMaze, features, route, chain, plan, replayVec, finetune, evaluate, buildMapSplits, setRewardMean, groupAdv, dirichlet, dot, WSTAR, FDIM, PROTO, ppoKLdZ, WALL, EMPTY, coverOf }; }
 else main().catch((e) => { console.error('A25 FAIL', e); process.exit(1); });
