@@ -401,5 +401,5 @@ async function main() {
   fs.writeFileSync(OUT, JSON.stringify({ protocol: effective, arms }, null, 1));
   console.log('wrote', OUT);
 }
-if (require.main !== module) { module.exports = { makeMaze, features, route, chain, plan, replayVec, finetune, evaluate, buildMapSplits, setRewardMean, groupAdv, dirichlet, dot, WSTAR, FDIM, PROTO, ppoKLdZ, WALL, EMPTY, coverOf }; }
+if (require.main !== module) { module.exports = { makeMaze, features, route, chain, plan, replayVec, finetune, evaluate, buildMapSplits, setRewardMean, groupAdv, dirichlet, dot, WSTAR, FDIM, PROTO, ppoKLdZ, WALL, EMPTY, coverOf, buildBase }; }
 else main().catch((e) => { console.error('A25 FAIL', e); process.exit(1); });
