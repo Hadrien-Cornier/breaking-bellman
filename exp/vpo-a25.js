@@ -136,7 +136,7 @@ function features(x, y, st, mz) {
   return v;
 }
 // ---- route: walkable counted lava, distinct-cell collection, all-zero on no-exit ----
-function route(mz, pol, rng, explore, eps, coverIn) {
+function route(mz, pol, rng, explore, eps, coverIn, feat = features) {
   let [r, c] = mz.S.slice();
   const got = new Set(), lavaStepped = new Set();
   const steps = [];
@@ -147,7 +147,7 @@ function route(mz, pol, rng, explore, eps, coverIn) {
   if (mz.lava.some((q) => q[0] === r && q[1] === c)) lavaStepped.add(r + ',' + c);
   for (let t = 0; t < mz.budget; t++) {
     remaining = mz.budget - t; // every attempt (incl. blocked/wall/border) costs exactly one step
-    const obs = features(r, c, { remaining, got, cover }, mz);
+    const obs = feat(r, c, { remaining, got, cover }, mz);
     const p = pol.probs(obs);
     let a;
     if (!explore) { a = 0; for (let j = 1; j < 4; j++) if (p[j] > p[a]) a = j; }
@@ -163,11 +163,15 @@ function route(mz, pol, rng, explore, eps, coverIn) {
   }
   return { vec: [0, 0, 0, 0], steps, cover: [...cover] }; // paper contract: no exit => all-zero
 }
-function chain(mz, pol, rng, explore, eps, m) {
+function chain(mz, pol, rng, explore, eps, m, feat = features) {
   const out = []; let cover = [];
-  for (let j = 0; j < m; j++) { const rt = route(mz, pol, rng, explore, eps, cover); out.push(rt); cover = rt.cover; }
+  for (let j = 0; j < m; j++) { const rt = route(mz, pol, rng, explore, eps, cover, feat); out.push(rt); cover = rt.cover; }
   return out;
 }
+// feature-parameterized factories (A25c transport-only; no algorithm change)
+const routeWithFeatures = (feat) => (mz, pol, rng, explore, eps, coverIn) => route(mz, pol, rng, explore, eps, coverIn, feat);
+const buildBaseWithFeatures = (feat, fdim) => (seed, trainMazes) => buildBase(seed, trainMazes, feat, fdim);
+const chainWith = (routeF) => (mz, pol, rng, explore, eps, m) => { const out = []; let cover = []; for (let j = 0; j < m; j++) { const rt = routeF(mz, pol, rng, explore, eps, cover); out.push(rt); cover = rt.cover; } return out; };
 // ---- BC base: documented planner routes on the A25 maze ----
 function plan(mz) {
   const orders = (a) => a.length <= 1 ? [a] : a.flatMap((x, i) => orders([...a.slice(0, i), ...a.slice(i + 1)]).map((r) => [x, ...r]));
@@ -239,14 +243,14 @@ function ppoKLdZ(Zrow, oldP, action, adv, refP, B) {
 
 
 const HID = 64;
-function makeNet(seed) {
+function makeNet(seed, fdim = FDIM) {
   const rng = rngMake(seed);
-  const net = RLA.nn.mlp({ sizes: [FDIM, HID, 4], act: 'tanh', rng, outScale: 0.01 });
+  const net = RLA.nn.mlp({ sizes: [fdim, HID, 4], act: 'tanh', rng, outScale: 0.01 });
   const opt = RLA.nn.adam(net, { lr: 0.001, clipNorm: 1.0 }); // Adam (NO weight decay; not AdamW)
   return { net, opt };
 }
-function buildBase(seed, trainMazes) {
-  const { net, opt } = makeNet(seed);
+function buildBase(seed, trainMazes, feat = features, fdim = FDIM) {
+  const { net, opt } = makeNet(seed, fdim);
   const probs = (obs) => { const z = Array.from(net.forward(obs)); let mx = -Infinity; for (const x of z) mx = Math.max(mx, x); const e = z.map((x) => Math.exp(x - mx)); const s = e.reduce((a, b) => a + b, 0); return e.map((x) => x / s); };
   const data = [];
   for (const mz of trainMazes) {
@@ -254,7 +258,7 @@ function buildBase(seed, trainMazes) {
     for (let i = 0; i < rts.length; i++) { data.push({ mz, path: rts[i], cover: [] }); for (let j = 0; j < rts.length; j++) if (i !== j) data.push({ mz, path: rts[j], cover: coverOf(mz, rts[i]) }); }
   }
   const EPOCHS = 8;
-  const lossOf = () => { let L = 0, n = 0; for (const d0 of data) { const mz = d0.mz, p0 = d0.path; const acts = []; for (let i = 0; i + 1 < p0.length; i++) { const a = p0[i], b2 = p0[i + 1]; acts.push(b2[0] === a[0] + 1 ? 0 : b2[1] === a[1] + 1 ? 1 : b2[0] === a[0] - 1 ? 2 : 3); } const got = new Set(), cover = new Set(d0.cover); let remaining = mz.budget; for (let i = 0; i < p0.length && i < acts.length; i++) { const [r, c] = p0[i]; const k = r + ',' + c; cover.add(k); if (mz.gold.some((q) => q.join(',') === k)) got.add(k); if (mz.diam.some((q) => q.join(',') === k)) got.add(k); const z = Array.from(net.forward(features(r, c, { remaining: mz.budget - i, got, cover }, mz))); let mx = -Infinity; for (const x of z) mx = Math.max(mx, x); const ex = z.map((x) => Math.exp(x - mx)); const sm = ex.reduce((a, b2) => a + b2, 0); L += -Math.log(ex[acts[i]] / sm + 1e-12); n++; remaining--; } } return L / Math.max(1, n); };
+  const lossOf = () => { let L = 0, n = 0; for (const d0 of data) { const mz = d0.mz, p0 = d0.path; const acts = []; for (let i = 0; i + 1 < p0.length; i++) { const a = p0[i], b2 = p0[i + 1]; acts.push(b2[0] === a[0] + 1 ? 0 : b2[1] === a[1] + 1 ? 1 : b2[0] === a[0] - 1 ? 2 : 3); } const got = new Set(), cover = new Set(d0.cover); let remaining = mz.budget; for (let i = 0; i < p0.length && i < acts.length; i++) { const [r, c] = p0[i]; const k = r + ',' + c; cover.add(k); if (mz.gold.some((q) => q.join(',') === k)) got.add(k); if (mz.diam.some((q) => q.join(',') === k)) got.add(k); const z = Array.from(net.forward(feat(r, c, { remaining: mz.budget - i, got, cover }, mz))); let mx = -Infinity; for (const x of z) mx = Math.max(mx, x); const ex = z.map((x) => Math.exp(x - mx)); const sm = ex.reduce((a, b2) => a + b2, 0); L += -Math.log(ex[acts[i]] / sm + 1e-12); n++; remaining--; } } return L / Math.max(1, n); };
   const bcLossBefore = lossOf();
   for (let ep = 0; ep < EPOCHS; ep++) {
     for (const d0 of data) {
@@ -269,11 +273,12 @@ function buildBase(seed, trainMazes) {
         if (mz.gold.some((q) => q.join(',') === k)) got.add(k);
         if (mz.diam.some((q) => q.join(',') === k)) got.add(k);
         if (mz.lava.some((q) => q.join(',') === k)) lavaStepped.add(k);
-        if (i < acts.length) { S.push(features(r, c, { remaining: mz.budget - i, got, cover }, mz)); A.push(acts[i]); }
+        if (i < acts.length) { S.push(feat(r, c, { remaining: mz.budget - i, got, cover }, mz)); A.push(acts[i]); }
       }
       if (!S.length) continue;
       const B = S.length;
-      const X = new Float32Array(B * FDIM); S.forEach((o, i) => X.set(o, i * FDIM));
+      const FD = fdim;
+      const X = new Float32Array(B * FD); S.forEach((o, i) => X.set(o, i * FD));
       const Z = net.forwardBatch(X, B);
       const dZ = new Float32Array(B * 4);
       for (let i = 0; i < B; i++) {
@@ -401,5 +406,5 @@ async function main() {
   fs.writeFileSync(OUT, JSON.stringify({ protocol: effective, arms }, null, 1));
   console.log('wrote', OUT);
 }
-if (require.main !== module) { module.exports = { makeMaze, features, route, chain, plan, replayVec, finetune, evaluate, buildMapSplits, setRewardMean, groupAdv, dirichlet, dot, WSTAR, FDIM, PROTO, ppoKLdZ, WALL, EMPTY, coverOf, buildBase }; }
+if (require.main !== module) { module.exports = { makeMaze, features, route, chain, plan, replayVec, finetune, evaluate, buildMapSplits, setRewardMean, groupAdv, dirichlet, dot, WSTAR, FDIM, PROTO, ppoKLdZ, WALL, EMPTY, coverOf, buildBase, routeWithFeatures, chainWith, buildBaseWithFeatures }; }
 else main().catch((e) => { console.error('A25 FAIL', e); process.exit(1); });
