@@ -22,6 +22,7 @@ const RLA = globalThis.RLA = globalThis.RLA || {};
 require(path.join(__dirname, '..', 'src', 'core', 'rng.js'));
 require(path.join(__dirname, '..', 'src', 'core', 'nn.js'));
 const MODE = process.argv[2] || 'smoke';
+const SMOKE_BOUNDS = MODE === 'smoke-bounded' ? { generations: 60, evalMaps: 4, evalReps: 2 } : null; // bounded smoke ONLY via explicit mode name
 const OUT = process.argv[3] || ('/tmp/vpo-a25-' + MODE + '.json');
 const rngMake = RLA.rng.make;
 const N = 9, W = 2 * N - 1;
@@ -111,7 +112,7 @@ function makeMaze(seed) {
     // final check AFTER lava: a lava-avoiding S->E path exists within budget
     const dExit = tDist9(grid, endpoints.S, endpoints.E, true, lavaSet);
     if (!Number.isFinite(dExit) || dExit > budget) { internalRejects++; continue; }
-    return { grid, S: endpoints.S, E: endpoints.E, gold, diam, lava, budget, viaG, viaD, viaB, regime: 'A25', nLava: lava.length, nGold: gold.length, nDiam: diam.length };
+    return { grid, S: endpoints.S, E: endpoints.E, gold, diam, lava, budget, viaG, viaD, viaB, regime: 'A25', nLava: lava.length, nGold: gold.length, nDiam: diam.length, seed, internalRejects };
   }
   throw new Error('A25: no valid layout for seed ' + seed + ' after 200 internal attempts (internal rejections counted: ' + internalRejects + ')');
 }
@@ -252,6 +253,8 @@ function buildBase(seed, trainMazes) {
     for (let i = 0; i < rts.length; i++) { data.push({ mz, path: rts[i], cover: [] }); for (let j = 0; j < rts.length; j++) if (i !== j) data.push({ mz, path: rts[j], cover: coverOf(mz, rts[i]) }); }
   }
   const EPOCHS = 8;
+  const lossOf = () => { let L = 0, n = 0; for (const d0 of data) { const mz = d0.mz, p0 = d0.path; const acts = []; for (let i = 0; i + 1 < p0.length; i++) { const a = p0[i], b2 = p0[i + 1]; acts.push(b2[0] === a[0] + 1 ? 0 : b2[1] === a[1] + 1 ? 1 : b2[0] === a[0] - 1 ? 2 : 3); } const got = new Set(), cover = new Set(d0.cover); let remaining = mz.budget; for (let i = 0; i < p0.length && i < acts.length; i++) { const [r, c] = p0[i]; const k = r + ',' + c; cover.add(k); if (mz.gold.some((q) => q.join(',') === k)) got.add(k); if (mz.diam.some((q) => q.join(',') === k)) got.add(k); const z = Array.from(net.forward(features(r, c, { remaining: mz.budget - i, got, cover }, mz))); let mx = -Infinity; for (const x of z) mx = Math.max(mx, x); const ex = z.map((x) => Math.exp(x - mx)); const sm = ex.reduce((a, b2) => a + b2, 0); L += -Math.log(ex[acts[i]] / sm + 1e-12); n++; remaining--; } } return L / Math.max(1, n); };
+  const bcLossBefore = lossOf();
   for (let ep = 0; ep < EPOCHS; ep++) {
     for (const d0 of data) {
       const mz = d0.mz, p0 = d0.path;
@@ -281,7 +284,8 @@ function buildBase(seed, trainMazes) {
       net.backwardBatch(dZ); opt.step();
     }
   }
-  return { probs, net, nDemo: data.length };
+  const bcLossAfter = lossOf();
+  return { probs, net, nDemo: data.length, bcLossBefore, bcLossAfter };
 }
 function coverOf(mz, rt) { // canonical coverage from a route object OR a raw planner path (array)
   if (rt && rt.cover) return rt.cover;
@@ -335,10 +339,11 @@ function finetune(baseNet, baseRef, seed, method, trainMazes, updates, lr, eps, 
 }
 // ---- evaluation: fresh chains, draw-order first-k (Sec 4.3); STOCHASTIC softmax sampling (explore=true, eps=0 => no uniform-epsilon mix), not greedy ----
 const KVALUES = [1, 3, 5, 10, 30];
-function evaluate(pol, testMazes, seed, m, single) {
+function evaluate(pol, testMazes, seed, m, single, REPS) {
   const rng = rngMake(seed * 7919 + 5);
-  const eps = 0, REPS = 6; // stochastic softmax eval (explore=true, eps=0 => NO uniform mix), matching A23 and the paper's stochastic final eval
+  const eps = 0; REPS = REPS || 6; // stochastic softmax eval (explore=true, eps=0 => NO uniform mix), matching A23 and the paper's stochastic final eval
   const perProblem = [];
+  let exits = 0, nAll = 0;
   for (let pi = 0; pi < testMazes.length; pi++) {
     const mz = testMazes[pi]; const sums = {}; KVALUES.forEach((k) => sums[k] = 0);
     let L1 = 0, np = 0;
@@ -348,13 +353,14 @@ function evaluate(pol, testMazes, seed, m, single) {
       else { const nChains = Math.ceil(30 / m); const got = []; for (let c2 = 0; c2 < nChains && got.length < 30; c2++) for (const rt of chain(mz, pol, rng, true, eps, m)) if (got.length < 30) got.push(rt.vec); vecs.push(...got); }
       for (const k of KVALUES) { let mx = -1; for (let i = 0; i < k; i++) if (dot(WSTAR, vecs[i]) > mx) mx = dot(WSTAR, vecs[i]); sums[k] += mx; }
       for (let i = 0; i < vecs.length; i++) for (let j = i + 1; j < vecs.length; j++) { let d2 = 0; for (let q = 0; q < 4; q++) d2 += Math.abs(vecs[i][q] - vecs[j][q]); L1 += d2; np++; }
+      exits += vecs.filter((v) => v[0] === 1).length; nAll += vecs.length;
     }
     const best = {}; for (const k of KVALUES) best[k] = sums[k] / REPS;
     perProblem.push({ problem: pi, best, spread: L1 / np });
   }
   const mean = {}; for (const k of KVALUES) mean[k] = perProblem.reduce((s, p) => s + p.best[k], 0) / perProblem.length;
   const spread = perProblem.reduce((s, p) => s + p.spread, 0) / perProblem.length;
-  return { mean, spread, perProblem };
+  return { mean, spread, perProblem, exitFraction: exits / Math.max(1, nAll) };
 }
 // ---- frozen protocol ----
 const UPDATES = MODE === 'smoke' ? 60 : 12000;
@@ -368,17 +374,21 @@ function buildMapSplits() {
 async function main() {
   const t0 = Date.now();
   const { train, test } = buildMapSplits();
-  console.log('maps: train', train.length, 'test', test.length);
+  const bounded = MODE === 'smoke-bounded';
+  const seeds = bounded ? [2] : PROTO.discoverySeeds;
+  const testSet = bounded ? test.slice(0, 4) : test;
+  const reps = bounded ? 2 : 6;
+  const gens = bounded ? 60 : UPDATES;
+  console.log('maps: train', train.length, 'test', testSet.length, '| mode', MODE, '| generations', gens, '| evalReps', reps);
   const arms = {};
-  const seeds = PROTO.discoverySeeds;
   for (const seed of seeds) {
     const b = buildBase(seed, train);
-    arms[seed] = { bc: { nDemo: b.nDemo } };
-    arms[seed].grpo = finetune(b.net, b.net, seed, 'grpo-single', train, UPDATES, PROTO.lr, PROTO.eps, 1, PROTO.K, PROTO.G_single);
-    arms[seed].multi = finetune(b.net, b.net, seed, 'multi-rlvr', train, UPDATES, PROTO.lr, PROTO.eps, PROTO.m, PROTO.K, PROTO.G_chain);
-    arms[seed].vpo = finetune(b.net, b.net, seed, 'vpo', train, UPDATES, PROTO.lr, PROTO.eps, PROTO.m, PROTO.K, PROTO.G_chain);
-    arms[seed].randw = finetune(b.net, b.net, seed, 'random-w', train, UPDATES, PROTO.lr, PROTO.eps, 1, PROTO.K, PROTO.G_single);
-    for (const [name, pol] of [['grpo', arms[seed].grpo], ['multi', arms[seed].multi], ['vpo', arms[seed].vpo], ['randw', arms[seed].randw]]) arms[seed][name + '_eval'] = evaluate(pol, test, seed, PROTO.m, name === 'grpo' || name === 'randw');
+    arms[seed] = { bc: { nDemo: b.nDemo, bcLossBefore: b.bcLossBefore, bcLossAfter: b.bcLossAfter } };
+    arms[seed].grpo = finetune(b.net, b.net, seed, 'grpo-single', train, gens, PROTO.lr, PROTO.eps, 1, PROTO.K, PROTO.G_single);
+    arms[seed].multi = finetune(b.net, b.net, seed, 'multi-rlvr', train, gens, PROTO.lr, PROTO.eps, PROTO.m, PROTO.K, PROTO.G_chain);
+    arms[seed].vpo = finetune(b.net, b.net, seed, 'vpo', train, gens, PROTO.lr, PROTO.eps, PROTO.m, PROTO.K, PROTO.G_chain);
+    arms[seed].randw = finetune(b.net, b.net, seed, 'random-w', train, gens, PROTO.lr, PROTO.eps, 1, PROTO.K, PROTO.G_single);
+    for (const [name, pol] of [['grpo', arms[seed].grpo], ['multi', arms[seed].multi], ['vpo', arms[seed].vpo], ['randw', arms[seed].randw]]) arms[seed][name + '_eval'] = evaluate(pol, testSet, seed, PROTO.m, name === 'grpo' || name === 'randw', reps);
     console.log('seed', seed, 'done', Math.round((Date.now() - t0) / 1000) + 's');
   }
   fs.writeFileSync(OUT, JSON.stringify({ protocol: PROTO, arms }, null, 1));
