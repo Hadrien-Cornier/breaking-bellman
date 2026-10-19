@@ -77,9 +77,6 @@ const CORR = (() => { const cs = []; for (let i = 0; i < N; i++) { cs.push([i, 0
 const onCorr = (c) => CORR.some((q) => q[0] === c[0] && q[1] === c[1]);
 const GOLD_POOL = [[5, 2], [5, 3], [6, 2], [6, 3]];
 const DIAM_POOL = [[2, 5], [3, 6], [4, 6]];
-// A22: mirrored pools for the H task (mirror across the main diagonal of the G-task pools)
-const GOLD_POOL_H = GOLD_POOL.map(([r, c]) => [c, r]);
-const DIAM_POOL_H = DIAM_POOL.map(([r, c]) => [c, r]);
 function makeMaze(seed) {
   // A22 named change (mechanism-led, per mechanism-note-a22.md): balanced two-task CONFLICT world.
   // Both pockets open in every maze; budget = twoBestSat - 1 (corrected saturation threshold), so
@@ -90,7 +87,13 @@ function makeMaze(seed) {
   const regime = seed % 2 === 0 ? 'G' : 'H';
   if (regime === 'H') { // exact label swap of the G maze for seed-1 (same layout/labels swapped)
     const g = makeMaze(seed - 1); // even seed -> G
-    return Object.assign({}, g, { gold: g.diam.map((c) => c.slice()), diam: g.gold.map((c) => c.slice()), regime: 'H' });
+    // swap ALL label-dependent fields consistently: items, lengths, and saturation threshold stays
+    // (twoBestSat is symmetric under label swap - it enumerates gold x diam pairs symmetrically),
+    // but goldLen/diamLen must swap. Both-full routeLen(gold.concat(diam)) is label-symmetric.
+    return Object.assign({}, g, {
+      gold: g.diam.map((c) => c.slice()), diam: g.gold.map((c) => c.slice()),
+      goldLen: g.diamLen, diamLen: g.goldLen, regime: 'H',
+    });
   }
   let lastErr = null;
   for (let attempt = 0; attempt < 120; attempt++) {
@@ -507,7 +510,7 @@ const VPO_K = parseInt(process.env.VPO_K || '8', 10);
 const CKPT_DIR = process.env.VPO_CKPT || null;
 const PROTO = {
   mode: MODE,
-  seeds: MODE === 'smoke' ? [2] : [1, 3, 5, 7, 9],
+  seeds: MODE === 'smoke' ? [2] : (process.env.VPO_SEEDS ? process.env.VPO_SEEDS.split(',').map((x) => parseInt(x, 10)) : [1, 3, 5, 7, 9]), // A22: runner-only seed-list override via VPO_SEEDS (same substitution as A21)
   updates: MODE === 'smoke' ? 300 : 12000,
   trainSeeds: Array.from({ length: 16 }, (_, i) => 1000 + i), // A11: written 16-maze protocol restored (A10's 96 was a disclosed deviation)
   testSeeds: Array.from({ length: 32 }, (_, i) => 2000 + i), // A18: 8 -> 32 test mazes (variable-problem axis)
