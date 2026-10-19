@@ -352,6 +352,38 @@ await session(375, 812, 'expert', async (page) => {
   check(/Why it fails here/.test(ex) && /Where it works/.test(ex), 'the worst-next-action note says why it fails on the cliff and where it works');
   await page.locator('#expert-card').screenshot({ path: out + '/expert-cliff-min.png' });
 });
+await session(390, 844, 'pendulum', async (page) => {
+  await page.getByRole('button', { name: /Level 10 ·/ }).click();
+  await page.evaluate(() => {
+    const joint = BB.scenes.joint;
+    BB.scenes.joint = (ctx, w, h, d) => {
+      window.pendulumTrace = d.trace;
+      const rotate = ctx.rotate;
+      ctx.rotate = function (a) {
+        const t = this.getTransform();
+        if (Math.abs(t.e - w / 2) < 1 && Math.abs(t.f - h * 0.52) < 1) window.pendulumAngles.push(a);
+        return rotate.call(this, a);
+      };
+      return joint(ctx, w, h, d);
+    };
+    window.pendulumAngles = [];
+  });
+  await page.click('#run-btn');
+  await runDone(page);
+  await page.locator('#stage').scrollIntoViewIfNeeded();
+  await page.locator('#stage').click(); // restart the real animation clock
+  await page.waitForTimeout(2200);
+  const motion = await page.evaluate(() => ({
+    count: pendulumAngles.length,
+    span: Math.max(...pendulumAngles) - Math.min(...pendulumAngles),
+    mismatch: Math.max(...pendulumAngles.map((a) => Math.min(...pendulumTrace.map((t) => Math.abs(a - t.s[0]))))),
+    first: pendulumTrace[0].s[0],
+  }));
+  check(motion.count > 10 && motion.span > 1, 'pendulum swings visibly in the phone canvas over time');
+  check(motion.first > 3 && motion.mismatch < 1e-9, 'the rendered rod follows the hanging-start physics trace');
+  check(/replay from hanging still/.test(await page.locator('#stage-caption').innerText()), 'caption identifies the separate replay');
+  await page.locator('#stage').screenshot({ path: out + '/phone-pendulum.png' });
+});
 console.log('errors:', errors.length ? errors.join('\n') : 'none');
 if (errors.length) fails.push('page errors');
 console.log(fails.length ? 'FAILED: ' + fails.join('; ') : 'ALL CHECKS PASSED');

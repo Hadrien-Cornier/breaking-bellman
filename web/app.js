@@ -746,7 +746,9 @@
     };
     const fonts = sceneFonts(), dark = isDark();
     if (['pendulum', 'reach', 'goalgrid'].includes(S.world)) {
-      const tr = r0 && r0.trace && r0.trace.length ? r0.trace : null;
+      const replay = S.world === 'pendulum' && r0 && r0.replay;
+      const trace = replay ? replay.trace : r0 && r0.trace;
+      const tr = trace && trace.length ? trace : null;
       const sc = S.world === 'pendulum' ? BB.scenes.joint(ctx, w, H, { trace: tr, mass: knobs.mass, fonts, dark })
         // reach.js: two links of 0.5 m
         : S.world === 'reach' ? BB.scenes.arm(ctx, w, H, { trace: tr, state: world.getState(), L1: 0.5, L2: 0.5, fonts, dark })
@@ -754,7 +756,9 @@
       playScene(cv, sc);
       if (!tr) { $('#stage-caption').textContent = RLA.worlds[S.world].info.title + '. The trained policy plays here after a run.'; return; }
       const f = r0.final || {};
-      $('#stage-caption').textContent = 'Run 1 after training, one test episode. ' + (S.world === 'pendulum' ? 'Score ' + fmt(f.ret) + ' (0 is perfect).' : S.world === 'reach' ? 'Final distance ' + fmt(f.dist) + ' m.' : (f.success ? 'It reached the goal.' : 'It did not reach the goal.')) + ' Simulation.';
+      $('#stage-caption').textContent = replay
+        ? 'Run 1 after training, replay from hanging still. Replay score ' + fmt(replay.ret) + ' (0 is perfect). The test score uses random starts. Simulation.'
+        : 'Run 1 after training, one test episode. ' + (S.world === 'pendulum' ? 'Score ' + fmt(f.ret) + ' (0 is perfect).' : S.world === 'reach' ? 'Final distance ' + fmt(f.dist) + ' m.' : (f.success ? 'It reached the goal.' : 'It did not reach the goal.')) + ' Simulation.';
       return;
     }
     if (S.world === 'fetch') { renderFetch(cv, ctx, w, H, colors, knobs, world, r0, playTrace); return; }
