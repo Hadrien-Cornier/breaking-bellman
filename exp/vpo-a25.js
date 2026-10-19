@@ -172,6 +172,8 @@ function chain(mz, pol, rng, explore, eps, m, feat = features) {
 const routeWithFeatures = (feat) => (mz, pol, rng, explore, eps, coverIn) => route(mz, pol, rng, explore, eps, coverIn, feat);
 const buildBaseWithFeatures = (feat, fdim) => (seed, trainMazes) => buildBase(seed, trainMazes, feat, fdim);
 const chainWith = (routeF) => (mz, pol, rng, explore, eps, m) => { const out = []; let cover = []; for (let j = 0; j < m; j++) { const rt = routeF(mz, pol, rng, explore, eps, cover); out.push(rt); cover = rt.cover; } return out; };
+const finetuneWithFeatures = (feat, fdim) => (baseNet, baseRef, seed, method, trainMazes, updates, lr, eps, m, K, G) => finetune(baseNet, baseRef, seed, method, trainMazes, updates, lr, eps, m, K, G, feat, fdim);
+const evaluateWithFeatures = (feat) => (pol, testMazes, seed, m, single, REPS) => evaluate(pol, testMazes, seed, m, single, REPS, feat);
 // ---- BC base: documented planner routes on the A25 maze ----
 function plan(mz) {
   const orders = (a) => a.length <= 1 ? [a] : a.flatMap((x, i) => orders([...a.slice(0, i), ...a.slice(i + 1)]).map((r) => [x, ...r]));
@@ -297,9 +299,9 @@ function coverOf(mz, rt) { // canonical coverage from a route object OR a raw pl
   if (rt && rt.cover) return rt.cover;
   if (Array.isArray(rt)) return rt.map((c) => Array.isArray(c) ? c.join(',') : String(c));
   return []; }
-function finetune(baseNet, baseRef, seed, method, trainMazes, updates, lr, eps, m, K, G) {
+function finetune(baseNet, baseRef, seed, method, trainMazes, updates, lr, eps, m, K, G, feat = features, fdim = FDIM) {
   const rng = rngMake(seed * 1000 + 17);
-  const net = RLA.nn.mlp({ sizes: [FDIM, HID, 4], act: 'tanh', rng: rngMake(1), outScale: 0 });
+  const net = RLA.nn.mlp({ sizes: [fdim, HID, 4], act: 'tanh', rng: rngMake(1), outScale: 0 });
   net.params.forEach((p, i) => p.set(baseNet.params[i]));
   const opt = RLA.nn.adam(net, { lr, clipNorm: 1.0 });
   const probs = (obs) => { const z = Array.from(net.forward(obs)); let mx = -Infinity; for (const x of z) mx = Math.max(mx, x); const e = z.map((x) => Math.exp(x - mx)); const s = e.reduce((a, b) => a + b, 0); return e.map((x) => x / s); };
@@ -309,10 +311,10 @@ function finetune(baseNet, baseRef, seed, method, trainMazes, updates, lr, eps, 
     const draws = method === 'vpo' ? Array.from({ length: K }, () => dirichlet(rng, 4)) : null;
     const group = [];
     for (let g = 0; g < G; g++) {
-      if (method === 'grpo-single') { const rt = route(mz, { probs }, rng, true, eps, []); group.push({ routes: [rt], R: dot(WSTAR, rt.vec) }); }
-      else if (method === 'multi-rlvr') { const rts = chain(mz, { probs }, rng, true, eps, m); const R = rts.reduce((s, r) => s + dot(WSTAR, r.vec), 0) / rts.length; group.push({ routes: rts, R }); }
-      else if (method === 'random-w') { const w = dirichlet(rng, 4); const rt = route(mz, { probs }, rng, true, eps, []); group.push({ routes: [rt], R: dot(w, rt.vec) }); }
-      else { const rts = chain(mz, { probs }, rng, true, eps, m); group.push({ routes: rts, R: setRewardMean(rts.map((r) => r.vec), draws) }); }
+      if (method === 'grpo-single') { const rt = route(mz, { probs }, rng, true, eps, [], feat); group.push({ routes: [rt], R: dot(WSTAR, rt.vec) }); }
+      else if (method === 'multi-rlvr') { const rts = chain(mz, { probs }, rng, true, eps, m, feat); const R = rts.reduce((s, r) => s + dot(WSTAR, r.vec), 0) / rts.length; group.push({ routes: rts, R }); }
+      else if (method === 'random-w') { const w = dirichlet(rng, 4); const rt = route(mz, { probs }, rng, true, eps, [], feat); group.push({ routes: [rt], R: dot(w, rt.vec) }); }
+      else { const rts = chain(mz, { probs }, rng, true, eps, m, feat); group.push({ routes: rts, R: setRewardMean(rts.map((r) => r.vec), draws) }); }
     }
     // AMENDED per 155: two deterministic-shuffled minibatches of WHOLE rollouts, one epoch,
     // advantages fixed from the full group, logits recomputed after step 1, oldP frozen from
@@ -330,7 +332,8 @@ function finetune(baseNet, baseRef, seed, method, trainMazes, updates, lr, eps, 
       const S = [], A = [], P = [], ADV = [];
       for (const roll of batch) { const adv = ADVs[roll.idx]; for (const rt of group[roll.idx].routes) for (const st of rt.steps) { S.push(st.obs); A.push(st.a); P.push(st.p); ADV.push(adv); } }
       const B = S.length; if (!B) continue;
-      const X = new Float32Array(B * FDIM); S.forEach((o, i) => X.set(o, i * FDIM));
+      const FDmb = fdim;
+      const X = new Float32Array(B * FDmb); S.forEach((o, i) => X.set(o, i * FDmb));
       const Z = net.forwardBatch(X, B);
       const dZ = new Float32Array(B * 4);
       for (let i = 0; i < B; i++) {
@@ -345,7 +348,7 @@ function finetune(baseNet, baseRef, seed, method, trainMazes, updates, lr, eps, 
 }
 // ---- evaluation: fresh chains, draw-order first-k (Sec 4.3); STOCHASTIC softmax sampling (explore=true, eps=0 => no uniform-epsilon mix), not greedy ----
 const KVALUES = [1, 3, 5, 10, 30];
-function evaluate(pol, testMazes, seed, m, single, REPS) {
+function evaluate(pol, testMazes, seed, m, single, REPS, feat = features) {
   const rng = rngMake(seed * 7919 + 5);
   const eps = 0; REPS = REPS || 6; // stochastic softmax eval (explore=true, eps=0 => NO uniform mix), matching A23 and the paper's stochastic final eval
   const perProblem = [];
@@ -355,8 +358,8 @@ function evaluate(pol, testMazes, seed, m, single, REPS) {
     let L1 = 0, np = 0;
     for (let rep = 0; rep < REPS; rep++) {
       const vecs = [];
-      if (single) { for (let i = 0; i < 30; i++) vecs.push(route(mz, pol, rng, true, eps, []).vec); }
-      else { const nChains = Math.ceil(30 / m); const got = []; for (let c2 = 0; c2 < nChains && got.length < 30; c2++) for (const rt of chain(mz, pol, rng, true, eps, m)) if (got.length < 30) got.push(rt.vec); vecs.push(...got); }
+      if (single) { for (let i = 0; i < 30; i++) vecs.push(route(mz, pol, rng, true, eps, [], feat).vec); }
+      else { const nChains = Math.ceil(30 / m); const got = []; for (let c2 = 0; c2 < nChains && got.length < 30; c2++) for (const rt of chain(mz, pol, rng, true, eps, m, feat)) if (got.length < 30) got.push(rt.vec); vecs.push(...got); }
       for (const k of KVALUES) { let mx = -1; for (let i = 0; i < k; i++) if (dot(WSTAR, vecs[i]) > mx) mx = dot(WSTAR, vecs[i]); sums[k] += mx; }
       for (let i = 0; i < vecs.length; i++) for (let j = i + 1; j < vecs.length; j++) { let d2 = 0; for (let q = 0; q < 4; q++) d2 += Math.abs(vecs[i][q] - vecs[j][q]); L1 += d2; np++; }
       exits += vecs.filter((v) => v[0] === 1).length; nAll += vecs.length;
@@ -406,5 +409,5 @@ async function main() {
   fs.writeFileSync(OUT, JSON.stringify({ protocol: effective, arms }, null, 1));
   console.log('wrote', OUT);
 }
-if (require.main !== module) { module.exports = { makeMaze, features, route, chain, plan, replayVec, finetune, evaluate, buildMapSplits, setRewardMean, groupAdv, dirichlet, dot, WSTAR, FDIM, PROTO, ppoKLdZ, WALL, EMPTY, coverOf, buildBase, routeWithFeatures, chainWith, buildBaseWithFeatures }; }
+if (require.main !== module) { module.exports = { makeMaze, features, route, chain, plan, replayVec, finetune, evaluate, buildMapSplits, setRewardMean, groupAdv, dirichlet, dot, WSTAR, FDIM, PROTO, ppoKLdZ, WALL, EMPTY, coverOf, buildBase, routeWithFeatures, chainWith, buildBaseWithFeatures, finetuneWithFeatures, evaluateWithFeatures }; }
 else main().catch((e) => { console.error('A25 FAIL', e); process.exit(1); });

@@ -42,4 +42,6 @@ function featuresA25d(x, y, st, mz) {
 const route = A25.routeWithFeatures(featuresA25d);
 const chain = A25.chainWith(route);
 const buildBase = A25.buildBaseWithFeatures(featuresA25d, FDIM);
-module.exports = { FDIM, featuresA25d, route, chain, buildBase, makeMaze: A25.makeMaze, replayVec: A25.replayVec, A25, WALL: A25.WALL };
+const finetune = A25.finetuneWithFeatures(featuresA25d, FDIM);
+const evaluate = A25.evaluateWithFeatures(featuresA25d);
+module.exports = { FDIM, featuresA25d, route, chain, buildBase, finetune, evaluate, makeMaze: A25.makeMaze, replayVec: A25.replayVec, A25, WALL: A25.WALL };
