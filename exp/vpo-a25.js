@@ -22,6 +22,7 @@ const RLA = globalThis.RLA = globalThis.RLA || {};
 require(path.join(__dirname, '..', 'src', 'core', 'rng.js'));
 require(path.join(__dirname, '..', 'src', 'core', 'nn.js'));
 const MODE = process.argv[2] || 'smoke';
+const CLI_SEEDS = process.env.VPO_SEEDS ? process.env.VPO_SEEDS.split(',').map(Number) : null; // batch split support: VPO_SEEDS=2,4,6 etc (runner transport only, no algorithm change)
 const SMOKE_BOUNDS = MODE === 'smoke-bounded' ? { generations: 60, evalMaps: 4, evalReps: 2 } : null; // bounded smoke ONLY via explicit mode name
 const OUT = process.argv[3] || ('/tmp/vpo-a25-' + MODE + '.json');
 const rngMake = RLA.rng.make;
@@ -371,11 +372,12 @@ function buildMapSplits() {
   if (train.length < 16 || test.length < 32) throw new Error('map split incomplete: train ' + train.length + ' test ' + test.length);
   return { train, test };
 }
+function effective0(seed) { return { mode: MODE, seedsCLI: CLI_SEEDS, bcEpochs: 8, updatesPerGen: 2, identity: { runner: 'exp/vpo-a25.js' } }; }
 async function main() {
   const t0 = Date.now();
   const { train, test } = buildMapSplits();
   const bounded = MODE === 'smoke-bounded';
-  const seeds = bounded ? [2] : PROTO.discoverySeeds;
+  const seeds = bounded ? [2] : (CLI_SEEDS || PROTO.discoverySeeds);
   const testSet = bounded ? test.slice(0, 4) : test;
   const reps = bounded ? 2 : 6;
   const gens = bounded ? 60 : UPDATES;
@@ -390,9 +392,12 @@ async function main() {
     arms[seed].randw = finetune(b.net, b.net, seed, 'random-w', train, gens, PROTO.lr, PROTO.eps, 1, PROTO.K, PROTO.G_single);
     arms[seed].base_eval = evaluate({ probs: b.probs }, testSet, seed, PROTO.m, true, reps); // init competence (descriptive)
     for (const [name, pol] of [['grpo', arms[seed].grpo], ['multi', arms[seed].multi], ['vpo', arms[seed].vpo], ['randw', arms[seed].randw]]) arms[seed][name + '_eval'] = evaluate(pol, testSet, seed, PROTO.m, name === 'grpo' || name === 'randw', reps);
+    const outPathDir = OUT.replace(/\/[^/]*$/, '');
+    fs.mkdirSync(outPathDir, { recursive: true });
+    fs.writeFileSync(outPathDir + '/a25-seed' + seed + '.partial.json', JSON.stringify({ protocol: effective0(seed), arms: { [String(seed)]: arms[seed] } }, null, 1));
     console.log('seed', seed, 'done', Math.round((Date.now() - t0) / 1000) + 's');
   }
-  const effective = { mode: MODE, generations: gens, evalReps: reps, seeds, trainMapCount: train.length, testMapCount: testSet.length, testMapIds: bounded ? test.slice(0, 4).map((m2) => m2.seed) : test.map((m2) => m2.seed), trainMapIds: train.map((m2) => m2.seed), bcEpochs: 8, updatesPerGen: 2, identity: { note: 'sha256 of exp/vpo-a25.js at run time is printed by the launcher, not embedded' } };
+  const effective = { mode: MODE, generations: gens, evalReps: reps, seeds, trainMapCount: train.length, testMapCount: testSet.length, testMapIds: (bounded ? test.slice(0, 4) : test).map((m2) => m2.seed), trainMapIds: train.map((m2) => m2.seed), bcEpochs: 8, updatesPerGen: 2, frozen: { m: PROTO.m, K: PROTO.K, G_single: PROTO.G_single, G_chain: PROTO.G_chain, lr: PROTO.lr, eps: PROTO.eps, evalEps: PROTO.evalEps, clip: PROTO.clip, dualClip: PROTO.dualClip, kl: PROTO.kl, entropyBonus: PROTO.entropyBonus, minibatchesPerGen: 2, gates: 'per a25-protocol.md rev3 (145 numeric gates)' } };
   fs.writeFileSync(OUT, JSON.stringify({ protocol: effective, arms }, null, 1));
   console.log('wrote', OUT);
 }
