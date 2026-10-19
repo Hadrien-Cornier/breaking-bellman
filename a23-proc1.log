@@ -1,0 +1,7 @@
+seed 2 done in 9.3 min
+seed 4 done in 9.8 min
+seed 6 done in 9.9 min
+wrote a23-proc1.json
+base best1 0.304,0.236,0.292 best30 0.837,0.796,0.837 spread 1.13,1.11,1.28
+grpo-single best1 0.730,0.676,0.862 best30 0.875,0.875,0.875 spread 0.38,0.66,0.08
+vpo best1 0.777,0.620,0.755 best30 0.875,0.875,0.875 spread 0.53,0.70,0.59
