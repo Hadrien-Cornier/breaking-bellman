@@ -50,6 +50,7 @@ function bfs9(grid, from, avoidLava, lavaSet) { // BFS on the 9x9 cell grid
 const tDist9 = (grid, from, to, avoidLava, lavaSet) => { const D = bfs9(grid, from, avoidLava, lavaSet); return D[to[0]][to[1]] >= 0 ? D[to[0]][to[1]] : Infinity; };
 function makeMaze(seed) {
   const rng = rngMake(seed * 2654435761 % 2147483647 + 7);
+  let internalRejects = 0;
   for (let attempt = 0; attempt < 200; attempt++) {
     // Stage 1: Prim carving on the 9x9 CELL grid (paper rule: pop a uniform random frontier cell and
     // carve it to empty if it has EXACTLY ONE empty neighbor - the standard wall-carving rule).
@@ -78,7 +79,7 @@ function makeMaze(seed) {
       for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nr = r + dr, nc = c + dc; if (nr >= 0 && nr < N && nc >= 0 && nc < N && grid[nr][nc] === EMPTY) empty++; }
       if (empty >= 2) { grid[r][c] = EMPTY; done++; }
     }
-    if (done < ncyc) continue;
+    if (done < ncyc) { internalRejects++; continue; }
     const endpoints = rng.next() < 0.5 ? { S: [0, 0], E: [8, 8] } : { S: [0, 8], E: [8, 0] };
     const corners = [[0, 0], [8, 8], [0, 8], [8, 0]];
     const others = corners.filter((c) => !(c[0] === endpoints.S[0] && c[1] === endpoints.S[1]) && !(c[0] === endpoints.E[0] && c[1] === endpoints.E[1]));
@@ -87,14 +88,14 @@ function makeMaze(seed) {
     grid[goldCorner[0]][goldCorner[1]] = EMPTY; grid[diamCorner[0]][diamCorner[1]] = EMPTY;
     const ball = (corner) => { const cs = []; for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++) { if (Math.abs(dr) + Math.abs(dc) > 2) continue; const r = corner[0] + dr, c = corner[1] + dc; if (r >= 0 && r < N && c >= 0 && c < N && grid[r][c] === EMPTY && !(r === endpoints.S[0] && c === endpoints.S[1]) && !(r === endpoints.E[0] && c === endpoints.E[1])) cs.push([r, c]); } return cs; };
     const gb = ball(goldCorner), db = ball(diamCorner);
-    if (gb.length < 3 || db.length < 3) continue; // exact item counts: reject if not enough eligible cells
+    if (gb.length < 3 || db.length < 3) { internalRejects++; continue; } // exact item counts: reject if not enough eligible cells
     const pick = (pool, n) => { const p = pool.slice(); const out = []; while (out.length < n && p.length) out.push(p.splice(rng.int(p.length), 1)[0]); return out; };
     const nG = 3 + rng.int(3), nD = 3 + rng.int(3), nL = 3 + rng.int(3);
-    if (gb.length < nG || db.length < nD) continue;
+    if (gb.length < nG || db.length < nD) { internalRejects++; continue; }
     const gold = pick(gb, nG), diam = pick(db, nD);
     const goldSet = new Set(gold.map((c) => c.join(','))), diamSet = new Set(diam.map((c) => c.join(',')));
     const interior = []; for (let r = 2; r <= 6; r++) for (let c = 2; c <= 6; c++) if (grid[r][c] === EMPTY && !goldSet.has(r + ',' + c) && !diamSet.has(r + ',' + c)) interior.push([r, c]);
-    if (interior.length < nL) continue;
+    if (interior.length < nL) { internalRejects++; continue; }
     const lava = pick(interior, nL); // exact count placed
     const lavaSet = new Set(lava.map((c) => c.join(',')));
     // via distances are measured BEFORE lava placement on the WALL GRAPH (paper order), via the
@@ -104,15 +105,15 @@ function makeMaze(seed) {
     const viaG = dNoLava(endpoints.S, goldCorner) + dNoLava(goldCorner, endpoints.E);
     const viaD = dNoLava(endpoints.S, diamCorner) + dNoLava(diamCorner, endpoints.E);
     const viaB = dNoLava(endpoints.S, goldCorner) + dNoLava(goldCorner, diamCorner) + dNoLava(diamCorner, endpoints.E);
-    if (![viaG, viaD, viaB].every(Number.isFinite)) continue;
+    if (![viaG, viaD, viaB].every(Number.isFinite)) { internalRejects++; continue; }
     const budget = Math.max(viaG, viaD) + 7;
-    if (!(viaB > budget)) continue;
+    if (!(viaB > budget)) { internalRejects++; continue; }
     // final check AFTER lava: a lava-avoiding S->E path exists within budget
     const dExit = tDist9(grid, endpoints.S, endpoints.E, true, lavaSet);
-    if (!Number.isFinite(dExit) || dExit > budget) continue;
+    if (!Number.isFinite(dExit) || dExit > budget) { internalRejects++; continue; }
     return { grid, S: endpoints.S, E: endpoints.E, gold, diam, lava, budget, viaG, viaD, viaB, regime: 'A25', nLava: lava.length, nGold: gold.length, nDiam: diam.length };
   }
-  throw new Error('A25: no valid layout for seed ' + seed);
+  throw new Error('A25: no valid layout for seed ' + seed + ' after 200 internal attempts (internal rejections counted: ' + internalRejects + ')');
 }
 // ---- features (fully observable per protocol) ----
 const FIXED_ITEMS = 10; // masks clipped to 10 gold + 10 diam slots (Unif{3..5} <= 5 per corner, ball<=13; 10 is safe)
@@ -227,9 +228,10 @@ function ppoKLdZ(Zrow, oldP, action, adv, refP, B) {
   const dZ = new Float32Array(4);
   if (active) { // dL/dz_j = adv * pi_a ((a==j) - pi_j) / oldP_a (full softmax Jacobian)
     for (let j = 0; j < 4; j++) dZ[j] += -(ex[action] * ((j === action ? 1 : 0) - ex[j])) * adv / oldP[action] / B; }
-  // loss-side KL(ref || new), FULL-form derivative (DISCLOSED approximation: the paper uses the
-  // low-variance k3 estimator; we use the exact full-form derivative, same fixed refP)
-  for (let j = 0; j < 4; j++) dZ[j] += KL * (ex[j] - refP[j]) / B;
+  // loss-side KL: FORWARD KL(new || ref), exact sum (the paper's k3 ESTIMATOR targets the same
+  // KL(new||ref); estimator difference DISCLOSED in the protocol). dKL/dz_j = pi_j (log(pi_j/ref_j) - KL).
+  let klv = 0; for (let j = 0; j < 4; j++) klv += ex[j] * (Math.log(ex[j] + 1e-12) - Math.log(refP[j] + 1e-12));
+  for (let j = 0; j < 4; j++) dZ[j] += KL * ex[j] * (Math.log(ex[j] + 1e-12) - Math.log(refP[j] + 1e-12) - klv) / B;
   return { dZ, ratio: r, active, ex, L };
 }
 
@@ -302,19 +304,32 @@ function finetune(baseNet, baseRef, seed, method, trainMazes, updates, lr, eps, 
       else if (method === 'random-w') { const w = dirichlet(rng, 4); const rt = route(mz, { probs }, rng, true, eps, []); group.push({ routes: [rt], R: dot(w, rt.vec) }); }
       else { const rts = chain(mz, { probs }, rng, true, eps, m); group.push({ routes: rts, R: setRewardMean(rts.map((r) => r.vec), draws) }); }
     }
+    // AMENDED per 155: two deterministic-shuffled minibatches of WHOLE rollouts, one epoch,
+    // advantages fixed from the full group, logits recomputed after step 1, oldP frozen from
+    // collection (clipping CAN activate within a generation). 12 candidates / 2 optimizer steps.
     const ADVs = groupAdv(group.map((x) => x.R));
-    const S = [], A = [], P = [], ADV = [];
-    for (let gi = 0; gi < group.length; gi++) { const adv = ADVs[gi]; for (const rt of group[gi].routes) for (const st of rt.steps) { S.push(st.obs); A.push(st.a); P.push(st.p); ADV.push(adv); } }
-    const B = S.length; if (!B) continue;
-    const X = new Float32Array(B * FDIM); S.forEach((o, i) => X.set(o, i * FDIM));
-    const Z = net.forwardBatch(X, B);
-    const dZ = new Float32Array(B * 4);
-    for (let i = 0; i < B; i++) {
-      const Zrow = Array.from(Z.slice(i * 4, i * 4 + 4));
-      const r = ppoKLdZ(Zrow, P[i], A[i], ADV[i], refProbs(S[i]), B);
-      for (let j = 0; j < 4; j++) dZ[i * 4 + j] = r.dZ[j];
+    const rolls = [];
+    for (let gi = 0; gi < group.length; gi++) rolls.push({ idx: gi, order: gi }); // whole-rollout units
+    // deterministic shuffle of ROLLOUT units (Fisher-Yates with the update rng, fixed seed stream)
+    for (let i = rolls.length - 1; i > 0; i--) { const j = rng.int(i + 1); const t = rolls[i]; rolls[i] = rolls[j]; rolls[j] = t; }
+    // group rollouts into two halves of WHOLE routes (chain arms keep each m-chain intact)
+    const half = Math.ceil(rolls.length / 2);
+    const mb = [rolls.slice(0, half), rolls.slice(half)];
+    for (const batch of mb) {
+      if (!batch.length) continue;
+      const S = [], A = [], P = [], ADV = [];
+      for (const roll of batch) { const adv = ADVs[roll.idx]; for (const rt of group[roll.idx].routes) for (const st of rt.steps) { S.push(st.obs); A.push(st.a); P.push(st.p); ADV.push(adv); } }
+      const B = S.length; if (!B) continue;
+      const X = new Float32Array(B * FDIM); S.forEach((o, i) => X.set(o, i * FDIM));
+      const Z = net.forwardBatch(X, B);
+      const dZ = new Float32Array(B * 4);
+      for (let i = 0; i < B; i++) {
+        const Zrow = Array.from(Z.slice(i * 4, i * 4 + 4));
+        const r = ppoKLdZ(Zrow, P[i], A[i], ADV[i], refProbs(S[i]), B); // oldP FROZEN from collection
+        for (let j = 0; j < 4; j++) dZ[i * 4 + j] = r.dZ[j]; // timestep-mean per minibatch (1/B)
+      }
+      net.backwardBatch(dZ); opt.step(); // logits for the next minibatch are recomputed by forwardBatch
     }
-    net.backwardBatch(dZ); opt.step();
   }
   return { probs, net };
 }
@@ -343,7 +358,7 @@ function evaluate(pol, testMazes, seed, m, single) {
 }
 // ---- frozen protocol ----
 const UPDATES = MODE === 'smoke' ? 60 : 12000;
-const PROTO = { mode: MODE, updates: UPDATES, discoverySeeds: [2, 4, 6, 8, 10], confirmationSeeds: [31, 33, 35, 37, 39, 41, 43, 45, 47, 49], trainMapSeeds: 'first 16 survivors from 42', testMapSeeds: 'first 32 survivors from 4242', m: 3, K: 8, G_single: 12, G_chain: 4, lr: 0.001, eps: 0.05, evalEps: 0, evalReps: 6, kValues: KVALUES, clip: 0.2, dualClip: 3.0, kl: 1e-3, entropyBonus: 0, contract: 'paper-appA1-walkable-lava', approximations: ['MLP vs LLM', 'coverage-mask context vs full text', '16/32 maps vs 1000/100', 'Adam lr 1e-3 (no weight decay) vs paper AdamW 1e-6', 'MultiRLVR mean aggregation = our adaptation'] };
+const PROTO = { mode: MODE, updates: UPDATES, discoverySeeds: [2, 4, 6, 8, 10], confirmationSeeds: [31, 33, 35, 37, 39, 41, 43, 45, 47, 49], trainMapSeeds: 'first 16 survivors from 42', testMapSeeds: 'first 32 survivors from 4242', m: 3, K: 8, G_single: 12, G_chain: 4, lr: 0.001, eps: 0, evalEps: 0, epsNote: 'pure stochastic softmax sampling at collection (155); oldP = pure policy prob; ratio old==new = 1 asserted', evalReps: 6, kValues: KVALUES, clip: 0.2, dualClip: 3.0, kl: 1e-3, entropyBonus: 0, contract: 'paper-appA1-walkable-lava', approximations: ['MLP vs LLM', 'coverage-mask context vs full text', '16/32 maps vs 1000/100', 'Adam lr 1e-3 (no weight decay) vs paper AdamW 1e-6', 'MultiRLVR mean aggregation = our adaptation'] };
 function buildMapSplits() {
   const train = []; for (let s = 42; train.length < 16 && s < 42 + 400; s++) { try { train.push(makeMaze(s)); } catch (e) {} }
   const test = []; for (let s = 4242; test.length < 32 && s < 4242 + 800; s++) { try { test.push(makeMaze(s)); } catch (e) {} }
