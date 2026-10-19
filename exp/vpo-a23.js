@@ -537,7 +537,7 @@ const trainMazes = PROTO.trainSeeds.map(makeMaze);
 const testMazes = PROTO.testSeeds.map(makeMaze);
 const out = { protocol: PROTO, mazes: { train: trainMazes.map((m) => ({ regime: m.regime, budget: m.budget })), test: testMazes.map((m) => ({ regime: m.regime, budget: m.budget })) }, runs: [] };
 
-const T_CAP = 30 * 60 * 1000, T0 = Date.now();
+const T_CAP = 40 * 60 * 1000, T0 = Date.now(); // A23 declared cap: 40 min per process (fm-box ~8 min/seed x 5)
 for (const seed of PROTO.seeds) {
   if (Date.now() - T0 > T_CAP) { out.aborted = 'wall-time cap 30 min exceeded before seed ' + seed; console.error(out.aborted); fs.writeFileSync(OUT, JSON.stringify(out)); process.exit(2); }
   const t0 = Date.now();
