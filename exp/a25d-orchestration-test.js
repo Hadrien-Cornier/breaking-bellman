@@ -93,13 +93,31 @@ const DSC = [2, 4, 6, 8, 10], CONF = [31, 33, 35, 37, 39, 41, 43, 45, 47, 49];
   if (g.allDiscoveryPass) bail('discovery should FAIL when VPO-GRPO mean = +0.04 < +0.05');
   ok('discovery fixture FAILS below margin (+0.04 < +0.05): honest unmet gate');
 }
-// discovery FAIL: per-seed count 3/5
+// discovery FAIL: per-seed count boundary. 3/5 strict positives (3 seeds dVG=+0.10, 2 seeds
+// dVG=0) while ALL other means/counts satisfy: mean dVG=+0.06 >= +0.05, growth 5/5 at +0.10,
+// GRPO growth 5/5 at +0.01, attribution ok, saturation 0. Fails ONLY the named count.
 {
   const dir = TMP + '/g-fail-count';
-  writeSeeds(dir, DSC, (s) => (s <= 6 ? Object.assign({}, PASSV, { vpo30: 0.51 }) : PASSV)); // 3 seeds with vpo30-grpo30=+0.01, still growth? vpo3=0.5 -> growth NEGATIVE for those
+  writeSeeds(dir, DSC, (s) => (s <= 6 ? Object.assign({}, PASSV, { vpo30: 0.6 }) : Object.assign({}, PASSV, { vpo30: 0.5, vpo3: 0.4 })));
   const g = G.evalDiscovery(dir);
-  if (g.allDiscoveryPass) bail('discovery should FAIL with only 2/5 strict positives');
-  ok('discovery fixture FAILS at 2/5 per-seed positives (<4/5)');
+  if (g.allDiscoveryPass) bail('discovery should FAIL at 3/5 strict positives (<4/5)');
+  if (g.counts.vpoMinusGrpoPos !== 3) bail('count assertion wrong: vpoMinusGrpoPos=' + g.counts.vpoMinusGrpoPos + ' != 3');
+  if (g.perSeedPass.vpoMinusGrpo !== false) bail('named bool wrong: perSeedPass.vpoMinusGrpo should be false');
+  if (!g.primary.pass_vpoMinusGrpo || !g.primary.pass_vpoGrowth || !g.primary.pass_grpoGrowth) bail('means should still pass in the count-boundary fixture');
+  if (g.counts.vpoGrowthPos !== 5 || g.counts.grpoGrowthWithin !== 5) bail('other counts should satisfy: ' + JSON.stringify(g.counts));
+  if (!g.attribution.pass) bail('attribution should satisfy in the count-boundary fixture');
+  ok('discovery count boundary: 3/5 strict positives fails ONLY vpoMinusGrpo count (named bool false; means + other counts 5/5 satisfy)');
+}
+// discovery PASS: count boundary 4/5 strict positives (4 seeds dVG=+0.10, 1 seed dVG=0), all other
+// means/counts satisfy => perSeedPass.vpoMinusGrpo true and allDiscoveryPass true.
+{
+  const dir = TMP + '/g-pass-count';
+  writeSeeds(dir, DSC, (s) => (s <= 8 ? Object.assign({}, PASSV, { vpo30: 0.6 }) : Object.assign({}, PASSV, { vpo30: 0.5, vpo3: 0.4 })));
+  const g = G.evalDiscovery(dir);
+  if (!g.allDiscoveryPass) bail('discovery should PASS at exactly 4/5 strict positives with passing means: ' + JSON.stringify({ p: g.primary, c: g.counts }));
+  if (g.counts.vpoMinusGrpoPos !== 4) bail('count assertion wrong: ' + g.counts.vpoMinusGrpoPos + ' != 4');
+  if (g.perSeedPass.vpoMinusGrpo !== true) bail('named bool wrong at 4/5');
+  ok('discovery count boundary: exactly 4/5 strict positives PASSES the named count with passing means');
 }
 // saturation fixture: both arms AT menu top on all units -> guard fires -> INCONCLUSIVE, not pass
 {
@@ -107,21 +125,50 @@ const DSC = [2, 4, 6, 8, 10], CONF = [31, 33, 35, 37, 39, 41, 43, 45, 47, 49];
   writeSeeds(dir, DSC, () => Object.assign({}, PASSV, { grpo30: 0.9, vpo30: 0.9, grpo3: 0.89, vpo3: 0.8 }));
   const g = G.evalDiscovery(dir);
   if (g.allDiscoveryPass) bail('saturation guard did NOT fire at 100% at-top');
-  if (!g.saturation.fired || g.saturation.fraction <= 0.8) bail('saturation fraction wrong: ' + g.saturation.fraction);
+  if (!g.saturation.fired || g.saturation.fraction <= 0.8 || g.saturation.inconclusive) bail('saturation fraction wrong: ' + JSON.stringify(g.saturation));
+  if (g.saturation.units !== 160) bail('saturation units should be 160, got ' + g.saturation.units);
   ok('saturation guard FIRES (fraction 1.0 > 0.8): INCONCLUSIVE, not a pass');
 }
-// confirmation: 9/10 counts pass; 7/10 fail; incomplete fails
+// confirmation count boundary: 8/10 strict positives PASSES with sufficient means (8 seeds
+// dVG=+0.07 => mean +0.056; all 10 growth +0.07 => 10/10 and mean ok); 7/10 FAILS ONLY the named
+// count (7 seeds dVG=+0.08 => mean +0.056, 3 seeds dVG=0; growth 10/10); assert returned counts
+// and named bool, not only overall false.
 {
   const dir = TMP + '/c-pass'; writeSeeds(dir, CONF, () => PASSV);
   const c = G.evalConfirmation(dir);
   if (!c.allConfirmationPass || c.counts.vpoMinusGrpoPos !== 10) bail('confirmation pass fixture wrong: ' + c.counts.vpoMinusGrpoPos);
-  const dir2 = TMP + '/c-7'; writeSeeds(dir2, CONF, (s) => (s <= 45 ? Object.assign({}, PASSV, { vpo30: 0.5, vpo3: 0.51 }) : PASSV)); // 7 seeds with dVG=0 (not strict) and gV<0
-  const c2 = G.evalConfirmation(dir2);
-  if (c2.allConfirmationPass) bail('confirmation should FAIL at 7/10 (<8/10)');
-  const dir3 = TMP + '/c-inc'; writeSeeds(dir3, CONF.slice(0, 8), () => PASSV);
-  const c3 = G.evalConfirmation(dir3);
-  if (c3.allConfirmationPass) bail('confirmation should FAIL when only 8/10 seeds have data (incomplete = unmet)');
-  ok('confirmation fixtures: 10/10 pass; 7/10 fail (<8); incomplete (8 present) fails honestly');
+  const dir2 = TMP + '/c-8';
+  writeSeeds(dir2, CONF, (s) => (CONF.indexOf(s) < 8 ? Object.assign({}, PASSV, { vpo30: 0.57, vpo3: 0.5 }) : Object.assign({}, PASSV, { vpo30: 0.5, vpo3: 0.43 })));
+  const c8 = G.evalConfirmation(dir2);
+  if (!c8.allConfirmationPass) bail('confirmation should PASS at exactly 8/10 strict positives with sufficient means: ' + JSON.stringify({ c: c8.counts, p: c8.primary }));
+  if (c8.counts.vpoMinusGrpoPos !== 8 || c8.counts.vpoGrowthPos !== 10 || c8.counts.grpoGrowthWithin !== 10) bail('8/10 fixture counts wrong: ' + JSON.stringify(c8.counts));
+  if (c8.countsPass !== true) bail('8/10 countsPass should be true');
+  const dir3 = TMP + '/c-7';
+  writeSeeds(dir3, CONF, (s) => (CONF.indexOf(s) < 7 ? Object.assign({}, PASSV, { vpo30: 0.58, vpo3: 0.51 }) : Object.assign({}, PASSV, { vpo30: 0.5, vpo3: 0.43 })));
+  const c7 = G.evalConfirmation(dir3);
+  if (c7.allConfirmationPass) bail('confirmation should FAIL at exactly 7/10 (<8/10)');
+  if (c7.counts.vpoMinusGrpoPos !== 7) bail('7/10 fixture count wrong: ' + c7.counts.vpoMinusGrpoPos);
+  if (c7.countsPass !== false || c7.allConfirmationPass !== false) bail('named bools wrong at 7/10');
+  if (!(c7.primary.pass_vpoMinusGrpo && c7.primary.pass_vpoGrowth && c7.primary.pass_grpoGrowth && c7.attribution.pass)) bail('7/10 fixture: means/attribution should satisfy so ONLY the named count fails');
+  if (c7.counts.vpoGrowthPos !== 10 || c7.counts.grpoGrowthWithin !== 10) bail('7/10 fixture other counts should satisfy');
+  const dir4 = TMP + '/c-inc'; writeSeeds(dir4, CONF.slice(0, 8), () => PASSV);
+  const c4 = G.evalConfirmation(dir4);
+  if (c4.allConfirmationPass) bail('confirmation should FAIL when only 8/10 seeds have data (incomplete = unmet)');
+  ok('confirmation count boundaries: 10/10 and exactly 8/10 pass (counts asserted); exactly 7/10 fails ONLY the named count (means/other counts satisfy); incomplete fails honestly');
+}
+// missing-menu / NaN menu reference: INCONCLUSIVE, never silently unsaturated
+{
+  const dir = TMP + '/g-menu-null'; writeSeeds(dir, DSC, () => PASSV);
+  const j = JSON.parse(fs.readFileSync(path.join(dir, 'seed2.partial.json'), 'utf8')); j.menuTops = null;
+  fs.writeFileSync(path.join(dir, 'seed2.partial.json'), JSON.stringify(j));
+  const g1 = G.evalDiscovery(dir);
+  if (g1.allDiscoveryPass || !(g1.reason || '').startsWith('INCONCLUSIVE')) bail('null menuTops must be INCONCLUSIVE, got ' + JSON.stringify(g1.reason || g1.allDiscoveryPass));
+  const dir2 = TMP + '/g-menu-nan'; writeSeeds(dir2, DSC, () => PASSV);
+  const j2 = JSON.parse(fs.readFileSync(path.join(dir2, 'seed4.partial.json'), 'utf8')); j2.menuTops[7] = NaN;
+  fs.writeFileSync(path.join(dir2, 'seed4.partial.json'), JSON.stringify(j2));
+  const g2 = G.evalDiscovery(dir2);
+  if (g2.allDiscoveryPass || !(g2.reason || '').startsWith('INCONCLUSIVE')) bail('NaN menuTop must be INCONCLUSIVE, got ' + JSON.stringify(g2.reason || g2.allDiscoveryPass));
+  ok('missing/null/NaN menu reference => INCONCLUSIVE with reason (never counted as unsaturated)');
 }
 fs.rmSync(TMP, { recursive: true, force: true });
 console.log('ALL ORCHESTRATION TESTS PASS');

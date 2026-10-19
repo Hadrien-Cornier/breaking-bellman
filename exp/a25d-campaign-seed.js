@@ -60,6 +60,10 @@ const dotW = (v) => A25.WSTAR.reduce((s2, w, i) => s2 + w * v[i], 0);
 const menuTops = test.map((mz) => { const rts = A25.plan(mz); if (!rts || !rts.length) return null; return Math.max(...rts.map((p) => dotW(A25.replayVec(mz, p)))); });
 mark('menu-tops', { wallMs: Date.now() - mT0, nullCount: menuTops.filter((x) => x === null).length });
 state.menuTops = menuTops;
+// per 182: missing/null/nonfinite menu refs are INCONCLUSIVE, never silently counted as unsaturated
+const menuInvalid = menuTops.some((t) => t === null || t === undefined || !Number.isFinite(t));
+if (menuInvalid) { state.menuValid = false; ap({ stage: 'menu-invalid', note: 'missing/null/nonfinite menu reference => seed INCONCLUSIVE' }); writePartial(false); process.exit(2); }
+state.menuValid = true;
 
 // BC base with the TRAINING seed (per 179); all arms share it
 timeGuard('bc');
