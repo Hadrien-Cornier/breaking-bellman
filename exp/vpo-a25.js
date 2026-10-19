@@ -388,10 +388,12 @@ async function main() {
     arms[seed].multi = finetune(b.net, b.net, seed, 'multi-rlvr', train, gens, PROTO.lr, PROTO.eps, PROTO.m, PROTO.K, PROTO.G_chain);
     arms[seed].vpo = finetune(b.net, b.net, seed, 'vpo', train, gens, PROTO.lr, PROTO.eps, PROTO.m, PROTO.K, PROTO.G_chain);
     arms[seed].randw = finetune(b.net, b.net, seed, 'random-w', train, gens, PROTO.lr, PROTO.eps, 1, PROTO.K, PROTO.G_single);
+    arms[seed].base_eval = evaluate({ probs: b.probs }, testSet, seed, PROTO.m, true, reps); // init competence (descriptive)
     for (const [name, pol] of [['grpo', arms[seed].grpo], ['multi', arms[seed].multi], ['vpo', arms[seed].vpo], ['randw', arms[seed].randw]]) arms[seed][name + '_eval'] = evaluate(pol, testSet, seed, PROTO.m, name === 'grpo' || name === 'randw', reps);
     console.log('seed', seed, 'done', Math.round((Date.now() - t0) / 1000) + 's');
   }
-  fs.writeFileSync(OUT, JSON.stringify({ protocol: PROTO, arms }, null, 1));
+  const effective = { mode: MODE, generations: gens, evalReps: reps, seeds, trainMapCount: train.length, testMapCount: testSet.length, testMapIds: bounded ? test.slice(0, 4).map((m2) => m2.seed) : test.map((m2) => m2.seed), trainMapIds: train.map((m2) => m2.seed), bcEpochs: 8, updatesPerGen: 2, identity: { note: 'sha256 of exp/vpo-a25.js at run time is printed by the launcher, not embedded' } };
+  fs.writeFileSync(OUT, JSON.stringify({ protocol: effective, arms }, null, 1));
   console.log('wrote', OUT);
 }
 if (require.main !== module) { module.exports = { makeMaze, features, route, chain, plan, replayVec, finetune, evaluate, buildMapSplits, setRewardMean, groupAdv, dirichlet, dot, WSTAR, FDIM, PROTO, ppoKLdZ, WALL, EMPTY, coverOf }; }
