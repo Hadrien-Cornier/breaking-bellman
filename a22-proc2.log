@@ -1,0 +1,6 @@
+seed 8 done in 9.1 min
+seed 10 done in 9.6 min
+wrote a22-proc2.json
+base best1 0.292,0.313 best30 0.846,0.847 spread 1.35,1.25
+grpo-single best1 0.865,0.823 best30 0.875,0.872 spread 0.05,0.11
+vpo best1 0.762,0.781 best30 0.875,0.872 spread 0.47,0.24
