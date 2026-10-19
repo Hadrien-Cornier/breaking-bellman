@@ -302,6 +302,10 @@ function coverOf(mz, rt) { // canonical coverage from a route object OR a raw pl
 function finetune(baseNet, baseRef, seed, method, trainMazes, updates, lr, eps, m, K, G, feat = features, fdim = FDIM) {
   const rng = rngMake(seed * 1000 + 17);
   const net = RLA.nn.mlp({ sizes: [fdim, HID, 4], act: 'tanh', rng: rngMake(1), outScale: 0 });
+  // base/ref shape guard: refuse silently copying mismatched parameter shapes (hidden-size or fdim mismatch)
+  if (!baseNet || !baseNet.params || baseNet.params.length !== net.params.length) throw new Error('finetune: baseNet parameter-array shape mismatch (layers ' + (baseNet && baseNet.params ? baseNet.params.length : 'n/a') + ' vs ' + net.params.length + ')');
+  if (!baseRef || !baseRef.params || baseRef.params.length !== net.params.length) throw new Error('finetune: baseRef parameter-array shape mismatch');
+  for (let i = 0; i < net.params.length; i++) if (baseNet.params[i].length !== net.params[i].length || baseRef.params[i].length !== net.params[i].length) throw new Error('finetune: parameter ' + i + ' length mismatch (hidden/fdim mismatch refused)');
   net.params.forEach((p, i) => p.set(baseNet.params[i]));
   const opt = RLA.nn.adam(net, { lr, clipNorm: 1.0 });
   const probs = (obs) => { const z = Array.from(net.forward(obs)); let mx = -Infinity; for (const x of z) mx = Math.max(mx, x); const e = z.map((x) => Math.exp(x - mx)); const s = e.reduce((a, b) => a + b, 0); return e.map((x) => x / s); };
