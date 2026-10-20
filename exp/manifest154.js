@@ -5,7 +5,7 @@ const FILES=['exp/campaign154.js','exp/seed154.js','exp/manifest154.js','exp/lau
 const root=path.resolve(__dirname,'..');
 const shaFile=f=>crypto.createHash('sha256').update(fs.readFileSync(path.join(root,f))).digest('hex');
 function split(ids) {return ids.map(id=>M.makeMaze(id));}
-function summary(mz) {const menu=M.menu(mz);return {id:mz.seed,problemHash:M.hash(mz),menuHash:menu.hash,menuCount:menu.paths.length,rewardVectors:menu.rewardVectors,menuTop:menu.top,directLength:mz.directLength,allLength:mz.allLength,budget:mz.budget,demoCount:M.plan(mz).length};}
+function summary(mz) {const menu=M.menu(mz);return {id:mz.seed,problemHash:M.hash(mz),menuHash:menu.hash,menuCount:menu.paths.length,rewardVectors:menu.rewardVectors,menuTop:menu.top,directLength:mz.directLength,allLength:mz.allLength,budget:mz.budget,demoCount:M.plan(mz).length,demoPathSteps:M.plan(mz).map(p=>p.length-1)};}
 function build() {
   const old=require('./a25d-manifest.js').build();
   const train=split(Array.from({length:256},(_,i)=>154000+i)),test=split(Array.from({length:32},(_,i)=>1541000+i));
@@ -14,12 +14,13 @@ function build() {
     environment:'scattered 5+5 treasures,5 lava on old9x9 wall generator; budget floor(direct+.55*(all-direct)); all IDs fixed, no policy-based selection',
     trainMaps:{count:256,source:'fixed IDs154000..154255',ids:train.map(m=>m.seed),hash:M.hash(train)},testMaps:{count:32,source:'fixed new held-out IDs1541000..1541031',ids:test.map(m=>m.seed),hash:M.hash(test)},
     problemSummaries:summaries,problemSummaryHash:M.hash(summaries),
-    bc:{...old.bc,planner:'TRAIN-only two-kernel subset/last menu; gold/diamond/uniform representatives, dedup; cross-route coverage context; eight epochs',checkpoint:'per-seed/base.checkpoint.json with SHA256 of all parameter bytes; all trained arms cloned from these identical bytes'},
+    bc:{...old.bc,planner:'TRAIN-only two-kernel subset/last menu; gold/diamond/uniform representatives, dedup; cross-route coverage context; eight epochs',checkpoint:'per-seed/base.checkpoint.json with SHA256 of all parameter bytes; all trained arms cloned from these identical bytes', nDemo:summaries.train.reduce((s,p)=>s+p.demoCount*p.demoCount,0), optimizerSteps:summaries.train.reduce((s,p)=>s+8*p.demoCount*p.demoCount,0), supervisedActionPresentations:summaries.train.reduce((s,p)=>s+8*p.demoCount*p.demoPathSteps.reduce((a,b)=>a+b,0),0), comparisonNote:'BC examples and computation can differ versus098 because the environment/menu changed; eight epochs and model capacity unchanged, identical base within every paired seed; no pure environmental causal claim across attempts'},
     gates:{...old.gates,saturationGuard:{...old.gates.saturationGuard,menuReference:'max uniform score over all replay-valid subset/last DP tours for lava-permitted and lava-forbidden shortest-leg kernels, plus direct exit; finite reference ONLY, no global-optimum claim'}},
     identity:{...old.identity,attemptIdScheme:'a26-hard154-v1 (stable, one launch only)',frozenManifest:'manifest154.json passed by path, byte-copy into unique attempt output; runtime integrity checks every imported file'},
     matching:'same candidates/updates/allocated horizon per arm; early-exit unused horizon counted idle, active steps separately disclosed',
     rng:'BC seed=s; fine-tune rng=s*1000+17, net init1 overwritten by base; eval rng=s*7919+5; environment wall RNG perA25, item RNG=id*17+154',
-    command:'bash exp/launch154.sh <unique-absolute-output-dir> <absolute-manifest154.json>',
+    remote:{cwd:'/home/ec2-user/Documents/Personal/LeRobot/bb-vpo-hard154-tree', branch:'fm/vpo-hard154', window:'bb-vpo-hard154', scope:'robot-bb-vpo-hard154.scope',output:'/home/ec2-user/Documents/Personal/LeRobot/bb-vpo-hard154-tree/research-output/a26-hard154-v1',manifest:'/home/ec2-user/Documents/Personal/LeRobot/bb-vpo-hard154-tree/manifest154.json'},
+    command:'bash exp/launch154.sh /home/ec2-user/Documents/Personal/LeRobot/bb-vpo-hard154-tree/research-output/a26-hard154-v1 /home/ec2-user/Documents/Personal/LeRobot/bb-vpo-hard154-tree/manifest154.json',
     accounting:'process.cpuUsage delta and resourceUsage maxRSS per expensive stage; 1000-generation atomic inference-weight checkpoints (not resumable optimizer checkpoints); per-arm actual candidates/activeSteps/allocatedSteps/optimizerSteps/scalarizationDots',
     expected:'7-10h discovery,20-24h if conditional confirmation; bounded24h total/4hseed/2heavy, missing or late=inconclusive',
     caps:{...old.caps,memoryHighGiB:7,memoryMaxGiB:8,swapMax:0,voluntaryAggregateHighGiB:12,voluntaryAggregateMaxGiB:14,globalDeadlineStart:'external launcher timestamp (includes driver manifest checks/setup)'}

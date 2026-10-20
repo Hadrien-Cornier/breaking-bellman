@@ -17,6 +17,8 @@ const MF = TMP + '/frozen-manifest.json';
 fs.writeFileSync(MF, JSON.stringify(require('./manifest154.js').build()));
 const ENV = (extra) => Object.assign({}, process.env, { A25D_ALLOW_TEST_CAPS: '1', A25D_TEST_CAPS: JSON.stringify({ globalMs: 60000, perSeedMs: 4000 }) }, extra);
 
+// Already-passed orchestration fixtures can be skipped for the authorized bookkeeping-only repair.
+if (process.argv[2] !== '--bookkeeping-only') {
 // dummy workers
 const dummyOk = TMP + '/dummy-ok.js';
 fs.writeFileSync(dummyOk, `
@@ -172,8 +174,8 @@ const DSC = [2, 4, 6, 8, 10], CONF = [31, 33, 35, 37, 39, 41, 43, 45, 47, 49];
   if (g2.allDiscoveryPass || !(g2.reason || '').startsWith('INCONCLUSIVE')) bail('NaN menuTop must be INCONCLUSIVE, got ' + JSON.stringify(g2.reason || g2.allDiscoveryPass));
   ok('missing/null/NaN menu reference => INCONCLUSIVE with reason (never counted as unsaturated)');
 }
-fs.rmSync(TMP, { recursive: true, force: true });
-console.log('ALL ORCHESTRATION TESTS PASS');
+}
+
 // CURRENT154 frozen-manifest bookkeeping, no BC or model evaluation.
 {
  const mf=JSON.parse(fs.readFileSync(MF,'utf8'));
@@ -190,3 +192,5 @@ console.log('ALL ORCHESTRATION TESTS PASS');
  ok('154 manifest fixed split/hash/dims/menu summaries, existing-output refusal, drift/missing-manifest refusal');
  const s=mf.problemSummaries.test;console.log('GEOMETRY154 TEST',JSON.stringify({menuCounts:s.map(x=>x.menuCount),tops:s.map(x=>x.menuTop),vectorCounts:s.map(x=>x.rewardVectors),budgets:s.map(x=>x.budget)}));
 }
+
+console.log(process.argv[2] === '--bookkeeping-only' ? 'ALL154 BOOKKEEPING/REFUSAL ASSERTIONS PASS (prior orchestration fixtures not rerun)' : 'ALL154 ORCHESTRATION AND BOOKKEEPING ASSERTIONS PASS');
