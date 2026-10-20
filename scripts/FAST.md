@@ -30,8 +30,11 @@ The report gives per-shard and aggregate raw/gzip bytes plus index bytes.
 HTML embeds only version metadata, and the standalone file remains fully usable without fetching data.
 `node --test test/fast-assets.test.js` checks the complete published manifest coverage, shard integrity, ordered seeds and lossless round trips, and passes every current-version shard through the production consumer validator without training again.
 
-The browser fetches the index only after Fast opt-in, then loads one matching shard and checks its size, SHA-256, exact configuration and complete seeds.
-Invalid versions, missing keys, corruption, timeout, fetch failure and file URLs fall through to actual Live settings.
+Fast is the default; the browser fetches the index on Run, then loads one matching shard and checks its size, SHA-256, exact configuration and complete seeds.
+Invalid versions, missing keys, corruption, timeout, fetch failure and file URLs fall through to the local IndexedDB cache, then actual Live settings.
+The local cache uses the same full-record codec and validation, keyed by the canonical configuration including engine versions.
+Live results save without rounding; explicit Live bypasses both caches and the choice resets to Fast on reload.
+Storage failures and bounded open/transaction timeouts behave as misses; Settings clears the persisted result store.
 Settings changes cancel pending main runs; stale results cannot paint a later request.
 Missing keys revalidate the index, allowing later publication to append compatible shards without regenerating earlier results.
 

@@ -34,7 +34,7 @@ function harness() {
     range: (a, b) => { const o = []; for (let i = a; i <= b; i++) o.push(i); return o; },
     short: (x) => String(x),
     runSeeds: () => Promise.resolve(ctx.__results || []),
-    fastClient: { lookup: async () => ({ record: { results: ctx.__results || [] } }) },
+    fastClient: { save:async()=>true,lookup: async () => ({ record: { results: ctx.__results || [] } }) },
   });
   ctx.window.BB_FAST = { versions: { engine: 'test' }, base: 'fast/test' };
   vm.runInContext(app.slice(app.indexOf('  const fmt = (x) => {'), app.indexOf('\n  };', app.indexOf('  const fmt = (x) => {')) + 5), ctx);
