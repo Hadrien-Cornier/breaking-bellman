@@ -24,7 +24,7 @@ function evaluateLong(js){
 }
 function check(ok,message){if(!ok)throw Error(message);console.log('ok '+message);}
 cli('open',url);cli('emulate','--viewport','1280x900x1');
-check(evaluate('() => { const intro=document.querySelector("dialog.intro button");if(intro)intro.click();return {mode:document.querySelector("#run-mode").value,fetches:performance.getEntriesByType("resource").filter(r=>r.name.includes("/fast/")).length}; }').mode==='live','Live is default');
+check(evaluate('() => { const intro=document.querySelector("dialog.intro button");if(intro)intro.click();return {mode:document.querySelector("#run-mode").value,fetches:performance.getEntriesByType("resource").filter(r=>r.name.includes("/fast/")).length}; }').mode==='fast','Fast is default');
 const results=[];
 for(const e of entries){
   const r=exact.parse(z.gunzipSync(fs.readFileSync(path.join(campaign,'records',e.key+'.json.gz'))).toString());

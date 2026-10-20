@@ -37,8 +37,11 @@ I made this to learn RL myself, because I learn best by breaking things. An AI a
 
 Every level is open, so play them in any order. Your progress saves in your browser. To move it to another browser or computer, use **Download save file** and **Load save file** (under the level map, or in Settings).
 
-Runs use **Live** by default.
-Choose **Fast** to load a stored simulation when its complete settings, budget, ordered seeds and engine versions match exactly.
+Runs use **Fast** by default: published results first, then results saved in this browser, then Live training.
+Successful Live runs save their full results in IndexedDB with exact settings, budget, ordered seeds and engine versions.
+Choose **Live (train fresh)** to retrain and save; a new page visit returns to Fast.
+Settings has **Clear local simulation cache**.
+Unavailable storage or a full quota leaves Live training usable.
 The label identifies stored results and their replay seed; Live reruns can vary numerically across browsers.
 Other settings, unavailable data and offline files run Live automatically.
 **Watch one update** always runs Live.

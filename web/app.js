@@ -843,7 +843,7 @@
     if (!a.symptoms.length) box.append(h('p.small', { text: 'No symptom found.' }));
     for (const s of a.symptoms) box.append(h('div.sym.' + s.level, null, [h('span.dot'), h('div', null, [h('b', { text: s.label }), h('p', { text: s.evidence })])]));
     for (const n of S.results[0].notes || []) box.append(h('p.small', { text: 'Note: ' + n }));
-    box.append(h('p.small', { text: 'Measured on ' + S.results.length + ' run' + (S.results.length > 1 ? 's' : '') + '. ' + (S.stored ? 'Stored simulation.' : 'Trained in this page. Simulation.') }));
+    box.append(h('p.small', { text: 'Measured on ' + S.results.length + ' run' + (S.results.length > 1 ? 's' : '') + '. ' + (S.source === 'local' ? 'Saved in this browser. Simulation.' : S.stored ? 'Stored simulation.' : 'Trained in this page. Simulation.') }));
     if (window.RLHELP) window.RLHELP.enhance(box, metricCtx());
     return a;
   }
@@ -920,7 +920,7 @@
     const lv = S.mode === 'campaign' ? C.levels.find((l) => l.id === S.level) : null;
     return Object.assign(C.hyperOf(S.parts, S.world), lv && lv.world === S.world && lv.hyper ? lv.hyper : {});
   }
-  const fastClient = window.RLFAST.create(window.BB_FAST);
+  const fastClient = window.RLFAST.createCache(window.BB_FAST);
   let activeRun = null;
   function runIdentity() {
     return RLA.exact.stringify({ mode: S.mode, level: S.level, world: S.world, parts: S.parts, knobs: S.knobs,
@@ -947,14 +947,17 @@
     const seeds = range(1, nSeeds).map((i) => i * 101);
     $('#charts').replaceChildren(); const prog = $('#prog'); prog.style.width = '2%';
     S.results = [];
-    S.stored = false;
+    S.stored = false; S.source = 'live';
     $('#run-source').textContent = $('#run-mode').value === 'fast' ? 'Looking for an exact stored simulation…' : 'Live simulation: training in this page.';
     try {
+      const config = RLA.exact.resolve(cfg, seeds, window.BB_FAST.versions, C);
       let stored = null;
       if ($('#run-mode').value === 'fast') {
-        stored = await fastClient.lookup(RLA.exact.resolve(cfg, seeds, window.BB_FAST.versions, C), ticket.controller.signal);
+        stored = await fastClient.lookup(config, ticket.controller.signal);
         if (!current()) return null;
-        $('#run-source').textContent = stored.reason || 'Stored simulation: loading measured results.';
+        $('#run-source').textContent = stored.record
+          ? (stored.source === 'local' ? 'Saved in this browser: loading measured results.' : 'Stored simulation: loading measured results.')
+          : 'Live simulation: training in this page.';
       }
       const results = stored && stored.record ? stored.record.results : await runSeeds(cfg, seeds, (partials) => {
         if (!current()) return;
@@ -963,10 +966,13 @@
         if (S.world !== 'bandit' && S.world !== 'mirage') renderCharts(partials, false);
       });
       if (!current()) return null;
+      const savedLocally = !(stored && stored.record) && await fastClient.save(config, results);
+      if (!current()) return null;
       S.stored = !!(stored && stored.record);
+      S.source = S.stored ? stored.source : 'live';
       $('#run-source').textContent = S.stored
-        ? 'Stored simulation. Ordered seeds: ' + seeds.join(', ') + '. Budget: ' + steps + ' steps per seed. Version: ' + window.BB_FAST.base.split('/').pop() + '. Recorded replay seed: ' + seeds[0] + '. Live reruns can vary numerically across browsers.'
-        : (stored ? stored.reason + ' ' : '') + 'Live simulation: trained in this page. Replay seed: ' + seeds[0] + '.';
+        ? (S.source === 'local' ? 'Saved in this browser. Simulation. Ordered seeds: ' : 'Stored simulation. Ordered seeds: ') + seeds.join(', ') + '. Budget: ' + steps + ' steps per seed. Version: ' + window.BB_FAST.base.split('/').pop() + '. Recorded replay seed: ' + seeds[0] + '. Live reruns can vary numerically across browsers.'
+        : 'Live simulation: trained in this page. Replay seed: ' + seeds[0] + '.' + (savedLocally ? ' Saved in this browser for next time.' : '');
       S.results = results;
       renderCharts(results.map((r) => ({ evals: r.evals, diag: r.diag })), true);
       renderStage();
@@ -1270,17 +1276,20 @@
         const left = i ? Math.round((performance.now() - t0) / i * (combos.length - i) / 1000) : null;
         G.status = 'Running combination ' + (i + 1) + ' of ' + combos.length + (left != null ? ', about ' + left + ' s left' : '') + '…'; drawGrid();
         const cfg = { world, knobs, parts, hyper, steps };
-        const stored = fast ? await fastClient.lookup(RLA.exact.resolve(cfg, seeds, window.BB_FAST.versions, C)) : null;
+        const config = RLA.exact.resolve(cfg, seeds, window.BB_FAST.versions, C);
+        const stored = fast ? await fastClient.lookup(config) : null;
         if (runIdentity() !== identity) throw new Error('Settings changed. Run the table again.');
         const res = stored && stored.record ? stored.record.results : await runSeeds(cfg, seeds, () => {});
+        if (runIdentity() !== identity) throw new Error('Settings changed. Run the table again.');
+        if (!(stored && stored.record)) await fastClient.save(config, res);
         if (runIdentity() !== identity) throw new Error('Settings changed. Run the table again.');
         const a = RLA.autopsy(res), m = metricOf(a, world);
         const se = metricSE(res, world);
         G.metric = m;
-        G.rows.push({ vals: combos[i], parts, v: m.v, se, works: C.works[world](a), rec: recognize(parts, world), stored: !!(stored && stored.record) });
+        G.rows.push({ vals: combos[i], parts, v: m.v, se, works: C.works[world](a), rec: recognize(parts, world), stored: !!(stored && stored.record), source: stored && stored.source });
       }
       G.status = (G.stop ? 'Stopped after ' + G.rows.length + ' of ' + combos.length + ' combinations. ' : 'Done: ' + combos.length + ' combinations in ' + Math.round((performance.now() - t0) / 1000) + ' s. ') + G.cfgText + '. Simulation.';
-      if (fast) G.status += ' ' + G.rows.filter(r => r.stored).length + ' stored simulations; the others ran Live. Ordered seeds: ' + seeds.join(', ') + '. Version: ' + window.BB_FAST.base.split('/').pop() + '.';
+      if (fast) G.status += ' ' + G.rows.filter(r => r.stored).length + ' stored simulations (' + G.rows.filter(r => r.source === 'local').length + ' saved in this browser); the others ran Live. Ordered seeds: ' + seeds.join(', ') + '. Version: ' + window.BB_FAST.base.split('/').pop() + '.';
     } catch (err) {
       G.status = 'A combination failed: ' + err.message;
     } finally {
@@ -1317,7 +1326,7 @@
         h('button.gbtn', { type: 'button', onclick: () => useRow(r) }, [
           h('b', { text: gfmt(r.v) + gunit(m) }), isFinite(r.se) ? h('span.small', { text: ' ±' + gfmt(r.se) + gunit(m) }) : null,
           r.works ? h('span.gok', { text: ' ✓' }) : null,
-          h('span.gname', { text: r.stored ? 'Stored simulation' : 'Live' }),
+          h('span.gname', { text: r.source === 'local' ? 'Saved in this browser' : r.stored ? 'Stored simulation' : 'Live' }),
           name ? h('span.gname', { text: name }) : null, isNow ? h('span.gname', { text: '(your sentence)' }) : null])]);
     };
     const head = h('tr', null, [h('th', { text: rk.map((k) => SHORT[k]).join(' / ') + (ck.length ? ' ↓   ' + ck.map((k) => SHORT[k]).join(' / ') + ' →' : '') })]
@@ -2731,6 +2740,12 @@
           ]),
         ]),
         h('section.stack', null, [
+          h('h3', { text: 'Local simulation cache' }),
+          h('p.small', { text: 'Fast checks published results, then exact results saved in this browser. Live always trains fresh and saves for next time. Storage limits or private windows may prevent saving.' }),
+          h('button.btn.ghost', { type: 'button', id: 'clear-local-cache', onclick: async () => {
+            const cleared = await fastClient.clear();
+            toast(cleared ? 'Local simulation cache cleared.' : 'Local storage unavailable. You can still run Live.');
+          } }, 'Clear local simulation cache'),
           h('h3', { text: 'Your progress' }),
           h('p.small', { text: 'Progress saves in this browser (local storage), so a private window or cleared site data forgets it. Download a save file to keep it, or to continue in another browser or on another computer.' }),
           h('div.row', null, [
@@ -2808,6 +2823,7 @@
   $('#replay-lab').append(replayView());
   $('#grid-lab').append(gridView());
   $('#grid-card').addEventListener('toggle', () => { if ($('#grid-card').open) drawGrid(); });
+  $('#run-mode').value = 'fast'; // A fresh-Live override lasts only for this page visit.
   for (const sel of ['#seeds', '#budget', '#run-mode']) $(sel).addEventListener('change', () => { cancelRun(); if (!G.running) drawGrid(); });
   document.addEventListener('change', () => { if (activeRun && runIdentity() !== activeRun.identity) cancelRun(); });
 
