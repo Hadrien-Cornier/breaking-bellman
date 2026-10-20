@@ -963,7 +963,7 @@
       if (!current()) return null;
       S.stored = !!(stored && stored.record);
       $('#run-source').textContent = S.stored
-        ? 'Stored simulation. Ordered seeds: ' + seeds.join(', ') + '. Budget: ' + steps + ' steps per seed. Version: ' + window.BB_FAST.base.split('/').pop() + '. Recorded replay seed: ' + seeds[0] + '.'
+        ? 'Stored simulation. Ordered seeds: ' + seeds.join(', ') + '. Budget: ' + steps + ' steps per seed. Version: ' + window.BB_FAST.base.split('/').pop() + '. Recorded replay seed: ' + seeds[0] + '. Live reruns can vary numerically across browsers.'
         : (stored ? stored.reason + ' ' : '') + 'Live simulation: trained in this page. Replay seed: ' + seeds[0] + '.';
       S.results = results;
       renderCharts(results.map((r) => ({ evals: r.evals, diag: r.diag })), true);

@@ -1,5 +1,5 @@
 // A tiny static server for dist/ (no dependencies). npm start builds the page, then runs this.
-// It listens on 127.0.0.1 only, so other computers on your network cannot open it.
+// It defaults to 127.0.0.1; BB_HOST can opt into a network preview.
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';

@@ -8,6 +8,31 @@
   async function unpack(bytes) {
     return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
   }
+  function completeResult(r, config, seed) {
+    const has = (o, keys) => o && keys.every(k => Object.hasOwn(o, k));
+    const lists = (o, keys) => has(o, keys) && keys.every(k => Array.isArray(o[k]));
+    if (!has(r, ['world','seed','steps','parts','knobs','ep','evals','diag','notes','trace','bandit','table','peeks','final']) ||
+        r.seed !== seed || r.world !== config.world || r.steps !== config.steps ||
+        X.stringify(r.parts) !== X.stringify(config.parts) || X.stringify(r.knobs) !== X.stringify(config.knobs) ||
+        !lists(r, ['evals','diag','notes','peeks']) || !lists(r.ep, ['t','ret','len','falls','left','success'])) return false;
+    if (r.bandit !== null) {
+      if (!has(r.final, ['means','q','best'])) return false;
+      return ['reward','optimal','regret','arm'].every(k => ArrayBuffer.isView(r.bandit[k]) && r.bandit[k].length === config.steps);
+    }
+    if (!Array.isArray(r.trace) || !has(r, ['traceStart']) || !has(r.final, ['ret','disc','pred','success','dist'])) return false;
+    if (!r.evals.every(e => has(e, ['t','ret','disc','pred','maxQ','success','crashes','dist'])) ||
+        !r.diag.every(d => has(d, ['t','loss','td','grad','eps','updates','kl','clipFrac','entropy','alpha','qData','qPolicy','std','zeroFrac']))) return false;
+    const world = globalThis.RLA.worlds[config.world];
+    if (world.evalEpisodes > 1 || config.parts.source === 'fixed') {
+      if (!has(r.final, ['meanRet','successRate','crashRate','meanDist','leftRate','n','paths']) ||
+          r.final.n !== config.evaluation.finalEpisodes || !Array.isArray(r.final.paths)) return false;
+      if (world.base && !has(r.final, ['baseRet','baseDist'])) return false;
+    }
+    if (config.world === 'mirage' && !has(r.final, ['qA','qB'])) return false;
+    if (config.world === 'pendulum' && (!has(r.replay, ['ret','start','trace']) || !Array.isArray(r.replay.trace))) return false;
+    if (world.playable && config.family === 'pg' && !lists(r.policy, ['sizes','params'])) return false;
+    return true;
+  }
   function create(options) {
     const { versions, base, protocol = location.protocol, fetcher = fetch, digest = sha256, decompress = unpack, timeout = 15000 } = options;
     let index = null, indexAt = 0;
@@ -37,7 +62,7 @@
         if (record.schema !== 'bb-full-results-v1' || record.key !== key || X.stringify(record.config) !== X.stringify(config) || !Array.isArray(record.results) || record.results.length !== config.seeds.length) throw Error('invalid stored record');
         for (let i = 0; i < record.results.length; i++) {
           const r = record.results[i];
-          if (r.seed !== config.seeds[i] || r.world !== config.world || r.steps !== config.steps || !r.final || !r.ep || !Array.isArray(r.evals) || !Array.isArray(r.diag) || !Array.isArray(r.notes)) throw Error('incomplete stored results');
+          if (!completeResult(r, config, config.seeds[i])) throw Error('incomplete stored results');
         }
         if (controller.signal.aborted) throw Error('cancelled');
         return { record };
