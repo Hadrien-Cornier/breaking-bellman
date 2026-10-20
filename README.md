@@ -36,6 +36,12 @@ I made this to learn RL myself, because I learn best by breaking things. An AI a
 
 Every level is open, so play them in any order. Your progress saves in your browser. To move it to another browser or computer, use **Download save file** and **Load save file** (under the level map, or in Settings).
 
+Runs use **Live** by default.
+Choose **Fast** to load a stored simulation when its complete settings, budget, ordered seeds and engine versions match exactly.
+The label identifies stored results and their replay seed; Live reruns can vary numerically across browsers.
+Other settings, unavailable data and offline files run Live automatically.
+**Watch one update** always runs Live.
+
 ## Bring your own AI (optional)
 
 You don't need an AI assistant to play. If you want help:
@@ -58,6 +64,7 @@ Plain JavaScript with no dependencies: small neural networks with Adam on typed 
 | `web` | The page, the levels, and `scenes.js`, which draws the robot |
 
 `npm test` runs the engine tests. `npm run smoke` plays the page in a headless browser. [`ENGINE.md`](ENGINE.md) describes the interfaces, so you can add a world in one file.
+The optional stored simulation assets and their append workflow are described in [`scripts/FAST.md`](scripts/FAST.md).
 
 **Does it use my GPU?** No, on purpose. The networks have two layers of 32 units, and each step waits for the one before it. Shipping that to a GPU and waiting for the answer costs more than the math itself. On a CPU a training step takes 0.1 to 3 milliseconds.
 

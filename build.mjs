@@ -4,25 +4,21 @@
 // node build.mjs --fragment   -> the page body only (for hosts that add their own <html> skeleton).
 import fs from 'node:fs';
 import path from 'node:path';
+import fastSource from './scripts/fast-source.js';
 
 const root = path.dirname(new URL(import.meta.url).pathname);
 const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 
-export const ENGINE_FILES = [
-  'src/core/rng.js', 'src/core/nn.js',
-  'src/worlds/bandit.js', 'src/worlds/cliff.js', 'src/worlds/cartpole.js', 'src/worlds/mirage.js',
-  'src/worlds/goalgrid.js', 'src/worlds/pendulum.js', 'src/worlds/reach.js', 'src/worlds/fork.js', 'src/worlds/fetch.js',
-  'src/agents/value.js', 'src/agents/pg.js', 'src/agents/ac.js',
-  'src/sim/run.js', 'src/sim/autopsy.js',
-];
+export const ENGINE_FILES = fastSource.engineFiles;
 const CONTENT_FILES = ['web/content.js', 'web/content2.js', 'web/measured.js', 'web/content3.js', 'web/expert.js', 'web/papers.js', 'web/wonder.js', 'web/fetch-level.js'];
-const APP_FILES = ['web/llm.js', 'web/scenes.js', 'web/pagemd.js', 'web/help.js', 'web/rules.js', 'web/app.js'];
+const APP_FILES = ['src/sim/exact.js', 'web/fast.js', 'web/llm.js', 'web/scenes.js', 'web/pagemd.js', 'web/help.js', 'web/rules.js', 'web/app.js'];
 
 const exists = (f) => fs.existsSync(path.join(root, f));
 const join = (files) => files.filter(exists).map(read).join('\n;\n');
 const noClose = (s) => s.replace(/<\/script/gi, '<\\/script');
 
 const body = read('web/page.html')
+  .replace('/*@FAST_VERSION@*/', () => 'window.BB_FAST = ' + JSON.stringify({ versions: fastSource.source().versions, base: 'fast/' + fastSource.hash(fastSource.exact.stringify(fastSource.source().versions)) }) + ';')
   .replace('/*@ENGINE@*/', () => noClose(join(ENGINE_FILES)))
   .replace('/*@CONTENT@*/', () => join(CONTENT_FILES))
   .replace('/*@APP@*/', () => join(APP_FILES))
@@ -42,4 +38,5 @@ const page = fragment ? body
 const out = fragment ? 'dist/breaking-bellman.fragment.html' : 'dist/breaking-bellman.html';
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(root, out), page);
+if (exists('fast')) fs.cpSync(path.join(root, 'fast'), path.join(root, 'dist/fast'), { recursive: true });
 console.log(out, (page.length / 1024).toFixed(1), 'KiB');

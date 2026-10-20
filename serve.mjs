@@ -1,5 +1,5 @@
 // A tiny static server for dist/ (no dependencies). npm start builds the page, then runs this.
-// It listens on 127.0.0.1 only, so other computers on your network cannot open it.
+// It defaults to 127.0.0.1; BB_HOST can opt into a network preview.
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,4 +14,4 @@ http.createServer((req, res) => {
   if (!file.startsWith(root) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); res.end('Not found'); return; }
   res.writeHead(200, { 'content-type': types[path.extname(file)] || 'application/octet-stream', 'cache-control': 'no-store' });
   fs.createReadStream(file).pipe(res);
-}).listen(port, '127.0.0.1', () => console.log(`Breaking Bellman: open http://localhost:${port} (Ctrl+C to stop)`));
+}).listen(port, process.env.BB_HOST || '127.0.0.1', () => console.log(`Breaking Bellman: open http://localhost:${port} (Ctrl+C to stop)`));

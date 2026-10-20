@@ -28,7 +28,7 @@
     <div class="card">
       <div class="row" style="justify-content: space-between">
         <div class="eyebrow" id="lab-world">World</div>
-        <span class="tag sim" title="Every curve here comes from training code that ran in this page">Simulation</span>
+        <span class="tag sim" title="Every curve comes from the game's simulation engine">Simulation</span>
       </div>
       <canvas class="stage" id="stage" width="640" height="280" aria-label="The world, replaying the last trained policy"></canvas>
       <p class="small" id="stage-caption">Run a recipe to see the trained policy act.</p>
@@ -42,7 +42,10 @@
         <select id="seeds"><option>1</option><option selected>3</option><option>5</option></select>
         <label class="small" for="budget">Steps</label>
         <select id="budget"></select>
+        <label class="small" for="run-mode">Run mode</label>
+        <select id="run-mode"><option value="live" selected>Live</option><option value="fast">Fast (stored when exact)</option></select>
       </div>
+      <p class="small muted" id="run-source" aria-live="polite">Live simulation: trains in this page.</p>
       <div class="progress"><i id="prog"></i></div>
       <p class="small" id="run-result" aria-live="polite"></p>
       <div class="stack" id="compare"></div>
@@ -76,5 +79,6 @@
 /*@CONTENT@*/
 </script>
 <script>
+/*@FAST_VERSION@*/
 /*@APP@*/
 </script>
