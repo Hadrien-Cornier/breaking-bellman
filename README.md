@@ -8,11 +8,12 @@ A small browser game for learning reinforcement learning (RL). You watch RL algo
 
 ## What you do
 
-There are 17 levels. Each one hands you a learner that's broken in an educational way. A few of them:
+There are 18 levels. Most hand you a learner that's broken in an educational way; the VPO lesson compares two learning objectives. A few of them:
 
 - A robot in a casino finds one decent slot machine and never looks at the others again.
 - A robot explores a cliff edge by falling off it. A lot.
 - A DQN's value estimate climbs to 4.7 million on a task where the best possible score is 100.
+- Two treasure collectors compare a fixed scalar reward with VPO's sampled vector preferences. Both train live; the frozen reference shows a small VPO edge with GRPO also improving.
 - A dog learns that staring at the stick pays better than fetching it.
 
 You guess what will happen and press Run. Real training takes a few seconds in your browser. Then you read the autopsy and change a word. For example, "move the estimate toward *the payout*" becomes "toward *the payout plus the best next estimate*". If that works, congratulations: you invented Q-learning (Watkins got there in 1989). Keep going and you end up at DQN, PPO, GRPO, SAC, IQL and a few robot-learning tricks.
@@ -53,7 +54,7 @@ You don't need an AI assistant to play. If you want help:
 
 ## How it works
 
-Plain JavaScript with no dependencies: small neural networks with Adam on typed arrays, nine toy worlds, three families of learners, and an "autopsy" that turns training curves into symptoms. `build.mjs` inlines everything into one HTML file. Each training run gets its own Web Worker.
+Plain JavaScript with no dependencies: small neural networks with Adam on typed arrays, nine toy worlds plus a finite-route VPO lesson, three families of learners, and an "autopsy" that turns training curves into symptoms. `build.mjs` inlines everything into one HTML file. Each training run gets its own Web Worker.
 
 | Folder | What is in it |
 |---|---|
@@ -70,7 +71,7 @@ The optional stored simulation assets and their append workflow are described in
 
 ## Is it accurate?
 
-The worlds are toys. CartPole is not a robot, and a 2D dog is not [Huggy](https://huggingface.co/learn/deep-rl-course/unitbonus1/introduction). Still, every number in the game's text was measured with this engine and logged in [`EXPERIMENTS.md`](EXPERIMENTS.md), failed runs included. Every method card links its paper and says whether its claim was checked against it.
+The worlds are toys. CartPole is not a robot, and a 2D dog is not [Huggy](https://huggingface.co/learn/deep-rl-course/unitbonus1/introduction). Still, the original lesson measurements are logged in [`EXPERIMENTS.md`](EXPERIMENTS.md), failed runs included. The VPO level separates its Live finite-route runs from the frozen synthetic measurements documented in [`docs/vpo-reference154.md`](docs/vpo-reference154.md). Every method card links its paper and says whether its claim was checked against it.
 
 ## Credits
 

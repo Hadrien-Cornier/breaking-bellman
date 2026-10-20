@@ -50,3 +50,11 @@ Exact shard and codec fidelity is separate from rerunning floating point trainin
 `test/ui/fast.mjs MANIFEST CAMPAIGN PROOF_DIR [URL]` uses a named chrome-devtools-axi session to compare raw stored hashes, consumer rendering and representative Live reruns.
 Its disclosed finite numeric check is absolute tolerance `1e-8` plus relative tolerance `1e-10`, with discrete values, nonnumeric values and symptom conclusions unchanged.
 This is a check for those measured examples, not a universal error bound; no stored values are rounded or thinned.
+
+The VPO lesson is a separate Live engine (`src/agents/vpo.js`), not a new arm of `RLA.run`.
+`scripts/vpo-source.js` versions its exact dependency closure: shared RNG, its route/reward/optimizer engine, lesson controls/rules and frozen reference data.
+`build.mjs` embeds that independent engine for its own worker and exposes its version through `bellman.state()`.
+It does not use the Fast loader or the original content settings, engine or rules files.
+Thus adding this lesson leaves the original 17 lessons' semantic versions and published phase-one/remaining-AC corpus unchanged.
+Changes to any original semantic dependencies still require their normal new Fast version and matching measurements; changing the shared RNG also changes the VPO version.
+No old corpus is relabeled, regenerated or represented as VPO data.

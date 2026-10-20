@@ -381,3 +381,15 @@ ol.steps .num { display: grid; place-items: center; width: 30px; height: 30px; b
 .rules-equation { font-family: var(--font-mono); font-size: .85em; padding: .5rem; background: var(--sunk); border-radius: var(--r); }
 .game-rules dl { margin: 0; }
 #run-source, #grid-status { overflow-wrap: anywhere; }
+
+/* The separately trained vector-reward lesson shares the campaign's cards and controls. */
+.vpo-table { overflow-x: auto; max-width: 100%; }
+.vpo-table table { width: 100%; font-size: .8rem; border-collapse: collapse; }
+.vpo-table th, .vpo-table td { padding: .5rem .35rem; text-align: left; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+#vpo-lesson, #vpo-lab { min-width: 0; }
+#vpo-lab svg { display: block; width: 100%; max-width: 350px; margin: auto; }
+#vpo-lesson .field { min-width: 0; }
+#vpo-lesson h4 { margin-top: .7rem; }
+[hidden] { display: none !important; }
+#vpo-reference, #vpo-k, #vpo-lab { scroll-margin-top: 150px; }
+#vpo-reference th, #vpo-reference td:not(:first-child) { white-space: nowrap; }
