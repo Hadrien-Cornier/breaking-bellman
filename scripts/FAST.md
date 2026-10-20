@@ -28,6 +28,7 @@ The remaining actor-critic manifest is disjoint from phase one and carries no re
 The report gives per-shard and aggregate raw/gzip bytes plus index bytes.
 `build.mjs` copies assets to `dist/fast`; Pages stages that directory beside its HTML.
 HTML embeds only version metadata, and the standalone file remains fully usable without fetching data.
+`node --test test/fast-assets.test.js` checks the complete published manifest coverage, shard integrity, ordered seeds and lossless round trips, and passes every current-version shard through the production consumer validator without training again.
 
 The browser fetches the index only after Fast opt-in, then loads one matching shard and checks its size, SHA-256, exact configuration and complete seeds.
 Invalid versions, missing keys, corruption, timeout, fetch failure and file URLs fall through to actual Live settings.
