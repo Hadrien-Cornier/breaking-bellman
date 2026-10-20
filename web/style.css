@@ -372,3 +372,11 @@ ol.steps .num { display: grid; place-items: center; width: 30px; height: 30px; b
   @keyframes nodeLit { 0% { filter: drop-shadow(0 0 0 transparent); } 30% { filter: drop-shadow(0 0 12px color-mix(in srgb, var(--accent) 85%, transparent)); } 100% { filter: drop-shadow(0 0 0 transparent); } }
 }
 .genealogy g.tnode.lit rect { stroke: var(--accent); stroke-width: 2; }
+
+/* The rules stay expanded and wrap as ordinary text on a phone. */
+.game-rules h3 { margin: 0 0 .75rem; }
+.rules-row { margin: 0 0 .65rem; }
+.rules-row dt { font-weight: 600; color: var(--ink); }
+.rules-row dd { margin: .15rem 0 0; line-height: 1.5; overflow-wrap: anywhere; }
+.rules-equation { font-family: var(--font-mono); font-size: .85em; padding: .5rem; background: var(--sunk); border-radius: var(--r); }
+.game-rules dl { margin: 0; }

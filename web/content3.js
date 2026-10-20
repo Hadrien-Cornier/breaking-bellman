@@ -324,7 +324,7 @@
       id: 'continuous', phase: 3, world: 'pendulum', title: 'Actions that are numbers', seeds: 3, steps: 10000, reveal: 'ddpg',
       start: ac({ head: 'det', critics: 'one', target: 'live', next: 'policy', entropy: 'none' }), focus: ['target', 'critics', 'next', 'delay'],
       intro: 'Pendulum: swing a pole up and hold it up. The action is a torque: a real number between −2 and 2. The motor is too weak to lift the pole straight up, so it must swing. A max over actions does not work for a real number. The idea of DDPG: a policy network outputs one torque and moves toward higher critic values (the critic\'s slope). The critic learns Q(s, a) toward r + γ·Q(s′, policy(s′)). Here the target uses the live critic. Budget: 10000 steps.',
-      predict: { id: 'continuous-p', prompt: 'What test score does it reach? (Hanging still scores about −1200; swinging up and holding scores about −150.)', options: [
+      predict: { id: 'continuous-p', prompt: 'What test score does it reach? (Hanging still with zero torque scores about −1974 over 200 steps; swinging up and holding scores about −150.)', options: [
         o(['The critic learns from real rewards.', 'The policy follows its slope.', 'So all 3 seeds swing up.'], 'All seeds about −150.', 0,
           `<b>Wrong at step 1.</b> The critic also learns from its own guesses, made by the network it trains. Measured test scores: ${list(M('pd-ddpg-live').seeds)} (Simulation).`),
         o(['The target uses the same critic that is being trained.', 'Each update also moves the target (the loop of "Values explode").', 'The policy climbs a moving, wrong slope, so some seeds swing up and some do not.'], 'Unreliable: some seeds work, some fail.', 1,
@@ -470,7 +470,7 @@
       ] },
       repairText: 'Keep 10 commands per decision. Change what the policy outputs.',
       hint: 'The "Act" line: one action, a bell curve, or noise turned into an action.',
-      goal: { text: 'keep 10 commands per decision; fewer than 5 obstacle hits per test and at least 75% success.', test: (a, p) => p.chunk >= 10 && a.summary.crashRate < 5 && a.summary.successRate >= 0.75 },
+      goal: { text: 'keep at least 10 commands per decision; fewer than 5 obstacle hits per test and at least 75% success.', test: (a, p) => p.chunk >= 10 && a.summary.crashRate < 5 && a.summary.successRate >= 0.75 },
       notes: [
         { when: (a, p) => p.chunk < 10, text: () => `Fewer commands per decision let the robot look more often. With 1 command per decision, the Gaussian copy reached ${pc(M('tw-gauss-c1').succ)}, the one-action copy ${pc(M('tw-det-c1').succ)} and the flow copy ${pc(M('tw-flow-c1').succ)} (Simulation). The goal keeps 10.` },
       ],
@@ -502,7 +502,7 @@
       ] },
       repairText: 'Change how the action is chosen from the proposals.',
       hint: 'The "Act" line, last word: play one proposal, the best one, a Q-weighted average, or let a small policy edit them.',
-      goal: { text: 'go through the mud in at most 10% of the tests, with at least 90% success.', test: (a) => typeof a.summary.leftRate === 'number' && a.summary.leftRate <= 0.1 && a.summary.successRate >= 0.9 },
+      goal: { text: 'go around on the left in at most 10% of the tests, with at least 90% success.', test: (a) => typeof a.summary.leftRate === 'number' && a.summary.leftRate <= 0.1 && a.summary.successRate >= 0.9 },
       notes: [
         { when: (a, p) => p.pick === 'edit', text: () => `EXPO's edit policy also avoided the mud (${pc(M('pk-edit').left)} of the tests went left), at about twice the computing time.` },
         { when: (a, p) => p.pick === 'qavg', text: () => `Here the Q-weighted average (λ = 1) also avoided the mud: ${pc(M('pk-qavg').left)} of the tests went left. With one command per decision, a small lean toward the cheaper side grows at each step. The paper averages whole chunks of commands; this lab does not test that case.` },

@@ -727,6 +727,7 @@
     cancelAnimationFrame(anim);
     const cv = $('#stage'); const { ctx, w, h: H } = setupCanvas(cv);
     const colors = { fg: css('--ink'), accent: css('--accent'), muted: css('--muted'), bad: css('--bad'), bg: css('--sunk') };
+    renderRules();
     const knobs = Object.assign(RLA.knobDefaults(S.world), S.knobs);
     const world = RLA.worlds[S.world].make(knobs, RLA.rng.make(5));
     world.reset();
@@ -891,7 +892,7 @@
     if (world === 'bandit') return 'best machine in ' + Math.round(100 * s.optimalLast20) + '% of late pulls';
     if (world === 'mirage') return 'left door in ' + Math.round(100 * s.leftPeak) + '% of episodes at the worst point';
     if (world === 'cliff') return 'score ' + fmt(s.finalReturn) + ', ' + fmt(s.fallsPerEpisode) + ' falls per episode while learning';
-    if (world === 'pendulum') return 'test score ' + Math.round(isFinite(s.pendulumScore) ? s.pendulumScore : s.finalReturn) + (isFinite(s.worstSeed) ? ', worst seed ' + Math.round(s.worstSeed) : '') + ' (0 is perfect, hanging still is about −1200)';
+    if (world === 'pendulum') return 'test score ' + Math.round(isFinite(s.pendulumScore) ? s.pendulumScore : s.finalReturn) + (isFinite(s.worstSeed) ? ', worst seed ' + Math.round(s.worstSeed) : '') + ' (0 is perfect)';
     if (world === 'reach') return 'final distance ' + fmt(s.meanDist) + ' m, test score ' + fmt(isFinite(s.testReturn) ? s.testReturn : s.finalReturn) + (isFinite(s.baseRet) ? ' (classical controller alone, same starts: ' + fmt(s.baseDist) + ' m, ' + fmt(s.baseRet) + ')' : '');
     if (world === 'fork') return Math.round(100 * s.successRate) + '% of tests reach the goal, ' + fmt(s.crashRate) + ' obstacle hits per test';
     if (world === 'goalgrid') return Math.round(100 * s.successRate) + '% of new prompts solved';
@@ -1773,6 +1774,24 @@
     return wrap;
   }
 
+  // Always visible before Run, including when knobs change without a full page render.
+  function renderRules() {
+    const lv = S.mode === 'campaign' ? C.levels.find((l) => l.id === S.level && l.world === S.world) : null;
+    const mission = S.mode === 'saboteur' ? C.missions.find((m) => m.id === S.mission && m.world === S.world) : null;
+    const objective = lv ? lv.goal.text : mission ? mission.goalText : null;
+    for (const panel of $$('#game-rules, #challenge-rules')) panel.replaceChildren(rulesPanel(S.world, S.knobs, objective));
+  }
+  function rulesPanel(world, knobs, objective) {
+    const r = RLA.gameRules(world, knobs, objective);
+    const row = (label, text) => h('div.rules-row', null, [h('dt', { text: label }), h('dd', { text })]);
+    return h('div', null, [
+      h('h3', { text: 'Game rules · ' + C.worldNames[world] }),
+      h('dl', null, [row('Goal', r.goal), row('Reward each step', r.reward),
+        h('div.rules-row', null, [h('dt', { text: 'Equation' }), h('dd.rules-equation', { text: r.equation })]),
+        row('Episode ends', r.end), row('Score', r.score), row('Pass this challenge', r.objective)])
+    ]);
+  }
+
   // ---------------------------------------------------------------- world and sentence setters
   function setWorld(w, knobs) {
     S.world = w; S.knobs = Object.assign({}, knobs || {}); S.results = []; S.lastA = null;
@@ -1813,7 +1832,7 @@
       ]),
     ]));
     const st = S.lstep[lv.id] || 0;
-    const card = h('div.card', null, [h('div.eyebrow', { text: C.worldNames[lv.world] }), h('h2', { text: lv.title }), h('p', { html: lv.intro })]);
+    const card = h('div.card', null, [h('div.eyebrow', { text: C.worldNames[lv.world] }), h('h2', { text: lv.title }), h('p', { html: lv.intro }), h('section.game-rules', { id: 'challenge-rules', 'aria-label': 'Level rules' })]);
     const steps = h('div.steps');
     const mk = (i, title, body) => h('div.step' + (st === i ? '.active' : st > i ? '.done' : ''), null, [h('span.num', { text: 'Step ' + (i + 1) }), h('h3', { text: title }), body]);
 
@@ -2034,7 +2053,7 @@
       const v = S.knobs[k.key] != null ? S.knobs[k.key] : k.default;
       const out = h('output', { text: String(v) });
       const inp = h('input', { type: 'range', id: 'k-' + k.key, min: k.min, max: k.max, step: k.step, value: v,
-        oninput: (e) => { S.knobs[k.key] = +e.target.value; out.textContent = e.target.value; },
+        oninput: (e) => { S.knobs[k.key] = +e.target.value; out.textContent = e.target.value; renderRules(); },
         onchange: () => { renderStage(); } });
       knobsBox.append(h('div.knob', null, [h('label', { for: 'k-' + k.key, text: k.label }), out, inp, h('p', { text: k.help })]));
     }
@@ -2042,6 +2061,7 @@
     pane.append(h('div.card', null, [
       h('div.eyebrow', { text: 'Mission: ' + cur.title }), h('p', { html: cur.text }),
       h('p.small', { html: '<b>Sentence:</b> ' + nameOf(S.parts, S.world) + '. You can change its words in the lab panel.' }),
+      h('section.game-rules', { id: 'challenge-rules', 'aria-label': 'Mission rules' }),
       knobsBox,
       h('div.row', null, [
         h('button.btn', { type: 'button', onclick: async () => {
@@ -2098,6 +2118,7 @@
         h('p', { html: '<b>Why it works:</b> ' + c.fixes }),
         h('p.small', { html: '<b>How it still fails:</b> ' + c.stillWrong }),
         peekFor(id),
+        h('section.game-rules', { 'aria-label': 'Review game rules' }, rulesPanel(world, c.reviewKnobs || {})),
         h('div.row', null, [
           h('button.btn.ghost', { type: 'button', onclick: async () => { setWorld(world, c.reviewKnobs || {}); S.parts = Object.assign({}, S.rv.parts); budgetOptions(); onPartsChanged(); await run(); } }, 'Run my sentence on ' + C.worldNames[world]),
           h('button.btn', { type: 'button', onclick: () => { const nq = reviewQueue().filter((x) => x !== id); S.rv = { id: nq[0] || id, parts: plain(nq[0] || id), checked: null }; render(); } }, 'Next method'),
@@ -2223,6 +2244,7 @@
       h('p', { text: 'The mirage is a tiny world with two states, A and B. It is built to show one failure: maximization bias.' }),
       h('p', { text: 'From A, the right door ends the episode with reward 0. The left door leads to B. In B there are ' + nM + ' machines. Each one pays a random amount, with mean ' + String(K.mean).replace('-', '−') + ' and standard deviation ' + K.noise + ', and the episode ends. So the left door loses 0.1 on average, and the right door is the better choice.' }),
       h('p', { text: 'Each machine estimate comes from a few noisy payouts, so some estimates are above 0 by luck. The guess for the left door uses the best of the ' + nM + ' estimates, and the best one is usually a lucky one. So the left door looks good, and the learner chases it: that is the mirage.' }),
+      h('section.game-rules', { 'aria-label': 'Mirage demo rules' }, rulesPanel('mirage', K)),
       cv,
       h('div.row', null, MIRAGE_LEARNERS.map((L) => h('button.btn.ghost', { type: 'button', onclick: () => play(L) }, 'Play ' + EPISODES + ' episodes: ' + L.name))),
       cap,
@@ -2705,6 +2727,7 @@
     S.afterRun = null; S.onPartsChange = null;
     MODES[S.mode](pane);
     refreshSentences();
+    renderRules();
     updateScore();
   }
   $$('#tabs button').forEach((b) => b.addEventListener('click', () => {

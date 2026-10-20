@@ -197,7 +197,7 @@ window.CONTENT = (function () {
       ] },
       repairText: 'Change the words of the "act" line. At least three different sentences make the learner try machines that do not look best now.',
       hint: 'Look at the act line: random tries, a bonus for few tries, or a high start. With a high start, also look at the step word.',
-      goal: { text: 'the best machine must get at least 70% of the last 200 pulls.', test: (a) => a.summary.optimalLast20 >= 0.7 },
+      goal: { text: 'the best machine must get at least 70% of pulls in the last 20% of training.', test: (a) => a.summary.optimalLast20 >= 0.7 },
       explain: { id: 'slots-x', prompt: 'Your fix worked. Why does it work?', options: [
         o(['The fix makes every machine get pulled again from time to time.', 'Each new pull corrects the average of a machine that had bad luck early.', 'So the best machine eventually shows the best average.'], 'Exploration corrects estimates that greedy never revisits.', 1, 'Every fix you can build here works this way: random tries, a bonus for few tries, or a start so high that every machine gets tried.'),
         o(['The fix lowers the noise of the payouts.', 'Less noise gives better averages.', 'So the best machine wins.'], 'It removes noise.', 0, '<b>Wrong at step 1.</b> No word changes the payouts. The world is the same; only the learner changed.'),
