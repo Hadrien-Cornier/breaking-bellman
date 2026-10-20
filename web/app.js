@@ -933,7 +933,9 @@
     S.running = false; $('#run-btn').disabled = false;
     $('#run-source').textContent = 'Settings changed. Run this sentence to measure it.';
   }
+  const vpoActive = () => S.mode === 'campaign' && S.level === 'vpo';
   async function run() {
+    if (vpoActive()) return BBVPO.run();
     if (S.running) return null;
     S.running = true; $('#run-btn').disabled = true;
     const nSeeds = +$('#seeds').value, steps = +$('#budget').value;
@@ -1865,7 +1867,7 @@
       h('div.tree', { role: 'list' }, C.levels.filter((l) => (l.phase || 1) === ph.n).map(node)),
     ])));
     pane.append(h('div.card', null, [
-      h('p', { text: 'Each level hands you a learner that fails. Guess what happens, run it, then fix it by changing words in its update rule. Play in any order: each level breaks the method that won the one before, but nothing is locked.' }),
+      h('p', { text: 'Predict, run, then inspect the learner. Most levels ask you to repair a failure by changing words in its update rule. The VPO lesson asks you to compare two objectives. Play in any order: nothing is locked.' }),
       tree,
       h('div.row.savebar', null, [
         h('span.small', { text: 'Progress saves in this browser.' }),
@@ -1874,6 +1876,12 @@
         h('button.btn.ghost.tiny', { type: 'button', onclick: copyBrief, title: 'Copies a short Markdown brief: where you are, the words you can change, and how an AI can drive this page.' }, 'Copy for your AI'),
       ]),
     ]));
+    if (lv.custom) {
+      BBVPO.mount(pane, $('#vpo-lab'), { h, done: () => S.done.includes(lv.id), complete: () => {
+        if (!S.done.includes(lv.id)) S.done.push(lv.id); S.lstep[lv.id] = 5; save(); updateScore();
+      } });
+      return;
+    }
     const st = S.lstep[lv.id] || 0;
     const card = h('div.card', null, [h('div.eyebrow', { text: C.worldNames[lv.world] }), h('h2', { text: lv.title }), h('p', { html: lv.intro }), h('section.game-rules', { id: 'challenge-rules', 'aria-label': 'Level rules' })]);
     const steps = h('div.steps');
@@ -2013,6 +2021,7 @@
     return h('button.btn', { type: 'button', onclick: () => { S.level = nx.id; save(); enterLevel(nx); render(); window.scrollTo({ top: 0 }); } }, 'Next level: ' + nx.title);
   }
   function enterLevel(lv, forceStart) {
+    if (lv.custom) { cancelRun(); return; }
     if (S.world !== lv.world || JSON.stringify(S.knobs) !== JSON.stringify(lv.knobs || {})) setWorld(lv.world, lv.knobs || {});
     const step = S.lstep[lv.id] || 0;
     // a repair in progress keeps the player's words, unless they belong to another kind of learner (a reload, another level)
@@ -2439,6 +2448,7 @@
     if (!tutor) { send.disabled = true; ta.disabled = true; }
   };
   function labState() {
+    if (vpoActive()) return BBVPO.state();
     const a = S.results.length ? RLA.autopsy(S.results) : null;
     return {
       world: S.world, knobs: Object.assign(RLA.knobDefaults(S.world), S.knobs),
@@ -2456,7 +2466,7 @@
       'Facts: every run in this page is a toy Simulation; say so. Only state paper facts that appear on a codex card marked checked: ' + JSON.stringify(Object.values(C.cards).filter((c) => c.status === 'checked').map((c) => ({ name: c.name, source: c.paper.replace(/<[^>]+>/g, ''), fixes: c.fixes }))) + '. For anything else, say it is not checked.',
       'Kinds of learner (family): ' + Object.keys(C.families).map((f) => f + ' = ' + C.families[f].name + ' (worlds: ' + C.families[f].worlds.join(', ') + ')').join('; ') + '. The current family is ' + fam(S.parts) + '.',
       'The words of the current sentence (key: question: allowed values and meanings): ' + C.families[fam(S.parts)].keys.map((k) => k + ': ' + W[k].q + ' ' + W[k].options.map((o) => JSON.stringify(o[0]) + ' = ' + o[1]).join('; ')).join(' | ') + '. To change the family, call set_words with family first.',
-      'Worlds: ' + Object.keys(C.worldNames).join(', ') + '. Knobs per world: ' + JSON.stringify(Object.fromEntries(Object.keys(C.worldNames).map((w) => [w, RLA.worlds[w].knobs.map((k) => k.key + ' ' + k.min + '..' + k.max)]))) + '.',
+      'Worlds: ' + Object.keys(C.worldNames).join(', ') + '. Knobs per world: ' + JSON.stringify(Object.fromEntries(Object.keys(C.worldNames).map((w) => [w, RLA.worlds[w] ? RLA.worlds[w].knobs.map((k) => k.key + ' ' + k.min + '..' + k.max) : ['Separate Live lesson: seed, generations, candidate pool and preference inspection']]))) + '.',
       'Current lab state: ' + JSON.stringify(labState()),
     ].join('\n');
   }
@@ -2469,6 +2479,7 @@
         execute: () => labState() },
       { name: 'set_words', description: 'Change some words of the update-rule sentence. Words not given keep their value.', inputSchema: { type: 'object', properties: props },
         execute: (ws) => {
+          if (vpoActive()) return { error: 'Use the VPO lesson controls for seed, training budget, inspected alternatives and preferences.' };
           if (ws.family && C.families[ws.family] && ws.family !== fam(S.parts)) { S.parts = C.cfg({ family: ws.family }); if (!C.families[ws.family].worlds.includes(S.world)) setWorld(C.families[ws.family].worlds[0]); else budgetOptions(); }
           // a value may also come as its text ('true', '4'), as the brief prints it; anything else is returned as rejected, never dropped silently
           const keys = C.families[fam(S.parts)].keys, rejected = {};
@@ -2483,9 +2494,9 @@
           return out;
         } },
       { name: 'set_world', description: 'Change the world and its knobs (knobs not given keep their defaults).', inputSchema: { type: 'object', properties: { world: { type: 'string', enum: Object.keys(C.worldNames) }, knobs: { type: 'object' } }, required: ['world'] },
-        execute: ({ world, knobs }) => { setWorld(world, knobs || {}); note('world → ' + world + ' ' + JSON.stringify(knobs || {})); return { world: S.world, knobs: S.knobs }; } },
+        execute: ({ world, knobs }) => { if (world === 'vpo') return window.bellman.level('vpo'); if (vpoActive()) S.mode = 'workbench'; setWorld(world, knobs || {}); note('world → ' + world + ' ' + JSON.stringify(knobs || {})); return { world: S.world, knobs: S.knobs }; } },
       { name: 'run_experiment', description: 'Train the current sentence on the current world for real (seconds) and return the autopsy. seeds applies to CartPole only (1, 3 or 5); the other worlds use many runs.', inputSchema: { type: 'object', properties: { seeds: { type: 'integer', minimum: 1, maximum: 5 } } },
-        execute: async ({ seeds }) => { const so = C.seedOptions[S.world]; if (seeds && S.world === 'cartpole') $('#seeds').value = String(so.reduce((b, n) => (Math.abs(n - seeds) < Math.abs(b - seeds) ? n : b), so[0])); note('running ' + $('#seeds').value + ' runs…'); const a = await run(); if (!a) throw new Error('run failed'); note('done'); return { symptoms: a.symptoms, summary: a.summary }; } },
+        execute: async ({ seeds }) => { if (vpoActive()) return BBVPO.run(); const so = C.seedOptions[S.world]; if (seeds && S.world === 'cartpole') $('#seeds').value = String(so.reduce((b, n) => (Math.abs(n - seeds) < Math.abs(b - seeds) ? n : b), so[0])); note('running ' + $('#seeds').value + ' runs…'); const a = await run(); if (!a) throw new Error('run failed'); note('done'); return { symptoms: a.symptoms, summary: a.summary }; } },
     ];
   }
 
@@ -2514,7 +2525,7 @@
       lab.lastRun ? '- Last run (' + lab.lastRun.seeds + ' runs, ' + lab.lastRun.steps + ' steps): ' + (lab.lastRun.symptoms.join(' ') || 'no symptoms') : '- No run yet in this world.',
     ].filter((x) => x !== null);
   }
-  const wordLines = () => C.families[fam(S.parts)].keys.map((k) => '- `' + k + '` (' + W[k].q + '): ' + W[k].options.map((o) => '`' + o[0] + '` = ' + plainText(o[1])).join('; ') + '. Now: `' + S.parts[k] + '`.');
+  const wordLines = () => vpoActive() ? ['VPO: mean over eight preferences of the best score in a three-route set. GRPO: fixed mean reward for each route. Use the level controls and bellman.run().'] : C.families[fam(S.parts)].keys.map((k) => '- `' + k + '` (' + W[k].q + '): ' + W[k].options.map((o) => '`' + o[0] + '` = ' + plainText(o[1])).join('; ') + '. Now: `' + S.parts[k] + '`.');
   function aiBrief() {
     return [
       '# Breaking Bellman: a brief for an AI helper',
@@ -2578,7 +2589,7 @@
       '',
       '## Lab (the world, the update rule and the results of the last run)',
       '',
-      md($('#lab')),
+      md($(vpoActive() ? '#vpo-lab' : '#lab')),
       '',
       ...(dialogs.length ? ['## Open dialog', '', ...dialogs, ''] : []),
       '## Words of the current sentence (each word, its values, and the value now)',
@@ -2597,7 +2608,7 @@
     window.bellman = {
       help: () => aiBrief(),
       page: () => pageMarkdown(),
-      math: (parts, world) => texLines(Object.assign({}, S.parts, parts || {}), world || S.world).map(([label, tex]) => ({ label, tex })),
+      math: (parts, world) => vpoActive() ? [{ label: 'VPO set reward', tex: 'R(S) = mean_w max_y dot(w,r(y))' }] : texLines(Object.assign({}, S.parts, parts || {}), world || S.world).map(([label, tex]) => ({ label, tex })),
       state: () => labState(),
       levels: () => C.levels.map((l) => { const i = levelInfo(l); return { n: i.n, id: i.id, title: i.title, world: i.world, done: i.done, step: i.step }; }),
       level: (which) => {
@@ -2755,7 +2766,7 @@
         step('2', 'Run', 'Real training, in your browser, in seconds.'),
         step('3', 'Fix', 'Change one word of its update rule. Get it right and you have reinvented a published method.'),
       ]),
-      h('p.small', { text: '17 levels, any order. Progress saves in this browser; Settings has a save file you can take anywhere. No account, no server. The AI tutor is optional.' }),
+      h('p.small', { text: '18 levels, any order. Progress saves in this browser; Settings has a save file you can take anywhere. No account, no server. The AI tutor is optional.' }),
       h('div.row', null, [h('button.btn', { type: 'button', onclick: () => close('campaign') }, 'Start level 1'), h('button.btn.ghost', { type: 'button', onclick: () => close('workbench') }, 'Open the workbench')]),
     ])]);
     dlg.addEventListener('cancel', () => { S.intro = 1; save(); });
@@ -2768,9 +2779,11 @@
     mounts = mounts.filter((m) => m.permanent);
     const pane = $('#mode-pane'); pane.replaceChildren();
     S.afterRun = null; S.onPartsChange = null;
+    if (!vpoActive()) BBVPO.cancel();
+    $('#lab').hidden = vpoActive(); $('#vpo-lab').hidden = !vpoActive();
     MODES[S.mode](pane);
     refreshSentences();
-    renderRules();
+    if (!vpoActive()) renderRules();
     updateScore();
   }
   $$('#tabs button').forEach((b) => b.addEventListener('click', () => {

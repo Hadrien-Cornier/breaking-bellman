@@ -196,10 +196,10 @@ await session(1280, 900, 'desktop', async (page) => {
 await session(1280, 900, 'phases', async (page) => {
   await page.getByRole('tab', { name: 'Campaign' }).click();
   // every level is open, in any order; the save bar and the agent hooks are there
-  check(await page.locator('#mode-pane .node').count() === 17 && !(await page.locator('#mode-pane .node[disabled]').count()), 'all 17 levels are open');
+  check(await page.locator('#mode-pane .node').count() === 18 && !(await page.locator('#mode-pane .node[disabled]').count()), 'all 18 levels are open');
   check(await page.locator('#mode-pane .savebar button', { hasText: 'Download save file' }).count() === 1, 'the level map offers a save file');
   const brief = await page.evaluate(() => window.bellman.help());
-  check(/Level \d+ of 17/.test(brief) && /bellman\.run\(\)/.test(brief), 'window.bellman gives a brief for an AI helper');
+  check(/Level \d+ of 18/.test(brief) && /bellman\.run\(\)/.test(brief), 'window.bellman gives a brief for an AI helper');
   const wr = await page.evaluate(() => {
     const b = window.bellman, w0 = Object.assign({}, b.words().words);
     const a = b.words({ eps: true }), ae = a.words.eps, ar = a.rejected;
@@ -404,7 +404,14 @@ await session(390, 844, 'rules', async (page) => {
         if (inline && inline.innerText !== text) failures.push(name + ': stale inline rules');
         if (document.documentElement.scrollWidth > innerWidth) failures.push(name + ': overflow');
       };
-      for (const l of CONTENT.levels) { bellman.level(l.id); inspect('level ' + l.id, l.goal.text); }
+      for (const l of CONTENT.levels) {
+        bellman.level(l.id);
+        if (l.custom) {
+          if (!document.querySelector('#vpo-rules').innerText.includes(l.goal.text)) failures.push(l.id + ': missing custom objective');
+          if (!document.querySelector('#lab').hidden || document.querySelector('#vpo-lab').hidden) failures.push(l.id + ': wrong lab');
+          if (document.documentElement.scrollWidth > innerWidth) failures.push(l.id + ': overflow');
+        } else inspect('level ' + l.id, l.goal.text);
+      }
       document.querySelector('[data-mode="saboteur"]').click();
       for (let i = 0; i < CONTENT.missions.length; i++) {
         document.querySelectorAll('.mission')[i].click();
@@ -421,7 +428,7 @@ await session(390, 844, 'rules', async (page) => {
       }
       return failures;
     });
-    check(!missing.length, 'all 17 levels, 11 missions, knob updates and family/world selections have pre-play rules at ' + width + 'px: ' + missing.join('; '));
+    check(!missing.length, 'all 18 levels, 11 missions, knob updates and family/world selections have pre-play rules at ' + width + 'px: ' + missing.join('; '));
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => bellman.level('continuous'));
