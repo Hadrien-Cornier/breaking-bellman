@@ -172,7 +172,7 @@ function chain(mz, pol, rng, explore, eps, m, feat = features) {
 const routeWithFeatures = (feat) => (mz, pol, rng, explore, eps, coverIn) => route(mz, pol, rng, explore, eps, coverIn, feat);
 const buildBaseWithFeatures = (feat, fdim) => (seed, trainMazes) => buildBase(seed, trainMazes, feat, fdim);
 const chainWith = (routeF) => (mz, pol, rng, explore, eps, m) => { const out = []; let cover = []; for (let j = 0; j < m; j++) { const rt = routeF(mz, pol, rng, explore, eps, cover); out.push(rt); cover = rt.cover; } return out; };
-const finetuneWithFeatures = (feat, fdim) => (baseNet, baseRef, seed, method, trainMazes, updates, lr, eps, m, K, G) => finetune(baseNet, baseRef, seed, method, trainMazes, updates, lr, eps, m, K, G, feat, fdim);
+const finetuneWithFeatures = (feat, fdim) => (baseNet, baseRef, seed, method, trainMazes, updates, lr, eps, m, K, G, progress) => finetune(baseNet, baseRef, seed, method, trainMazes, updates, lr, eps, m, K, G, feat, fdim, progress);
 const evaluateWithFeatures = (feat) => (pol, testMazes, seed, m, single, REPS) => evaluate(pol, testMazes, seed, m, single, REPS, feat);
 // ---- BC base: documented planner routes on the A25 maze ----
 function plan(mz) {
@@ -251,12 +251,12 @@ function makeNet(seed, fdim = FDIM) {
   const opt = RLA.nn.adam(net, { lr: 0.001, clipNorm: 1.0 }); // Adam (NO weight decay; not AdamW)
   return { net, opt };
 }
-function buildBase(seed, trainMazes, feat = features, fdim = FDIM) {
+function buildBase(seed, trainMazes, feat = features, fdim = FDIM, planner = plan) {
   const { net, opt } = makeNet(seed, fdim);
   const probs = (obs) => { const z = Array.from(net.forward(obs)); let mx = -Infinity; for (const x of z) mx = Math.max(mx, x); const e = z.map((x) => Math.exp(x - mx)); const s = e.reduce((a, b) => a + b, 0); return e.map((x) => x / s); };
   const data = [];
   for (const mz of trainMazes) {
-    const rts = plan(mz);
+    const rts = planner(mz);
     for (let i = 0; i < rts.length; i++) { data.push({ mz, path: rts[i], cover: [] }); for (let j = 0; j < rts.length; j++) if (i !== j) data.push({ mz, path: rts[j], cover: coverOf(mz, rts[i]) }); }
   }
   const EPOCHS = 8;
@@ -295,11 +295,12 @@ function buildBase(seed, trainMazes, feat = features, fdim = FDIM) {
   const bcLossAfter = lossOf();
   return { probs, net, nDemo: data.length, bcLossBefore, bcLossAfter };
 }
+const buildBaseWithPlanner = (feat, fdim, planner) => (seed, maps) => buildBase(seed, maps, feat, fdim, planner);
 function coverOf(mz, rt) { // canonical coverage from a route object OR a raw planner path (array)
   if (rt && rt.cover) return rt.cover;
   if (Array.isArray(rt)) return rt.map((c) => Array.isArray(c) ? c.join(',') : String(c));
   return []; }
-function finetune(baseNet, baseRef, seed, method, trainMazes, updates, lr, eps, m, K, G, feat = features, fdim = FDIM) {
+function finetune(baseNet, baseRef, seed, method, trainMazes, updates, lr, eps, m, K, G, feat = features, fdim = FDIM, progress = null) {
   const rng = rngMake(seed * 1000 + 17);
   const net = RLA.nn.mlp({ sizes: [fdim, HID, 4], act: 'tanh', rng: rngMake(1), outScale: 0 });
   // base/ref shape guard: refuse silently copying mismatched parameter shapes (hidden-size or fdim mismatch)
@@ -310,6 +311,7 @@ function finetune(baseNet, baseRef, seed, method, trainMazes, updates, lr, eps, 
   const opt = RLA.nn.adam(net, { lr, clipNorm: 1.0 });
   const probs = (obs) => { const z = Array.from(net.forward(obs)); let mx = -Infinity; for (const x of z) mx = Math.max(mx, x); const e = z.map((x) => Math.exp(x - mx)); const s = e.reduce((a, b) => a + b, 0); return e.map((x) => x / s); };
   const refProbs = (obs) => { const z = Array.from(baseRef.forward(obs)); let mx = -Infinity; for (const x of z) mx = Math.max(mx, x); const e = z.map((x) => Math.exp(x - mx)); const s = e.reduce((a, b) => a + b, 0); return e.map((x) => x / s); };
+  const counts = { candidates: 0, activeSteps: 0, allocatedSteps: 0, optimizerSteps: 0, scalarizationDots: 0 };
   for (let u = 1; u <= updates; u++) {
     const mz = trainMazes[u % trainMazes.length];
     const draws = method === 'vpo' ? Array.from({ length: K }, () => dirichlet(rng, 4)) : null;
@@ -323,6 +325,8 @@ function finetune(baseNet, baseRef, seed, method, trainMazes, updates, lr, eps, 
     // AMENDED per 155: two deterministic-shuffled minibatches of WHOLE rollouts, one epoch,
     // advantages fixed from the full group, logits recomputed after step 1, oldP frozen from
     // collection (clipping CAN activate within a generation). 12 candidates / 2 optimizer steps.
+    for (const rollout of group) for (const rt of rollout.routes) { counts.candidates++; counts.activeSteps += rt.steps.length; counts.allocatedSteps += mz.budget; }
+    counts.scalarizationDots += method === 'vpo' ? G * m * K : G * m;
     const ADVs = groupAdv(group.map((x) => x.R));
     const rolls = [];
     for (let gi = 0; gi < group.length; gi++) rolls.push({ idx: gi, order: gi }); // whole-rollout units
@@ -345,10 +349,11 @@ function finetune(baseNet, baseRef, seed, method, trainMazes, updates, lr, eps, 
         const r = ppoKLdZ(Zrow, P[i], A[i], ADV[i], refProbs(S[i]), B); // oldP FROZEN from collection
         for (let j = 0; j < 4; j++) dZ[i * 4 + j] = r.dZ[j]; // timestep-mean per minibatch (1/B)
       }
-      net.backwardBatch(dZ); opt.step(); // logits for the next minibatch are recomputed by forwardBatch
+      net.backwardBatch(dZ); opt.step(); counts.optimizerSteps++; // logits for the next minibatch are recomputed by forwardBatch
     }
+    if (progress && (u % 1000 === 0 || u === updates)) progress({ generation: u, counts: { ...counts }, net });
   }
-  return { probs, net };
+  return { probs, net, counts };
 }
 // ---- evaluation: fresh chains, draw-order first-k (Sec 4.3); STOCHASTIC softmax sampling (explore=true, eps=0 => no uniform-epsilon mix), not greedy ----
 const KVALUES = [1, 3, 5, 10, 30];
@@ -357,13 +362,16 @@ function evaluate(pol, testMazes, seed, m, single, REPS, feat = features) {
   const eps = 0; REPS = REPS || 6; // stochastic softmax eval (explore=true, eps=0 => NO uniform mix), matching A23 and the paper's stochastic final eval
   const perProblem = [];
   let exits = 0, nAll = 0;
+  const counts = { candidates: 0, activeSteps: 0, allocatedSteps: 0 };
+  const counted = rt => { counts.candidates++; counts.activeSteps += rt.steps.length; return rt.vec; };
   for (let pi = 0; pi < testMazes.length; pi++) {
     const mz = testMazes[pi]; const sums = {}; KVALUES.forEach((k) => sums[k] = 0);
     let L1 = 0, np = 0;
     for (let rep = 0; rep < REPS; rep++) {
       const vecs = [];
-      if (single) { for (let i = 0; i < 30; i++) vecs.push(route(mz, pol, rng, true, eps, [], feat).vec); }
-      else { const nChains = Math.ceil(30 / m); const got = []; for (let c2 = 0; c2 < nChains && got.length < 30; c2++) for (const rt of chain(mz, pol, rng, true, eps, m, feat)) if (got.length < 30) got.push(rt.vec); vecs.push(...got); }
+      if (single) { for (let i = 0; i < 30; i++) vecs.push(counted(route(mz, pol, rng, true, eps, [], feat))); }
+      else { const nChains = Math.ceil(30 / m); const got = []; for (let c2 = 0; c2 < nChains && got.length < 30; c2++) for (const rt of chain(mz, pol, rng, true, eps, m, feat)) if (got.length < 30) got.push(counted(rt)); vecs.push(...got); }
+      counts.allocatedSteps += 30 * mz.budget;
       for (const k of KVALUES) { let mx = -1; for (let i = 0; i < k; i++) if (dot(WSTAR, vecs[i]) > mx) mx = dot(WSTAR, vecs[i]); sums[k] += mx; }
       for (let i = 0; i < vecs.length; i++) for (let j = i + 1; j < vecs.length; j++) { let d2 = 0; for (let q = 0; q < 4; q++) d2 += Math.abs(vecs[i][q] - vecs[j][q]); L1 += d2; np++; }
       exits += vecs.filter((v) => v[0] === 1).length; nAll += vecs.length;
@@ -373,7 +381,7 @@ function evaluate(pol, testMazes, seed, m, single, REPS, feat = features) {
   }
   const mean = {}; for (const k of KVALUES) mean[k] = perProblem.reduce((s, p) => s + p.best[k], 0) / perProblem.length;
   const spread = perProblem.reduce((s, p) => s + p.spread, 0) / perProblem.length;
-  return { mean, spread, perProblem, exitFraction: exits / Math.max(1, nAll) };
+  return { mean, spread, perProblem, exitFraction: exits / Math.max(1, nAll), counts };
 }
 // ---- frozen protocol ----
 const UPDATES = MODE === 'smoke' ? 60 : 12000;
@@ -413,5 +421,5 @@ async function main() {
   fs.writeFileSync(OUT, JSON.stringify({ protocol: effective, arms }, null, 1));
   console.log('wrote', OUT);
 }
-if (require.main !== module) { module.exports = { makeMaze, features, route, chain, plan, replayVec, finetune, evaluate, buildMapSplits, setRewardMean, groupAdv, dirichlet, dot, WSTAR, FDIM, PROTO, ppoKLdZ, WALL, EMPTY, coverOf, buildBase, routeWithFeatures, chainWith, buildBaseWithFeatures, finetuneWithFeatures, evaluateWithFeatures, bfs9 }; }
+if (require.main !== module) { module.exports = { makeMaze, features, route, chain, plan, replayVec, finetune, evaluate, buildMapSplits, setRewardMean, groupAdv, dirichlet, dot, WSTAR, FDIM, PROTO, ppoKLdZ, WALL, EMPTY, coverOf, buildBase, routeWithFeatures, chainWith, buildBaseWithFeatures, finetuneWithFeatures, evaluateWithFeatures, buildBaseWithPlanner, bfs9 }; }
 else main().catch((e) => { console.error('A25 FAIL', e); process.exit(1); });
