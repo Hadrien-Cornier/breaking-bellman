@@ -384,6 +384,72 @@ await session(390, 844, 'pendulum', async (page) => {
   check(/replay from hanging still/.test(await page.locator('#stage-caption').innerText()), 'caption identifies the separate replay');
   await page.locator('#stage').screenshot({ path: out + '/phone-pendulum.png' });
 });
+// Rules are visible before the first move, across every selection and at phone/desktop widths.
+await session(390, 844, 'rules', async (page) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    const missing = await page.evaluate(() => {
+      const failures = [];
+      const inspect = (name, objective) => {
+        const panel = document.querySelector('#game-rules');
+        const text = panel.innerText;
+        for (const label of ['Goal', 'Reward each step', 'Equation', 'Episode ends', 'Score', 'Pass this challenge']) {
+          if (!text.includes(label)) failures.push(name + ': missing ' + label);
+        }
+        if (objective && !text.includes(objective)) failures.push(name + ': wrong challenge');
+        if (!(panel.compareDocumentPosition(document.querySelector('#stage')) & Node.DOCUMENT_POSITION_FOLLOWING)) failures.push(name + ': rules follow manual play');
+        if (!(panel.compareDocumentPosition(document.querySelector('#run-btn')) & Node.DOCUMENT_POSITION_FOLLOWING)) failures.push(name + ': rules follow Run');
+        const inline = document.querySelector('#challenge-rules');
+        if (inline && inline.innerText !== text) failures.push(name + ': stale inline rules');
+        if (document.documentElement.scrollWidth > innerWidth) failures.push(name + ': overflow');
+      };
+      for (const l of CONTENT.levels) { bellman.level(l.id); inspect('level ' + l.id, l.goal.text); }
+      document.querySelector('[data-mode="saboteur"]').click();
+      for (let i = 0; i < CONTENT.missions.length; i++) {
+        document.querySelectorAll('.mission')[i].click();
+        inspect('mission ' + CONTENT.missions[i].id, CONTENT.missions[i].goalText);
+        for (const input of document.querySelectorAll('.knobs input')) {
+          input.value = input.max; input.dispatchEvent(new Event('input'));
+          inspect('mission knob ' + input.id, CONTENT.missions[i].goalText);
+        }
+      }
+      document.querySelector('[data-mode="workbench"]').click();
+      for (const [family, f] of Object.entries(CONTENT.families)) for (const world of f.worlds) {
+        bellman.words({ family }); bellman.world(world);
+        inspect('workbench ' + family + ':' + world);
+      }
+      return failures;
+    });
+    check(!missing.length, 'all 17 levels, 11 missions, knob updates and family/world selections have pre-play rules at ' + width + 'px: ' + missing.join('; '));
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => bellman.level('continuous'));
+  await page.locator('#challenge-rules').screenshot({ path: out + '/rules-pendulum-phone-dark.png' });
+  // Enter Fetch's reward-repair step to exercise its live controls without an expensive training run.
+  await page.evaluate(() => {
+    const key = 'breaking-bellman-v1', saved = JSON.parse(localStorage.getItem(key));
+    saved.mode = 'campaign'; saved.level = 'fetch'; saved.lstep = { fetch: 3 };
+    localStorage.setItem(key, JSON.stringify(saved));
+  });
+  await page.reload();
+  await page.selectOption('#rk-shaping', '2');
+  check(/0.97 × dAfterNonterminal/.test(await page.locator('#game-rules').innerText()), 'Fetch repair updates potential shaping equation before Run');
+  check(await page.locator('#game-rules').innerText() === await page.locator('#challenge-rules').innerText(), 'Fetch inline and Lab rules agree after editing reward');
+  await page.locator('#mode-pane button', { hasText: 'Back to the starting reward' }).click();
+  check(/0.05 × cos/.test(await page.locator('#game-rules').innerText()), 'Fetch reward reset restores facing bonus in rules');
+  await page.evaluate(() => {
+    document.querySelector('[data-mode="workbench"]').click(); bellman.words({ family: 'ac' });
+    bellman.world('pendulum', { maxSteps: 100, maxTorque: 0.5 });
+  });
+  const shortRule = await page.locator('#game-rules').innerText();
+  check(/Tests can run 200 steps; only the first 100/.test(shortRule) && /±0.5/.test(shortRule), 'short horizon and weaker motor appear accurately');
+  await page.locator('#game-rules').screenshot({ path: out + '/rules-short-pendulum-phone-dark.png' });
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.locator('#game-rules').screenshot({ path: out + '/rules-pendulum-desktop.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+});
 console.log('errors:', errors.length ? errors.join('\n') : 'none');
 if (errors.length) fails.push('page errors');
 console.log(fails.length ? 'FAILED: ' + fails.join('; ') : 'ALL CHECKS PASSED');

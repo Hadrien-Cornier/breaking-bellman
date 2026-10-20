@@ -172,9 +172,9 @@
       const ws = fins.map((f) => f.meanRet).filter((x) => typeof x === 'number' && isFinite(x));
       out.summary.worstSeed = ws.length ? Math.min.apply(null, ws) : sc;
       if (sc >= -250 && out.summary.worstSeed < -250) add('seedStuck', 'warn', 'One seed did not swing up', `The mean test score is ${fmt(sc)}, but the worst seed scored ${fmt(out.summary.worstSeed)}. The mean hides it.`);
-      if (sc >= -250) add('solved', 'ok', 'Swings up and holds', `Final test score ${fmt(sc)} over 200 steps${n}. 0 is perfect; hanging still scores about −1200.`);
-      else if (sc >= -700) add('unsolved', 'warn', 'Swings up from some starts', `Final test score ${fmt(sc)} over 200 steps${n}.`);
-      else add('unsolved', 'bad', 'Does not swing up', `Final test score ${fmt(sc)} over 200 steps${n}.`);
+      if (sc >= -250) add('solved', 'ok', 'Swings up and holds', `Final test score ${fmt(sc)} over ${maxSteps} scored steps${n}. 0 is perfect; hanging still with zero torque scores about −${Math.round(Math.PI * Math.PI * maxSteps)}.`);
+      else if (sc >= -700) add('unsolved', 'warn', 'Swings up from some starts', `Final test score ${fmt(sc)} over ${maxSteps} scored steps${n}.`);
+      else add('unsolved', 'bad', 'Does not swing up', `Final test score ${fmt(sc)} over ${maxSteps} scored steps${n}.`);
     }
     if (r0.world === 'reach' && isFinite(S_.baseRet) && r0.parts && r0.parts.base === 'classical') {
       const d = S_.testReturn - S_.baseRet;
