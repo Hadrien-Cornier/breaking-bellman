@@ -24,9 +24,9 @@
 
   // Greedy evaluation episode. Returns undiscounted return (up to the training limit),
   // the realized discounted return (long horizon), the predicted value (max_a Q(s0), or V(s0)) and a trace.
-  function evaluate(learner, W, knobs, rng, limit, wantTrace) {
+  function evaluate(learner, W, knobs, rng, limit, wantTrace, start) {
     const ew = W.make(Object.assign({}, knobs, { maxSteps: Math.max(limit, W.evalHorizon || 0) }), rng);
-    let obs = ew.reset();
+    let obs = ew.reset(start);
     if (learner.beginEpisode) learner.beginEpisode();
     let pred = NaN;
     if (learner.q) { const q0 = learner.q(obs); pred = Math.max.apply(null, q0); }
@@ -169,6 +169,12 @@
         }
       }
       if (name === 'mirage') { res.final.qA = learner.q(Float32Array.from([1, 0])).slice(0, 2); res.final.qB = learner.q(Float32Array.from([0, 1])); }
+      if (name === 'pendulum') {
+        // Show the swing-up task, even when the random test starts almost upright.
+        // Keep this demonstration separate from every scored evaluation and its RNG.
+        const replay = evaluate(learner, W, knobs, RLA.rng.make((cfg.seed || 1) * 104729 + 11), world.spec.maxSteps, true, [Math.PI, 0]);
+        res.replay = { trace: replay.trace, start: replay.start, ret: replay.ret };
+      }
     } else {
       res.final = { means: Array.from(world.means), q: learner.q(world.reset()), best: world.bestArm() };
     }

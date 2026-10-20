@@ -1064,7 +1064,7 @@
       robot(ctx, W * 0.16, benchY + H * 0.02, Math.min(H * 0.3, W * 0.1), { mood: up ? 'happy' : 'normal', wave: up && n > 0, blink: blinkAt(t), look: 1 });
       const px = Math.max(10, Math.min(13, H * 0.034));
       if (!n) hud(ctx, ['Press Run: a weak motor learns to swing the weight up.'], null, 6, px, fonts.mono, W);
-      else hud(ctx, ['Test run, ' + ((k + 1) * 0.05).toFixed(1) + ' s' + (up ? ', up!' : '') + (end ? ' (end)' : '')], 'replay', 6, px, fonts.mono, W);
+      else hud(ctx, ['Replay, ' + ((k + 1) * 0.05).toFixed(1) + ' s' + (up ? ', up!' : '') + (end ? ' (end)' : '')], 'replay', 6, px, fonts.mono, W);
     };
     return looping(draw, n > 0);
   };
