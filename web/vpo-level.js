@@ -5,7 +5,7 @@
   C.worldNames.vpo = 'Two treasures';
   C.levels.push({ id: 'vpo', custom: true, phase: 7, world: 'vpo', title: 'Keep your alternatives', focus: [],
     intro: 'A route can reach the exit, collect gold, collect diamonds and avoid lava. Keep those four rewards separate. Train two small policies, then see which alternatives they offer.',
-    goal: { text: 'Run both learners, inspect sampled preferences and explain why more candidates guarantee no winner.' } });
+    goal: { text: 'Run both learners, inspect sampled preferences and explain why more candidates do not guarantee a VPO win.' } });
   const state = { seed: 101, generations: 240, k: 3, result: null, busy: false, selected: 0, draw: 1, inspected: false, edits: null, answer: '' };
   const f = x => x.toFixed(3), vector = x => '[' + x.map(f).join(', ') + ']';
   let currentRun = null, redraw = null;
@@ -96,7 +96,7 @@
             table(h,['GRPO route','Fixed score','Advantage'],r.arms[0].last.groups.map((g,i)=>[V.routes[g[0].action].name,f(r.arms[0].last.rewards[i]),f(r.arms[0].last.advantages[i])]))]));
       } else body.append(h('p.small', { text:'Train both learners to inspect their actual sampled routes and updates.' }));
       body.append(h('h3', { text:'3. Read the measured comparison' }), reference(h),
-        h('p', { text:'Which conclusion follows? More alternatives can help search, but a vector objective alone guarantees no advantage. Your game run may tie or favor either learner.' }),
+        h('p', { text:'Which conclusion follows? More alternatives can help search, but a vector objective alone does not guarantee an advantage. Your game run may tie or favor either learner.' }),
         h('label.field', { for:'vpo-answer' }, [h('span.small', { text:'Explain the result' }), h('select', { id:'vpo-answer', onchange:e=>{state.answer=e.target.value;redraw();} }, [['','Choose a conclusion'],['win','VPO must beat GRPO with 30 candidates'],['evidence','Both can improve; the measured VPO edge was small']].map(([value,text])=>h('option', { value, text, selected:state.answer===value })))]),
         state.answer==='win' ? h('p.small', { role:'status', text:'More candidates help only when they add a better route. The frozen result missed the planned effect size, and GRPO also improved.' }) : null,
         h('button.btn', { id:'vpo-complete', type:'button', disabled:!state.result||!state.inspected||state.answer!=='evidence', onclick:()=>{complete();redraw();} }, done()?'Lesson complete':'I compared both learners and inspected preferences'),
