@@ -7,9 +7,9 @@ const path = require('node:path');
 const read = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 const app = read('web/app.js');
 
-const PARA = 'How much data can the learner use before an estimate? Read the short article: ';
-const LINK_TEXT = 'Observations and estimates in reinforcement learning';
-const LINK_URL = 'https://hadrien-cornier.github.io/robotics/what-information-can-a-reinforcement-learner-use/';
+const PARA = 'For the trade-offs behind these settings, read: ';
+const LINK_TEXT = 'Recipes for choosing a learning target';
+const LINK_URL = 'https://hadrien-cornier.github.io/robotics/recipes-for-choosing-a-learning-target/';
 const WITH_LINK = ['cells', 'explode', 'mirage'];
 
 function harness(levelId) {
