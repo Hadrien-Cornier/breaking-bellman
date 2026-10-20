@@ -9,10 +9,16 @@ RealPath = pathlib.Path
 read_text = RealPath.read_text
 
 class BudgetTest(unittest.TestCase):
-    def test_budget_kills_children_and_cannot_be_retried(self):
+    def test_phase1_budget_kills_children_and_cannot_be_retried(self):
+        self.exercise_scope('robot-bb-fast-mode154.scope')
+
+    def test_phase2_budget_kills_children_and_cannot_be_retried(self):
+        self.exercise_scope('robot-bb-fast-neighbors154.scope')
+
+    def exercise_scope(self, scope_name):
         with tempfile.TemporaryDirectory(prefix='bb-fast-budget-') as temp:
-            root = RealPath(temp); scope = root/'robot-bb-fast-mode154.scope'; scope.mkdir()
-            proc = root/'proc'; proc.write_text('0::/robot-bb-fast-mode154.scope\n')
+            root = RealPath(temp); scope = root/scope_name; scope.mkdir()
+            proc = root/'proc'; proc.write_text('0::/'+scope_name+'\n')
             for name,value in {'memory.high':str(7*1024**3),'memory.max':str(8*1024**3),'memory.swap.max':'0','memory.current':'100000000','memory.peak':'100000000','cgroup.events':'populated 1'}.items(): (scope/name).write_text(value)
             (root/'memory.current').write_text('6000000000')
             fixture = subprocess.check_output(['node','-e', "const s=require('./scripts/fast-source'),C=s.content(),l=C.levels.find(x=>x.id==='fetch'),c=s.exact.resolve({world:l.world,parts:l.start,knobs:l.knobs,hyper:C.hyperOf(l.start,l.world),steps:10000000},[101,202,303],s.source().versions,C);console.log(s.exact.stringify({versions:c.versions,entries:[{key:s.hash(s.exact.stringify(c)),config:c}]}));"],cwd=ROOT,text=True)
@@ -26,7 +32,7 @@ class BudgetTest(unittest.TestCase):
             def clock_read(p,*args,**kwargs):
                 if p==scope/'cpu.stat': return 'usage_usec '+str(int((time.monotonic()-started)*20*1e6))+'\n'
                 return read_text(p,*args,**kwargs)
-            argv=[str(ROOT/'scripts/fast-campaign.py'),str(manifest),str(output),'--workers','2','--cpu-seconds','20','--wall-seconds','60']
+            argv=[str(ROOT/'scripts/fast-campaign.py'),str(manifest),str(output),'--scope',scope_name,'--workers','2','--cpu-seconds','20','--wall-seconds','60']
             old_signals={s:signal.getsignal(s) for s in (signal.SIGTERM,signal.SIGINT)}
             try:
                 with patch('pathlib.Path',side_effect=path),patch.object(RealPath,'read_text',clock_read),patch.object(sys,'argv',argv):
