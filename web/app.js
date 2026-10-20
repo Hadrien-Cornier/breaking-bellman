@@ -132,17 +132,23 @@
     return new Worker(workerUrl);
   }
   let active = [];
-  function stopAll() { for (const w of active) w.terminate(); active = []; }
+  let activeReject = null;
+  function stopAll(error) {
+    for (const w of active) w.terminate(); active = [];
+    const reject = activeReject; activeReject = null;
+    if (error && reject) reject(error);
+  }
 
   // Run one config over several seeds, split across parallel workers. onUpdate(partials) streams evals.
   function runSeeds(cfg, seeds, onUpdate) {
-    stopAll();
+    stopAll(new Error('cancelled'));
     const pool = Math.max(1, Math.min(seeds.length, (navigator.hardwareConcurrency || 4) - 1, 6));
     const live = seeds.length <= 6;
     const partial = seeds.map(() => ({ evals: [], t: 0 }));
     const results = new Array(seeds.length);
     let finished = 0;
     return new Promise((resolve, reject) => {
+      activeReject = reject;
       const groups = range(0, pool - 1).map(() => ({ seeds: [], idx: [] }));
       seeds.forEach((sd, i) => { groups[i % pool].seeds.push(sd); groups[i % pool].idx.push(i); });
       const doneOne = (i, res) => {
@@ -304,7 +310,7 @@
     ]);
   }
   function setMainPart(key, v) { S.parts[key] = v; onPartsChanged(); }
-  function onPartsChanged() { refreshSentences(); drawCompare(); drawGrid(); if (S.onPartsChange) S.onPartsChange(); }
+  function onPartsChanged() { cancelRun(); refreshSentences(); drawCompare(); drawGrid(); if (S.onPartsChange) S.onPartsChange(); }
   const mainSentence = (extra) => mountSentence(Object.assign({ getParts: () => S.parts, setPart: setMainPart, world: () => S.world }, extra || {}));
 
   function nameBox(p, world) {
@@ -837,7 +843,7 @@
     if (!a.symptoms.length) box.append(h('p.small', { text: 'No symptom found.' }));
     for (const s of a.symptoms) box.append(h('div.sym.' + s.level, null, [h('span.dot'), h('div', null, [h('b', { text: s.label }), h('p', { text: s.evidence })])]));
     for (const n of S.results[0].notes || []) box.append(h('p.small', { text: 'Note: ' + n }));
-    box.append(h('p.small', { text: 'Measured on ' + S.results.length + ' run' + (S.results.length > 1 ? 's' : '') + ' in this page. Simulation.' }));
+    box.append(h('p.small', { text: 'Measured on ' + S.results.length + ' run' + (S.results.length > 1 ? 's' : '') + '. ' + (S.stored ? 'Stored simulation.' : 'Trained in this page. Simulation.') }));
     if (window.RLHELP) window.RLHELP.enhance(box, metricCtx());
     return a;
   }
@@ -914,22 +920,51 @@
     const lv = S.mode === 'campaign' ? C.levels.find((l) => l.id === S.level) : null;
     return Object.assign(C.hyperOf(S.parts, S.world), lv && lv.world === S.world && lv.hyper ? lv.hyper : {});
   }
+  const fastClient = window.RLFAST.create(window.BB_FAST);
+  let activeRun = null;
+  function runIdentity() {
+    return RLA.exact.stringify({ mode: S.mode, level: S.level, world: S.world, parts: S.parts, knobs: S.knobs,
+      hyper: hyperNow(), steps: +$('#budget').value, seeds: +$('#seeds').value, runMode: $('#run-mode').value });
+  }
+  function cancelRun() {
+    if (!activeRun) return;
+    activeRun.controller.abort(); activeRun = null;
+    stopAll(new Error('cancelled'));
+    S.running = false; $('#run-btn').disabled = false;
+    $('#run-source').textContent = 'Settings changed. Run this sentence to measure it.';
+  }
   async function run() {
     if (S.running) return null;
     S.running = true; $('#run-btn').disabled = true;
     const nSeeds = +$('#seeds').value, steps = +$('#budget').value;
     const cfg = { world: S.world, knobs: Object.assign({}, S.knobs), parts: Object.assign({}, S.parts), hyper: hyperNow(), steps };
+    const ticket = { controller: new AbortController(), identity: runIdentity() }; activeRun = ticket;
+    const current = () => activeRun === ticket && !ticket.controller.signal.aborted && runIdentity() === ticket.identity;
     S.lastCfg = cfg;
     $('#expert-card').hidden = true; $('#wonder').hidden = true;
     const seeds = range(1, nSeeds).map((i) => i * 101);
     $('#charts').replaceChildren(); const prog = $('#prog'); prog.style.width = '2%';
     S.results = [];
+    S.stored = false;
+    $('#run-source').textContent = $('#run-mode').value === 'fast' ? 'Looking for an exact stored simulation…' : 'Live simulation: training in this page.';
     try {
-      const results = await runSeeds(cfg, seeds, (partials) => {
+      let stored = null;
+      if ($('#run-mode').value === 'fast') {
+        stored = await fastClient.lookup(RLA.exact.resolve(cfg, seeds, window.BB_FAST.versions, C), ticket.controller.signal);
+        if (!current()) return null;
+        $('#run-source').textContent = stored.reason || 'Stored simulation: loading measured results.';
+      }
+      const results = stored && stored.record ? stored.record.results : await runSeeds(cfg, seeds, (partials) => {
+        if (!current()) return;
         const done = partials.reduce((s, p) => s + p.t, 0) / (steps * seeds.length);
         prog.style.width = Math.round(100 * done) + '%';
         if (S.world !== 'bandit' && S.world !== 'mirage') renderCharts(partials, false);
       });
+      if (!current()) return null;
+      S.stored = !!(stored && stored.record);
+      $('#run-source').textContent = S.stored
+        ? 'Stored simulation. Ordered seeds: ' + seeds.join(', ') + '. Budget: ' + steps + ' steps per seed. Version: ' + window.BB_FAST.base.split('/').pop() + '. Recorded replay seed: ' + seeds[0] + '.'
+        : (stored ? stored.reason + ' ' : '') + 'Live simulation: trained in this page. Replay seed: ' + seeds[0] + '.';
       S.results = results;
       renderCharts(results.map((r) => ({ evals: r.evals, diag: r.diag })), true);
       renderStage();
@@ -949,10 +984,10 @@
       if (S.afterRun) S.afterRun(a);
       return a;
     } catch (err) {
-      toast('Run failed: ' + err.message);
+      if (current()) toast('Run failed: ' + err.message);
       return null;
     } finally {
-      S.running = false; $('#run-btn').disabled = false; prog.style.width = '100%';
+      if (activeRun === ticket) { activeRun = null; S.running = false; $('#run-btn').disabled = false; prog.style.width = '100%'; }
     }
   }
   // ---------------------------------------------------------------- discovery celebration
@@ -1222,6 +1257,7 @@
     const keys = G.keys.slice(), combos = cartesian(keys.map(optVals));
     const nSeeds = +$('#seeds').value, steps = +$('#budget').value, seeds = range(1, nSeeds).map((i) => i * 101);
     const base = Object.assign({}, S.parts), knobs = Object.assign({}, S.knobs), hyper = hyperNow(), world = S.world;
+    const fast = $('#run-mode').value === 'fast', identity = runIdentity();
     S.running = true; G.running = true; G.stop = false; G.rows = []; G.runKeys = keys; G.base = base; G.metric = null;
     G.cfgText = C.worldNames[world] + ', ' + nSeeds + ' seed' + (nSeeds > 1 ? 's' : '') + ', ' + short(steps) + ' steps';
     $('#run-btn').disabled = true;
@@ -1231,13 +1267,18 @@
         const parts = Object.assign({}, base); keys.forEach((k, j) => { parts[k] = combos[i][j]; });
         const left = i ? Math.round((performance.now() - t0) / i * (combos.length - i) / 1000) : null;
         G.status = 'Running combination ' + (i + 1) + ' of ' + combos.length + (left != null ? ', about ' + left + ' s left' : '') + '…'; drawGrid();
-        const res = await runSeeds({ world, knobs, parts, hyper, steps }, seeds, () => {});
+        const cfg = { world, knobs, parts, hyper, steps };
+        const stored = fast ? await fastClient.lookup(RLA.exact.resolve(cfg, seeds, window.BB_FAST.versions, C)) : null;
+        if (runIdentity() !== identity) throw new Error('Settings changed. Run the table again.');
+        const res = stored && stored.record ? stored.record.results : await runSeeds(cfg, seeds, () => {});
+        if (runIdentity() !== identity) throw new Error('Settings changed. Run the table again.');
         const a = RLA.autopsy(res), m = metricOf(a, world);
         const se = metricSE(res, world);
         G.metric = m;
-        G.rows.push({ vals: combos[i], parts, v: m.v, se, works: C.works[world](a), rec: recognize(parts, world) });
+        G.rows.push({ vals: combos[i], parts, v: m.v, se, works: C.works[world](a), rec: recognize(parts, world), stored: !!(stored && stored.record) });
       }
       G.status = (G.stop ? 'Stopped after ' + G.rows.length + ' of ' + combos.length + ' combinations. ' : 'Done: ' + combos.length + ' combinations in ' + Math.round((performance.now() - t0) / 1000) + ' s. ') + G.cfgText + '. Simulation.';
+      if (fast) G.status += ' ' + G.rows.filter(r => r.stored).length + ' stored simulations; the others ran Live. Ordered seeds: ' + seeds.join(', ') + '. Version: ' + window.BB_FAST.base.split('/').pop() + '.';
     } catch (err) {
       G.status = 'A combination failed: ' + err.message;
     } finally {
@@ -1274,6 +1315,7 @@
         h('button.gbtn', { type: 'button', onclick: () => useRow(r) }, [
           h('b', { text: gfmt(r.v) + gunit(m) }), isFinite(r.se) ? h('span.small', { text: ' ±' + gfmt(r.se) + gunit(m) }) : null,
           r.works ? h('span.gok', { text: ' ✓' }) : null,
+          h('span.gname', { text: r.stored ? 'Stored simulation' : 'Live' }),
           name ? h('span.gname', { text: name }) : null, isNow ? h('span.gname', { text: '(your sentence)' }) : null])]);
     };
     const head = h('tr', null, [h('th', { text: rk.map((k) => SHORT[k]).join(' / ') + (ck.length ? ' ↓   ' + ck.map((k) => SHORT[k]).join(' / ') + ' →' : '') })]
@@ -1794,6 +1836,7 @@
 
   // ---------------------------------------------------------------- world and sentence setters
   function setWorld(w, knobs) {
+    cancelRun();
     S.world = w; S.knobs = Object.assign({}, knobs || {}); S.results = []; S.lastA = null;
     budgetOptions(); renderStage(); renderAutopsy(); refreshSentences(); drawCompare(); drawGrid();
     $('#run-result').textContent = '';
@@ -2752,7 +2795,8 @@
   $('#replay-lab').append(replayView());
   $('#grid-lab').append(gridView());
   $('#grid-card').addEventListener('toggle', () => { if ($('#grid-card').open) drawGrid(); });
-  for (const sel of ['#seeds', '#budget']) $(sel).addEventListener('change', () => { if (!G.running) drawGrid(); });
+  for (const sel of ['#seeds', '#budget', '#run-mode']) $(sel).addEventListener('change', () => { cancelRun(); if (!G.running) drawGrid(); });
+  document.addEventListener('change', () => { if (activeRun && runIdentity() !== activeRun.identity) cancelRun(); });
 
   budgetOptions();
   if (S.mode === 'campaign') enterLevel(C.levels.find((l) => l.id === S.level) || C.levels[0]);

@@ -20,6 +20,12 @@ test('lossless codec preserves every engine numeric/container type and undefined
   const a = { x:NaN, y:Infinity, z:-Infinity, negativeZero:-0, missing:undefined, array:[undefined,NaN], f:new Float32Array([.3,NaN,Infinity]), d:new Float64Array([1/3,-0]), u:new Uint8Array([0,255]) };
   assert.deepEqual(exact.parse(exact.stringify(a)),a);
 });
+test('version dependencies cover simulation, rules and codec while UI/loader edits do not invalidate results', () => {
+  const dependencies=Object.keys(source().files);
+  for(const f of ['src/core/rng.js','src/core/nn.js','src/worlds/pendulum.js','src/sim/run.js','src/sim/autopsy.js','web/content3.js','web/fetch-level.js','web/rules.js'])assert(dependencies.includes(f));
+  for(const f of ['web/app.js','web/fast.js','web/style.css','web/page.html','build.mjs'])assert(!dependencies.includes(f));
+  assert.equal(source().versions.codec,hash(fs.readFileSync(path.resolve(__dirname,'../src/sim/exact.js'))));
+});
 test('full stored results equal current Live including all autopsy and representative consumer inputs', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(),'bb-fast-test-'));
   try {

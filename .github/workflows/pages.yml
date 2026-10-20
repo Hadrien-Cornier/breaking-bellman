@@ -30,7 +30,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Unit tests
-        run: npm test
+        run: |
+          npm test
+          python3 test/fast-budget.py
       - name: Build and UI smoke test
         run: npm run smoke
       - name: Stage the Pages artifact
@@ -38,6 +40,7 @@ jobs:
         run: |
           mkdir pages-out
           cp dist/breaking-bellman.html pages-out/index.html
+          if [ -d dist/fast ]; then cp -R dist/fast pages-out/fast; fi
           touch pages-out/.nojekyll
       - name: Upload Pages artifact
         # v5.0.0; include-hidden-files so .nojekyll travels with the artifact

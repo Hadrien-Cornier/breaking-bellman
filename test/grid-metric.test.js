@@ -10,6 +10,7 @@ const path = require('node:path');
 const read = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 for (const f of ['src/core/rng.js', 'src/core/nn.js', 'src/worlds/mirage.js', 'src/agents/value.js', 'src/sim/run.js', 'src/sim/autopsy.js']) require('../' + f);
 const RLA = globalThis.RLA;
+require('../src/sim/exact.js');
 const app = read('web/app.js');
 
 // Run the real sentence words (wordText, SHORT, recognize, idleWords) and the real
@@ -29,10 +30,13 @@ function harness() {
     C, S, h, W: C.words, $: el,
     toast() {}, onPartsChanged() {},
     hyperNow: () => ({}),
+    runIdentity: () => 'fixed test settings',
     range: (a, b) => { const o = []; for (let i = a; i <= b; i++) o.push(i); return o; },
     short: (x) => String(x),
     runSeeds: () => Promise.resolve(ctx.__results || []),
+    fastClient: { lookup: async () => ({ record: { results: ctx.__results || [] } }) },
   });
+  ctx.window.BB_FAST = { versions: { engine: 'test' }, base: 'fast/test' };
   vm.runInContext(app.slice(app.indexOf('  const fmt = (x) => {'), app.indexOf('\n  };', app.indexOf('  const fmt = (x) => {')) + 5), ctx);
   vm.runInContext(app.slice(app.indexOf('  // ---------------------------------------------------------------- the sentence: words, recognizer'),
     app.indexOf('  // ---------------------------------------------------------------- sentence component')), ctx);
@@ -123,4 +127,13 @@ test('table unit: the slots table keeps its % sign and a score world keeps bare 
   const cart = await h.run('cartpole', {}, ['store'], [cartpoleRun(1), cartpoleRun(2)]);
   assert.doesNotMatch(cart.list, /%/, 'cartpole: a score prints without a % sign');
   assert.match(cart.list, /160\.0/, 'cartpole: the score still prints');
+});
+test('stored full-seed inputs retain identical bootstrap uncertainty, matrix and list values', async () => {
+  const results=[mirageRun([1,0,0],101),mirageRun([0,1,0],202)],h=harness();
+  const live=await h.run('mirage',{nstep:4},['picker'],results),se=h.ctx.metricSE(results,'mirage');
+  h.ctx.$('#run-mode').value='fast';
+  const stored=await h.run('mirage',{nstep:4},['picker'],RLA.exact.parse(RLA.exact.stringify(results)));
+  assert.equal(h.ctx.metricSE(RLA.exact.parse(RLA.exact.stringify(results)),'mirage'),se);
+  assert.equal(stored.matrix.replaceAll('Stored simulation','Live'),live.matrix);
+  assert.equal(stored.list,live.list);
 });
