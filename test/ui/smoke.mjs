@@ -448,6 +448,7 @@ await session(390, 844, 'rules', async (page) => {
   await page.setViewportSize({ width: 1280, height: 1000 });
   await page.emulateMedia({ colorScheme: 'light' });
   await page.locator('#game-rules').screenshot({ path: out + '/rules-pendulum-desktop.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
 });
 console.log('errors:', errors.length ? errors.join('\n') : 'none');
 if (errors.length) fails.push('page errors');
