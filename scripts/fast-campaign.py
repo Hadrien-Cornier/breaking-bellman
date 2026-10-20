@@ -7,19 +7,21 @@ import argparse, concurrent.futures, hashlib, json, os, pathlib, signal, subproc
 
 p = argparse.ArgumentParser()
 p.add_argument('manifest'); p.add_argument('output'); p.add_argument('--workers', type=int, default=2)
+p.add_argument('--scope', choices=['robot-bb-fast-mode154.scope','robot-bb-fast-neighbors154.scope'], default='robot-bb-fast-mode154.scope')
 p.add_argument('--cpu-seconds', type=float, default=108000); p.add_argument('--wall-seconds', type=float, default=86400)
 a = p.parse_args()
-if not 1 <= a.workers <= 2 or a.cpu_seconds > 108000 or a.wall_seconds > 86400: raise SystemExit('invalid limits')
+cpu_max, wall_max = (1080000, 1209600) if a.scope == 'robot-bb-fast-neighbors154.scope' else (108000, 86400)
+if not 1 <= a.workers <= 2 or not 10 < a.cpu_seconds <= cpu_max or not 10 < a.wall_seconds <= wall_max: raise SystemExit('invalid limits')
 out = pathlib.Path(a.output); out.mkdir(parents=True, exist_ok=True)
 def atomic(name, data):
     target = out / name; temp = target.with_suffix('.tmp'); temp.write_text(json.dumps(data, indent=2)+'\n'); temp.replace(target)
 manifest_bytes = pathlib.Path(a.manifest).read_bytes(); manifest = json.loads(manifest_bytes)
 scope = pathlib.Path('/sys/fs/cgroup') / next(x.split(':',2)[2].strip().lstrip('/') for x in pathlib.Path('/proc/self/cgroup').read_text().splitlines() if x.startswith('0:'))
-if scope.name != 'robot-bb-fast-mode154.scope': raise SystemExit('requires own robot-bb-fast-mode154.scope')
+if scope.name != a.scope: raise SystemExit('requires own '+a.scope)
 def cpu(): return int(dict(line.split() for line in (scope/'cpu.stat').read_text().splitlines())['usage_usec']) / 1e6
 def memory(): return int((scope/'memory.current').read_text())
 limits = {f: (scope/f).read_text().strip() for f in ['memory.high','memory.max','memory.swap.max']}
-if int(limits['memory.max']) > 8589934592 or limits['memory.swap.max'] != '0': raise SystemExit('scope limits unsafe')
+if int(limits['memory.high']) > 7516192768 or int(limits['memory.max']) > 8589934592 or limits['memory.swap.max'] != '0': raise SystemExit('scope limits unsafe')
 progress_file = out/'progress.json'; previous = json.loads(progress_file.read_text()) if progress_file.exists() else None
 if previous and previous['state'] in ['cpu-budget-stop','wall-budget-stop']: raise SystemExit('budget stopped; new instruction required')
 digest = hashlib.sha256(manifest_bytes).hexdigest()
@@ -82,7 +84,7 @@ try:
             rc = proc.poll()
             if rc is None: continue
             if rc==0:
-                try: state['completed'][key]=json.loads((out/(key+'.stdout')).read_text())
+                try: state['completed'][key]=dict(json.loads((out/(key+'.stdout')).read_text()), exitCode=rc)
                 except Exception as ex: state['failures'][key]={'exitCode':rc,'error':str(ex)}
             else: state['failures'][key]={'exitCode':rc,'stderr':(out/(key+'.stderr')).read_text()[-4000:]}
             del children[key]; del state['active'][key]
