@@ -1936,7 +1936,7 @@
     }
     for (const n of made.notes || []) box.append(h('p.small', { text: n }));
     box.append(discoveryMap(groupOf(triad ? 'triad' : rec && rec.card, lv.world, fam(made.parts))));
-    if (['cells', 'explode', 'mirage'].includes(lv.id)) box.append(h('p', null, ['How much data can the learner use before an estimate? Read the short article: ', h('a', { href: 'https://hadrien-cornier.github.io/robotics/what-information-can-a-reinforcement-learner-use/', target: '_blank', rel: 'noopener' }, 'Observations and estimates in reinforcement learning')]));
+    if (['cells', 'explode', 'mirage'].includes(lv.id)) box.append(h('p', null, ['For the trade-offs behind these settings, read: ', h('a', { href: 'https://hadrien-cornier.github.io/robotics/recipes-for-choosing-a-learning-target/', target: '_blank', rel: 'noopener' }, 'Recipes for choosing a learning target')]));
     box.append(h('p', { html: '<b>On a real robot:</b> ' + lv.soWhat }), h('p.small', { html: '<b>What this toy world cannot teach:</b> ' + lv.cannotTeach }), nextLevelButton(lv));
     return box;
   }
