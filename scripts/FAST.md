@@ -25,10 +25,11 @@ npm run build
 The external layout is `fast/VERSION/index.json` and `fast/VERSION/records/KEY.json.gz`.
 Derived reproducibility manifests live at `fast/VERSION/manifests/phase1.json.gz` and `remaining-ac.json.gz`; decompress either into a `bb-campaign-v1` manifest for the runner and publisher.
 The remaining actor-critic manifest is disjoint from phase one and carries no result claims until its simulations are complete.
+The published set keeps existing keys that the game's first-match recognizer links to a recipe with a Codex card, across all published settings. Other settings use the local cache or Live. The reproducibility manifests retain the original configurations, including keys with no published record.
 The report gives per-shard and aggregate raw/gzip bytes plus index bytes.
 `build.mjs` copies assets to `dist/fast`; Pages stages that directory beside its HTML.
 HTML embeds only version metadata, and the standalone file remains fully usable without fetching data.
-`node --test test/fast-assets.test.js` checks the complete published manifest coverage, shard integrity, ordered seeds and lossless round trips, and passes every current-version shard through the production consumer validator without training again.
+`node --test test/fast-assets.test.js` checks that each current published key matches a recipe with a Codex card, plus shard integrity, ordered seeds and lossless round trips, and passes every current-version shard through the production consumer validator without training again.
 
 Fast is the default; the browser fetches the index on Run, then loads one matching shard and checks its size, SHA-256, exact configuration and complete seeds.
 Invalid versions, missing keys, corruption, timeout, fetch failure and file URLs fall through to the local IndexedDB cache, then actual Live settings.
