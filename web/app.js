@@ -1939,6 +1939,12 @@
       const api = lv.id === 'supermimic' ? BBSUPERMIMIC : BBVPO;
       api.mount(pane, $('#vpo-lab'), { h, done: () => S.done.includes(lv.id), complete: () => {
         if (!S.done.includes(lv.id)) S.done.push(lv.id); S.lstep[lv.id] = 5; save(); updateScore();
+      }, known: id => S.found.includes(id) || S.given.includes(id), reveal: id => {
+        if (!S.given.includes(id)) {
+          const alreadyKnown = S.found.includes(id);
+          S.given.push(id); save(); updateScore();
+          if (!alreadyKnown) queueCelebration(id);
+        }
       } });
       return;
     }

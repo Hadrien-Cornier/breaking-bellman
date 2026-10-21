@@ -8,7 +8,34 @@
     intro: 'Compare PPO in physics, PPO in a learned world model, and direct backpropagation through that same model.',
     goal: { text: 'Separate rollout speed from gradient efficiency, then find where a policy exploits model error.' },
   });
+  const SUPERMIMIC_CARD = C.cards.supermimic = {
+    name: 'SuperMimic', status: 'checked',
+    fixes: 'Whole-body reference-motion tracking on a Unitree G1. One differentiable model learns from MuJoCo Warp transitions and trains a goal-conditioned humanoid policy.',
+    stillWrong: 'The game has one pendulum joint, no contact model, no motion corpus, no domain randomization, and no hardware transfer. Rankings can change with seed and budget.',
+    paper: 'Qiayuan Liao, Yiyang Shao, Junfeng Long, Kevin Zakka, Roberto Horowitz, Pieter Abbeel, and Koushil Sreenath (UC Berkeley), <i>SuperMimic: Scaling Humanoid Whole-Body Control with One Differentiable World Model</i>, arXiv:2610.28480v1, submitted 20 October 2026, accepted at CoRL 2026.',
+    evidence: '<p>Sections 3.1 to 3.3 define the alternating data, model-fit, and short-horizon policy loop. Section 3.3 states that “BPTT computes a first-order gradient” and uses a terminal critic. Sections 4.1 to 4.3 report the evaluation, rollout-throughput, PPO-WM, and critic ablations.</p><p>The headline is not a matched rerun. It compares 3 hours on one H100 with SONIC’s reported 7 days on 128 L40 GPUs, with different motion-data sizes and unknown utilization.</p>',
+  };
+  const SUPERMIMIC_LINKS = C.paperLinks.supermimic = [
+    { t: 'arXiv abstract', u: 'https://arxiv.org/abs/2610.28480' },
+    { t: 'Primary PDF', u: 'https://arxiv.org/pdf/2610.28480' },
+  ];
   const state = { seed: 178, scale: 1, result: null, busy: false, answer: '', inspected: false, error: null };
+  const SHARED_SOURCE = {
+    algo: {
+      label: 'SuperMimic', re: /\bSuperMimic\b/g,
+      idea: 'Fit one differentiable dynamics model from simulator transitions, then improve the tracking policy through short imagined rollouts.',
+      math: 'J_H = sum from t=0 to H-1 of gamma^t r_t + gamma^H V(s_H)',
+      symbols: 'H is the imagined horizon. V(s_H) is the terminal critic bootstrap.',
+      note: 'The paper uses 32 imagined steps. It reports model rollouts over 10 times faster and about 64 times fewer imagined steps than PPO on that model.',
+      gameNote: 'This game uses one pendulum, one small fitted linear feature model, and bounded CPU budgets. It is not a humanoid or paper replication.',
+    },
+    discovery: {
+      discovered: false, card: SUPERMIMIC_CARD, links: SUPERMIMIC_LINKS,
+      blurb: 'The lesson compares PPO in physics, PPO in one fitted model, and direct gradients through that same model. Every policy is evaluated in true physics.',
+    },
+  };
+  M.sharedSource = SHARED_SOURCE;
+  let sourceKnown = () => false, revealSource = () => {};
   let currentRun = null, redraw = null;
   const f = (x, n = 3) => Number(x).toFixed(n);
   const count = x => x >= 1e6 ? f(x / 1e6, 2) + 'M' : x >= 1e3 ? f(x / 1e3, 1) + 'k' : String(x);
@@ -48,6 +75,7 @@
       });
       if (currentRun !== ticket) return null;
       state.result = result;
+      revealSource('supermimic');
       return result;
     } catch (error) {
       state.error = error.message;
@@ -66,29 +94,21 @@
       h('table', null, [head, body]));
   }
   function sourceContext(h) {
-    return h('details.method-context', { id: 'supermimic-source-context' }, [
-      h('summary', { text: 'Source and context' }),
-      h('dl', null, [
-        h('dt', { text: 'Primary source' }),
-        h('dd', null, [
-          'Qiayuan Liao, Yiyang Shao, Junfeng Long, Kevin Zakka, Roberto Horowitz, Pieter Abbeel, and Koushil Sreenath. ',
-          h('a', { href: 'https://arxiv.org/abs/2610.28480', target: '_blank', rel: 'noopener' }, 'SuperMimic: Scaling Humanoid Whole-Body Control with One Differentiable World Model'),
-          '. arXiv:2610.28480v1.',
-        ]),
-        h('dt', { text: 'Date and provenance' }),
-        h('dd', { text: 'Submitted 20 October 2026. UC Berkeley. Accepted at CoRL 2026. Checked against the primary PDF, sections 3.1 to 3.3 and 4.1 to 4.3.' }),
-        h('dt', { text: 'Original application' }),
-        h('dd', { text: 'Whole-body reference-motion tracking on a Unitree G1. One differentiable model learns from MuJoCo Warp transitions and trains a goal-conditioned humanoid policy.' }),
-        h('dt', { text: 'Paper evidence' }),
-        h('dd', { text: 'Section 3.3 uses 32-step imagined rollouts and a terminal critic. Section 4.2 reports world-model rollouts over 10 times faster and about 64 times fewer imagined steps than PPO on that model.' }),
-        h('dt', { text: 'What this game simplifies' }),
-        h('dd', { text: 'One pendulum joint, one small fitted linear feature model, small CPU budgets, and three seeded policies. There is no humanoid, contact model, GPU, motion corpus, domain randomization, or hardware transfer. Rankings can change with the seed and budget.' }),
-      ]),
-      h('p.small', null, [
-        'Verified quotation from section 3.3: “BPTT computes a first-order gradient” through the imagined steps. ',
-        h('a', { href: 'https://arxiv.org/pdf/2610.28480', target: '_blank', rel: 'noopener' }, 'Read the PDF'),
-        '.',
-      ]),
+    const A = window.ALGO_HELP;
+    if (!A || !A.ALGOS || !A.makeTrigger) {
+      return h('p.small', { id: 'supermimic-source-context', text: 'Source and context use the shared method panel once the method-panel change lands.' });
+    }
+    A.ALGOS.supermimic = SHARED_SOURCE.algo;
+    SHARED_SOURCE.discovery.discovered = sourceKnown('supermimic');
+    if (!A.discoveryFor || !A.discoveryFor.supermimicProvider) {
+      const upstream = A.discoveryFor || (() => ({ discovered: false }));
+      const provider = algoId => algoId === 'supermimic' ? SHARED_SOURCE.discovery : upstream(algoId);
+      provider.supermimicProvider = true;
+      A.discoveryFor = provider;
+    }
+    return h('div.row', { id: 'supermimic-source-context' }, [
+      h('span.small', { text: 'Verified paper source and toy adaptation:' }),
+      A.makeTrigger('supermimic', { pin: true }),
     ]);
   }
   function pendulum(h, result) {
@@ -165,7 +185,9 @@
       }, [h('span', { text }), state.answer === value ? h('span.why', { role: 'status', text: feedback[value] }) : null]))),
     ]);
   }
-  M.mount = (pane, lab, { h, complete, done }) => {
+  M.mount = (pane, lab, { h, complete, done, known, reveal }) => {
+    sourceKnown = known || (() => false);
+    revealSource = reveal || (() => {});
     const lesson = C.levels.find(l => l.id === 'supermimic'), body = h('div.card.stack', { id: 'supermimic-lesson' });
     pane.append(body);
     redraw = () => {

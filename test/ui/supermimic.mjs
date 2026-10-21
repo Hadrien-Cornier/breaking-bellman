@@ -30,10 +30,13 @@ for (const width of [1280, 390]) {
     const result = await bellman.run();
     const root = document.querySelector('#supermimic-lesson');
     const source = document.querySelector('#supermimic-source-context');
-    source.open = true;
+    const trigger = source.querySelector('.algo-name');
+    trigger?.click();
+    const shared = document.querySelector('#algo-rem-popover');
     return {
       width: innerWidth, scroll: document.documentElement.scrollWidth, result,
-      sourceVerified: /Qiayuan Liao/.test(source.innerText) && /20 October 2026/.test(source.innerText) && /UC Berkeley/.test(source.innerText),
+      sourceVerified: !!shared && /Qiayuan Liao/.test(shared.innerText) && /20 October 2026/.test(shared.innerText) && /UC Berkeley/.test(shared.innerText),
+      sharedPanel: !!trigger && !!shared && !source.querySelector('details'),
       qualified: /not a matched version/.test(root.innerText) && /128 L40/.test(root.innerText),
       separate: !!document.querySelector('#supermimic-rollout') && !!document.querySelector('#supermimic-gradients'),
       completeDisabled: document.querySelector('#supermimic-complete').disabled,
@@ -47,7 +50,7 @@ for (const width of [1280, 390]) {
   check(run.result.methods.every(x => Number.isFinite(x.physicsScore) && Number.isFinite(x.surrogateScore)), 'physics and surrogate scores remain distinct at ' + width);
   check(run.result.exploit.gap > 0.02 && run.result.exploit.outsideSupport > 0.7, 'reproducible model exploitation at ' + width);
   check(run.result.rollout.physicsMs > 0 && run.result.rollout.modelMs > 0 && run.separate, 'rollout and gradient measures are separate at ' + width);
-  check(run.sourceVerified, 'verified source context at ' + width);
+  check(run.sourceVerified && run.sharedPanel, 'verified source context uses the shared method panel at ' + width);
   check(run.qualified, 'headline comparison is qualified at ' + width);
   check(run.markdown && run.completeDisabled && !run.emDash, 'export, completion gate, and style at ' + width);
   const interaction = evaluate(`() => {
@@ -66,7 +69,7 @@ for (const width of [1280, 390]) {
   }`);
   check(interaction.wrongDisabled && interaction.ready && interaction.done, 'causal quiz and completion gate at ' + width);
   check(interaction.feedback && !interaction.overflow, 'quiz feedback explains the distinction at ' + width);
-  evaluate('() => {document.querySelector("#supermimic-source-context").open=true;document.querySelector("#supermimic-source-context").scrollIntoView({block:"start"});return true;}');
+  evaluate('() => {const source=document.querySelector("#supermimic-source-context");source.scrollIntoView({block:"start"});source.querySelector(".algo-name")?.click();return true;}');
   cli('screenshot', path.join(proof, 'source-' + width + '.png'));
   evaluate('() => {document.querySelector("#supermimic-gradients").scrollIntoView({block:"start"});return true;}');
   cli('screenshot', path.join(proof, 'measures-' + width + '.png'));
