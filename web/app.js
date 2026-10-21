@@ -1841,7 +1841,11 @@
     const prev = S.answers[q.id];
     const wrap = h('div.mc');
     wrap.append(h('p', { html: q.prompt }));
-    const btns = q.options.map((o, i) => {
+    // Rotate only the rendered order; saved choice indices stay canonical for existing progress.
+    const shift = [...q.id].reduce((sum, c) => sum + c.charCodeAt(0), 0) % q.options.length;
+    const entries = q.options.map((o, i) => ({ o, i }));
+    entries.push(...entries.splice(0, shift));
+    const btns = entries.map(({ o, i }) => {
       const b = h('button.opt', { type: 'button' }, [
         h('ol', null, o.steps.map((s) => h('li', { html: s }))),
         h('span.res', { html: '→ ' + o.result }),
@@ -1854,8 +1858,8 @@
     if (window.RLHELP) window.RLHELP.enhance(wrap, metricCtx());
     function show(i) {
       btns.forEach((b, j) => {
-        const o = q.options[j];
-        b.classList.toggle('picked', j === i);
+        const { o, i: source } = entries[j];
+        b.classList.toggle('picked', source === i);
         b.classList.toggle(o.correct ? 'right' : 'wrong', true);
         const why = b.querySelector('.why'); why.hidden = false; why.innerHTML = (o.correct ? '<b>Sound chain.</b> ' : '') + o.why;
       });
