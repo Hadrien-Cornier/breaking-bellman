@@ -297,6 +297,7 @@
     }
     if (o.withName) kids.push(nameBox(p, world));
     if (o.withMath) kids.push(mathBox(p, world));
+    if (o.preset) kids.push(presetRow(p, world, m));
     m.el.replaceChildren(...kids);
   }
   function chooser(m, key, p, idle) {
@@ -311,7 +312,49 @@
   }
   function setMainPart(key, v) { S.parts[key] = v; onPartsChanged(); }
   function onPartsChanged() { cancelRun(); refreshSentences(); drawCompare(); drawGrid(); if (S.onPartsChange) S.onPartsChange(); }
-  const mainSentence = (extra) => mountSentence(Object.assign({ getParts: () => S.parts, setPart: setMainPart, world: () => S.world }, extra || {}));
+  const mainSentence = (extra) => mountSentence(Object.assign({ getParts: () => S.parts, setPart: setMainPart, world: () => S.world, preset: true }, extra || {}));
+
+  // ---------------------------------------------------------------- unlocked-technique preset loader (scope 175)
+  // Fill the update-rule editor with a learned method's defining settings. Reuses the recipe
+  // catalog (C.recipes) as the single source of algorithm settings; no second catalog here.
+  // Loading only changes the editor. It never runs anything: the player must press Run.
+  const optLabel = (key, val) => wordText(key, val);
+  const presetReason = (r, p, world) => window.ALGO_HELP.presetReason(fam, C.families, r, p, world);
+  const presetUnlocked = (r) => window.ALGO_HELP.presetUnlocked(r, S.found, S.given);
+  function applyPreset(rec, m) {
+    const plan = window.ALGO_HELP.presetPlan(S.parts, rec.keys);
+    S.parts = C.cfg(plan.next);
+    if (m) m.presetInfo = { name: rec.name, changes: plan.changes };
+    onPartsChanged();  // refresh + cancel any run; nothing is started
+    return plan.changes;
+  }
+  function presetRow(p, world, m) {
+    const rows = C.recipes.map((r, i) => ({ r, i, reason: presetReason(r, p, world) })).filter((x) => presetUnlocked(x.r));
+    const sel = h('select', {
+      'aria-label': 'Load a learned method preset into the editor',
+      onchange: (e) => {
+        const v = e.target.value;
+        if (v === '') { m.presetInfo = null; drawSentence(m); return; }
+        const rec = C.recipes[parseInt(v, 10)];
+        const reason = presetReason(rec, p, world);
+        if (reason) { m.presetInfo = { name: rec.name, blocked: reason }; drawSentence(m); return; }
+        applyPreset(rec, m);
+      },
+    }, [h('option', { value: '', text: 'Load a learned method\u2026' })].concat(rows.map(({ r, i, reason }) =>
+      h('option', { value: String(i), disabled: !!reason, text: r.name + (reason ? ' (' + reason + ')' : '') }))));
+    const out = [h('div.preset', null, [h('span.small', { text: 'Load a learned method preset: ' }), sel])];
+    const info = m.presetInfo;
+    if (info) {
+      if (info.blocked) out.push(h('p.small.preset-diff', { text: 'Cannot load ' + info.name + ' here: ' + info.blocked }));
+      else {
+        out.push(h('p.small.preset-diff', { text: 'Loaded ' + info.name + '. Changed settings (the editor only; nothing ran):' }));
+        out.push(h('ul.small.preset-diff', null, (info.changes.length ? info.changes.map((c) =>
+          h('li', { text: c.key + ': ' + optLabel(c.key, c.from) + ' \u2192 ' + optLabel(c.key, c.to) }))
+          : [h('li', { text: 'No settings changed; the editor already matched ' + info.name + '.' })])));
+      }
+    }
+    return h('div.preset-wrap', null, out);
+  }
 
   function nameBox(p, world) {
     const rec = recognize(p, world);
@@ -2819,7 +2862,7 @@
   });
 
   // the lab's own sentence (always present)
-  $('#rule').append(mountSentence({ getParts: () => S.parts, setPart: setMainPart, world: () => S.world, focus: () => (S.mode === 'campaign' ? S.focus || [] : []), withName: true, permanent: true }));
+  $('#rule').append(mountSentence({ getParts: () => S.parts, setPart: setMainPart, world: () => S.world, focus: () => (S.mode === 'campaign' ? S.focus || [] : []), withName: true, permanent: true, preset: true }));
   $('#replay-lab').append(replayView());
   $('#grid-lab').append(gridView());
   $('#grid-card').addEventListener('toggle', () => { if ($('#grid-card').open) drawGrid(); });
@@ -2832,5 +2875,19 @@
   else setWorld(S.world);
   renderStage(); drawCompare();
   render();
+  // Algorithm-name reminders: enhance the whole page once, then keep up with every surface that
+  // renders a name (prose, questions, method labels, Codex and the family tree) as it appears.
+  if (window.ALGO_HELP) {
+    // Shared method-panel provider: gate discovery so undiscovered methods show no spoilers,
+    // and hand the panel the discovery card + source links + the recipe blurb (game adaptation).
+    window.ALGO_HELP.discoveryFor = (algoId) => {
+      const cid = window.ALGO_HELP.cardOf(algoId);
+      if (!cid) return { discovered: false };
+      const discovered = S.found.includes(cid) || S.given.includes(cid);
+      const rec = recipeOfCard(cid);
+      return { discovered, card: C.cards[cid], links: (C.paperLinks || {})[cid] || [], blurb: rec ? rec.blurb : '' };
+    };
+    window.ALGO_HELP.installAuto(document.body);
+  }
   if (!S.intro) showIntro();
 })();
