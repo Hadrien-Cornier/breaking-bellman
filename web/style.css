@@ -433,3 +433,16 @@ ol.steps .num { display: grid; place-items: center; width: 30px; height: 30px; b
 .preset-diff { margin: 6px 0 0; font-size: 12px; color: #333; }
 ul.preset-diff { margin: 4px 0 0 18px; padding: 0; }
 ul.preset-diff li { margin: 2px 0; }
+
+/* The SuperMimic-inspired lesson reuses the custom lesson column and table styles. */
+#supermimic-lesson, #supermimic-rollout, #supermimic-gradients, #supermimic-exploit { min-width: 0; }
+.method-context dl { display: grid; grid-template-columns: minmax(8rem, 0.3fr) minmax(0, 1fr); gap: .5rem 1rem; }
+.method-context dt { color: var(--muted); font-weight: 600; }
+.method-context dd { margin: 0; overflow-wrap: anywhere; }
+#supermimic-lesson .opt { width: 100%; }
+@media (max-width: 520px) {
+  .method-context dl { grid-template-columns: 1fr; gap: .15rem; }
+  .method-context dd { margin-bottom: .65rem; }
+  #supermimic-lesson .vpo-table table { font-size: .74rem; }
+  #supermimic-gradients .vpo-table th:first-child, #supermimic-gradients .vpo-table td:first-child { width: 31%; }
+}

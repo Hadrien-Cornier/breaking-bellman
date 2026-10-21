@@ -6,12 +6,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import fastSource from './scripts/fast-source.js';
 import vpoSource from './scripts/vpo-source.js';
+import supermimicSource from './scripts/supermimic-source.js';
 
 const root = path.dirname(new URL(import.meta.url).pathname);
 const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 
 export const ENGINE_FILES = fastSource.engineFiles;
-const CONTENT_FILES = ['web/content.js', 'web/content2.js', 'web/measured.js', 'web/content3.js', 'web/expert.js', 'web/papers.js', 'web/wonder.js', 'web/fetch-level.js', 'web/quiz-content.js', 'web/vpo-reference.js', 'web/vpo-level.js'];
+const CONTENT_FILES = ['web/content.js', 'web/content2.js', 'web/measured.js', 'web/content3.js', 'web/expert.js', 'web/papers.js', 'web/wonder.js', 'web/fetch-level.js', 'web/quiz-content.js', 'web/vpo-reference.js', 'web/vpo-level.js', 'web/supermimic-level.js'];
 const APP_FILES = ['src/sim/exact.js', 'web/fast.js', 'web/llm.js', 'web/scenes.js', 'web/pagemd.js', 'web/help.js', 'web/algos.js', 'web/rules.js', 'web/app.js'];
 
 const exists = (f) => fs.existsSync(path.join(root, f));
@@ -22,6 +23,8 @@ const body = read('web/page.html')
   .replace('/*@FAST_VERSION@*/', () => 'window.BB_FAST = ' + JSON.stringify({ versions: fastSource.source().versions, base: 'fast/' + fastSource.hash(fastSource.exact.stringify(fastSource.source().versions)) }) + ';')
   .replace('/*@VPO_ENGINE@*/', () => noClose(join(vpoSource.engineFiles)))
   .replace('/*@VPO_VERSION@*/', () => 'window.BB_VPO_VERSION = ' + JSON.stringify(vpoSource.version()) + ';')
+  .replace('/*@SUPERMIMIC_ENGINE@*/', () => noClose(join(supermimicSource.engineFiles)))
+  .replace('/*@SUPERMIMIC_VERSION@*/', () => 'window.BB_SUPERMIMIC_VERSION = ' + JSON.stringify(supermimicSource.version()) + ';')
   .replace('/*@ENGINE@*/', () => noClose(join(ENGINE_FILES)))
   .replace('/*@CONTENT@*/', () => join(CONTENT_FILES))
   .replace('/*@APP@*/', () => join(APP_FILES))
