@@ -1,10 +1,16 @@
 'use strict';
 const { test } = require('node:test'), assert = require('node:assert/strict');
-const fs = require('node:fs'), path = require('node:path'), z = require('node:zlib');
-const { exact, hash, source } = require('../scripts/fast-source.js');
+const fs = require('node:fs'), path = require('node:path'), z = require('node:zlib'), vm = require('node:vm');
+const { exact, hash, source, content } = require('../scripts/fast-source.js');
 const { create } = require('../web/fast.js');
 
-test('published corpus covers the frozen manifest with intact full ordered results', async t => {
+// Use the same first-match recognizer as the game, with the real content scripts.
+const app = fs.readFileSync(path.resolve(__dirname, '../web/app.js'), 'utf8');
+const recognizer = app.slice(app.indexOf('  function keysMatch('), app.indexOf('  const recipeOfCard ='));
+assert(recognizer.includes('function recognize('), 'game recognizer must be present');
+const C = content(), recognize = vm.runInNewContext(recognizer + '\nrecognize;', { C });
+
+test('published corpus retains named policies with intact full ordered results', async t => {
   const root = path.resolve(__dirname, '../fast');
   for (const version of fs.readdirSync(root)) {
     const dir = path.join(root, version), indexPath = path.join(dir, 'index.json');
@@ -27,7 +33,6 @@ test('published corpus covers the frozen manifest with intact full ordered resul
       assert(!configs.has(entry.key), 'phase manifests must be disjoint');
       configs.set(entry.key, entry.config);
     }
-    for (const entry of manifests[0].entries) assert(index.records[entry.key], 'missing phase-one key ' + entry.key);
     const keys = Object.keys(index.records).sort();
     assert.deepEqual(fs.readdirSync(path.join(dir, 'records')).sort(), keys.map(k => k + '.json.gz'));
     const current = exact.stringify(index.versions) === exact.stringify(source().versions);
@@ -42,6 +47,10 @@ test('published corpus covers the frozen manifest with intact full ordered resul
     for (const key of keys) {
       const config = configs.get(key), ref = index.records[key];
       assert(config, 'published key outside the derived manifests: ' + key);
+      if (current) {
+        const recipe = recognize(config.parts, config.world);
+        assert(recipe && recipe.card != null && C.cards[recipe.card], 'published key must link to a named policy card: ' + key);
+      }
       assert.equal(ref.path, 'records/' + key + '.json.gz');
       let record;
       if (current) {
