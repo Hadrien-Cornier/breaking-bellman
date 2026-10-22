@@ -550,8 +550,10 @@ async function backupPage(w, h) {
     found: ['egreedy'], given: ['mc'], seen: [], missions: [], saved: [], made: {},
     reviews: {}, unlockAll: false, discoveries: {}, wondered: {},
   };
+  // Hold lives in localStorage. A file reload in CI Chrome drops sessionStorage, and the
+  // init script would otherwise put the cliff lesson back before Diagnose.
   await page.addInitScript((st) => {
-    if (sessionStorage.getItem('bb-backup-hold')) return;
+    if (localStorage.getItem('bb-backup-hold') === '1') return;
     localStorage.setItem('breaking-bellman-v1', JSON.stringify(st));
   }, save);
   await page.goto('file://' + out + '/page.html');
@@ -564,14 +566,23 @@ check(await backupPage1280.locator('#reward-backup').count() === 0, 'backup: rou
 const hiddenSave = await backupPage1280.evaluate(() => JSON.parse(localStorage.getItem('breaking-bellman-v1')));
 check(hiddenSave.done.join() === 'slots' && hiddenSave.lstep.cliff === 0 && hiddenSave.answers['cliff-p'].choice === 1, 'backup: early cliff visit keeps the saved progress');
 await backupPage1280.evaluate(() => {
-  sessionStorage.setItem('bb-backup-hold', '1');
+  localStorage.setItem('bb-backup-hold', '1');
   const key = 'breaking-bellman-v1';
   const saved = JSON.parse(localStorage.getItem(key));
   saved.lstep.cliff = 2;
   localStorage.setItem(key, JSON.stringify(saved));
 });
 await backupPage1280.reload();
-await backupPage1280.waitForSelector('#reward-backup');
+try {
+  await backupPage1280.waitForSelector('#reward-backup', { timeout: 15000 });
+} catch (e) {
+  const info = await backupPage1280.evaluate(() => {
+    let progress = {};
+    try { progress = JSON.parse(localStorage.getItem('breaking-bellman-v1') || '{}'); } catch (err) { progress = { parse: String(err) }; }
+    return { hold: localStorage.getItem('bb-backup-hold'), level: progress.level, lstep: progress.lstep };
+  }).catch(() => ({ evaluate: 'failed' }));
+  throw new Error('reward-backup missing after reload ' + JSON.stringify(info));
+}
 const readBackup = () => backupPage1280.evaluate(() => {
   const text = (id) => document.getElementById(id).innerText;
   const vals = (id) => Array.from(document.querySelectorAll('#' + id + ' .val')).map((n) => n.textContent);
