@@ -556,9 +556,14 @@ async function backupPage(w, h) {
     found: ['egreedy'], given: ['mc'], seen: [], missions: [], saved: [], made: {},
     reviews: {}, unlockAll: false, discoveries: {}, wondered: {},
   };
-  // Hold lives in localStorage. A file reload in CI Chrome drops sessionStorage, and the
-  // init script would otherwise put the cliff lesson back before Diagnose.
+  // The seed belongs on the first navigation only. A reload that does not see
+  // bb-backup-hold must not write the seed: that write puts the cliff lesson back
+  // before Diagnose, and the round picture never mounts. The hold remains for a
+  // navigation that is not reported as a reload.
   await page.addInitScript((st) => {
+    let nav = '';
+    try { nav = (performance.getEntriesByType('navigation')[0] || {}).type || ''; } catch (e) { nav = ''; }
+    if (nav === 'reload') return;
     if (localStorage.getItem('bb-backup-hold') === '1') return;
     localStorage.setItem('breaking-bellman-v1', JSON.stringify(st));
   }, save);
@@ -626,9 +631,31 @@ check(/0\.95\^1/.test(targets) && /0\.95\^8/.test(targets) && /0\.95\^3/.test(ta
 const progress = await backupPage1280.evaluate(() => JSON.parse(localStorage.getItem('breaking-bellman-v1')));
 check(progress.done.join() === 'slots' && progress.lstep.cliff === 2 && progress.lstep.slots === 5 && progress.answers['cliff-p'].choice === 1 && progress.found.join() === 'egreedy', 'backup: using the picture does not rewrite the save');
 await backupPage1280.reload();
-await backupPage1280.waitForSelector('#rb-round-value');
-check(await backupPage1280.locator('#rb-round-value').innerText() === '0', 'backup: a reload returns the picture to round 0 and leaves progress');
-check((await backupPage1280.evaluate(() => JSON.parse(localStorage.getItem('breaking-bellman-v1')).lstep.cliff)) === 2, 'backup: reload keeps cliff at the diagnose step');
+try {
+  await backupPage1280.waitForSelector('#reward-backup', { timeout: 15000 });
+} catch (e) {
+  const info = await backupPage1280.evaluate(() => {
+    let nav = '';
+    try { nav = (performance.getEntriesByType('navigation')[0] || {}).type || ''; } catch (err) { nav = 'nav-err'; }
+    let progress = {};
+    try { progress = JSON.parse(localStorage.getItem('breaking-bellman-v1') || '{}'); } catch (err) { progress = { parse: String(err) }; }
+    return {
+      nav,
+      hold: localStorage.getItem('bb-backup-hold'),
+      level: progress.level,
+      lstep: progress.lstep,
+      pic: !!document.getElementById('reward-backup'),
+      welcome: !!document.querySelector('dialog.intro'),
+    };
+  }).catch(() => ({ evaluate: 'failed' }));
+  throw new Error('reward-backup missing after the second reload ' + JSON.stringify(info));
+}
+const afterReload = await backupPage1280.evaluate(() => ({
+  round: document.getElementById('rb-round-value').textContent,
+  cliff: JSON.parse(localStorage.getItem('breaking-bellman-v1')).lstep.cliff,
+}));
+check(afterReload.round === '0', 'backup: a reload returns the picture to round 0 and leaves progress');
+check(afterReload.cliff === 2, 'backup: reload keeps cliff at the diagnose step');
 check(snap.scroll <= 1280, 'backup: 1280 has no horizontal page scroll (' + snap.scroll + ')');
 await backupPage1280.screenshot({ path: out + '/reward-backup-1280.png' });
 await backupPage1280.setViewportSize({ width: 390, height: 844 });
