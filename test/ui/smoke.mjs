@@ -34,6 +34,24 @@ async function preloadFastRecord(page, key) {
   const encoded = zlib.gunzipSync(fs.readFileSync(file)).toString();
   return page.evaluate(async (text) => {
     const record = RLA.exact.parse(text);
+    if (record.schema === 'bb-seed-aggregate-v1') {
+      if (RLA.exact.stringify(record.config.versions) !== RLA.exact.stringify(BB_FAST.versions)) return false;
+      const id = await RLFAST.sha256(RLA.exact.stringify(record.config));
+      if (!window.RLAGG || !RLAGG.validAggregateRecord(record, record.config, id)) return false;
+      const body = RLA.exact.stringify(record);
+      await new Promise((resolve, reject) => {
+        const open = indexedDB.open('breaking-bellman-results', 1);
+        open.onerror = () => reject(open.error);
+        open.onupgradeneeded = () => { if (!open.result.objectStoreNames.contains('results')) open.result.createObjectStore('results'); };
+        open.onsuccess = () => {
+          const db = open.result, tx = db.transaction('results', 'readwrite');
+          tx.objectStore('results').put(body, id);
+          tx.oncomplete = () => { db.close(); resolve(true); };
+          tx.onerror = () => { db.close(); reject(tx.error); };
+        };
+      });
+      return true;
+    }
     return RLFAST.createLocal(BB_FAST).save(record.config, record.results);
   }, encoded);
 }
@@ -142,7 +160,7 @@ await session(1280, 900, 'desktop', async (page) => {
   // "Copy page": the whole page as Markdown, with the numbers behind each chart
   const pmd = await page.evaluate(() => window.bellman.page());
   check(pmd.startsWith('# Breaking Bellman: the Workbench page') && pmd.includes('## Lab') && pmd.includes('## Words of the current sentence'), 'the page export has its sections');
-  check(pmd.includes('**Chart: Score per test episode**') && pmd.includes('| training steps | seed 1 | mean |') && /\| lowest \| -?[\d.]+/.test(pmd), 'the page export writes each chart as a table of numbers');
+  check(pmd.includes('**Chart: Score per test episode**') && pmd.includes('| training steps | mean | min | max | p25 | p75 |') && /\| lowest \| -?[\d.]+/.test(pmd), 'the page export writes each chart as a table of numbers');
   check(pmd.includes('$$\n') && pmd.includes('[a network]') && !/\*\*\*\*|\bnull\b/.test(pmd), 'the page export keeps the TeX, the word chips, and no empty labels or "null"');
   // review cases: a pinned run on another x grid gets its own table; a code fence inside a text box cannot end the export's fence
   const rc = await page.evaluate(() => {
