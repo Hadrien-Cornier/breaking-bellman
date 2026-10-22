@@ -12,8 +12,10 @@ const [out = path.join(os.tmpdir(), 'bb-levels'), url = new URL('../../dist/brea
 fs.mkdirSync(out, { recursive: true });
 const candidates = [process.env.PW_CHROMIUM, chromium.executablePath(), '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome', '/usr/bin/chromium'];
 const browser = await chromium.launch({ executablePath: candidates.find(p => p && fs.existsSync(p)) });
-// Full lesson budgets (especially pick) can exceed four minutes on a busy MBP.
+// Full lesson budgets (especially pick) can exceed four minutes on the MBP.
 const runTimeout = 600000;
+// Optional stable case names for resuming failed/unrun cases on an unchanged product build.
+const only = process.env.BB_LEVEL_CASES ? new Set(process.env.BB_LEVEL_CASES.split(',')) : null;
 const records = [], failures = [];
 let checks = 0;
 function check(ok, message) { checks++; assert.ok(ok, message); }
@@ -69,6 +71,7 @@ try {
     for (const progress of ['clean', 'newer']) {
       for (const id of ids) {
         const name = `${width}-${progress}-${id}`;
+        if (only && !only.has(name)) continue;
         const context = await browser.newContext({ viewport: { width, height }, hasTouch: width === 390 });
         const page = await context.newPage();
         const errors = [];
@@ -132,4 +135,5 @@ try {
   }
 } finally { await browser.close(); }
 console.log(`${records.filter(r => r.passed).length}/${records.length} level cases passed; ${checks} checks; ${failures.length} failures`);
+if (only) assert.deepEqual(new Set(records.map(r => r.name)), only, 'every requested stable case ran');
 if (failures.length) process.exitCode = 1;
