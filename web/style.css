@@ -493,6 +493,12 @@ ul.preset-diff li { margin: 2px 0; }
   #supermimic-gradients .vpo-table th:first-child, #supermimic-gradients .vpo-table td:first-child { width: 31%; }
 }
 
+#elbo-lesson, #elbo-rules { min-width: 0; }
+#elbo-lesson .btn { max-width: 100%; white-space: normal; text-align: left; }
+#elbo-lesson .meter { display: inline-block; width: 4.5rem; height: 8px; background: var(--sunk); border-radius: 4px; overflow: hidden; vertical-align: middle; }
+#elbo-lesson .meter > span { display: block; height: 100%; background: var(--accent); }
+#elbo-lesson .vpo-table { max-width: 100%; min-width: 0; overflow-x: auto; }
+
 .review-context p, .review-inspect p { margin: 0; overflow-wrap: anywhere; }
 .review-context, .review-inspect { min-width: 0; }
 
