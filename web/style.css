@@ -579,3 +579,17 @@ ul.preset-diff li { margin: 2px 0; }
 @media (max-width: 520px) {
   #ensemble-lesson .vpo-table table { font-size: .72rem; }
 }
+
+#history-lesson, #history-rules, #history-board { min-width: 0; overflow-wrap: anywhere; }
+#history-lesson .btn, #history-lesson .opt { max-width: 100%; white-space: normal; text-align: left; min-height: 44px; }
+#history-lesson .opt { width: 100%; }
+#history-lesson a, #history-lesson p { overflow-wrap: anywhere; }
+#history-lesson .history-track { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+@media (max-width: 520px) {
+  #history-lesson .history-track { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+#history-lesson .history-cell { min-width: 0; overflow: hidden; text-align: center; padding: 10px 2px; border-radius: 4px; background: var(--sunk); font-size: .72rem; }
+#history-lesson .history-cell.end { box-shadow: inset 0 0 0 1px var(--accent); }
+#history-lesson .history-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+#history-lesson .history-controls button { min-height: 44px; }
+#history-rules .rules-row { min-width: 0; }

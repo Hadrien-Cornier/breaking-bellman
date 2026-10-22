@@ -1061,6 +1061,7 @@
     if (id === 'messages') return window.BBMESSAGES_LEVEL;
     if (id === 'metarl') return window.BBMETARL;
     if (id === 'ensemble') return window.BBENSEMBLE_LEVEL;
+    if (id === 'history') return window.BBHISTORY_LEVEL;
     return null;
   }
   const vpoActive = () => S.mode === 'campaign' && S.level === 'vpo';
@@ -1077,7 +1078,8 @@
   const messagesActive = () => S.mode === 'campaign' && S.level === 'messages';
   const metarlActive = () => S.mode === 'campaign' && S.level === 'metarl';
   const ensembleActive = () => S.mode === 'campaign' && S.level === 'ensemble';
-  const customActive = () => skillsActive() || hierarchyActive() || thawActive() || rewardfitActive() || elboActive() || vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || rareActive() || messagesActive() || metarlActive() || ensembleActive();
+  const historyActive = () => S.mode === 'campaign' && S.level === 'history';
+  const customActive = () => skillsActive() || hierarchyActive() || thawActive() || rewardfitActive() || elboActive() || vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || rareActive() || messagesActive() || metarlActive() || ensembleActive() || historyActive();
   const customApi = () => customLessonApi(S.level);
   async function run() {
     if (customActive()) return customApi().run();
@@ -2911,6 +2913,7 @@
       : thawActive() ? ['Thaw: a linear policy fit on a frozen light-arm dataset, then a short finite-difference update on the heavy arm, compared with the same budget from zeros. Use the level controls and bellman.run().']
       : rareActive() ? ['Visit bonus: an untried action is worth 1/(1 - gamma) until it is taken. The repair adds 1/sqrt(n(s\')) inside the Q target, on top of the environment reward, which stays 0 or 1. Use the level controls and bellman.run().']
       : messagesActive() ? ['Backward messages: beta(s, a) excludes the action prior. The conditioned probability multiplies it back in and normalizes. Use the level controls.']
+      : historyActive() ? ['History count: p(action | previous, room) = count(action, previous, room) / count(previous, room). Dropping the previous room leaves one junction count. Use the level controls and bellman.run().']
       : C.families[fam(S.parts)].keys.map((k) => '- `' + k + '` (' + W[k].q + '): ' + W[k].options.map((o) => '`' + o[0] + '` = ' + plainText(o[1])).join('; ') + '. Now: `' + S.parts[k] + '`.');
   function aiBrief() {
     return [
@@ -3008,6 +3011,7 @@
           : thawActive() ? [{ label: 'One-joint return', tex: 'J = sum_t -(angle_t - 1)^2' }]
           : rareActive() ? [{ label: 'Backed-up target', tex: 'y = r_{env} + 1/\\sqrt{n(s\')} + \\gamma \\max_{a\'} \\hat{Q}(s\', a\')' }, { label: 'Environment reward', tex: 'r_{env} \\in \\{0, 1\\}' }]
           : messagesActive() ? [{ label: 'Conditioned action', tex: '\\pi_t(a|s) = p(a|s) \\beta_t(s,a) / \\beta_t(s)' }]
+          : historyActive() ? [{ label: 'Previous room', tex: 'p(a|s_{t-1},s_t) = n(a,s_{t-1},s_t) / n(s_{t-1},s_t)' }, { label: 'Current room', tex: 'p(a|s_t) = n(a,s_t) / n(s_t)' }]
           : texLines(Object.assign({}, S.parts, parts || {}), world || S.world).map(([label, tex]) => ({ label, tex })),
       state: () => labState(),
       levels: () => C.levels.map((l) => { const i = levelInfo(l); return { n: i.n, id: i.id, title: i.title, world: i.world, done: i.done, step: i.step }; }),
@@ -3201,6 +3205,7 @@
     if (window.BBMESSAGES_LEVEL && !messagesActive()) window.BBMESSAGES_LEVEL.cancel();
     if (!metarlActive() && window.BBMETARL) window.BBMETARL.cancel();
     if (window.BBENSEMBLE_LEVEL && !ensembleActive()) window.BBENSEMBLE_LEVEL.cancel();
+    if (window.BBHISTORY_LEVEL && !historyActive()) window.BBHISTORY_LEVEL.cancel();
     $('#lab').hidden = customActive(); $('#vpo-lab').hidden = !customActive();
     if (S.mode !== 'review') S.reviewLab = null;
     MODES[S.mode](pane);
