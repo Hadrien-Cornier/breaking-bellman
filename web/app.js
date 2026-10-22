@@ -1056,6 +1056,7 @@
     if (id === 'rewardfit') return window.BBREWARDFIT;
     if (id === 'rare') return window.BBRARE;
     if (id === 'thaw') return window.BBTHAW;
+    if (id === 'skills') return window.BBSKILLS_LEVEL;
     return null;
   }
   const vpoActive = () => S.mode === 'campaign' && S.level === 'vpo';
@@ -1066,8 +1067,9 @@
   const elboActive = () => S.mode === 'campaign' && S.level === 'elbo';
   const rewardfitActive = () => S.mode === 'campaign' && S.level === 'rewardfit';
   const thawActive = () => S.mode === 'campaign' && S.level === 'thaw';
+  const skillsActive = () => S.mode === 'campaign' && S.level === 'skills';
   const rareActive = () => S.mode === 'campaign' && S.level === 'rare';
-  const customActive = () => vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || elboActive() || rewardfitActive() || thawActive() || rareActive();
+  const customActive = () => skillsActive() || thawActive() || rewardfitActive() || elboActive() || vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || rareActive();
   const customApi = () => customLessonApi(S.level);
   async function run() {
     if (customActive()) return customApi().run();
@@ -2856,7 +2858,7 @@
           return out;
         } },
       { name: 'set_world', description: 'Change the world and its knobs (knobs not given keep their defaults).', inputSchema: { type: 'object', properties: { world: { type: 'string', enum: Object.keys(C.worldNames) }, knobs: { type: 'object' } }, required: ['world'] },
-        execute: ({ world, knobs }) => { if (world === 'vpo' || world === 'supermimic' || world === 'goals' || world === 'replan' || world === 'hindsight' || world === 'elbo' || world === 'rewardfit' || world === 'thaw' || world === 'rare') return window.bellman.level(world); if (customActive()) S.mode = 'workbench'; setWorld(world, knobs || {}); note('world → ' + world + ' ' + JSON.stringify(knobs || {})); return { world: S.world, knobs: S.knobs }; } },
+        execute: ({ world, knobs }) => { if (world === 'vpo' || world === 'supermimic' || world === 'goals' || world === 'replan' || world === 'hindsight' || world === 'elbo' || world === 'rewardfit' || world === 'thaw' || world === 'skills' || world === 'rare') return window.bellman.level(world); if (customActive()) S.mode = 'workbench'; setWorld(world, knobs || {}); note('world → ' + world + ' ' + JSON.stringify(knobs || {})); return { world: S.world, knobs: S.knobs }; } },
       { name: 'run_experiment', description: 'Train the current sentence on the current world for real (seconds) and return the autopsy. seeds applies to CartPole only (1, 3 or 5); the other worlds use many runs.', inputSchema: { type: 'object', properties: { seeds: { type: 'integer', minimum: 1, maximum: 5 } } },
         execute: async ({ seeds }) => { if (customActive()) return customApi().run(); const so = C.seedOptions[S.world]; if (seeds && S.world === 'cartpole') $('#seeds').value = String(so.reduce((b, n) => (Math.abs(n - seeds) < Math.abs(b - seeds) ? n : b), so[0])); note('running ' + $('#seeds').value + ' runs…'); const a = await run(); if (!a) throw new Error('run failed'); note('done'); return { symptoms: a.symptoms, summary: a.summary }; } },
     ];
@@ -2887,7 +2889,8 @@
       lab.lastRun ? '- Last run (' + lab.lastRun.seeds + ' runs, ' + lab.lastRun.steps + ' steps): ' + (lab.lastRun.symptoms.join(' ') || 'no symptoms') : '- No run yet in this world.',
     ].filter((x) => x !== null);
   }
-  const wordLines = () => hindsightActive() ? ['Hindsight: same four environment steps, then extra Q updates on goals recomputed from the final cell. Use the level controls and bellman.run().']
+  const wordLines = () => skillsActive() ? ['Skill reward: q(skill|room) is a smoothed visit count. Reward is log q(skill|room) - log p(skill), with p(skill) = 1/2. The softmax gradient reads that reward. Use the level controls and bellman.run().']
+    : hindsightActive() ? ['Hindsight: same four environment steps, then extra Q updates on goals recomputed from the final cell. Use the level controls and bellman.run().']
     : vpoActive() ? ['VPO: mean over eight preferences of the best score in a three-route set. GRPO: fixed mean reward for each route. Use the level controls and bellman.run().']
     : supermimicActive() ? ['SuperMimic-inspired: compare PPO in physics, PPO in one fitted model, and backpropagation through that same model. Use the level controls and bellman.run().']
       : elboActive() ? ['Evidence lower bound: expected log p(bright | cause) minus KL(q || prior). The gap is KL(q || posterior). Use the level controls and bellman.run().']
@@ -2979,7 +2982,8 @@
     window.bellman = {
       help: () => aiBrief(),
       page: () => pageMarkdown(),
-      math: (parts, world) => hindsightActive() ? [{ label: 'Goal-conditioned backup', tex: 'Q(s,a,g) = r(s,a,g) + gamma * max Q(s\',a\',g) when not terminal' }]
+      math: (parts, world) => skillsActive() ? [{ label: 'Discriminator reward', tex: 'r(skill, room) = log q(skill|room) - log p(skill)' }]
+        : hindsightActive() ? [{ label: 'Goal-conditioned backup', tex: 'Q(s,a,g) = r(s,a,g) + gamma * max Q(s\',a\',g) when not terminal' }]
         : vpoActive() ? [{ label: 'VPO set reward', tex: 'R(S) = mean_w max_y dot(w,r(y))' }]
         : supermimicActive() ? [{ label: 'Short-horizon objective', tex: 'J_H = sum_{t=0}^{H-1} gamma^t r_t + gamma^H V(s_H)' }]
           : elboActive() ? [{ label: 'Evidence lower bound', tex: '\\mathrm{ELBO}(q)=\\mathbb{E}_q[\\log p(x\\mid z)]-\\mathrm{KL}(q(z)\\|p(z))' }, { label: 'Gap', tex: '\\log p(x)-\\mathrm{ELBO}(q)=\\mathrm{KL}(q(z)\\|p(z\\mid x))' }]
@@ -3176,6 +3180,7 @@
     if (window.BBRARE && !rareActive()) BBRARE.cancel();
     if (!rewardfitActive() && window.BBREWARDFIT) BBREWARDFIT.cancel();
     if (window.BBTHAW && !thawActive()) window.BBTHAW.cancel();
+    if (window.BBSKILLS_LEVEL && !skillsActive()) window.BBSKILLS_LEVEL.cancel();
     $('#lab').hidden = customActive(); $('#vpo-lab').hidden = !customActive();
     if (S.mode !== 'review') S.reviewLab = null;
     MODES[S.mode](pane);

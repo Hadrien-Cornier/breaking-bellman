@@ -2,10 +2,10 @@
 (function (C, M) {
   'use strict';
   const phaseAt = C.phases.findIndex((p) => p.n === 4);
-  C.phases.splice(phaseAt + 1, 0, { n: 10, title: 'Exploration by counts' });
+  C.phases.splice(phaseAt + 1, 0, { n: 11, title: 'Exploration by counts' });
   C.worldNames.rare = 'Sparse hallway';
   const level = {
-    id: 'rare', custom: true, phase: 10, world: 'rare', focus: [],
+    id: 'rare', custom: true, phase: 11, world: 'rare', focus: [],
     title: 'A bonus for a rare cell',
     intro: 'The only environment reward is 1, and only for opening the door at the end of a hallway. Epsilon-greedy Q-learning with a flat table keeps choosing left. The repair writes 1/sqrt(n(s)) into the Q target and treats an untried action as worth 1/(1 - gamma), so the bonus can back up along the hall.',
     goal: { text: 'Same 80 steps and the same random draws: the door stays shut without the visit bonus, and it opens with the bonus. The environment reward stays separate from 1/sqrt(n(s)).' },

@@ -128,7 +128,7 @@ test('the rare level mounts as its own id after offline learning', () => {
   assert.ok(rare);
   assert.equal(rare.custom, true);
   assert.equal(rare.world, 'rare');
-  assert.equal(rare.phase, 10);
+  assert.equal(rare.phase, 11);
   assert.equal(levels[mixed + 1].id, 'rare');
   assert.equal(levels[mixed + 2].id, 'twoways');
   assert.equal(typeof context.window.BBRARE.mount, 'function');
