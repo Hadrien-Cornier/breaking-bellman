@@ -8,12 +8,13 @@ A small browser game for learning reinforcement learning (RL). You watch RL algo
 
 ## What you do
 
-There are 18 levels. Most hand you a learner that's broken in an educational way; the VPO lesson compares two learning objectives. A few of them:
+There are 19 levels. Most hand you a learner that's broken in an educational way. Two comparison lessons cover VPO and SuperMimic-inspired world-model training. A few of them:
 
 - A robot in a casino finds one decent slot machine and never looks at the others again.
 - A robot explores a cliff edge by falling off it. A lot.
 - A DQN's value estimate climbs to 4.7 million on a task where the best possible score is 100.
 - Two treasure collectors compare a fixed scalar reward with VPO's sampled vector preferences. Both train live; the frozen reference shows a small VPO edge with GRPO also improving.
+- Three pendulum trackers compare PPO in physics, PPO in one learned model, and direct gradients through that same model.
 - A dog learns that staring at the stick pays better than fetching it.
 
 You guess what will happen and press Run. Real training takes a few seconds in your browser. Then you read the autopsy and change a word. For example, "move the estimate toward *the payout*" becomes "toward *the payout plus the best next estimate*". If that works, congratulations: you invented Q-learning (Watkins got there in 1989). Keep going and you end up at DQN, PPO, GRPO, SAC, IQL and a few robot-learning tricks.

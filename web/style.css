@@ -414,17 +414,17 @@ ol.steps .num { display: grid; place-items: center; width: 30px; height: 30px; b
 #vpo-reference th, #vpo-reference td:not(:first-child) { white-space: nowrap; }
 
 /* --- algorithm reminder: method panel (discovery + provenance) --- */
-.algo-note { margin: 6px 0 0; font-size: 12px; color: #555; border-left: 2px solid #ddd; padding-left: 8px; }
-.algo-discovery { margin-top: 10px; border-top: 1px solid #eee; padding-top: 8px; }
-.algo-discovery-h { font-weight: 600; font-size: 12px; margin-bottom: 4px; color: #333; }
+.algo-note { margin: 6px 0 0; font-size: 12px; color: var(--muted); border-left: 2px solid var(--line); padding-left: 8px; }
+.algo-discovery { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+.algo-discovery-h { font-weight: 600; font-size: 12px; margin-bottom: 4px; color: var(--ink); }
 .algo-discovery p { margin: 5px 0; font-size: 12px; line-height: 1.45; }
-.algo-prov { color: #444; }
-.algo-unverified { color: #8a5a00; font-style: italic; }
+.algo-prov { color: var(--muted); }
+.algo-unverified { color: var(--warn); font-style: italic; }
 .algo-links { margin: 5px 0 5px 16px; padding: 0; font-size: 11px; }
 .algo-links li { margin: 2px 0; }
 .algo-evidence { margin-top: 6px; }
-.algo-evidence summary { cursor: pointer; font-size: 12px; color: #2a6; }
-.algo-evidence div { font-size: 11px; color: #555; margin-top: 5px; }
+.algo-evidence summary { cursor: pointer; font-size: 12px; color: var(--accent); }
+.algo-evidence div { font-size: 11px; color: var(--muted); margin-top: 5px; }
 
 /* --- unlocked-technique preset loader --- */
 .preset-wrap { margin: 6px 0; }
@@ -433,3 +433,11 @@ ol.steps .num { display: grid; place-items: center; width: 30px; height: 30px; b
 .preset-diff { margin: 6px 0 0; font-size: 12px; color: #333; }
 ul.preset-diff { margin: 4px 0 0 18px; padding: 0; }
 ul.preset-diff li { margin: 2px 0; }
+
+/* The SuperMimic-inspired lesson reuses the custom lesson column and table styles. */
+#supermimic-lesson, #supermimic-rollout, #supermimic-gradients, #supermimic-exploit { min-width: 0; }
+#supermimic-lesson .opt { width: 100%; }
+@media (max-width: 520px) {
+  #supermimic-lesson .vpo-table table { font-size: .74rem; }
+  #supermimic-gradients .vpo-table th:first-child, #supermimic-gradients .vpo-table td:first-child { width: 31%; }
+}
