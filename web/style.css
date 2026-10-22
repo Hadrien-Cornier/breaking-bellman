@@ -330,6 +330,25 @@ ol.steps .num { display: grid; place-items: center; width: 30px; height: 30px; b
 .metric-help-body p { margin: 0; }
 .metric-help-anchor { font-family: var(--font-mono); font-size: 0.82em; color: var(--muted); background: var(--sunk); padding: 6px 8px; border-radius: 6px; }
 
+/* Algorithm-name reminders: the name itself is the trigger (hover, focus, tap). One shared popover. */
+.algo-name {
+  font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0;
+  border-bottom: 1px dotted var(--accent); cursor: help; text-align: inherit;
+}
+.algo-name:hover, .algo-name[aria-expanded="true"] { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.algo-name:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 3px; }
+.algo-rem-pop .algo-idea { margin: 0; }
+.algo-rem-pop .algo-math {
+  font-family: var(--font-mono); font-size: 0.8em; color: var(--ink); background: var(--sunk);
+  padding: 6px 8px; border-radius: 6px; overflow-wrap: anywhere; white-space: pre-wrap;
+}
+.algo-rem-pop .algo-math code { font-family: inherit; }
+.algo-rem-pop .algo-symbols { margin: 0; font-size: 0.82em; color: var(--muted); }
+/* Accessible equivalent for a name inside a control we cannot nest into (button, select, option,
+   disabled control, tree node): a visually hidden description linked with aria-describedby. */
+.algo-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+
 /* discovery celebration: a short burst + name reveal (??? -> name) when a card is found */
 .dc { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px;
   background: color-mix(in srgb, var(--ink) 22%, transparent); cursor: pointer; }
@@ -393,3 +412,24 @@ ol.steps .num { display: grid; place-items: center; width: 30px; height: 30px; b
 [hidden] { display: none !important; }
 #vpo-reference, #vpo-k, #vpo-lab { scroll-margin-top: 150px; }
 #vpo-reference th, #vpo-reference td:not(:first-child) { white-space: nowrap; }
+
+/* --- algorithm reminder: method panel (discovery + provenance) --- */
+.algo-note { margin: 6px 0 0; font-size: 12px; color: #555; border-left: 2px solid #ddd; padding-left: 8px; }
+.algo-discovery { margin-top: 10px; border-top: 1px solid #eee; padding-top: 8px; }
+.algo-discovery-h { font-weight: 600; font-size: 12px; margin-bottom: 4px; color: #333; }
+.algo-discovery p { margin: 5px 0; font-size: 12px; line-height: 1.45; }
+.algo-prov { color: #444; }
+.algo-unverified { color: #8a5a00; font-style: italic; }
+.algo-links { margin: 5px 0 5px 16px; padding: 0; font-size: 11px; }
+.algo-links li { margin: 2px 0; }
+.algo-evidence { margin-top: 6px; }
+.algo-evidence summary { cursor: pointer; font-size: 12px; color: #2a6; }
+.algo-evidence div { font-size: 11px; color: #555; margin-top: 5px; }
+
+/* --- unlocked-technique preset loader --- */
+.preset-wrap { margin: 6px 0; }
+.preset label, .preset span.small { font-size: 12px; color: #444; }
+.preset select { font: inherit; padding: 2px 6px; margin-left: 4px; max-width: 100%; }
+.preset-diff { margin: 6px 0 0; font-size: 12px; color: #333; }
+ul.preset-diff { margin: 4px 0 0 18px; padding: 0; }
+ul.preset-diff li { margin: 2px 0; }
