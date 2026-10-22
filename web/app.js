@@ -1062,6 +1062,7 @@
     if (id === 'metarl') return window.BBMETARL;
     if (id === 'ensemble') return window.BBENSEMBLE_LEVEL;
     if (id === 'skew') return window.BBSKEW;
+    if (id === 'autoreg') return window.BBAUTOREG;
     return null;
   }
   const vpoActive = () => S.mode === 'campaign' && S.level === 'vpo';
@@ -1079,7 +1080,8 @@
   const metarlActive = () => S.mode === 'campaign' && S.level === 'metarl';
   const ensembleActive = () => S.mode === 'campaign' && S.level === 'ensemble';
   const skewActive = () => S.mode === 'campaign' && S.level === 'skew';
-  const customActive = () => skillsActive() || hierarchyActive() || thawActive() || rewardfitActive() || elboActive() || vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || rareActive() || messagesActive() || metarlActive() || ensembleActive() || skewActive();
+  const autoregActive = () => S.mode === 'campaign' && S.level === 'autoreg';
+  const customActive = () => skillsActive() || hierarchyActive() || thawActive() || rewardfitActive() || elboActive() || vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || rareActive() || messagesActive() || metarlActive() || ensembleActive() || skewActive() || autoregActive();
   const customApi = () => customLessonApi(S.level);
   async function run() {
     if (customActive()) return customApi().run();
@@ -2899,7 +2901,8 @@
       lab.lastRun ? '- Last run (' + lab.lastRun.seeds + ' runs, ' + lab.lastRun.steps + ' steps): ' + (lab.lastRun.symptoms.join(' ') || 'no symptoms') : '- No run yet in this world.',
     ].filter((x) => x !== null);
   }
-  const wordLines = () => skewActive() ? ['Skew: fit a 3-bin density, refuse an inverse on a zero count, and sample goal weights on one shared budget. Use the level controls and bellman.run().']
+  const wordLines = () => autoregActive() ? ['Two bits: fit one action-pair count. An independent draw uses each bit marginal. A conditional draw reads the second bit from the first bit row. Use the level controls and bellman.run().']
+    : skewActive() ? ['Skew: fit a 3-bin density, refuse an inverse on a zero count, and sample goal weights on one shared budget. Use the level controls and bellman.run().']
     : ensembleActive() ? ['Two reward tables: planner score is the average minus a coefficient times the absolute difference. The true aisle reward is applied only after the actions are chosen. Use the level controls and bellman.run().']
     : metarlActive() ? ['Cross-task count: episode-2 successes given the episode-1 record. The left-door probe is given. Use the level controls and bellman.run().']
     : skillsActive() ? ['Skill reward: q(skill|room) is a smoothed visit count. Reward is log q(skill|room) - log p(skill), with p(skill) = 1/2. The softmax gradient reads that reward. Use the level controls and bellman.run().']
@@ -2997,7 +3000,8 @@
     window.bellman = {
       help: () => aiBrief(),
       page: () => pageMarkdown(),
-      math: (parts, world) => skewActive() ? [{ label: 'Powered density', tex: 'w(g) \\propto p(g)^{\\alpha},\\ \\alpha \\in \\{-1,0,+1\\}' }, { label: 'Add-one density', tex: 'p(g) = (n(g)+1)/Z' }]
+      math: (parts, world) => autoregActive() ? [{ label: 'Independent bits', tex: 'p(b_1,b_2)=p(b_1)p(b_2)' }, { label: 'Second bit given the first', tex: 'p(b_1,b_2)=p(b_1)p(b_2\\mid b_1)' }]
+        : skewActive() ? [{ label: 'Powered density', tex: 'w(g) \\propto p(g)^{\\alpha},\\ \\alpha \\in \\{-1,0,+1\\}' }, { label: 'Add-one density', tex: 'p(g) = (n(g)+1)/Z' }]
         : ensembleActive() ? [{ label: 'Disagreement penalty', tex: 's(e)=(m_1(e)+m_2(e))/2-\\lambda|m_1(e)-m_2(e)|' }]
         : metarlActive() ? [{ label: 'Episode-2 success count', tex: 'p(a|h) = S(h,a) / N(h,a)' }]
         : skillsActive() ? [{ label: 'Discriminator reward', tex: 'r(skill, room) = log q(skill|room) - log p(skill)' }]
@@ -3206,6 +3210,7 @@
     if (!metarlActive() && window.BBMETARL) window.BBMETARL.cancel();
     if (window.BBENSEMBLE_LEVEL && !ensembleActive()) window.BBENSEMBLE_LEVEL.cancel();
     if (!skewActive() && window.BBSKEW) BBSKEW.cancel();
+    if (!autoregActive() && window.BBAUTOREG) BBAUTOREG.cancel();
     $('#lab').hidden = customActive(); $('#vpo-lab').hidden = !customActive();
     if (S.mode !== 'review') S.reviewLab = null;
     MODES[S.mode](pane);
