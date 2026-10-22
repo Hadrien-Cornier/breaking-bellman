@@ -1060,6 +1060,7 @@
     if (id === 'hierarchy') return window.BBHIERARCHY;
     if (id === 'messages') return window.BBMESSAGES_LEVEL;
     if (id === 'metarl') return window.BBMETARL;
+    if (id === 'ensemble') return window.BBENSEMBLE_LEVEL;
     if (id === 'combo') return window.BBCOMBO;
     return null;
   }
@@ -1076,8 +1077,9 @@
   const hierarchyActive = () => S.mode === 'campaign' && S.level === 'hierarchy';
   const messagesActive = () => S.mode === 'campaign' && S.level === 'messages';
   const metarlActive = () => S.mode === 'campaign' && S.level === 'metarl';
+  const ensembleActive = () => S.mode === 'campaign' && S.level === 'ensemble';
   const comboActive = () => S.mode === 'campaign' && S.level === 'combo';
-  const customActive = () => skillsActive() || hierarchyActive() || thawActive() || rewardfitActive() || elboActive() || vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || rareActive() || messagesActive() || metarlActive() || comboActive();
+  const customActive = () => skillsActive() || hierarchyActive() || thawActive() || rewardfitActive() || elboActive() || vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || rareActive() || messagesActive() || metarlActive() || ensembleActive() || comboActive();
   const customApi = () => customLessonApi(S.level);
   async function run() {
     if (customActive()) return customApi().run();
@@ -2898,6 +2900,7 @@
     ].filter((x) => x !== null);
   }
   const wordLines = () => comboActive() ? ['Imagined backup: value = Bellman target - coefficient * total-variation distance. Coefficient 0 returns the target, including off the data. Use the level controls and bellman.run().']
+    : ensembleActive() ? ['Two reward tables: planner score is the average minus a coefficient times the absolute difference. The true aisle reward is applied only after the actions are chosen. Use the level controls and bellman.run().']
     : metarlActive() ? ['Cross-task count: episode-2 successes given the episode-1 record. The left-door probe is given. Use the level controls and bellman.run().']
     : skillsActive() ? ['Skill reward: q(skill|room) is a smoothed visit count. Reward is log q(skill|room) - log p(skill), with p(skill) = 1/2. The softmax gradient reads that reward. Use the level controls and bellman.run().']
     : hierarchyActive() ? ['Hierarchy: one goal-conditioned table trains on the door, then a given sequence calls it. Flat training uses S plus H and not those transitions. Use the level controls and bellman.run().']
@@ -2995,6 +2998,7 @@
       help: () => aiBrief(),
       page: () => pageMarkdown(),
       math: (parts, world) => comboActive() ? [{ label: 'Bellman target', tex: 'T = r + \\gamma V(s\')' }, { label: 'Illustrative backup', tex: '\\hat{Q} = T - \\lambda d(a, D)' }]
+        : ensembleActive() ? [{ label: 'Disagreement penalty', tex: 's(e)=(m_1(e)+m_2(e))/2-\\lambda|m_1(e)-m_2(e)|' }]
         : metarlActive() ? [{ label: 'Episode-2 success count', tex: 'p(a|h) = S(h,a) / N(h,a)' }]
         : skillsActive() ? [{ label: 'Discriminator reward', tex: 'r(skill, room) = log q(skill|room) - log p(skill)' }]
         : hierarchyActive() ? [{ label: 'Low-level backup', tex: 'Q(o,a) = r + gamma * max Q(o\',a\') when the transition is not terminal' }]
@@ -3200,6 +3204,7 @@
     if (window.BBHIERARCHY && !hierarchyActive()) window.BBHIERARCHY.cancel();
     if (window.BBMESSAGES_LEVEL && !messagesActive()) window.BBMESSAGES_LEVEL.cancel();
     if (!metarlActive() && window.BBMETARL) window.BBMETARL.cancel();
+    if (window.BBENSEMBLE_LEVEL && !ensembleActive()) window.BBENSEMBLE_LEVEL.cancel();
     if (!comboActive() && window.BBCOMBO) window.BBCOMBO.cancel();
     $('#lab').hidden = customActive(); $('#vpo-lab').hidden = !customActive();
     if (S.mode !== 'review') S.reviewLab = null;
