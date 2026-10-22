@@ -34,6 +34,10 @@
     return true;
   }
   function validRecord(record, config, key) {
+    if (record && record.schema === 'bb-seed-aggregate-v1') {
+      const check = globalThis.RLAGG && globalThis.RLAGG.validAggregateRecord;
+      return !!(check && check(record, config, key));
+    }
     return record && record.schema === 'bb-full-results-v1' && record.key === key &&
       X.stringify(record.config) === X.stringify(config) && Array.isArray(record.results) &&
       record.results.length === config.seeds.length &&

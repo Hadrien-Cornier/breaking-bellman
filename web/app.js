@@ -54,7 +54,7 @@
     world: 'cartpole',
     parts: C.cfg({}),
     knobs: {},
-    results: [], running: false, lastCfg: null, lastA: null,
+    results: [], view: null, running: false, lastCfg: null, lastA: null,
     found: saved.found || [],        // card ids discovered (built and working, or failures seen)
     given: saved.given || [],        // card ids shown by a level, not built
     seen: saved.seen || [],          // recipe ids run at least once (names of recipes with no card)
@@ -543,14 +543,31 @@
     const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     return { ctx, w, h: hgt };
   }
-  // series: [{ xs, ys, color, width, dash, alpha, label }]; o.xlabel names the x axis in the page export
+  function fillBand(ctx, xs, lo, hi, X, Y) {
+    let start = -1;
+    const flush = (end) => {
+      if (start < 0 || end < start) return;
+      ctx.beginPath();
+      ctx.moveTo(X(xs[start]), Y(hi[start]));
+      for (let i = start + 1; i <= end; i++) ctx.lineTo(X(xs[i]), Y(hi[i]));
+      for (let i = end; i >= start; i--) ctx.lineTo(X(xs[i]), Y(lo[i]));
+      ctx.closePath(); ctx.fill();
+    };
+    for (let i = 0; i < xs.length; i++) {
+      const ok = isFinite(xs[i]) && lo && hi && isFinite(lo[i]) && isFinite(hi[i]);
+      if (ok && start < 0) start = i;
+      if (!ok && start >= 0) { flush(i - 1); start = -1; }
+    }
+    if (start >= 0) flush(xs.length - 1);
+  }
+  // series: [{ xs, ys, color, width, dash, alpha, label, bands }]; o.xlabel names the x axis in the page export
   function lineChart(cv, series, o) {
-    cv._md = { series: series.map((s) => ({ label: s.label, xs: s.xs, ys: s.ys })), o };
+    cv._md = { series: series.map((s) => ({ label: s.label, xs: s.xs, ys: s.ys, bands: s.bands || null })), o };
     const { ctx, w, h: H } = setupCanvas(cv);
     const padL = 44, padR = 8, padT = 8, padB = 22;
     ctx.clearRect(0, 0, w, H);
     let xmax = o.xmax || 1, ymin = o.ymin, ymax = o.ymax;
-    const ys = series.flatMap((s) => s.ys.filter(isFinite));
+    const ys = series.flatMap((s) => (s.ys || []).concat(...(s.bands || []).flatMap((b) => (b.lo || []).concat(b.hi || []))).filter(isFinite));
     if (ymin == null) ymin = Math.min(0, ...ys);
     if (ymax == null) ymax = Math.max(1, ...ys);
     if (o.log) { ymin = Math.max(1, ymin); ymax = Math.max(ymin * 10, ymax); }
@@ -565,6 +582,10 @@
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     for (const t of niceTicks(0, xmax, 4)) ctx.fillText(short(t), X(t), H - padB + 5);
     if (o.ref != null) { ctx.setLineDash([4, 4]); ctx.strokeStyle = css('--muted'); ctx.beginPath(); ctx.moveTo(padL, Y(o.ref)); ctx.lineTo(w - padR, Y(o.ref)); ctx.stroke(); ctx.setLineDash([]); }
+    for (const s of series) if (s.bands) for (const b of s.bands) {
+      ctx.fillStyle = b.color; ctx.globalAlpha = b.alpha == null ? 0.2 : b.alpha;
+      fillBand(ctx, s.xs, b.lo, b.hi, X, Y); ctx.globalAlpha = 1;
+    }
     for (const s of series) {
       if (!s.xs.length) continue;
       ctx.strokeStyle = s.color; ctx.lineWidth = s.width || 1.5; ctx.globalAlpha = s.alpha == null ? 1 : s.alpha;
@@ -585,46 +606,22 @@
     return out;
   }
   function short(x) { const a = Math.abs(x); return a >= 1e6 ? (x / 1e6).toFixed(0) + 'M' : a >= 1e3 ? (x / 1e3).toFixed(a >= 1e4 ? 0 : 1) + 'k' : a < 1 && a > 0 ? x.toFixed(2) : String(Math.round(x * 10) / 10); }
-  function meanCurve(lists) {
-    // lists: arrays of {t, v}; average at the t of the longest list
-    const L = lists.reduce((m, l) => (l.length > m.length ? l : m), []);
-    return { xs: L.map((p) => p.t), ys: L.map((_, i) => { const v = lists.map((l) => l[i] && l[i].v).filter((x) => x != null && isFinite(x)); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : NaN; }) };
-  }
-  function movingMean(arr, w) { const o = new Float32Array(arr.length); let s = 0; for (let i = 0; i < arr.length; i++) { s += arr[i]; if (i >= w) s -= arr[i - w]; o[i] = s / Math.min(i + 1, w); } return Array.from(o); }
-
+  function meanCurve(lists) { return RLAGG.meanCurve(lists); }
+  function movingMean(arr, w) { return RLAGG.movingMean(arr, w); }
   // the mean curves of a finished run (also kept for a pinned run A)
-  function curvesOf(results, world) {
-    if (world === 'bandit') {
-      const cs = results.map((r) => movingMean(r.bandit.optimal, 50));
-      const m = cs[0].map((_, i) => cs.reduce((s, c) => s + c[i], 0) / cs.length);
-      return { main: { xs: m.map((_, i) => i + 1), ys: m } };
-    }
-    if (world === 'mirage') {
-      // an episode is 1 step if the agent goes right and 2 if it goes left, so run lengths differ a
-      // lot. The curve is the left-door rate against the share of each run's own episodes (0 to 100%),
-      // so its right edge is the end of every run and it matches the "at the end" figure.
-      const NB = 100;
-      const m = [];
-      for (let b = 0; b < NB; b++) {
-        let acc = 0;
-        for (const r of results) {
-          const n = r.ep.left.length, a = Math.floor(n * b / NB), c = Math.max(a + 1, Math.floor(n * (b + 1) / NB));
-          const seg = r.ep.left.slice(a, c);
-          acc += seg.reduce((s, x) => s + x, 0) / Math.max(1, seg.length);
-        }
-        m.push(acc / results.length);
-      }
-      const mm = movingMean(m, 10);
-      return { main: { xs: mm.map((_, i) => i + 1), ys: mm } };
-    }
-    const per = results.map((r) => r.evals);
-    const mq = meanCurve(per.map((ev) => ev.map((e) => ({ t: e.t, v: isFinite(e.maxQ) ? e.maxQ : 1e9 }))));
-    return {
-      main: meanCurve(per.map((ev) => ev.map((e) => ({ t: e.t, v: e.ret })))),
-      pred: meanCurve(per.map((ev) => ev.map((e) => ({ t: e.t, v: e.pred })))),
-      disc: meanCurve(per.map((ev) => ev.map((e) => ({ t: e.t, v: e.disc })))),
-      maxQ: mq,
-    };
+  function curvesOf(results, world) { return RLAGG.curvesOf(results, world); }
+  function haveRun() { return !!(S.view && S.view.seedCount); }
+  function spreadSeries(band, lineColor, bandColor, label) {
+    if (!band) return [];
+    return [{ xs: band.xs, ys: band.mean, color: lineColor, width: 2.2, end: true, label: label || 'mean',
+      bands: [
+        { lo: band.min, hi: band.max, loLabel: 'min', hiLabel: 'max', color: bandColor, alpha: 0.14 },
+        { lo: band.p25, hi: band.p75, loLabel: 'p25', hiLabel: 'p75', color: bandColor, alpha: 0.32 },
+      ] }];
+  }
+  function meanSeries(band, color, label) {
+    if (!band) return [];
+    return [{ xs: band.xs, ys: band.mean, color, width: 2.2, end: true, label: label || 'mean' }];
   }
   function chartBox(id, title, legend) {
     return h('div.chart-wrap', null, [
@@ -632,7 +629,20 @@
       h('canvas.chart', { id, 'aria-label': title }),
     ]);
   }
+  function finiteExtent(band) {
+    const vals = [];
+    if (!band) return vals;
+    for (let i = 0; i < band.min.length; i++) {
+      if (isFinite(band.min[i])) vals.push(band.min[i]);
+      if (isFinite(band.max[i])) vals.push(band.max[i]);
+    }
+    return vals;
+  }
   function renderCharts(partials, done) {
+    if (done && !S.view && S.results && S.results.length) {
+      const parts = S.lastCfg ? S.lastCfg.parts : S.parts;
+      S.view = RLAGG.viewFromResults(S.results, { world: S.world, parts, family: fam(parts) });
+    }
     const box = $('#charts'); const steps = (S.lastCfg && S.lastCfg.steps) || 1;
     const ink = css('--ink'), acc = css('--accent'), val = css('--f-value'), pol = css('--f-policy'), muted = css('--muted');
     const A = S.pinA && S.pinA.world === S.world ? S.pinA : null;
@@ -642,14 +652,14 @@
       const isB = S.world === 'bandit';
       box.replaceChildren(h('div.eyebrow', { text: isB ? 'Share of pulls on the best machine' : 'Share of episodes that take the left door' }),
         chartBox('ch-main', isB ? 'Best machine chosen (moving mean of 50 pulls, mean of runs)' : 'Left door from A (mean of runs, window 10% of each run)', [[ink, 'this run']].concat(aLeg, isB ? [] : [[muted, '5%: random tries alone']])));
-      if (!done) return;
-      const c = curvesOf(S.results, S.world).main;
+      if (!done || !S.view) return;
+      const c = S.view.curves.main;
       lineChart($('#ch-main'), aSer(A && A.curves.main).concat([{ xs: c.xs, ys: c.ys, color: ink, width: 2.2, end: true, label: 'this run' }]),
         { xmax: isB ? Math.max(c.xs.length, A ? A.curves.main.xs.length : 0) : 100, ymin: 0, ymax: 1, ref: isB ? null : 0.05, xlabel: isB ? 'pulls' : "share of each run's episodes (%)" });
       return;
     }
     const F = fam(S.lastCfg ? S.lastCfg.parts : S.parts), P_ = S.lastCfg ? S.lastCfg.parts : S.parts;
-    const key = S.world + ':' + F + ':' + (A ? 'A' : '');
+    const key = S.world + ':' + F + ':' + (A ? 'A' : '') + ':' + (done ? 'agg' : 'run');
     const hasCritic = F === 'value' || (F === 'pg' && P_.baseline === 'critic') || (F === 'ac' && P_.critics !== 'none');
     const task = S.world === 'goalgrid' || S.world === 'fork' || S.world === 'fetch' ? 'success' : S.world === 'reach' ? 'dist' : null;
     if (box.dataset.key !== key || !$('#ch-ret')) {
@@ -657,12 +667,12 @@
       const who = F === 'value' ? 'Q' : F === 'pg' ? 'V (the critic)' : 'the critic';
       box.replaceChildren(...[
         h('div.eyebrow', { text: (F === 'ac' && P_.source === 'fixed' ? 'Learning from a fixed dataset: each step is one update. ' : '') + 'Test runs every ' + short(Math.round(steps / 40)) + ' steps' }),
-        chartBox('ch-ret', 'Score per test episode', [[acc, 'each seed'], [ink, 'mean']].concat(aLeg)),
+        chartBox('ch-ret', 'Score per test episode', [[acc, done ? 'seed range' : 'each seed'], [ink, 'mean']].concat(aLeg)),
         task ? chartBox('ch-task', task === 'success' ? 'Share of tests that reach the goal' : 'Distance to the target at the end (m)', [[ink, 'mean']].concat(task === 'dist' ? [[muted, 'classical controller', true]] : [])) : null,
         hasCritic ? chartBox('ch-val', 'Predicted value vs value earned', [[val, who + ' predicts at start'], [ink, 'earned (discounted)']].concat(aLeg.length ? [[muted, 'A: predicted', true]] : [])) : null,
-        F === 'value' ? chartBox('ch-q', 'Largest |Q| seen (log scale)', [[pol, 'each seed']].concat(aLeg)) : null,
-        F === 'pg' ? chartBox('ch-kl', 'How far each update moves the policy (KL)', [[pol, 'each seed'], [muted, '0.02', true]]) : null,
-        F === 'pg' && !['pendulum'].includes(S.world) ? chartBox('ch-ent', 'Randomness of the policy (entropy, nats)', [[pol, 'each seed']]) : null,
+        F === 'value' ? chartBox('ch-q', 'Largest |Q| seen (log scale)', (done ? [[pol, 'seed range'], [ink, 'mean']] : [[pol, 'each seed']]).concat(aLeg)) : null,
+        F === 'pg' ? chartBox('ch-kl', 'How far each update moves the policy (KL)', (done ? [[pol, 'seed range'], [ink, 'mean']] : [[pol, 'each seed']]).concat([[muted, '0.02', true]])) : null,
+        F === 'pg' && !['pendulum'].includes(S.world) ? chartBox('ch-ent', 'Randomness of the policy (entropy, nats)', done ? [[pol, 'seed range'], [ink, 'mean']] : [[pol, 'each seed']]) : null,
         F === 'ac' && P_.critics !== 'none' ? chartBox('ch-qq', 'Critic: value of the policy\'s actions vs the memory\'s actions', [[pol, 'policy\'s actions'], [val, 'actions in memory']]) : null,
       ].filter(Boolean));  // a null child would show as the text "null"
       if (F === 'value' && $('#ch-val')) $('#ch-val').parentNode.querySelector('.chart-title').append(h('button.btn.tiny.ghost', { type: 'button', onclick: openExpert }, 'Why this gap?'));
@@ -675,9 +685,43 @@
     }
     }
     const maxSteps = (S.lastCfg && S.lastCfg.knobs && S.lastCfg.knobs.maxSteps) || RLA.knobDefaults(S.world).maxSteps;
-    const per = partials.map((p) => p.evals);
     const isCliff = S.world === 'cliff', isCart = S.world === 'cartpole';
     const xmax = Math.max(steps, A ? A.steps : 0), xlabel = F === 'ac' && P_.source === 'fixed' ? 'updates' : 'training steps';
+    if (done && S.view) {
+      const B = S.view.bands;
+      const allR = finiteExtent(B.ret).concat(A ? A.curves.main.ys : []).filter(isFinite);
+      const yl = isCliff ? [-200, 0] : isCart ? [0, maxSteps] : S.world === 'goalgrid' ? [0, 1] : S.world === 'pendulum' ? [Math.min(-1600, ...allR), 0] : [Math.min(0, ...allR), Math.max(0, ...allR)];
+      lineChart($('#ch-ret'), aSer(A && A.curves.main).concat(spreadSeries(B.ret, ink, acc)),
+        { xmax, ymin: yl[0], ymax: yl[1], ref: isCliff ? -13 : null, xlabel, note: isCliff ? 'The dashed line at -13 is the score of the shortest path.' : null });
+      if (task && $('#ch-task') && B.task) {
+        const ref = task === 'dist' ? S.view.taskRef : null;
+        lineChart($('#ch-task'), meanSeries(B.task, ink),
+          { xmax, ymin: 0, ymax: task === 'success' ? 1 : Math.max(0.3, ...B.task.mean.filter(isFinite)), ref, xlabel, note: ref != null ? 'The dashed line is the classical controller.' : null });
+      }
+      if (hasCritic && $('#ch-val') && B.pred && B.disc) {
+        const vals = B.pred.mean.concat(B.disc.mean).filter(isFinite);
+        const cap = F === 'value' ? 1e4 : 1e6;
+        lineChart($('#ch-val'), aSer(A && A.curves.pred, 'A: predicted').concat(meanSeries(B.pred, val, 'predicted at start'), meanSeries(B.disc, ink, 'earned (discounted)')),
+          { xmax, ymin: Math.min(0, ...vals.map((v) => Math.max(v, -cap))), ymax: Math.max(F === 'value' ? 10 : 0.1, ...vals.map((v) => Math.min(v, cap))), xlabel });
+      }
+      if (F === 'value' && B.maxQ) {
+        const ext = finiteExtent(B.maxQ).concat(A ? A.curves.maxQ.ys.filter(isFinite) : []);
+        lineChart($('#ch-q'), aSer(A && A.curves.maxQ).concat(spreadSeries(B.maxQ, ink, pol)),
+          { xmax, log: true, xlabel, note: 'A value of 1000000000 stands for infinity (the estimate overflowed).', ymin: 1, ymax: Math.max(1000, ...ext) });
+      }
+      if (F === 'pg' && B.kl) {
+        const capped = finiteExtent(B.kl).map((v) => Math.min(v, 5));
+        lineChart($('#ch-kl'), spreadSeries(B.kl, ink, pol), { xmax, ymin: 0, ymax: Math.max(0.05, ...capped), ref: 0.02, xlabel });
+        if ($('#ch-ent') && B.ent) lineChart($('#ch-ent'), spreadSeries(B.ent, ink, pol), { xmax, ymin: 0, ymax: Math.max(0.1, ...finiteExtent(B.ent)), xlabel });
+      }
+      if (F === 'ac' && $('#ch-qq') && B.qPolicy && B.qData) {
+        const vals = B.qPolicy.mean.concat(B.qData.mean).filter(isFinite).map((v) => Math.max(-1e6, Math.min(1e6, v)));
+        lineChart($('#ch-qq'), meanSeries(B.qData, val, 'actions in memory').concat(meanSeries(B.qPolicy, pol, "policy's actions")),
+          { xmax, ymin: Math.min(0, ...vals), ymax: Math.max(0.1, ...vals), xlabel });
+      }
+      return;
+    }
+    const per = partials.map((p) => p.evals);
     const ret = per.map((ev, i) => ({ xs: ev.map((e) => e.t), ys: ev.map((e) => e.ret), color: acc, alpha: 0.35, width: 1, label: 'seed ' + (i + 1) }));
     const mr = meanCurve(per.map((ev) => ev.map((e) => ({ t: e.t, v: e.ret }))));
     const allR = per.flatMap((ev) => ev.map((e) => e.ret)).concat(A ? A.curves.main.ys : []).filter(isFinite);
@@ -789,7 +833,7 @@
     const world = RLA.worlds[S.world].make(knobs, RLA.rng.make(5));
     world.reset();
     $('#lab-world').textContent = C.worldNames[S.world];
-    const r0 = S.results[0];
+    const r0 = S.view ? S.view.playback : null;
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     // replay a trace of states: set each state, draw, add the overlay
     const playTrace = (tr, label, overlayAt) => {
@@ -889,12 +933,12 @@
   }
   function renderAutopsy() {
     const box = $('#symptoms'); box.replaceChildren();
-    if (!S.results.length) { box.append(h('p.small', { text: 'No run yet.' })); return null; }
-    const a = RLA.autopsy(S.results);
+    if (!S.view) { box.append(h('p.small', { text: 'No run yet.' })); return null; }
+    const a = S.view.autopsy;
     if (!a.symptoms.length) box.append(h('p.small', { text: 'No symptom found.' }));
     for (const s of a.symptoms) box.append(h('div.sym.' + s.level, null, [h('span.dot'), h('div', null, [h('b', { text: s.label }), h('p', { text: s.evidence })])]));
-    for (const n of S.results[0].notes || []) box.append(h('p.small', { text: 'Note: ' + n }));
-    box.append(h('p.small', { text: 'Measured on ' + S.results.length + ' run' + (S.results.length > 1 ? 's' : '') + '. ' + (S.source === 'local' ? 'Saved in this browser. Simulation.' : S.stored ? 'Stored simulation.' : 'Trained in this page. Simulation.') }));
+    for (const n of S.view.notes || []) box.append(h('p.small', { text: 'Note: ' + n }));
+    box.append(h('p.small', { text: 'Measured on ' + S.view.seedCount + ' run' + (S.view.seedCount > 1 ? 's' : '') + '. ' + (S.source === 'local' ? 'Saved in this browser. Simulation.' : S.stored ? 'Stored simulation.' : 'Trained in this page. Simulation.') }));
     if (window.RLHELP) window.RLHELP.enhance(box, metricCtx());
     return a;
   }
@@ -1007,9 +1051,10 @@
   const goalsActive = () => S.mode === 'campaign' && S.level === 'goals';
   const replanActive = () => S.mode === 'campaign' && S.level === 'replan';
   const hindsightActive = () => S.mode === 'campaign' && S.level === 'hindsight';
+  const elboActive = () => S.mode === 'campaign' && S.level === 'elbo';
   const rareActive = () => S.mode === 'campaign' && S.level === 'rare';
-  const customActive = () => vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || rareActive();
-  const customApi = () => hindsightActive() ? BBHINDSIGHT : replanActive() ? BBREPLAN : goalsActive() ? window.BBGOALS_LEVEL : supermimicActive() ? BBSUPERMIMIC : rareActive() ? BBRARE : BBVPO;
+  const customActive = () => vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || elboActive() || rareActive();
+  const customApi = () => elboActive() ? window.BBELBO_LEVEL : hindsightActive() ? BBHINDSIGHT : replanActive() ? BBREPLAN : goalsActive() ? window.BBGOALS_LEVEL : supermimicActive() ? BBSUPERMIMIC : rareActive() ? BBRARE : BBVPO;
   async function run() {
     if (customActive()) return customApi().run();
     if (S.running) return null;
@@ -1022,6 +1067,7 @@
     $('#expert-card').hidden = true; $('#wonder').hidden = true;
     const seeds = range(1, nSeeds).map((i) => i * 101);
     S.results = [];
+    S.view = null;
     S.lastA = null;
     showRunPending();
     const prog = $('#prog'); prog.style.width = '2%';
@@ -1038,22 +1084,25 @@
           ? (stored.source === 'local' ? 'Saved in this browser: loading measured results.' : 'Stored simulation: loading measured results.')
           : 'Live simulation: training in this page.';
       }
-      const results = stored && stored.record ? stored.record.results : await runSeeds(cfg, seeds, (partials) => {
+      let results = null;
+      if (stored && stored.record && stored.record.schema === 'bb-seed-aggregate-v1') S.view = stored.record.view;
+      else results = stored && stored.record ? stored.record.results : await runSeeds(cfg, seeds, (partials) => {
         if (!current()) return;
         const done = partials.reduce((s, p) => s + p.t, 0) / (steps * seeds.length);
         prog.style.width = Math.round(100 * done) + '%';
         if (S.world !== 'bandit' && S.world !== 'mirage') renderCharts(partials, false);
       });
       if (!current()) return null;
-      const savedLocally = !(stored && stored.record) && await fastClient.save(config, results);
+      const savedLocally = results && !(stored && stored.record) && await fastClient.save(config, results);
       if (!current()) return null;
       S.stored = !!(stored && stored.record);
       S.source = S.stored ? stored.source : 'live';
       $('#run-source').textContent = S.stored
         ? (S.source === 'local' ? 'Saved in this browser. Simulation. Ordered seeds: ' : 'Stored simulation. Ordered seeds: ') + seeds.join(', ') + '. Budget: ' + steps + ' steps per seed. Version: ' + window.BB_FAST.base.split('/').pop() + '. Recorded replay seed: ' + seeds[0] + '. Live reruns can vary numerically across browsers.'
         : 'Live simulation: trained in this page. Replay seed: ' + seeds[0] + '.' + (savedLocally ? ' Saved in this browser for next time.' : '');
-      S.results = results;
-      renderCharts(results.map((r) => ({ evals: r.evals, diag: r.diag })), true);
+      if (results) S.view = RLAGG.viewFromResults(results, config);
+      S.results = results || [];
+      renderCharts([], true);
       renderStage();
       const a = renderAutopsy();
       S.lastA = a;
@@ -1158,7 +1207,7 @@
     const qs = lv ? [['predict', lv.predict], ['diagnose', lv.diagnose], ['explain', lv.explain]].filter((x) => x[1] && x[1].id) : [];
     return {
       ts: new Date().toISOString(), world: C.worldNames[cfg.world], family: C.families[fam(cfg.parts)].name,
-      sentence: sentenceText(cfg.parts, cfg.world), result: headline(a, cfg.world) + ' (' + cfg.steps + ' steps, ' + S.results.length + ' seeds)',
+      sentence: sentenceText(cfg.parts, cfg.world), result: headline(a, cfg.world) + ' (' + cfg.steps + ' steps, ' + (S.view ? S.view.seedCount : S.results.length) + ' seeds)',
       where: lv ? 'Campaign level "' + lv.title + '"' : S.mode === 'workbench' ? 'Workbench' : S.mode,
       levelId: lv ? lv.id : null, step: lv ? (S.lstep[lv.id] || 0) : null,
       predictions: qs.length ? qs.map(([k, q]) => k + ' ' + (S.answers[q.id] ? (S.answers[q.id].correct ? 'right' : 'wrong') : 'not answered')).join(', ') + ' (first tries)' : 'no level questions',
@@ -1243,10 +1292,10 @@
 
   // ---------------------------------------------------------------- contrasting cases: pin run A, compare with the next run
   function pinA() {
-    if (!S.results.length) return;
+    if (!haveRun()) return;
     S.pinA = { world: S.world, parts: Object.assign({}, S.lastCfg.parts), knobs: Object.assign({}, S.lastCfg.knobs), steps: S.lastCfg.steps,
-      curves: curvesOf(S.results, S.world), head: headline(S.lastA, S.world), name: nameOf(S.lastCfg.parts, S.world), summary: S.lastA ? S.lastA.summary : null };
-    drawCompare(); $('#charts').replaceChildren(); renderCharts(S.results.map((r) => ({ evals: r.evals, diag: r.diag })), true);
+      curves: S.view.curves, head: headline(S.lastA, S.world), name: nameOf(S.lastCfg.parts, S.world), summary: S.lastA ? S.lastA.summary : null };
+    drawCompare(); $('#charts').replaceChildren(); renderCharts([], true);
     toast('Pinned as A. Change one word, run, and compare.');
   }
   function nameOf(p, world) {
@@ -1256,7 +1305,7 @@
   function drawCompare() {
     const box = $('#compare'); box.replaceChildren();
     const A = S.pinA;
-    const pinBtn = h('button.btn.ghost', { type: 'button', disabled: !S.results.length, onclick: pinA }, A ? 'Pin this run as A instead' : 'Pin this run as A');
+    const pinBtn = h('button.btn.ghost', { type: 'button', disabled: !haveRun(), onclick: pinA }, A ? 'Pin this run as A instead' : 'Pin this run as A');
     if (!A) { box.append(h('div.row', null, [pinBtn, h('span.small', { text: 'Compare two sentences that differ by one word.' })])); return; }
     const diff = wordDiff(A.parts, S.parts, S.world);
     const sameWorld = A.world === S.world;
@@ -1266,23 +1315,14 @@
         sameWorld ? '' : ' A ran on another world, so the charts do not show it.']),
       h('div.row', null, [pinBtn,
         h('button.btn.ghost', { type: 'button', onclick: () => { S.parts = Object.assign({}, A.parts); onPartsChanged(); drawCompare(); } }, 'Restore A\'s words'),
-        h('button.btn.ghost', { type: 'button', onclick: () => { S.pinA = null; drawCompare(); $('#charts').replaceChildren(); if (S.results.length) renderCharts(S.results.map((r) => ({ evals: r.evals, diag: r.diag })), true); } }, 'Clear A')]),
+        h('button.btn.ghost', { type: 'button', onclick: () => { S.pinA = null; drawCompare(); $('#charts').replaceChildren(); if (haveRun()) renderCharts([], true); } }, 'Clear A')]),
     );
     if (window.RLHELP) window.RLHELP.enhance(box, metricCtx());
   }
 
   // ---------------------------------------------------------------- try every combination of a few words (a full factorial table)
   // One number per run, with its direction. Lower is better only in the mirage.
-  function metricOf(a, world) {
-    const s = a.summary;
-    if (world === 'bandit') return { v: 100 * s.optimalLast20, up: true, pct: true, label: '% of late pulls on the best machine' };
-    if (world === 'mirage') return { v: 100 * s.leftPeak, up: false, pct: true, label: '% left door at the worst point (lower is better)' };
-    if (world === 'cliff') return { v: s.finalReturn, up: true, label: 'greedy score' };
-    if (world === 'pendulum') return { v: isFinite(s.pendulumScore) ? s.pendulumScore : s.finalReturn, up: true, label: 'test score (0 is perfect)' };
-    if (world === 'reach') return { v: isFinite(s.testReturn) ? s.testReturn : s.finalReturn, up: true, label: 'test score' };
-    if (world === 'fork' || world === 'goalgrid' || world === 'fetch') return { v: 100 * s.successRate, up: true, pct: true, label: '% of tests solved' };
-    return { v: s.finalReturn, up: true, label: 'score' };
-  }
+  function metricOf(a, world) { return RLAGG.metricOf(a, world); }
   // The grid's metric header cell: the level's measure name plus the shared metric-help trigger
   function gridMetricHead(m) {
     const th = h('th', null, [m.label]);
@@ -1294,20 +1334,7 @@
   // belongs to the same statistic as the center even when that statistic is not a plain mean
   // over seeds (the mirage shows the worst of three windows). A fixed stream keeps every cell
   // reproducible.
-  function metricSE(res, world) {
-    const n = res.length;
-    if (n < 2) return NaN;
-    const rng = RLA.rng.make(1337), draws = [];
-    for (let b = 0; b < 200; b++) {
-      const rs = [];
-      for (let i = 0; i < n; i++) rs.push(res[Math.floor(rng.next() * n)]);
-      const v = metricOf(RLA.autopsy(rs), world).v;
-      if (isFinite(v)) draws.push(v);
-    }
-    if (draws.length < 2) return NaN;
-    const m = draws.reduce((s, x) => s + x, 0) / draws.length;
-    return Math.sqrt(draws.reduce((s, x) => s + (x - m) ** 2, 0) / (draws.length - 1));
-  }
+  function metricSE(res, world) { return RLAGG.metricSE(res, world); }
   const gridKeys = (p, world) => (world === 'bandit' && fam(p) === 'value' ? ['eps', 'ucb', 'optimistic', 'step'] : C.families[fam(p)].keys);
   const optVals = (k) => W[k].options.map((o) => o[0]);
   const GRID_MAX = 32;
@@ -1365,12 +1392,19 @@
         const config = RLA.exact.resolve(cfg, seeds, window.BB_FAST.versions, C);
         const stored = fast ? await fastClient.lookup(config) : null;
         if (runIdentity() !== identity) throw new Error('Settings changed. Run the table again.');
-        const res = stored && stored.record ? stored.record.results : await runSeeds(cfg, seeds, () => {});
+        let res = null, a, se;
+        if (stored && stored.record && stored.record.schema === 'bb-seed-aggregate-v1') {
+          a = stored.record.view.autopsy;
+          se = stored.record.view.metric.se;
+        } else {
+          res = stored && stored.record ? stored.record.results : await runSeeds(cfg, seeds, () => {});
+          if (runIdentity() !== identity) throw new Error('Settings changed. Run the table again.');
+          if (!(stored && stored.record)) await fastClient.save(config, res);
+          if (runIdentity() !== identity) throw new Error('Settings changed. Run the table again.');
+          a = RLA.autopsy(res); se = metricSE(res, world);
+        }
         if (runIdentity() !== identity) throw new Error('Settings changed. Run the table again.');
-        if (!(stored && stored.record)) await fastClient.save(config, res);
-        if (runIdentity() !== identity) throw new Error('Settings changed. Run the table again.');
-        const a = RLA.autopsy(res), m = metricOf(a, world);
-        const se = metricSE(res, world);
+        const m = metricOf(a, world);
         G.metric = m;
         G.rows.push({ vals: combos[i], parts, v: m.v, se, works: C.works[world](a), rec: recognize(parts, world), stored: !!(stored && stored.record), source: stored && stored.source });
       }
@@ -1949,7 +1983,7 @@
   // ---------------------------------------------------------------- world and sentence setters
   function setWorld(w, knobs) {
     cancelRun();
-    S.world = w; S.knobs = Object.assign({}, knobs || {}); S.results = []; S.lastA = null;
+    S.world = w; S.knobs = Object.assign({}, knobs || {}); S.results = []; S.view = null; S.lastA = null;
     budgetOptions(); renderStage(); renderAutopsy(); refreshSentences(); drawCompare(); drawGrid();
     $('#run-result').textContent = '';
     $('#charts').replaceChildren(h('p.small', { text: 'Curves appear here while a run trains.' }));
@@ -2008,10 +2042,12 @@
       }, [h('span.small', { text: 'Level ' + (i + 1) + ' · ' + C.worldNames[l.world] + (S.done.includes(l.id) ? ' · done' : l === next ? ' · next' : '') }), h('b', { text: l.title })]);
     };
     const tree = h('div.stack', null, C.phases.map((ph) => h('div', null, [
-      h('div.eyebrow', { text: 'Phase ' + ph.n + ': ' + ph.title }),
-      h('div.tree', { role: 'list' }, C.levels.filter((l) => (l.phase || 1) === ph.n).map(node)),
+      h('div.phase', { text: 'Phase ' + ph.n + ': ' + ph.title }),
+      h('div.tree', { role: 'list' }, C.levels.filter((l) => (l.phase == null ? 1 : l.phase) === ph.n).map(node)),
     ])));
-    pane.append(h('div.card', null, [
+    const wideMap = window.matchMedia ? window.matchMedia('(min-width: 960px)') : { matches: true };
+    const mapCard = h('details.card.map-card', { open: wideMap.matches }, [
+      h('summary', { text: 'All levels' }),
       h('p', { text: 'Predict, run, then inspect the learner. Most levels ask you to repair a failure by changing words in its update rule. The comparison lessons measure several objectives or training routes. Play in any order: nothing is locked.' }),
       tree,
       h('div.row.savebar', null, [
@@ -2020,11 +2056,12 @@
         h('button.btn.ghost.tiny', { type: 'button', onclick: loadSave }, 'Load save file'),
         h('button.btn.ghost.tiny', { type: 'button', onclick: copyBrief, title: 'Copies a short Markdown brief: where you are, the words you can change, and how an AI can drive this page.' }, 'Copy for your AI'),
       ]),
-    ]));
+    ]);
     if (lv.custom) {
-      const api = lv.id === 'hindsight' ? BBHINDSIGHT : lv.id === 'replan' ? BBREPLAN : lv.id === 'goals' ? window.BBGOALS_LEVEL : lv.id === 'supermimic' ? BBSUPERMIMIC : lv.id === 'rare' ? BBRARE : lv.id === 'vpo' ? BBVPO : null;
+      const api = lv.id === 'elbo' ? window.BBELBO_LEVEL : lv.id === 'hindsight' ? BBHINDSIGHT : lv.id === 'replan' ? BBREPLAN : lv.id === 'goals' ? window.BBGOALS_LEVEL : lv.id === 'supermimic' ? BBSUPERMIMIC : lv.id === 'rare' ? BBRARE : lv.id === 'vpo' ? BBVPO : null;
       if (!api || !api.mount) {
         pane.append(h('div.card', null, [h('h2', { text: lv.title }), h('p', { text: 'This lesson is not mounted.' })]));
+        pane.append(mapCard);
         return;
       }
       const iNext = C.levels.indexOf(lv);
@@ -2046,6 +2083,7 @@
           if (!alreadyKnown) queueCelebration(id);
         }
       } });
+      pane.append(mapCard);
       return;
     }
     const st = S.lstep[lv.id] || 0;
@@ -2105,6 +2143,7 @@
       requestAnimationFrame(() => { const box = card.querySelector('#level-discoveries'); if (box) box.scrollIntoView({ block: 'start' }); });
     }
     pane.append(card);
+    pane.append(mapCard);
     // A direct child of the layout, in front of the columns, so the two tables can sit
     // side by side. No new campaign step and no new save field.
     if (lv.id === 'cliff' && st >= 2 && window.BBBACKUP) {
@@ -2755,11 +2794,11 @@
   };
   function labState() {
     if (customActive()) return customApi().state();
-    const a = S.results.length ? RLA.autopsy(S.results) : null;
+    const a = S.view ? S.view.autopsy : null;
     return {
       world: S.world, knobs: Object.assign(RLA.knobDefaults(S.world), S.knobs),
       words: S.parts, sentenceName: nameOf(S.parts, S.world), idleWords: idleWords(S.parts, S.world),
-      lastRun: a ? { seeds: S.results.length, steps: S.lastCfg.steps, words: S.lastCfg.parts, symptoms: a.symptoms.map((s) => s.label + ': ' + s.evidence), summary: a.summary } : null,
+      lastRun: a ? { seeds: S.view.seedCount, steps: S.lastCfg.steps, words: S.lastCfg.parts, symptoms: a.symptoms.map((s) => s.label + ': ' + s.evidence), summary: a.summary } : null,
       discovered: S.found.map((id) => C.cards[id].name), mode: S.mode,
       level: S.mode === 'campaign' ? (C.levels.find((l) => l.id === S.level) || {}).title : null,
     };
@@ -2800,7 +2839,7 @@
           return out;
         } },
       { name: 'set_world', description: 'Change the world and its knobs (knobs not given keep their defaults).', inputSchema: { type: 'object', properties: { world: { type: 'string', enum: Object.keys(C.worldNames) }, knobs: { type: 'object' } }, required: ['world'] },
-        execute: ({ world, knobs }) => { if (world === 'vpo' || world === 'supermimic' || world === 'goals' || world === 'replan' || world === 'hindsight' || world === 'rare') return window.bellman.level(world); if (customActive()) S.mode = 'workbench'; setWorld(world, knobs || {}); note('world → ' + world + ' ' + JSON.stringify(knobs || {})); return { world: S.world, knobs: S.knobs }; } },
+        execute: ({ world, knobs }) => { if (world === 'vpo' || world === 'supermimic' || world === 'goals' || world === 'replan' || world === 'hindsight' || world === 'elbo' || world === 'rare') return window.bellman.level(world); if (customActive()) S.mode = 'workbench'; setWorld(world, knobs || {}); note('world → ' + world + ' ' + JSON.stringify(knobs || {})); return { world: S.world, knobs: S.knobs }; } },
       { name: 'run_experiment', description: 'Train the current sentence on the current world for real (seconds) and return the autopsy. seeds applies to CartPole only (1, 3 or 5); the other worlds use many runs.', inputSchema: { type: 'object', properties: { seeds: { type: 'integer', minimum: 1, maximum: 5 } } },
         execute: async ({ seeds }) => { if (customActive()) return customApi().run(); const so = C.seedOptions[S.world]; if (seeds && S.world === 'cartpole') $('#seeds').value = String(so.reduce((b, n) => (Math.abs(n - seeds) < Math.abs(b - seeds) ? n : b), so[0])); note('running ' + $('#seeds').value + ' runs…'); const a = await run(); if (!a) throw new Error('run failed'); note('done'); return { symptoms: a.symptoms, summary: a.summary }; } },
     ];
@@ -2834,6 +2873,7 @@
   const wordLines = () => hindsightActive() ? ['Hindsight: same four environment steps, then extra Q updates on goals recomputed from the final cell. Use the level controls and bellman.run().']
     : vpoActive() ? ['VPO: mean over eight preferences of the best score in a three-route set. GRPO: fixed mean reward for each route. Use the level controls and bellman.run().']
     : supermimicActive() ? ['SuperMimic-inspired: compare PPO in physics, PPO in one fitted model, and backpropagation through that same model. Use the level controls and bellman.run().']
+      : elboActive() ? ['Evidence lower bound: expected log p(bright | cause) minus KL(q || prior). The gap is KL(q || posterior). Use the level controls and bellman.run().']
       : goalsActive() ? ['Goal-conditioned counts: p(action | state, room) = count(action, state, room) / count(state, room). A hidden count drops the room. Use the level controls and bellman.run().']
       : replanActive() ? ['Replan: score every 4-action sequence on the known mean model. Open-loop drives the winner. Replan drives only the first action and plans again from the observed cell. Use the level controls.']
       : rareActive() ? ['Visit bonus: an untried action is worth 1/(1 - gamma) until it is taken. The repair adds 1/sqrt(n(s\')) inside the Q target, on top of the environment reward, which stays 0 or 1. Use the level controls and bellman.run().']
@@ -2923,6 +2963,7 @@
       math: (parts, world) => hindsightActive() ? [{ label: 'Goal-conditioned backup', tex: 'Q(s,a,g) = r(s,a,g) + gamma * max Q(s\',a\',g) when not terminal' }]
         : vpoActive() ? [{ label: 'VPO set reward', tex: 'R(S) = mean_w max_y dot(w,r(y))' }]
         : supermimicActive() ? [{ label: 'Short-horizon objective', tex: 'J_H = sum_{t=0}^{H-1} gamma^t r_t + gamma^H V(s_H)' }]
+          : elboActive() ? [{ label: 'Evidence lower bound', tex: '\\mathrm{ELBO}(q)=\\mathbb{E}_q[\\log p(x\\mid z)]-\\mathrm{KL}(q(z)\\|p(z))' }, { label: 'Gap', tex: '\\log p(x)-\\mathrm{ELBO}(q)=\\mathrm{KL}(q(z)\\|p(z\\mid x))' }]
           : goalsActive() ? [{ label: 'Action count', tex: 'p(a|s,g) = n(a,s,g) / n(s,g)' }]
           : replanActive() ? [{ label: 'Mean-model return', tex: 'J(a_0:H-1) = sum_t r(s_t, a_t) under the mean model' }]
           : rareActive() ? [{ label: 'Backed-up target', tex: 'y = r_{env} + 1/\\sqrt{n(s\')} + \\gamma \\max_{a\'} \\hat{Q}(s\', a\')' }, { label: 'Environment reward', tex: 'r_{env} \\in \\{0, 1\\}' }]
@@ -3110,6 +3151,7 @@
     if (window.BBGOALS_LEVEL && !goalsActive()) window.BBGOALS_LEVEL.cancel();
     if (window.BBREPLAN && !replanActive()) BBREPLAN.cancel();
     if (!hindsightActive() && window.BBHINDSIGHT) BBHINDSIGHT.cancel();
+    if (window.BBELBO_LEVEL && !elboActive()) window.BBELBO_LEVEL.cancel();
     if (window.BBRARE && !rareActive()) BBRARE.cancel();
     $('#lab').hidden = customActive(); $('#vpo-lab').hidden = !customActive();
     if (S.mode !== 'review') S.reviewLab = null;
@@ -3132,7 +3174,7 @@
     const w = Math.round($('#stage').getBoundingClientRect().width);
     if (w === stageW) return;
     stageW = w;
-    if (S.results.length) renderCharts(S.results.map((r) => ({ evals: r.evals, diag: r.diag })), true);
+    if (haveRun()) renderCharts([], true);
     renderStage();
   });
 

@@ -156,41 +156,74 @@ check(next.id === 'twoways' && next.world === 'fork' && next.title === 'Two good
 check(next.rules.includes('keep at least 10 commands per decision') && next.rules === next.inline, 'fork rules replace the hallway rules');
 check(!next.labHidden && next.customHidden && !next.rareLeft && !next.overflow, 'the standard lab is back for the next level');
 
-const exported = evaluate(`() => JSON.parse(localStorage.getItem('breaking-bellman-v1'))`);
-const wrapped = JSON.stringify({ app: 'breaking-bellman', version: 1, progress: exported }, null, 2);
+const downloaded = evaluate(`() => {
+  const Orig = window.Blob;
+  function RecordingBlob(parts, opts) {
+    const blob = new Orig(parts, opts);
+    if (parts && typeof parts[0] === 'string' && parts[0].includes('"app": "breaking-bellman"')) window.__downloadText = parts[0];
+    return blob;
+  }
+  RecordingBlob.prototype = Orig.prototype;
+  window.Blob = RecordingBlob;
+  const button = [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Download save file'));
+  button.click();
+  return { text: window.__downloadText || '' };
+}`);
+check(downloaded.text.includes('"app": "breaking-bellman"') && downloaded.text.includes('"rare"'), 'Download save file writes the progress file');
 const savePath = path.join(proof, 'exported-save.json');
-fs.writeFileSync(savePath, wrapped);
-evaluate(`() => { localStorage.clear(); return true; }`);
-evaluate(`() => {
-  const buttons = [...document.querySelectorAll('button')].filter(b => b.textContent.includes('Load save file'));
-  buttons[0].click();
-  const input = document.querySelector('input[type=file]');
-  const file = new File([${JSON.stringify(wrapped)}], 'save.json', { type: 'application/json' });
-  const data = new DataTransfer();
-  data.items.add(file);
-  input.files = data.files;
-  input.dispatchEvent(new Event('change', { bubbles: true }));
-  return true;
-}`);
-cli('wait', '1000');
+fs.writeFileSync(savePath, downloaded.text);
+evaluate(`() => { localStorage.clear(); return !localStorage.getItem('breaking-bellman-v1'); }`);
 cli('open', url);
-const roundTrip = evaluate(`() => {
-  const saved = JSON.parse(localStorage.getItem('breaking-bellman-v1'));
-  bellman.level('rare');
-  return {
-    done: saved.done,
-    lstep: saved.lstep,
-    answer: saved.answers['slots-p'].choice,
-    heading: document.querySelector('#mode-pane h2')?.innerText || '',
-    complete: document.querySelector('#rare-complete')?.innerText || '',
-  };
+evaluate(`() => {
+  const button = [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Load save file'));
+  button.click();
+  const input = document.querySelector('input[type=file]');
+  input.hidden = false;
+  input.removeAttribute('hidden');
+  input.setAttribute('aria-label', 'Load progress file');
+  input.style.position = 'fixed';
+  input.style.left = '8px';
+  input.style.top = '8px';
+  input.style.opacity = '1';
+  return input.type;
 }`);
-check(roundTrip.done.join() === 'slots,cliff,rare' && roundTrip.lstep.rare === 5 && roundTrip.lstep.cliff === 4, 'import reload keeps old progress and the new completion');
+const snap = cli('snapshot', '--full');
+fs.writeFileSync(path.join(proof, 'file-input-snapshot.txt'), snap);
+const uidLine = snap.split('\n').find((line) => /uid=/.test(line) && /Load progress file/.test(line));
+if (!uidLine) throw Error('file input missing from snapshot');
+const uid = uidLine.match(/uid=(g\d+:\S+)/)[1];
+cli('upload', '@' + uid, savePath);
+cli('wait', '1200');
+function savedRare() {
+  let last;
+  for (let i = 0; i < 6; i++) {
+    try {
+      const got = evaluate(`() => {
+        const saved = JSON.parse(localStorage.getItem('breaking-bellman-v1') || 'null');
+        if (!saved) return { missing: true };
+        bellman.level('rare');
+        return {
+          done: saved.done,
+          lstep: saved.lstep,
+          answer: saved.answers['slots-p'].choice,
+          heading: document.querySelector('#mode-pane h2')?.innerText || '',
+          complete: document.querySelector('#rare-complete')?.innerText || '',
+        };
+      }`);
+      if (!got.missing) return got;
+    } catch (e) { last = e; }
+    cli('wait', '400');
+  }
+  if (last) throw last;
+  return { missing: true };
+}
+const roundTrip = savedRare();
+check(!roundTrip.missing && roundTrip.done.join() === 'slots,cliff,rare' && roundTrip.lstep.rare === 5 && roundTrip.lstep.cliff === 4, 'file input reload keeps old progress and the new completion');
 check(roundTrip.answer === 1 && roundTrip.heading === 'A bonus for a rare cell', 'imported save reopens the hallway lesson');
-fs.writeFileSync(path.join(proof, 'round-trip.json'), JSON.stringify(roundTrip, null, 2));
-const consoleText = cli('console');
-fs.writeFileSync(path.join(proof, 'console.txt'), consoleText);
-check(!/\[error\]/.test(consoleText), 'no browser console errors');
+cli('open', url);
+const second = savedRare();
+check(!second.missing && second.done.join() === 'slots,cliff,rare' && second.lstep.rare === 5 && second.lstep.cliff === 4 && second.answer === 1, 'a second reload keeps the imported completion');
+fs.writeFileSync(path.join(proof, 'round-trip.json'), JSON.stringify({ firstReload: roundTrip, secondReload: second }, null, 2));
 
 cli('emulate', '--viewport', '390x844x2,mobile,touch', '--color-scheme', 'dark');
 evaluate(`() => { bellman.level('rare'); return true; }`);
@@ -232,4 +265,7 @@ check(/No bonus/.test(measured.rewards) && /Action-score bonus only/.test(measur
 check(!measured.rootHasDash && measured.finishDisabled, 'copy has no em dash and finish waits for the explanation');
 fs.writeFileSync(path.join(proof, 'phone-rewards.txt'), measured.rewards);
 cli('screenshot', path.join(proof, 'rare-390-dark.png'));
+const consoleText = cli('console');
+fs.writeFileSync(path.join(proof, 'console.txt'), consoleText);
+check(!/\[error\]/.test(consoleText), 'no browser console errors');
 console.log('rare UI checks passed');

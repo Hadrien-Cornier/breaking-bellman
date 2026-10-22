@@ -34,6 +34,24 @@ async function preloadFastRecord(page, key) {
   const encoded = zlib.gunzipSync(fs.readFileSync(file)).toString();
   return page.evaluate(async (text) => {
     const record = RLA.exact.parse(text);
+    if (record.schema === 'bb-seed-aggregate-v1') {
+      if (RLA.exact.stringify(record.config.versions) !== RLA.exact.stringify(BB_FAST.versions)) return false;
+      const id = await RLFAST.sha256(RLA.exact.stringify(record.config));
+      if (!window.RLAGG || !RLAGG.validAggregateRecord(record, record.config, id)) return false;
+      const body = RLA.exact.stringify(record);
+      await new Promise((resolve, reject) => {
+        const open = indexedDB.open('breaking-bellman-results', 1);
+        open.onerror = () => reject(open.error);
+        open.onupgradeneeded = () => { if (!open.result.objectStoreNames.contains('results')) open.result.createObjectStore('results'); };
+        open.onsuccess = () => {
+          const db = open.result, tx = db.transaction('results', 'readwrite');
+          tx.objectStore('results').put(body, id);
+          tx.oncomplete = () => { db.close(); resolve(true); };
+          tx.onerror = () => { db.close(); reject(tx.error); };
+        };
+      });
+      return true;
+    }
     return RLFAST.createLocal(BB_FAST).save(record.config, record.results);
   }, encoded);
 }
@@ -63,9 +81,16 @@ async function setWord(page, scope, key, label) {
   await page.locator(scope + ' .chooser .choice', { hasText: label }).first().click();
 }
 
+// On a narrow viewport the phase map starts closed. Open it before tapping a level.
+async function openLevelMap(page) {
+  const map = page.locator('details.map-card');
+  if (await map.count()) await map.evaluate((el) => { el.open = true; });
+}
+
 await session(375, 812, 'phone', async (page) => {
   await page.screenshot({ path: out + '/phone-start.png' });
   // Level 1 is the goal-conditioned lesson. This session still plays the slot machines.
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Ten slot machines' }).click();
   await page.locator('.mc .opt').nth(1).click();
   await page.getByText('Run the starting sentence').click();
@@ -135,7 +160,7 @@ await session(1280, 900, 'desktop', async (page) => {
   // "Copy page": the whole page as Markdown, with the numbers behind each chart
   const pmd = await page.evaluate(() => window.bellman.page());
   check(pmd.startsWith('# Breaking Bellman: the Workbench page') && pmd.includes('## Lab') && pmd.includes('## Words of the current sentence'), 'the page export has its sections');
-  check(pmd.includes('**Chart: Score per test episode**') && pmd.includes('| training steps | seed 1 | mean |') && /\| lowest \| -?[\d.]+/.test(pmd), 'the page export writes each chart as a table of numbers');
+  check(pmd.includes('**Chart: Score per test episode**') && pmd.includes('| training steps | mean | min | max | p25 | p75 |') && /\| lowest \| -?[\d.]+/.test(pmd), 'the page export writes each chart as a table of numbers');
   check(pmd.includes('$$\n') && pmd.includes('[a network]') && !/\*\*\*\*|\bnull\b/.test(pmd), 'the page export keeps the TeX, the word chips, and no empty labels or "null"');
   // review cases: a pinned run on another x grid gets its own table; a code fence inside a text box cannot end the export's fence
   const rc = await page.evaluate(() => {
@@ -215,10 +240,13 @@ await session(1280, 900, 'desktop', async (page) => {
 await session(1280, 900, 'phases', async (page) => {
   await page.getByRole('tab', { name: 'Campaign' }).click();
   // every level is open, in any order; the save bar and the agent hooks are there
-  check(await page.locator('#mode-pane .node').count() === 23 && !(await page.locator('#mode-pane .node[disabled]').count()), 'all 23 levels are open');
+  const levelCount = await page.evaluate(() => window.CONTENT.levels.length);
+  const titles = await page.evaluate(() => window.CONTENT.levels.map((l) => l.title));
+  check(await page.locator('#mode-pane .node').count() === levelCount && !(await page.locator('#mode-pane .node[disabled]').count()), 'every campaign level is open');
+  check(titles.includes('Ten slot machines') && titles.includes('Tell it the goal') && titles.includes('A policy that stops trying') && titles.includes('A bound that is tight only when the guess matches') && titles.includes('A bonus for a rare cell'), 'title navigation still finds the slot, goal, entropy, bound, and count-bonus lessons');
   check(await page.locator('#mode-pane .savebar button', { hasText: 'Download save file' }).count() === 1, 'the level map offers a save file');
   const brief = await page.evaluate(() => window.bellman.help());
-  check(/Level \d+ of 23/.test(brief) && /bellman\.run\(\)/.test(brief), 'window.bellman gives a brief for an AI helper');
+  check(new RegExp('Level \\d+ of ' + levelCount).test(brief) && /bellman\.run\(\)/.test(brief), 'window.bellman gives a brief for an AI helper');
   const wr = await page.evaluate(() => {
     // Level 1 is a custom lesson, so the sentence API is checked from the workbench, then Campaign is restored.
     document.querySelector('[data-mode="workbench"]').click();
@@ -230,6 +258,7 @@ await session(1280, 900, 'phases', async (page) => {
     return { ae, ar: ar || null, t, bad: bad || null };
   });
   check(wr.ae === true && wr.ar === null && wr.t === false && JSON.stringify(wr.bad) === '{"eps":"sometimes","nope":1}', 'bellman.words takes true or "false" and returns bad words as rejected');
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Learn the policy itself' }).click();
   await page.locator('#mode-pane .mc').first().locator('.opt').nth(1).click();
   await page.getByText('Run the starting sentence').click();
@@ -296,6 +325,7 @@ await session(1280, 900, 'phases', async (page) => {
 await session(1280, 900, 'twoways', async (page) => {
   // phase 5 end to end: the 10-command Gaussian copy fails, the flow copy reaches the goal (level hyper: lr 0.003, batch 128)
   await page.getByRole('tab', { name: 'Campaign' }).click();
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Two good ways' }).click();
   await page.locator('#mode-pane .mc').first().locator('.opt').nth(0).click();
   let t0 = Date.now();
@@ -316,6 +346,7 @@ await session(1280, 900, 'twoways', async (page) => {
 });
 await session(375, 812, 'phone-frontier', async (page) => {
   await page.getByRole('tab', { name: 'Campaign' }).click();
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Steer a frozen policy' }).click();
   await page.waitForTimeout(500);
   check(/mud/.test(await page.locator('#mode-pane').innerText()), 'mud level shows its intro');
@@ -385,6 +416,7 @@ await session(375, 812, 'phone-frontier', async (page) => {
   check(!await page.locator('#run-btn').isDisabled() && /forced startup failure/.test(await page.locator('#run-source').innerText()),
     'a failed startup restores both campaign and Lab controls');
   await page.screenshot({ path: out + '/phone-mud.png', fullPage: true });
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Keep the controller' }).click();
   await page.waitForTimeout(500);
   check(/kitting/.test(await page.locator('#mode-pane').innerText()), 'residual level shows its intro');
@@ -394,6 +426,7 @@ await session(375, 812, 'phone-frontier', async (page) => {
 });
 // comment fixes of 15 Oct: the combination table, the episode animation, the discovery map
 await session(375, 812, 'comments', async (page) => {
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Ten slot machines' }).click();
   await page.locator('#grid-card summary').click();
   check(await page.locator('#grid-lab .chip.gw.on').count() === 4, 'slots: the four bandit words are picked by default');
@@ -441,6 +474,7 @@ await session(375, 812, 'expert', async (page) => {
   await page.locator('#expert-card').screenshot({ path: out + '/expert-cliff-min.png' });
 });
 await session(390, 844, 'pendulum', async (page) => {
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Actions that are numbers' }).click();
   await page.evaluate(() => {
     const joint = BB.scenes.joint;
@@ -459,6 +493,8 @@ await session(390, 844, 'pendulum', async (page) => {
   await page.click('#run-btn');
   await runDone(page);
   await page.locator('#stage').scrollIntoViewIfNeeded();
+  // The stage is on screen during the run, so idle frames record the hanging angle before the replay exists.
+  await page.evaluate(() => { window.pendulumAngles = []; });
   await page.locator('#stage').click(); // restart the real animation clock
   await page.waitForTimeout(2200);
   const motion = await page.evaluate(() => ({
@@ -472,7 +508,7 @@ await session(390, 844, 'pendulum', async (page) => {
   check(/replay from hanging still/.test(await page.locator('#stage-caption').innerText()), 'caption identifies the separate replay');
   await page.locator('#stage').screenshot({ path: out + '/phone-pendulum.png' });
 });
-// Rules are visible before the first move, across every selection and at phone/desktop widths.
+// Rules stay on the page at phone and desktop widths, after the world and Run.
 await session(390, 844, 'rules', async (page) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   for (const width of [390, 1280]) {
@@ -486,8 +522,8 @@ await session(390, 844, 'rules', async (page) => {
           if (!text.includes(label)) failures.push(name + ': missing ' + label);
         }
         if (objective && !text.includes(objective)) failures.push(name + ': wrong challenge');
-        if (!(panel.compareDocumentPosition(document.querySelector('#stage')) & Node.DOCUMENT_POSITION_FOLLOWING)) failures.push(name + ': rules follow manual play');
-        if (!(panel.compareDocumentPosition(document.querySelector('#run-btn')) & Node.DOCUMENT_POSITION_FOLLOWING)) failures.push(name + ': rules follow Run');
+        if (!(panel.compareDocumentPosition(document.querySelector('#stage')) & Node.DOCUMENT_POSITION_PRECEDING)) failures.push(name + ': world stays ahead of the rules');
+        if (!(panel.compareDocumentPosition(document.querySelector('#run-btn')) & Node.DOCUMENT_POSITION_PRECEDING)) failures.push(name + ': Run stays ahead of the rules');
         const inline = document.querySelector('#challenge-rules');
         if (inline && inline.innerText !== text) failures.push(name + ': stale inline rules');
         if (document.documentElement.scrollWidth > innerWidth) failures.push(name + ': overflow');
@@ -517,7 +553,7 @@ await session(390, 844, 'rules', async (page) => {
       }
       return failures;
     });
-    check(!missing.length, 'all 23 levels, 11 missions, knob updates and family/world selections have pre-play rules at ' + width + 'px: ' + missing.join('; '));
+    check(!missing.length, 'every level, 11 missions, knob updates and family/world selections have pre-play rules at ' + width + 'px: ' + missing.join('; '));
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => bellman.level('continuous'));
