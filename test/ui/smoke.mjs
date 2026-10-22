@@ -89,7 +89,7 @@ async function openLevelMap(page) {
 
 await session(375, 812, 'phone', async (page) => {
   await page.screenshot({ path: out + '/phone-start.png' });
-  // Level 1 is the goal-conditioned lesson. This session still plays the slot machines.
+  // Level 1 is the lane lesson. This session still plays the slot machines.
   await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Ten slot machines' }).click();
   await page.locator('.mc .opt').nth(1).click();
@@ -243,7 +243,14 @@ await session(1280, 900, 'phases', async (page) => {
   const levelCount = await page.evaluate(() => window.CONTENT.levels.length);
   const titles = await page.evaluate(() => window.CONTENT.levels.map((l) => l.title));
   check(await page.locator('#mode-pane .node').count() === levelCount && !(await page.locator('#mode-pane .node[disabled]').count()), 'every campaign level is open');
-  check(titles.includes('Ten slot machines') && titles.includes('Tell it the goal') && titles.includes('A policy that stops trying') && titles.includes('A bound that is tight only when the guess matches') && titles.includes('A few fresh steps') && titles.includes('Pay a skill for being identifiable') && titles.includes('A bonus for a rare cell') && titles.includes('Call the short skill again') && titles.includes('Pass the message back') && titles.includes('The second episode reads the first') && titles.includes('Stop where the tables disagree') && titles.includes('Rare goals need support'), 'title navigation still finds the slot, goal, entropy, bound, thaw, skill, count-bonus, hierarchy, message, adaptation, disagreement, and density lessons');
+  check(titles.includes('Stay in the lane') && titles.includes('Ten slot machines') && titles.includes('Tell it the goal') && titles.includes('A policy that stops trying') && titles.includes('A bound that is tight only when the guess matches') && titles.includes('A few fresh steps') && titles.includes('Pay a skill for being identifiable') && titles.includes('A bonus for a rare cell') && titles.includes('Call the short skill again') && titles.includes('Pass the message back') && titles.includes('The second episode reads the first') && titles.includes('Stop where the tables disagree') && titles.includes('Rare goals need support'), 'title navigation still finds the lane, slot, goal, entropy, bound, thaw, skill, count-bonus, hierarchy, message, adaptation, disagreement, and density lessons');
+  const phase0 = await page.evaluate(() => {
+    const phase = [...document.querySelectorAll('#mode-pane .phase')].find((el) => /phase 0/i.test(el.textContent));
+    const tree = phase && phase.nextElementSibling;
+    const text = tree ? tree.textContent : '';
+    return { eye: phase ? phase.textContent : '', text, lane: text.indexOf('Stay in the lane'), goal: text.indexOf('Tell it the goal'), slots: text.includes('Ten slot machines') };
+  });
+  check(/phase 0/i.test(phase0.eye) && /imitation before reward/i.test(phase0.eye) && phase0.lane >= 0 && phase0.goal > phase0.lane && !phase0.slots, 'phase 0 leads with the lane lesson and also contains the goal lesson');
   check(await page.locator('#mode-pane .savebar button', { hasText: 'Download save file' }).count() === 1, 'the level map offers a save file');
   const brief = await page.evaluate(() => window.bellman.help());
   check(new RegExp('Level \\d+ of ' + levelCount).test(brief) && /bellman\.run\(\)/.test(brief), 'window.bellman gives a brief for an AI helper');

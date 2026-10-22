@@ -18,6 +18,7 @@
 
   const GAP = {
     bc: 'No verbatim quote is shown. This card cites Pomerleau 1989, ALVINN, and marks that paper as not read here.',
+    dagger: 'No verbatim quote is shown. This card cites Ross, Gordon, and Bagnell, AISTATS 2011, from the arXiv record, and marks that paper as not read here.',
     filtbc: 'No verbatim quote is shown. This card cites the percent-BC baseline and marks those papers as not read here.',
     timelimit: 'No verbatim quote is shown. This card cites Pardo et al. 2018 and marks that paper as not read here.',
   };
@@ -44,6 +45,7 @@
     td3: 'Use the smaller of two critics, add noise to the target action, and update the policy less often than the critic.',
     sac: 'Pay the policy a little for staying random, and move that pay so the randomness stays near a target you chose.',
     bc: 'Copy the actions in the data. You copy the bad ones along with the good ones, and you do not need a reward signal.',
+    dagger: 'Ask the expert for the action at states the learner actually visits, add those labels, and refit the copy. States the learner never visits stay unlabeled.',
     filtbc: 'Copy only the episodes with the highest returns. Good steps inside a weak episode are discarded with it.',
     awr: 'Copy every action, weighted by how much better than usual it was. The weights are only as steady as the returns you fit.',
     td3bc: 'Climb the critic, and add a penalty for actions far from the data. The size of that penalty is a knob you have to set.',
