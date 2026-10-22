@@ -1514,7 +1514,7 @@
     return rs.slice(0, 5).map(f).join(', ') + ', … (' + (rs.length - 8) + ' more) …, ' + rs.slice(-3).map(f).join(', ');
   }
   function replayView() {
-    const st = { sess: null, pr: null, stage: 0, busy: false, cfg: null, t: 0 };
+    const st = { sess: null, pr: null, stage: 0, busy: false, cfg: null, t: 0, token: 0 };
     const out = h('div.rp-body');
     const startBtn = h('button.btn.ghost', { type: 'button' }, 'Watch one update');
     startBtn.addEventListener('click', () => start());
@@ -1529,6 +1529,7 @@
     }
     async function start() {
       if (st.busy) return; st.busy = true; startBtn.disabled = true;
+      const token = ++st.token;
       const cfg = { world: S.world, knobs: Object.assign({}, S.knobs), parts: Object.assign({}, S.parts), hyper: hyperNow(), seed: 1 };
       let sess;
       try { sess = RLA.session(cfg); }
@@ -1538,7 +1539,9 @@
         const k = Math.min(200, N - done); if (sess.learner.offline) sess.trainOffline(k); else sess.advance(k); done += k;
         out.replaceChildren(h('p.small', { text: 'Training ' + done + ' of ' + N + ' moves…' }));
         await new Promise((r) => setTimeout(r, 0));
+        if (token !== st.token || !box.isConnected) { st.busy = false; startBtn.disabled = false; return; }
       }
+      if (token !== st.token || !box.isConnected) { st.busy = false; startBtn.disabled = false; return; }
       st.sess = sess; st.cfg = cfg;
       next(0);
       st.busy = false; startBtn.disabled = false; startBtn.textContent = 'Start again with the current sentence';
@@ -1870,6 +1873,14 @@
       }
       frame(['The row', 'The target', 'The critic step', 'The policy step', 'What the critic believes'], body);
     }
+    box.resetReplay = () => {
+      st.token += 1;
+      cancelAnimationFrame(epAnim);
+      st.busy = false; st.sess = null; st.pr = null; st.cfg = null;
+      out.replaceChildren();
+      startBtn.disabled = false;
+      startBtn.textContent = 'Watch one update';
+    };
     return box;
   }
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -2285,6 +2296,32 @@
     ]));
   };
 
+  // Drop the previous exercise's run, replay and charts when the selected review changes.
+  // Saved progress and the pinned comparison stay in their own slots. Same exercise does not reset.
+  function applyReviewTransition(id) {
+    const c = C.cards[id];
+    if (!c || !window.REVIEW) return;
+    const world = c.review;
+    const knobs = c.reviewKnobs || {};
+    const plan = window.REVIEW.plan(
+      { id: S.reviewLab, world: S.world, knobs: S.knobs, running: !!S.running },
+      { id: id, world: world, knobs: knobs });
+    if (!plan.resetTransient) return;
+    setWorld(plan.world, plan.knobs);
+    if (S.rv && S.rv.parts) setParts(S.rv.parts);
+    const replay = $('#replay-lab .replay');
+    if (replay && replay.resetReplay) replay.resetReplay();
+    $('#expert-card').hidden = true;
+    $('#wonder').hidden = true;
+    $('#run-source').textContent = 'Live simulation: training in this page.';
+    $('#prog').style.width = '0%';
+    S.reviewLab = id;
+  }
+  function clearReviewReplay() {
+    const replay = $('#replay-lab .replay');
+    if (replay && replay.resetReplay) replay.resetReplay();
+  }
+
   // --- Review: rebuild a discovered method from memory, mixed across worlds
   function reviewQueue() {
     const ids = Object.keys(C.cards).filter((id) => C.cards[id].review && S.found.includes(id));
@@ -2308,40 +2345,112 @@
     pane.append(intro);
     if (!q.length) { pane.append(h('div.card', null, [h('p', { text: 'Nothing to review yet. Each method you discover in the Campaign or the Workbench comes back here.' })])); return; }
     const plain = (cid) => C.cfg({ family: (recipeOfCard(cid) || {}).family || 'value' });
-    if (!S.rv || !q.includes(S.rv.id)) S.rv = { id: q[0], parts: plain(q[0]), checked: null };
+    if (!S.rv || !q.includes(S.rv.id)) S.rv = { id: q[0], parts: plain(q[0]), checked: null, hint: false };
+    if (S.rv.hint == null) S.rv.hint = false;
     const id = S.rv.id, c = C.cards[id], rec = recipeOfCard(id), world = c.review;
-    const m = mountSentence({ getParts: () => S.rv.parts, setPart: (k, v) => { S.rv.parts[k] = v; S.rv.checked = null; refreshSentences(); fb.replaceChildren(); }, world: () => world, withMath: true });
-    const fb = h('div.stack');
+    applyReviewTransition(id);
+    const lesson = (window.REVIEW_LESSONS || {})[id] || {};
+    const eyebrow = h('div.eyebrow', { text: C.worldNames[world] + ' · practiced ' + ((S.reviews[id] || {}).n || 0) + ' times' });
+    const tail = h('div.stack');
+    const m = mountSentence({ getParts: () => S.rv.parts, setPart: (k, v) => {
+      S.rv.parts[k] = v;
+      if (S.parts[k] !== v) { S.parts[k] = v; onPartsChanged(); }
+      S.rv.checked = null;
+      S.rv.hint = false;
+      refreshSentences();
+      paint();
+    }, world: () => world, withMath: true });
+    function solutionLines() {
+      const keys = Object.keys(rec.keys);
+      const wrong = S.rv.checked || keys.filter((k) => !keysMatch(S.rv.parts, { [k]: rec.keys[k] }));
+      return keys.map((k) => {
+        const ok = !wrong.includes(k), pub = rec.keys[k];
+        const meaning = Array.isArray(pub) ? '' : (optOf(k, pub) || [])[2] || '';
+        return h('p.small' + (ok ? '' : '.miss'), { html: (ok ? '✓ ' : '✗ ') + '<b>' + W[k].q + '</b> ' + (ok ? wordText(k, S.rv.parts[k]) + '.' : 'You chose "' + wordText(k, S.rv.parts[k]) + '". ' + c.name + ' uses "' + wordText(k, pub) + '". ' + meaning) });
+      });
+    }
+    function paint() {
+      const gate = window.REVIEW.hintGate(S.reviews[id], S.rv.hint);
+      const order = window.REVIEW.sections(gate.attempted, gate.showSolution);
+      eyebrow.textContent = C.worldNames[world] + ' · practiced ' + ((S.reviews[id] || {}).n || 0) + ' times';
+      const kids = [];
+      if (Array.isArray(S.rv.checked)) {
+        const n = S.rv.checked.length;
+        kids.push(h('p', { html: n ? '<b>Not yet: ' + n + ' word' + (n > 1 ? 's' : '') + ' differ.</b>' : '<b>Rebuilt from memory.</b>' }));
+      }
+      if (order.indexOf('inspect') !== -1) {
+        const peek = peekFor(id);
+        kids.push(h('section.review-inspect', { 'data-review': 'inspect' }, [
+          h('h3', { text: 'Why this helps' }),
+          h('p', { text: lesson.inspect || '' }),
+          peek,
+        ]));
+      }
+      if (order.indexOf('solution') !== -1) {
+        kids.push(h('div.stack', { 'data-review': 'solution' }, [
+          h('h3', { text: 'Detailed solution' }),
+          ...solutionLines(),
+          h('p', { html: '<b>Why it works:</b> ' + c.fixes }),
+          h('p.small', { html: '<b>How it still fails:</b> ' + c.stillWrong }),
+        ]));
+      } else if (order.indexOf('hint') !== -1) {
+        kids.push(h('button.btn.ghost', {
+          type: 'button', 'data-review': 'hint', 'aria-label': 'Show the detailed solution',
+          onclick: () => { S.rv.hint = true; paint(); },
+        }, 'Show the detailed solution'));
+      }
+      kids.push(h('div.row', null, [
+        h('button.btn.ghost', { type: 'button', onclick: async () => {
+          setWorld(world, c.reviewKnobs || {});
+          S.reviewLab = id;
+          S.parts = Object.assign({}, S.rv.parts);
+          budgetOptions();
+          onPartsChanged();
+          clearReviewReplay();
+          await run();
+        } }, 'Run my sentence on ' + C.worldNames[world]),
+        h('button.btn', { type: 'button', onclick: () => {
+          const nq = reviewQueue().filter((x) => x !== id);
+          const next = nq[0] || id;
+          S.rv = { id: next, parts: plain(next), checked: null, hint: false };
+          render();
+        } }, 'Next method'),
+      ]));
+      tail.replaceChildren(...kids);
+    }
     const check = () => {
-      const keys = Object.keys(rec.keys), wrong = keys.filter((k) => !keysMatch(S.rv.parts, { [k]: rec.keys[k] }));
-      S.rv.checked = wrong;
-      recordReview(id, wrong);
-      fb.replaceChildren(
-        h('p', { html: wrong.length ? '<b>Not yet: ' + wrong.length + ' word' + (wrong.length > 1 ? 's' : '') + ' differ.</b>' : '<b>Rebuilt from memory.</b>' }),
-        ...keys.map((k) => {
-          const ok = !wrong.includes(k), pub = rec.keys[k];
-          const meaning = Array.isArray(pub) ? '' : (optOf(k, pub) || [])[2] || '';
-          return h('p.small' + (ok ? '' : '.miss'), { html: (ok ? '✓ ' : '✗ ') + '<b>' + W[k].q + '</b> ' + (ok ? wordText(k, S.rv.parts[k]) + '.' : 'You chose "' + wordText(k, S.rv.parts[k]) + '". ' + c.name + ' uses "' + wordText(k, pub) + '". ' + meaning) });
-        }),
-        h('p', { html: '<b>Why it works:</b> ' + c.fixes }),
-        h('p.small', { html: '<b>How it still fails:</b> ' + c.stillWrong }),
-        peekFor(id),
-        h('section.game-rules', { 'aria-label': 'Review game rules' }, rulesPanel(world, c.reviewKnobs || {})),
-        h('div.row', null, [
-          h('button.btn.ghost', { type: 'button', onclick: async () => { setWorld(world, c.reviewKnobs || {}); S.parts = Object.assign({}, S.rv.parts); budgetOptions(); onPartsChanged(); await run(); } }, 'Run my sentence on ' + C.worldNames[world]),
-          h('button.btn', { type: 'button', onclick: () => { const nq = reviewQueue().filter((x) => x !== id); S.rv = { id: nq[0] || id, parts: plain(nq[0] || id), checked: null }; render(); } }, 'Next method'),
-        ]),
-      );
+      const keys = Object.keys(rec.keys);
+      S.rv.checked = keys.filter((k) => !keysMatch(S.rv.parts, { [k]: rec.keys[k] }));
+      S.rv.hint = false;
+      recordReview(id, S.rv.checked);
+      paint();
     };
-    pane.append(h('div.card', null, [
-      h('div.eyebrow', { text: C.worldNames[world] + ' · practiced ' + ((S.reviews[id] || {}).n || 0) + ' times' }),
-      h('h2', { text: 'Rebuild ' + c.name }),
-      h('p', { text: 'Start from the plain sentence below and set the words that make ' + c.name + '. Then check.' }),
-      m,
-      h('div.row', null, [h('button.btn', { type: 'button', onclick: check }, 'Check my sentence'),
-        h('button.btn.ghost', { type: 'button', onclick: () => { S.rv.parts = plain(id); refreshSentences(); fb.replaceChildren(); } }, 'Reset to the plain sentence')]),
-      fb,
+    pane.append(h('div.card.review-context', { 'data-review': 'context' }, [
+      h('div.eyebrow', { text: 'Why this method' }),
+      h('p', { text: lesson.task || '' }),
+      h('p', { text: 'Earlier method: ' + (lesson.before || '') + '.' }),
+      h('p', { text: 'What still fails: ' + (lesson.failure || '') }),
+      h('p', { text: 'What this method changes: ' + (lesson.aim || '') }),
     ]));
+    pane.append(h('div.card', { 'data-review': 'rebuild' }, [
+      eyebrow,
+      h('h2', { text: 'Rebuild ' + c.name }),
+      h('p', { text: 'Change the plain sentence until it is this method. Then check. The lab shows this method\'s world.' }),
+      m,
+      h('div.row', null, [
+        h('button.btn', { type: 'button', onclick: check }, 'Check my sentence'),
+        h('button.btn.ghost', { type: 'button', onclick: () => {
+          S.rv.parts = plain(id);
+          S.rv.checked = null;
+          S.rv.hint = false;
+          setParts(S.rv.parts);
+          refreshSentences();
+          paint();
+        } }, 'Reset to the plain sentence'),
+      ]),
+      tail,
+    ]));
+    paint();
   };
 
   // --- a card can name a world you have not played yet: show that world in place (16 Oct 2026, from a page comment)
@@ -2973,6 +3082,7 @@
     if (!vpoActive()) BBVPO.cancel();
     if (!supermimicActive()) BBSUPERMIMIC.cancel();
     $('#lab').hidden = customActive(); $('#vpo-lab').hidden = !customActive();
+    if (S.mode !== 'review') S.reviewLab = null;
     MODES[S.mode](pane);
     refreshSentences();
     if (!customActive()) renderRules();
