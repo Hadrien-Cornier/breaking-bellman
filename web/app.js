@@ -1055,6 +1055,7 @@
     if (id === 'elbo') return window.BBELBO_LEVEL;
     if (id === 'rewardfit') return window.BBREWARDFIT;
     if (id === 'rare') return window.BBRARE;
+    if (id === 'thaw') return window.BBTHAW;
     return null;
   }
   const vpoActive = () => S.mode === 'campaign' && S.level === 'vpo';
@@ -1064,8 +1065,9 @@
   const hindsightActive = () => S.mode === 'campaign' && S.level === 'hindsight';
   const elboActive = () => S.mode === 'campaign' && S.level === 'elbo';
   const rewardfitActive = () => S.mode === 'campaign' && S.level === 'rewardfit';
+  const thawActive = () => S.mode === 'campaign' && S.level === 'thaw';
   const rareActive = () => S.mode === 'campaign' && S.level === 'rare';
-  const customActive = () => vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || elboActive() || rewardfitActive() || rareActive();
+  const customActive = () => vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || elboActive() || rewardfitActive() || thawActive() || rareActive();
   const customApi = () => customLessonApi(S.level);
   async function run() {
     if (customActive()) return customApi().run();
@@ -2077,7 +2079,7 @@
         return;
       }
       const iNext = C.levels.indexOf(lv);
-      api.mount(pane, $('#vpo-lab'), { h, done: () => S.done.includes(lv.id), step: () => S.lstep[lv.id] || 0,
+      api.mount(pane, $('#vpo-lab'), { h, mc: mcBlock, step: () => S.lstep[lv.id] || 0, setStep: (n) => setStep(lv, n), refresh: () => render(),
         mark: (n) => { if ((S.lstep[lv.id] || 0) < n) { S.lstep[lv.id] = n; save(); updateScore(); } },
         markStep: (n) => { if ((S.lstep[lv.id] || 0) < n) { S.lstep[lv.id] = n; save(); updateScore(); } },
         answer: (id) => S.answers[id] || null,
@@ -2089,7 +2091,7 @@
         progress: () => S.lstep[lv.id] || 0,
         setProgress: (n) => { if ((S.lstep[lv.id] || 0) < n) { S.lstep[lv.id] = n; save(); } },
         answerFor: (id) => S.answers[id] || null,
-        complete: () => {
+        done: () => S.done.includes(lv.id), complete: () => {
         if (!S.done.includes(lv.id)) S.done.push(lv.id); S.lstep[lv.id] = 5; save(); updateScore();
       }, known: id => S.found.includes(id) || S.given.includes(id), reveal: id => {
         if (!S.given.includes(id)) {
@@ -2854,7 +2856,7 @@
           return out;
         } },
       { name: 'set_world', description: 'Change the world and its knobs (knobs not given keep their defaults).', inputSchema: { type: 'object', properties: { world: { type: 'string', enum: Object.keys(C.worldNames) }, knobs: { type: 'object' } }, required: ['world'] },
-        execute: ({ world, knobs }) => { if (world === 'vpo' || world === 'supermimic' || world === 'goals' || world === 'replan' || world === 'hindsight' || world === 'elbo' || world === 'rewardfit' || world === 'rare') return window.bellman.level(world); if (customActive()) S.mode = 'workbench'; setWorld(world, knobs || {}); note('world → ' + world + ' ' + JSON.stringify(knobs || {})); return { world: S.world, knobs: S.knobs }; } },
+        execute: ({ world, knobs }) => { if (world === 'vpo' || world === 'supermimic' || world === 'goals' || world === 'replan' || world === 'hindsight' || world === 'elbo' || world === 'rewardfit' || world === 'thaw' || world === 'rare') return window.bellman.level(world); if (customActive()) S.mode = 'workbench'; setWorld(world, knobs || {}); note('world → ' + world + ' ' + JSON.stringify(knobs || {})); return { world: S.world, knobs: S.knobs }; } },
       { name: 'run_experiment', description: 'Train the current sentence on the current world for real (seconds) and return the autopsy. seeds applies to CartPole only (1, 3 or 5); the other worlds use many runs.', inputSchema: { type: 'object', properties: { seeds: { type: 'integer', minimum: 1, maximum: 5 } } },
         execute: async ({ seeds }) => { if (customActive()) return customApi().run(); const so = C.seedOptions[S.world]; if (seeds && S.world === 'cartpole') $('#seeds').value = String(so.reduce((b, n) => (Math.abs(n - seeds) < Math.abs(b - seeds) ? n : b), so[0])); note('running ' + $('#seeds').value + ' runs…'); const a = await run(); if (!a) throw new Error('run failed'); note('done'); return { symptoms: a.symptoms, summary: a.summary }; } },
     ];
@@ -2892,6 +2894,7 @@
       : goalsActive() ? ['Goal-conditioned counts: p(action | state, room) = count(action, state, room) / count(state, room). A hidden count drops the room. Use the level controls and bellman.run().']
       : replanActive() ? ['Replan: score every 4-action sequence on the known mean model. Open-loop drives the winner. Replan drives only the first action and plans again from the observed cell. Use the level controls.']
       : rewardfitActive() ? ['Reward fit: features are closeness, hole, lane, and step. The soft policy is proportional to exp(Q). The planner reads weights only. Use the level controls and bellman.run().']
+      : thawActive() ? ['Thaw: a linear policy fit on a frozen light-arm dataset, then a short finite-difference update on the heavy arm, compared with the same budget from zeros. Use the level controls and bellman.run().']
       : rareActive() ? ['Visit bonus: an untried action is worth 1/(1 - gamma) until it is taken. The repair adds 1/sqrt(n(s\')) inside the Q target, on top of the environment reward, which stays 0 or 1. Use the level controls and bellman.run().']
       : C.families[fam(S.parts)].keys.map((k) => '- `' + k + '` (' + W[k].q + '): ' + W[k].options.map((o) => '`' + o[0] + '` = ' + plainText(o[1])).join('; ') + '. Now: `' + S.parts[k] + '`.');
   function aiBrief() {
@@ -2983,6 +2986,7 @@
           : goalsActive() ? [{ label: 'Action count', tex: 'p(a|s,g) = n(a,s,g) / n(s,g)' }]
           : replanActive() ? [{ label: 'Mean-model return', tex: 'J(a_0:H-1) = sum_t r(s_t, a_t) under the mean model' }]
           : rewardfitActive() ? [{ label: 'Soft-optimal action likelihood', tex: '\\log \\pi_w(a|s) = Q_w(s,a) - \\log \\sum_a \\exp Q_w(s,a)' }]
+          : thawActive() ? [{ label: 'One-joint return', tex: 'J = sum_t -(angle_t - 1)^2' }]
           : rareActive() ? [{ label: 'Backed-up target', tex: 'y = r_{env} + 1/\\sqrt{n(s\')} + \\gamma \\max_{a\'} \\hat{Q}(s\', a\')' }, { label: 'Environment reward', tex: 'r_{env} \\in \\{0, 1\\}' }]
           : texLines(Object.assign({}, S.parts, parts || {}), world || S.world).map(([label, tex]) => ({ label, tex })),
       state: () => labState(),
@@ -3171,6 +3175,7 @@
     if (window.BBELBO_LEVEL && !elboActive()) window.BBELBO_LEVEL.cancel();
     if (window.BBRARE && !rareActive()) BBRARE.cancel();
     if (!rewardfitActive() && window.BBREWARDFIT) BBREWARDFIT.cancel();
+    if (window.BBTHAW && !thawActive()) window.BBTHAW.cancel();
     $('#lab').hidden = customActive(); $('#vpo-lab').hidden = !customActive();
     if (S.mode !== 'review') S.reviewLab = null;
     MODES[S.mode](pane);

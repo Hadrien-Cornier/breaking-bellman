@@ -513,6 +513,14 @@ ul.preset-diff li { margin: 2px 0; }
 #elbo-lesson .meter > span { display: block; height: 100%; background: var(--accent); }
 #elbo-lesson .vpo-table { max-width: 100%; min-width: 0; overflow-x: auto; }
 
+/* The thaw lesson reuses the same column. Its bars and rules stay inside the pane on a phone. */
+#thaw-lesson, #thaw-bars, #thaw-compare, #thaw-rules, #thaw-source { min-width: 0; }
+#thaw-lesson .opt { width: 100%; }
+#thaw-arm { display: block; width: 100%; height: auto; }
+#thaw-bars .thaw-bar { height: 12px; background: var(--sunk); border-radius: 6px; overflow: hidden; }
+#thaw-bars .thaw-bar > span { display: block; height: 100%; }
+#thaw-source a { margin-right: .35rem; }
+
 .review-context p, .review-inspect p { margin: 0; overflow-wrap: anywhere; }
 .review-context, .review-inspect { min-width: 0; }
 
