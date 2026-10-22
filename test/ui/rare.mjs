@@ -172,8 +172,12 @@ const downloaded = evaluate(`() => {
 check(downloaded.text.includes('"app": "breaking-bellman"') && downloaded.text.includes('"rare"'), 'Download save file writes the progress file');
 const savePath = path.join(proof, 'exported-save.json');
 fs.writeFileSync(savePath, downloaded.text);
+const uploadPath = path.join(process.cwd(), 'dist', 'rare-save-upload.json');
+fs.writeFileSync(uploadPath, downloaded.text);
 evaluate(`() => { localStorage.clear(); return !localStorage.getItem('breaking-bellman-v1'); }`);
 cli('open', url);
+cli('press', 'Escape');
+cli('wait', '400');
 evaluate(`() => {
   const button = [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Load save file'));
   button.click();
@@ -192,7 +196,7 @@ fs.writeFileSync(path.join(proof, 'file-input-snapshot.txt'), snap);
 const uidLine = snap.split('\n').find((line) => /uid=/.test(line) && /Load progress file/.test(line));
 if (!uidLine) throw Error('file input missing from snapshot');
 const uid = uidLine.match(/uid=(g\d+:\S+)/)[1];
-cli('upload', '@' + uid, savePath);
+cli('upload', '@' + uid, uploadPath);
 cli('wait', '1200');
 function savedRare() {
   let last;
