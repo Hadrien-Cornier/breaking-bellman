@@ -340,6 +340,25 @@ const imported = evaluate(`() => {
 }`);
 check(imported.slots && imported.skills && imported.cliffStep === 2 && imported.slotsAnswer === 1, 'load control restores old progress and the new completion');
 check(imported.skillsStep === 5 && imported.skillsAnswer, 'skills completion and first-try answer reload with the save');
+cli('open', url);
+const second = evaluate(`() => {
+  document.querySelector('dialog.intro button')?.click();
+  bellman.level('skills');
+  const saved = JSON.parse(localStorage.getItem('breaking-bellman-v1'));
+  const levels = bellman.levels();
+  const next = document.querySelector('#skills-next');
+  return {
+    slots: levels.find((l) => l.id === 'slots').done,
+    cliff: levels.find((l) => l.id === 'cliff').done,
+    skills: levels.find((l) => l.id === 'skills').done,
+    cliffStep: saved.lstep.cliff,
+    slotsAnswer: saved.answers['slots-p'].choice,
+    skillsStep: saved.lstep.skills,
+    next: next && next.innerText,
+  };
+}`);
+check(second.slots && !second.cliff && second.skills && second.cliffStep === 2 && second.slotsAnswer === 1 && second.skillsStep === 5, 'a second reload keeps old progress and the skills completion');
+check(second.next && second.next.includes('A miss is a hit'), 'the reloaded lesson still offers the current next level');
 
 const consoleText = cli('console');
 fs.writeFileSync(path.join(proof, 'console.txt'), consoleText);
