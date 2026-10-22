@@ -12,6 +12,8 @@ const [out = path.join(os.tmpdir(), 'bb-levels'), url = new URL('../../dist/brea
 fs.mkdirSync(out, { recursive: true });
 const candidates = [process.env.PW_CHROMIUM, chromium.executablePath(), '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome', '/usr/bin/chromium'];
 const browser = await chromium.launch({ executablePath: candidates.find(p => p && fs.existsSync(p)) });
+// Full lesson budgets (especially pick) can exceed four minutes on a busy MBP.
+const runTimeout = 600000;
 const records = [], failures = [];
 let checks = 0;
 function check(ok, message) { checks++; assert.ok(ok, message); }
@@ -89,15 +91,15 @@ try {
           const button = custom ? `#${id}-run` : '#run-btn';
           await page.locator(button).click();
           if (id === 'vpo') {
-            await page.waitForFunction(() => !document.querySelector('#vpo-run').disabled && document.querySelector('#vpo-source').textContent.includes('Live simulation completed'), null, { timeout: 240000 });
+            await page.waitForFunction(() => !document.querySelector('#vpo-run').disabled && document.querySelector('#vpo-source').textContent.includes('Live simulation completed'), null, { timeout: runTimeout });
             record.result = await page.locator('#vpo-source').innerText();
             verify(await page.locator('#vpo-lesson table').count() > 0, 'baseline measured results table exists');
           } else if (id === 'supermimic') {
-            await page.waitForSelector('#supermimic-gradients', { timeout: 240000 });
+            await page.waitForSelector('#supermimic-gradients', { timeout: runTimeout });
             record.result = await page.locator('#supermimic-gradients').innerText();
             verify(await page.locator('#supermimic-rollout table').count() > 0, 'baseline rollout and gradient tables exist');
           } else {
-            await page.waitForFunction(() => !document.querySelector('#run-btn').disabled && document.querySelector('#run-result').textContent.trim().length > 0, null, { timeout: 240000 });
+            await page.waitForFunction(() => !document.querySelector('#run-btn').disabled && document.querySelector('#run-result').textContent.trim().length > 0, null, { timeout: runTimeout });
             record.result = await page.locator('#run-result').innerText();
             record.source = await page.locator('#run-source').innerText();
             verify(await page.locator('#charts canvas').count() > 0, 'baseline charts appear');
