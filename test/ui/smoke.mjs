@@ -34,6 +34,24 @@ async function preloadFastRecord(page, key) {
   const encoded = zlib.gunzipSync(fs.readFileSync(file)).toString();
   return page.evaluate(async (text) => {
     const record = RLA.exact.parse(text);
+    if (record.schema === 'bb-seed-aggregate-v1') {
+      if (RLA.exact.stringify(record.config.versions) !== RLA.exact.stringify(BB_FAST.versions)) return false;
+      const id = await RLFAST.sha256(RLA.exact.stringify(record.config));
+      if (!window.RLAGG || !RLAGG.validAggregateRecord(record, record.config, id)) return false;
+      const body = RLA.exact.stringify(record);
+      await new Promise((resolve, reject) => {
+        const open = indexedDB.open('breaking-bellman-results', 1);
+        open.onerror = () => reject(open.error);
+        open.onupgradeneeded = () => { if (!open.result.objectStoreNames.contains('results')) open.result.createObjectStore('results'); };
+        open.onsuccess = () => {
+          const db = open.result, tx = db.transaction('results', 'readwrite');
+          tx.objectStore('results').put(body, id);
+          tx.oncomplete = () => { db.close(); resolve(true); };
+          tx.onerror = () => { db.close(); reject(tx.error); };
+        };
+      });
+      return true;
+    }
     return RLFAST.createLocal(BB_FAST).save(record.config, record.results);
   }, encoded);
 }
@@ -142,7 +160,7 @@ await session(1280, 900, 'desktop', async (page) => {
   // "Copy page": the whole page as Markdown, with the numbers behind each chart
   const pmd = await page.evaluate(() => window.bellman.page());
   check(pmd.startsWith('# Breaking Bellman: the Workbench page') && pmd.includes('## Lab') && pmd.includes('## Words of the current sentence'), 'the page export has its sections');
-  check(pmd.includes('**Chart: Score per test episode**') && pmd.includes('| training steps | seed 1 | mean |') && /\| lowest \| -?[\d.]+/.test(pmd), 'the page export writes each chart as a table of numbers');
+  check(pmd.includes('**Chart: Score per test episode**') && pmd.includes('| training steps | mean | min | max | p25 | p75 |') && /\| lowest \| -?[\d.]+/.test(pmd), 'the page export writes each chart as a table of numbers');
   check(pmd.includes('$$\n') && pmd.includes('[a network]') && !/\*\*\*\*|\bnull\b/.test(pmd), 'the page export keeps the TeX, the word chips, and no empty labels or "null"');
   // review cases: a pinned run on another x grid gets its own table; a code fence inside a text box cannot end the export's fence
   const rc = await page.evaluate(() => {
@@ -222,10 +240,13 @@ await session(1280, 900, 'desktop', async (page) => {
 await session(1280, 900, 'phases', async (page) => {
   await page.getByRole('tab', { name: 'Campaign' }).click();
   // every level is open, in any order; the save bar and the agent hooks are there
-  check(await page.locator('#mode-pane .node').count() === 23 && !(await page.locator('#mode-pane .node[disabled]').count()), 'all 23 levels are open');
+  const levelCount = await page.evaluate(() => window.CONTENT.levels.length);
+  const titles = await page.evaluate(() => window.CONTENT.levels.map((l) => l.title));
+  check(await page.locator('#mode-pane .node').count() === levelCount && !(await page.locator('#mode-pane .node[disabled]').count()), 'every campaign level is open');
+  check(titles.includes('Ten slot machines') && titles.includes('Tell it the goal') && titles.includes('A policy that stops trying') && titles.includes('A bound that is tight only when the guess matches') && titles.includes('Tilt the reference'), 'title navigation still finds the slot, goal, entropy, bound, and preference lessons');
   check(await page.locator('#mode-pane .savebar button', { hasText: 'Download save file' }).count() === 1, 'the level map offers a save file');
   const brief = await page.evaluate(() => window.bellman.help());
-  check(/Level \d+ of 23/.test(brief) && /bellman\.run\(\)/.test(brief), 'window.bellman gives a brief for an AI helper');
+  check(new RegExp('Level \\d+ of ' + levelCount).test(brief) && /bellman\.run\(\)/.test(brief), 'window.bellman gives a brief for an AI helper');
   const wr = await page.evaluate(() => {
     // Level 1 is a custom lesson, so the sentence API is checked from the workbench, then Campaign is restored.
     document.querySelector('[data-mode="workbench"]').click();
@@ -532,7 +553,7 @@ await session(390, 844, 'rules', async (page) => {
       }
       return failures;
     });
-    check(!missing.length, 'all 23 levels, 11 missions, knob updates and family/world selections have pre-play rules at ' + width + 'px: ' + missing.join('; '));
+    check(!missing.length, 'every level, 11 missions, knob updates and family/world selections have pre-play rules at ' + width + 'px: ' + missing.join('; '));
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => bellman.level('continuous'));
