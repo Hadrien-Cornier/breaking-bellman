@@ -1007,8 +1007,9 @@
   const goalsActive = () => S.mode === 'campaign' && S.level === 'goals';
   const replanActive = () => S.mode === 'campaign' && S.level === 'replan';
   const hindsightActive = () => S.mode === 'campaign' && S.level === 'hindsight';
-  const customActive = () => vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive();
-  const customApi = () => hindsightActive() ? BBHINDSIGHT : replanActive() ? BBREPLAN : goalsActive() ? window.BBGOALS_LEVEL : supermimicActive() ? BBSUPERMIMIC : BBVPO;
+  const elboActive = () => S.mode === 'campaign' && S.level === 'elbo';
+  const customActive = () => vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || elboActive();
+  const customApi = () => elboActive() ? window.BBELBO_LEVEL : hindsightActive() ? BBHINDSIGHT : replanActive() ? BBREPLAN : goalsActive() ? window.BBGOALS_LEVEL : supermimicActive() ? BBSUPERMIMIC : BBVPO;
   async function run() {
     if (customActive()) return customApi().run();
     if (S.running) return null;
@@ -2023,7 +2024,7 @@
       ]),
     ]);
     if (lv.custom) {
-      const api = lv.id === 'hindsight' ? BBHINDSIGHT : lv.id === 'replan' ? BBREPLAN : lv.id === 'goals' ? window.BBGOALS_LEVEL : lv.id === 'supermimic' ? BBSUPERMIMIC : lv.id === 'vpo' ? BBVPO : null;
+      const api = lv.id === 'elbo' ? window.BBELBO_LEVEL : lv.id === 'hindsight' ? BBHINDSIGHT : lv.id === 'replan' ? BBREPLAN : lv.id === 'goals' ? window.BBGOALS_LEVEL : lv.id === 'supermimic' ? BBSUPERMIMIC : lv.id === 'vpo' ? BBVPO : null;
       if (!api || !api.mount) {
         pane.append(h('div.card', null, [h('h2', { text: lv.title }), h('p', { text: 'This lesson is not mounted.' })]));
         pane.append(mapCard);
@@ -2804,7 +2805,7 @@
           return out;
         } },
       { name: 'set_world', description: 'Change the world and its knobs (knobs not given keep their defaults).', inputSchema: { type: 'object', properties: { world: { type: 'string', enum: Object.keys(C.worldNames) }, knobs: { type: 'object' } }, required: ['world'] },
-        execute: ({ world, knobs }) => { if (world === 'vpo' || world === 'supermimic' || world === 'goals' || world === 'replan' || world === 'hindsight') return window.bellman.level(world); if (customActive()) S.mode = 'workbench'; setWorld(world, knobs || {}); note('world → ' + world + ' ' + JSON.stringify(knobs || {})); return { world: S.world, knobs: S.knobs }; } },
+        execute: ({ world, knobs }) => { if (world === 'vpo' || world === 'supermimic' || world === 'goals' || world === 'replan' || world === 'hindsight' || world === 'elbo') return window.bellman.level(world); if (customActive()) S.mode = 'workbench'; setWorld(world, knobs || {}); note('world → ' + world + ' ' + JSON.stringify(knobs || {})); return { world: S.world, knobs: S.knobs }; } },
       { name: 'run_experiment', description: 'Train the current sentence on the current world for real (seconds) and return the autopsy. seeds applies to CartPole only (1, 3 or 5); the other worlds use many runs.', inputSchema: { type: 'object', properties: { seeds: { type: 'integer', minimum: 1, maximum: 5 } } },
         execute: async ({ seeds }) => { if (customActive()) return customApi().run(); const so = C.seedOptions[S.world]; if (seeds && S.world === 'cartpole') $('#seeds').value = String(so.reduce((b, n) => (Math.abs(n - seeds) < Math.abs(b - seeds) ? n : b), so[0])); note('running ' + $('#seeds').value + ' runs…'); const a = await run(); if (!a) throw new Error('run failed'); note('done'); return { symptoms: a.symptoms, summary: a.summary }; } },
     ];
@@ -2838,6 +2839,7 @@
   const wordLines = () => hindsightActive() ? ['Hindsight: same four environment steps, then extra Q updates on goals recomputed from the final cell. Use the level controls and bellman.run().']
     : vpoActive() ? ['VPO: mean over eight preferences of the best score in a three-route set. GRPO: fixed mean reward for each route. Use the level controls and bellman.run().']
     : supermimicActive() ? ['SuperMimic-inspired: compare PPO in physics, PPO in one fitted model, and backpropagation through that same model. Use the level controls and bellman.run().']
+      : elboActive() ? ['Evidence lower bound: expected log p(bright | cause) minus KL(q || prior). The gap is KL(q || posterior). Use the level controls and bellman.run().']
       : goalsActive() ? ['Goal-conditioned counts: p(action | state, room) = count(action, state, room) / count(state, room). A hidden count drops the room. Use the level controls and bellman.run().']
       : replanActive() ? ['Replan: score every 4-action sequence on the known mean model. Open-loop drives the winner. Replan drives only the first action and plans again from the observed cell. Use the level controls.']
       : C.families[fam(S.parts)].keys.map((k) => '- `' + k + '` (' + W[k].q + '): ' + W[k].options.map((o) => '`' + o[0] + '` = ' + plainText(o[1])).join('; ') + '. Now: `' + S.parts[k] + '`.');
@@ -2926,6 +2928,7 @@
       math: (parts, world) => hindsightActive() ? [{ label: 'Goal-conditioned backup', tex: 'Q(s,a,g) = r(s,a,g) + gamma * max Q(s\',a\',g) when not terminal' }]
         : vpoActive() ? [{ label: 'VPO set reward', tex: 'R(S) = mean_w max_y dot(w,r(y))' }]
         : supermimicActive() ? [{ label: 'Short-horizon objective', tex: 'J_H = sum_{t=0}^{H-1} gamma^t r_t + gamma^H V(s_H)' }]
+          : elboActive() ? [{ label: 'Evidence lower bound', tex: '\\mathrm{ELBO}(q)=\\mathbb{E}_q[\\log p(x\\mid z)]-\\mathrm{KL}(q(z)\\|p(z))' }, { label: 'Gap', tex: '\\log p(x)-\\mathrm{ELBO}(q)=\\mathrm{KL}(q(z)\\|p(z\\mid x))' }]
           : goalsActive() ? [{ label: 'Action count', tex: 'p(a|s,g) = n(a,s,g) / n(s,g)' }]
           : replanActive() ? [{ label: 'Mean-model return', tex: 'J(a_0:H-1) = sum_t r(s_t, a_t) under the mean model' }]
           : texLines(Object.assign({}, S.parts, parts || {}), world || S.world).map(([label, tex]) => ({ label, tex })),
@@ -3112,6 +3115,7 @@
     if (window.BBGOALS_LEVEL && !goalsActive()) window.BBGOALS_LEVEL.cancel();
     if (window.BBREPLAN && !replanActive()) BBREPLAN.cancel();
     if (!hindsightActive() && window.BBHINDSIGHT) BBHINDSIGHT.cancel();
+    if (window.BBELBO_LEVEL && !elboActive()) window.BBELBO_LEVEL.cancel();
     $('#lab').hidden = customActive(); $('#vpo-lab').hidden = !customActive();
     if (S.mode !== 'review') S.reviewLab = null;
     MODES[S.mode](pane);

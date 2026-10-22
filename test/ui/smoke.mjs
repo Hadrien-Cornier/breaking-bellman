@@ -222,10 +222,13 @@ await session(1280, 900, 'desktop', async (page) => {
 await session(1280, 900, 'phases', async (page) => {
   await page.getByRole('tab', { name: 'Campaign' }).click();
   // every level is open, in any order; the save bar and the agent hooks are there
-  check(await page.locator('#mode-pane .node').count() === 22 && !(await page.locator('#mode-pane .node[disabled]').count()), 'all 22 levels are open');
+  const levelCount = await page.evaluate(() => window.CONTENT.levels.length);
+  const titles = await page.evaluate(() => window.CONTENT.levels.map((l) => l.title));
+  check(await page.locator('#mode-pane .node').count() === levelCount && !(await page.locator('#mode-pane .node[disabled]').count()), 'every campaign level is open');
+  check(titles.includes('Ten slot machines') && titles.includes('Tell it the goal') && titles.includes('A policy that stops trying') && titles.includes('A bound that is tight only when the guess matches'), 'title navigation still finds the slot, goal, entropy, and bound lessons');
   check(await page.locator('#mode-pane .savebar button', { hasText: 'Download save file' }).count() === 1, 'the level map offers a save file');
   const brief = await page.evaluate(() => window.bellman.help());
-  check(/Level \d+ of 22/.test(brief) && /bellman\.run\(\)/.test(brief), 'window.bellman gives a brief for an AI helper');
+  check(new RegExp('Level \\d+ of ' + levelCount).test(brief) && /bellman\.run\(\)/.test(brief), 'window.bellman gives a brief for an AI helper');
   const wr = await page.evaluate(() => {
     // Level 1 is a custom lesson, so the sentence API is checked from the workbench, then Campaign is restored.
     document.querySelector('[data-mode="workbench"]').click();
@@ -532,7 +535,7 @@ await session(390, 844, 'rules', async (page) => {
       }
       return failures;
     });
-    check(!missing.length, 'all 22 levels, 11 missions, knob updates and family/world selections have pre-play rules at ' + width + 'px: ' + missing.join('; '));
+    check(!missing.length, 'every level, 11 missions, knob updates and family/world selections have pre-play rules at ' + width + 'px: ' + missing.join('; '));
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => bellman.level('continuous'));
