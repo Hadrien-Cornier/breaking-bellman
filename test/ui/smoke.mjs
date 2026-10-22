@@ -63,9 +63,16 @@ async function setWord(page, scope, key, label) {
   await page.locator(scope + ' .chooser .choice', { hasText: label }).first().click();
 }
 
+// On a narrow viewport the phase map starts closed. Open it before tapping a level.
+async function openLevelMap(page) {
+  const map = page.locator('details.map-card');
+  if (await map.count()) await map.evaluate((el) => { el.open = true; });
+}
+
 await session(375, 812, 'phone', async (page) => {
   await page.screenshot({ path: out + '/phone-start.png' });
   // Level 1 is the goal-conditioned lesson. This session still plays the slot machines.
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Ten slot machines' }).click();
   await page.locator('.mc .opt').nth(1).click();
   await page.getByText('Run the starting sentence').click();
@@ -230,6 +237,7 @@ await session(1280, 900, 'phases', async (page) => {
     return { ae, ar: ar || null, t, bad: bad || null };
   });
   check(wr.ae === true && wr.ar === null && wr.t === false && JSON.stringify(wr.bad) === '{"eps":"sometimes","nope":1}', 'bellman.words takes true or "false" and returns bad words as rejected');
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Learn the policy itself' }).click();
   await page.locator('#mode-pane .mc').first().locator('.opt').nth(1).click();
   await page.getByText('Run the starting sentence').click();
@@ -296,6 +304,7 @@ await session(1280, 900, 'phases', async (page) => {
 await session(1280, 900, 'twoways', async (page) => {
   // phase 5 end to end: the 10-command Gaussian copy fails, the flow copy reaches the goal (level hyper: lr 0.003, batch 128)
   await page.getByRole('tab', { name: 'Campaign' }).click();
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Two good ways' }).click();
   await page.locator('#mode-pane .mc').first().locator('.opt').nth(0).click();
   let t0 = Date.now();
@@ -316,6 +325,7 @@ await session(1280, 900, 'twoways', async (page) => {
 });
 await session(375, 812, 'phone-frontier', async (page) => {
   await page.getByRole('tab', { name: 'Campaign' }).click();
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Steer a frozen policy' }).click();
   await page.waitForTimeout(500);
   check(/mud/.test(await page.locator('#mode-pane').innerText()), 'mud level shows its intro');
@@ -385,6 +395,7 @@ await session(375, 812, 'phone-frontier', async (page) => {
   check(!await page.locator('#run-btn').isDisabled() && /forced startup failure/.test(await page.locator('#run-source').innerText()),
     'a failed startup restores both campaign and Lab controls');
   await page.screenshot({ path: out + '/phone-mud.png', fullPage: true });
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Keep the controller' }).click();
   await page.waitForTimeout(500);
   check(/kitting/.test(await page.locator('#mode-pane').innerText()), 'residual level shows its intro');
@@ -394,6 +405,7 @@ await session(375, 812, 'phone-frontier', async (page) => {
 });
 // comment fixes of 15 Oct: the combination table, the episode animation, the discovery map
 await session(375, 812, 'comments', async (page) => {
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Ten slot machines' }).click();
   await page.locator('#grid-card summary').click();
   check(await page.locator('#grid-lab .chip.gw.on').count() === 4, 'slots: the four bandit words are picked by default');
@@ -441,6 +453,7 @@ await session(375, 812, 'expert', async (page) => {
   await page.locator('#expert-card').screenshot({ path: out + '/expert-cliff-min.png' });
 });
 await session(390, 844, 'pendulum', async (page) => {
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Actions that are numbers' }).click();
   await page.evaluate(() => {
     const joint = BB.scenes.joint;
@@ -459,6 +472,8 @@ await session(390, 844, 'pendulum', async (page) => {
   await page.click('#run-btn');
   await runDone(page);
   await page.locator('#stage').scrollIntoViewIfNeeded();
+  // The stage is on screen during the run, so idle frames record the hanging angle before the replay exists.
+  await page.evaluate(() => { window.pendulumAngles = []; });
   await page.locator('#stage').click(); // restart the real animation clock
   await page.waitForTimeout(2200);
   const motion = await page.evaluate(() => ({
@@ -472,7 +487,7 @@ await session(390, 844, 'pendulum', async (page) => {
   check(/replay from hanging still/.test(await page.locator('#stage-caption').innerText()), 'caption identifies the separate replay');
   await page.locator('#stage').screenshot({ path: out + '/phone-pendulum.png' });
 });
-// Rules are visible before the first move, across every selection and at phone/desktop widths.
+// Rules stay on the page at phone and desktop widths, after the world and Run.
 await session(390, 844, 'rules', async (page) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   for (const width of [390, 1280]) {
@@ -486,8 +501,8 @@ await session(390, 844, 'rules', async (page) => {
           if (!text.includes(label)) failures.push(name + ': missing ' + label);
         }
         if (objective && !text.includes(objective)) failures.push(name + ': wrong challenge');
-        if (!(panel.compareDocumentPosition(document.querySelector('#stage')) & Node.DOCUMENT_POSITION_FOLLOWING)) failures.push(name + ': rules follow manual play');
-        if (!(panel.compareDocumentPosition(document.querySelector('#run-btn')) & Node.DOCUMENT_POSITION_FOLLOWING)) failures.push(name + ': rules follow Run');
+        if (!(panel.compareDocumentPosition(document.querySelector('#stage')) & Node.DOCUMENT_POSITION_PRECEDING)) failures.push(name + ': world stays ahead of the rules');
+        if (!(panel.compareDocumentPosition(document.querySelector('#run-btn')) & Node.DOCUMENT_POSITION_PRECEDING)) failures.push(name + ': Run stays ahead of the rules');
         const inline = document.querySelector('#challenge-rules');
         if (inline && inline.innerText !== text) failures.push(name + ': stale inline rules');
         if (document.documentElement.scrollWidth > innerWidth) failures.push(name + ': overflow');

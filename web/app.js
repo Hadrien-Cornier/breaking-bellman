@@ -2007,10 +2007,12 @@
       }, [h('span.small', { text: 'Level ' + (i + 1) + ' · ' + C.worldNames[l.world] + (S.done.includes(l.id) ? ' · done' : l === next ? ' · next' : '') }), h('b', { text: l.title })]);
     };
     const tree = h('div.stack', null, C.phases.map((ph) => h('div', null, [
-      h('div.eyebrow', { text: 'Phase ' + ph.n + ': ' + ph.title }),
-      h('div.tree', { role: 'list' }, C.levels.filter((l) => (l.phase || 1) === ph.n).map(node)),
+      h('div.phase', { text: 'Phase ' + ph.n + ': ' + ph.title }),
+      h('div.tree', { role: 'list' }, C.levels.filter((l) => (l.phase == null ? 1 : l.phase) === ph.n).map(node)),
     ])));
-    pane.append(h('div.card', null, [
+    const wideMap = window.matchMedia ? window.matchMedia('(min-width: 960px)') : { matches: true };
+    const mapCard = h('details.card.map-card', { open: wideMap.matches }, [
+      h('summary', { text: 'All levels' }),
       h('p', { text: 'Predict, run, then inspect the learner. Most levels ask you to repair a failure by changing words in its update rule. The comparison lessons measure several objectives or training routes. Play in any order: nothing is locked.' }),
       tree,
       h('div.row.savebar', null, [
@@ -2019,11 +2021,12 @@
         h('button.btn.ghost.tiny', { type: 'button', onclick: loadSave }, 'Load save file'),
         h('button.btn.ghost.tiny', { type: 'button', onclick: copyBrief, title: 'Copies a short Markdown brief: where you are, the words you can change, and how an AI can drive this page.' }, 'Copy for your AI'),
       ]),
-    ]));
+    ]);
     if (lv.custom) {
       const api = lv.id === 'hindsight' ? BBHINDSIGHT : lv.id === 'replan' ? BBREPLAN : lv.id === 'goals' ? window.BBGOALS_LEVEL : lv.id === 'supermimic' ? BBSUPERMIMIC : lv.id === 'vpo' ? BBVPO : null;
       if (!api || !api.mount) {
         pane.append(h('div.card', null, [h('h2', { text: lv.title }), h('p', { text: 'This lesson is not mounted.' })]));
+        pane.append(mapCard);
         return;
       }
       const iNext = C.levels.indexOf(lv);
@@ -2045,6 +2048,7 @@
           if (!alreadyKnown) queueCelebration(id);
         }
       } });
+      pane.append(mapCard);
       return;
     }
     const st = S.lstep[lv.id] || 0;
@@ -2104,6 +2108,7 @@
       requestAnimationFrame(() => { const box = card.querySelector('#level-discoveries'); if (box) box.scrollIntoView({ block: 'start' }); });
     }
     pane.append(card);
+    pane.append(mapCard);
     // A direct child of the layout, in front of the columns, so the two tables can sit
     // side by side. No new campaign step and no new save field.
     if (lv.id === 'cliff' && st >= 2 && window.BBBACKUP) {
