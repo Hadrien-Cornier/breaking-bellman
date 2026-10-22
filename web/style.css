@@ -564,3 +564,20 @@ ul.preset-diff li { margin: 2px 0; }
 @media (max-width: 520px) {
   #messages-lesson .vpo-table table { font-size: .72rem; }
 }
+
+/* The Dyna lesson keeps its corridor and update table inside this column. */
+#dyna-lesson, #dyna-board, #dyna-rules, #dyna-trace, #dyna-current, #dyna-real, #dyna-accurate, #dyna-wrong { min-width: 0; }
+#dyna-lesson .opt { width: 100%; min-height: 44px; }
+#dyna-lesson a, #dyna-lesson p, #dyna-lesson caption, #dyna-rules dd { overflow-wrap: anywhere; }
+#dyna-lesson .dyna-track { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+#dyna-lesson .dyna-cell { min-width: 0; overflow: hidden; white-space: pre-line; text-align: center; padding: 8px 2px; border-radius: 4px; background: var(--sunk); font-family: var(--font-mono); font-size: 0.72rem; }
+#dyna-lesson .dyna-cell.far { box-shadow: inset 0 0 0 1px var(--accent); }
+#dyna-lesson .dyna-cell.end { box-shadow: inset 0 0 0 1px var(--good); }
+#dyna-lesson .dyna-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+#dyna-lesson .dyna-controls button { min-height: 44px; }
+#dyna-trace { overflow-x: auto; max-width: 100%; }
+#dyna-trace table { width: max-content; min-width: 100%; }
+#dyna-trace th, #dyna-trace td { white-space: nowrap; }
+@media (max-width: 520px) {
+  #dyna-lesson .vpo-table table { font-size: .72rem; }
+}

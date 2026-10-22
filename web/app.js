@@ -1059,6 +1059,7 @@
     if (id === 'skills') return window.BBSKILLS_LEVEL;
     if (id === 'hierarchy') return window.BBHIERARCHY;
     if (id === 'messages') return window.BBMESSAGES_LEVEL;
+    if (id === 'dyna') return window.BBDYNA_LEVEL;
     return null;
   }
   const vpoActive = () => S.mode === 'campaign' && S.level === 'vpo';
@@ -1073,7 +1074,8 @@
   const rareActive = () => S.mode === 'campaign' && S.level === 'rare';
   const hierarchyActive = () => S.mode === 'campaign' && S.level === 'hierarchy';
   const messagesActive = () => S.mode === 'campaign' && S.level === 'messages';
-  const customActive = () => skillsActive() || hierarchyActive() || thawActive() || rewardfitActive() || elboActive() || vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || rareActive() || messagesActive();
+  const dynaActive = () => S.mode === 'campaign' && S.level === 'dyna';
+  const customActive = () => skillsActive() || hierarchyActive() || thawActive() || rewardfitActive() || elboActive() || vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || rareActive() || messagesActive() || dynaActive();
   const customApi = () => customLessonApi(S.level);
   async function run() {
     if (customActive()) return customApi().run();
@@ -2905,6 +2907,7 @@
       : thawActive() ? ['Thaw: a linear policy fit on a frozen light-arm dataset, then a short finite-difference update on the heavy arm, compared with the same budget from zeros. Use the level controls and bellman.run().']
       : rareActive() ? ['Visit bonus: an untried action is worth 1/(1 - gamma) until it is taken. The repair adds 1/sqrt(n(s\')) inside the Q target, on top of the environment reward, which stays 0 or 1. Use the level controls and bellman.run().']
       : messagesActive() ? ['Backward messages: beta(s, a) excludes the action prior. The conditioned probability multiplies it back in and normalizes. Use the level controls.']
+      : dynaActive() ? ['Dyna-style backups: two real corridor steps, then one-step updates from a given model table. Model updates 0 is the real-only table. Use the level controls and bellman.run().']
       : C.families[fam(S.parts)].keys.map((k) => '- `' + k + '` (' + W[k].q + '): ' + W[k].options.map((o) => '`' + o[0] + '` = ' + plainText(o[1])).join('; ') + '. Now: `' + S.parts[k] + '`.');
   function aiBrief() {
     return [
@@ -3000,6 +3003,7 @@
           : thawActive() ? [{ label: 'One-joint return', tex: 'J = sum_t -(angle_t - 1)^2' }]
           : rareActive() ? [{ label: 'Backed-up target', tex: 'y = r_{env} + 1/\\sqrt{n(s\')} + \\gamma \\max_{a\'} \\hat{Q}(s\', a\')' }, { label: 'Environment reward', tex: 'r_{env} \\in \\{0, 1\\}' }]
           : messagesActive() ? [{ label: 'Conditioned action', tex: '\\pi_t(a|s) = p(a|s) \\beta_t(s,a) / \\beta_t(s)' }]
+          : dynaActive() ? [{ label: 'One-step backup', tex: 'Q(s,a) \\leftarrow Q(s,a) + \\alpha (r + \\gamma \\max_{a\'} Q(s\',a\') - Q(s,a))' }, { label: 'Goal target', tex: 'Q(s,a) \\leftarrow r \\text{ when the next cell is the goal}' }]
           : texLines(Object.assign({}, S.parts, parts || {}), world || S.world).map(([label, tex]) => ({ label, tex })),
       state: () => labState(),
       levels: () => C.levels.map((l) => { const i = levelInfo(l); return { n: i.n, id: i.id, title: i.title, world: i.world, done: i.done, step: i.step }; }),
@@ -3191,6 +3195,7 @@
     if (window.BBSKILLS_LEVEL && !skillsActive()) window.BBSKILLS_LEVEL.cancel();
     if (window.BBHIERARCHY && !hierarchyActive()) window.BBHIERARCHY.cancel();
     if (window.BBMESSAGES_LEVEL && !messagesActive()) window.BBMESSAGES_LEVEL.cancel();
+    if (window.BBDYNA_LEVEL && !dynaActive()) window.BBDYNA_LEVEL.cancel();
     $('#lab').hidden = customActive(); $('#vpo-lab').hidden = !customActive();
     if (S.mode !== 'review') S.reviewLab = null;
     MODES[S.mode](pane);
