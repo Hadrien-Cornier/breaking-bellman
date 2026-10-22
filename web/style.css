@@ -547,3 +547,20 @@ ul.preset-diff li { margin: 2px 0; }
 @media (min-width: 960px) {
   #rewardfit-inline-map, #rewardfit-south-map { display: none; }
 }
+
+/* The messages lesson keeps its table and controls inside this column. */
+#messages-lesson, #messages-board, #messages-readout, #messages-prior-readout, #messages-rules, #messages-table { min-width: 0; }
+#messages-lesson .opt { width: 100%; }
+#messages-lesson a, #messages-lesson p, #messages-lesson caption { overflow-wrap: anywhere; }
+#messages-lesson .msg-track { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+#messages-lesson .msg-cell { min-width: 0; overflow: hidden; text-align: center; padding: 10px 4px; border-radius: 4px; background: var(--sunk); font-family: var(--font-mono); font-size: 0.75rem; }
+#messages-lesson .msg-cell.on { box-shadow: inset 0 0 0 1px var(--accent); }
+#messages-lesson .msg-cell.end { box-shadow: inset 0 0 0 1px var(--good); }
+#messages-lesson .msg-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+#messages-lesson .msg-controls button { min-height: 44px; }
+#messages-table { overflow-x: auto; max-width: 100%; }
+#messages-table table { width: max-content; min-width: 100%; }
+#messages-table th, #messages-table td { white-space: nowrap; }
+@media (max-width: 520px) {
+  #messages-lesson .vpo-table table { font-size: .72rem; }
+}
