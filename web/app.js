@@ -2054,6 +2054,12 @@
     if (st >= 5) steps.append(mk(5, 'Your sentence and the published one', consolidation(lv)));
     card.append(steps);
     pane.append(card);
+    // A direct child of the layout, in front of the columns, so the two tables can sit
+    // side by side. No new campaign step and no new save field.
+    if (lv.id === 'cliff' && st >= 2 && window.BBBACKUP) {
+      const layout = document.querySelector('main.layout');
+      layout.insertBefore(window.BBBACKUP.mount(h), layout.firstChild);
+    }
   };
   // the reward controls of a level whose repair is the reward
   function rewardPanel(lv) {
@@ -2913,6 +2919,8 @@
 
   // ---------------------------------------------------------------- top level
   function render() {
+    const oldBackup = document.getElementById('reward-backup');
+    if (oldBackup) oldBackup.remove();
     $$('#tabs button').forEach((b) => b.setAttribute('aria-selected', b.dataset.mode === S.mode ? 'true' : 'false'));
     mounts = mounts.filter((m) => m.permanent);
     const pane = $('#mode-pane'); pane.replaceChildren();

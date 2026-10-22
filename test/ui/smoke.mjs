@@ -537,6 +537,91 @@ await session(390, 844, 'rules', async (page) => {
   await page.locator('#game-rules').screenshot({ path: out + '/rules-pendulum-desktop.png' });
   await page.setViewportSize({ width: 390, height: 844 });
 });
+// Cliff lesson picture: snapshot rounds, keyboard, both viewports, and an old save left intact.
+async function backupPage(w, h) {
+  const page = await browser.newPage({ viewport: { width: w, height: h } });
+  page.on('pageerror', (e) => errors.push('backup pageerror: ' + e.message));
+  const save = {
+    intro: 1, mode: 'campaign', level: 'cliff', lstep: { slots: 5, cliff: 0 },
+    done: ['slots'], answers: { 'cliff-p': { choice: 1, correct: true, ts: '2026-01-01T00:00:00.000Z' } },
+    found: ['egreedy'], given: ['mc'], seen: [], missions: [], saved: [], made: {},
+    reviews: {}, unlockAll: false, discoveries: {}, wondered: {},
+  };
+  await page.addInitScript((st) => {
+    if (sessionStorage.getItem('bb-backup-hold')) return;
+    localStorage.setItem('breaking-bellman-v1', JSON.stringify(st));
+  }, save);
+  await page.goto('file://' + out + '/page.html');
+  await page.waitForTimeout(400);
+  return page;
+}
+const backupPage1280 = await backupPage(1280, 900);
+check(await backupPage1280.locator('dialog.intro').count() === 0, 'backup: a saved intro does not open the welcome');
+check(await backupPage1280.locator('#reward-backup').count() === 0, 'backup: round picture stays hidden before the diagnose step');
+const hiddenSave = await backupPage1280.evaluate(() => JSON.parse(localStorage.getItem('breaking-bellman-v1')));
+check(hiddenSave.done.join() === 'slots' && hiddenSave.lstep.cliff === 0 && hiddenSave.answers['cliff-p'].choice === 1, 'backup: early cliff visit keeps the saved progress');
+await backupPage1280.evaluate(() => {
+  sessionStorage.setItem('bb-backup-hold', '1');
+  const key = 'breaking-bellman-v1';
+  const saved = JSON.parse(localStorage.getItem(key));
+  saved.lstep.cliff = 2;
+  localStorage.setItem(key, JSON.stringify(saved));
+});
+await backupPage1280.reload();
+await backupPage1280.waitForSelector('#reward-backup');
+const readBackup = () => backupPage1280.evaluate(() => {
+  const text = (id) => document.getElementById(id).innerText;
+  const vals = (id) => Array.from(document.querySelectorAll('#' + id + ' .val')).map((n) => n.textContent);
+  return {
+    round: document.getElementById('rb-round-value').textContent,
+    one: vals('rb-one'), eight: vals('rb-eight'),
+    assumptions: text('rb-assumptions'), milestones: text('rb-milestones'),
+    formula: text('rb-formula'), body: document.getElementById('reward-backup').innerText,
+    scroll: document.documentElement.scrollWidth, width: window.innerWidth,
+    lanes: getComputedStyle(document.querySelector('#reward-backup .lanes')).gridTemplateColumns,
+  };
+});
+let snap = await readBackup();
+check(snap.round === '0' && snap.one.every((v) => v === '0') && snap.eight.every((v) => v === '0'), 'backup: round 0 shows zeros');
+check(/previous round/.test(snap.assumptions) && /Step size 1/.test(snap.body) && /replay/.test(snap.assumptions), 'backup: assumptions are on the picture');
+check(/not a variance measured/.test(snap.body) && /bad action erasing/.test(snap.body) && !snap.body.includes('\u2014'), 'backup: tradeoff copy is on the picture');
+check(snap.lanes.split(' ').length === 2, 'backup: 1280 lays the two tables side by side (' + snap.lanes + ')');
+await backupPage1280.locator('#rb-round').focus();
+await backupPage1280.keyboard.press('ArrowRight');
+snap = await readBackup();
+check(snap.round === '1' && snap.one.filter((v) => v !== '0').length === 1 && snap.one[15] === '1.00' && snap.eight.filter((v) => v !== '0').length === 8, 'backup: keyboard round 1 lights 1 and 8 entries');
+await backupPage1280.keyboard.press('ArrowRight');
+snap = await readBackup();
+check(snap.round === '2' && snap.eight[0] !== '0' && snap.one[0] === '0', 'backup: keyboard round 2 lights S0 for eight steps only');
+await backupPage1280.locator('#rb-jump-16').focus();
+await backupPage1280.keyboard.press('Enter');
+snap = await readBackup();
+check(snap.round === '16' && snap.one[0] !== '0' && snap.eight[0] !== '0', 'backup: round 16 lights S0 for one step');
+await backupPage1280.locator('#rb-bias').focus();
+await backupPage1280.keyboard.press('Space');
+await backupPage1280.locator('#rb-shock').focus();
+await backupPage1280.keyboard.press('Space');
+const targets = await backupPage1280.evaluate(() => document.getElementById('rb-detail').textContent);
+check(/0\.95\^1/.test(targets) && /0\.95\^8/.test(targets) && /0\.95\^3/.test(targets) && /−2/.test(targets), 'backup: both switches keep the discount powers (' + targets + ')');
+const progress = await backupPage1280.evaluate(() => JSON.parse(localStorage.getItem('breaking-bellman-v1')));
+check(progress.done.join() === 'slots' && progress.lstep.cliff === 2 && progress.lstep.slots === 5 && progress.answers['cliff-p'].choice === 1 && progress.found.join() === 'egreedy', 'backup: using the picture does not rewrite the save');
+await backupPage1280.reload();
+await backupPage1280.waitForSelector('#rb-round-value');
+check(await backupPage1280.locator('#rb-round-value').innerText() === '0', 'backup: a reload returns the picture to round 0 and leaves progress');
+check((await backupPage1280.evaluate(() => JSON.parse(localStorage.getItem('breaking-bellman-v1')).lstep.cliff)) === 2, 'backup: reload keeps cliff at the diagnose step');
+check(snap.scroll <= 1280, 'backup: 1280 has no horizontal page scroll (' + snap.scroll + ')');
+await backupPage1280.screenshot({ path: out + '/reward-backup-1280.png' });
+await backupPage1280.setViewportSize({ width: 390, height: 844 });
+await backupPage1280.waitForTimeout(200);
+const phone = await readBackup();
+check(phone.lanes.split(' ').length === 1, 'backup: 390 stacks the two tables (' + phone.lanes + ')');
+check(phone.scroll <= 390, 'backup: 390 has no horizontal page scroll (' + phone.scroll + ')');
+await backupPage1280.locator('#rb-next').focus();
+await backupPage1280.keyboard.press('Enter');
+check(await backupPage1280.locator('#rb-round-value').innerText() === '1', 'backup: 390 Next round responds to Enter');
+await backupPage1280.screenshot({ path: out + '/reward-backup-390.png' });
+await backupPage1280.close();
+
 console.log('errors:', errors.length ? errors.join('\n') : 'none');
 if (errors.length) fails.push('page errors');
 console.log(fails.length ? 'FAILED: ' + fails.join('; ') : 'ALL CHECKS PASSED');
