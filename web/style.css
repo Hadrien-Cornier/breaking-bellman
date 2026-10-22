@@ -477,3 +477,16 @@ ul.preset-diff li { margin: 2px 0; }
 
 .review-context p, .review-inspect p { margin: 0; overflow-wrap: anywhere; }
 .review-context, .review-inspect { min-width: 0; }
+
+/* The replan lesson reuses the custom lesson column. Rules and tables stay inside this lesson. */
+#replan-lesson, #replan-board, #replan-metrics, #replan-limits, #replan-rules { min-width: 0; }
+#replan-lesson .opt { width: 100%; }
+#replan-lesson a { overflow-wrap: anywhere; }
+#replan-lesson .replan-track { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+#replan-lesson .replan-cell { min-width: 0; overflow: hidden; text-align: center; padding: 8px 0; border-radius: 4px; background: var(--sunk); font-family: var(--font-mono); font-size: 0.75rem; }
+#replan-lesson .replan-cell.center { box-shadow: inset 0 0 0 1px var(--good); }
+#replan-lesson .replan-cell.edge { box-shadow: inset 0 0 0 1px var(--warn); }
+#replan-lesson .replan-cell.wall { background: color-mix(in srgb, var(--bad) 22%, var(--sunk)); }
+@media (max-width: 520px) {
+  #replan-lesson .vpo-table table { font-size: .72rem; }
+}
