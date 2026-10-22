@@ -1050,6 +1050,7 @@
     if (id === 'vpo') return window.BBVPO;
     if (id === 'supermimic') return window.BBSUPERMIMIC;
     if (id === 'goals') return window.BBGOALS_LEVEL;
+    if (id === 'prefer') return window.BBPREFER;
     if (id === 'replan') return window.BBREPLAN;
     if (id === 'hindsight') return window.BBHINDSIGHT;
     if (id === 'elbo') return window.BBELBO_LEVEL;
@@ -1064,6 +1065,7 @@
   const vpoActive = () => S.mode === 'campaign' && S.level === 'vpo';
   const supermimicActive = () => S.mode === 'campaign' && S.level === 'supermimic';
   const goalsActive = () => S.mode === 'campaign' && S.level === 'goals';
+  const preferActive = () => S.mode === 'campaign' && S.level === 'prefer';
   const replanActive = () => S.mode === 'campaign' && S.level === 'replan';
   const hindsightActive = () => S.mode === 'campaign' && S.level === 'hindsight';
   const elboActive = () => S.mode === 'campaign' && S.level === 'elbo';
@@ -1073,7 +1075,7 @@
   const rareActive = () => S.mode === 'campaign' && S.level === 'rare';
   const hierarchyActive = () => S.mode === 'campaign' && S.level === 'hierarchy';
   const messagesActive = () => S.mode === 'campaign' && S.level === 'messages';
-  const customActive = () => skillsActive() || hierarchyActive() || thawActive() || rewardfitActive() || elboActive() || vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || rareActive() || messagesActive();
+  const customActive = () => skillsActive() || hierarchyActive() || thawActive() || rewardfitActive() || elboActive() || vpoActive() || supermimicActive() || goalsActive() || preferActive() || replanActive() || hindsightActive() || rareActive() || messagesActive();
   const customApi = () => customLessonApi(S.level);
   async function run() {
     if (customActive()) return customApi().run();
@@ -2097,15 +2099,19 @@
         progress: () => S.lstep[lv.id] || 0,
         setProgress: (n) => { if ((S.lstep[lv.id] || 0) < n) { S.lstep[lv.id] = n; save(); } },
         answerFor: (id) => S.answers[id] || null,
-        done: () => S.done.includes(lv.id), complete: () => {
-        if (!S.done.includes(lv.id)) S.done.push(lv.id); S.lstep[lv.id] = 5; save(); updateScore();
-      }, known: id => S.found.includes(id) || S.given.includes(id), reveal: id => {
-        if (!S.given.includes(id)) {
-          const alreadyKnown = S.found.includes(id);
-          S.given.push(id); save(); updateScore();
-          if (!alreadyKnown) queueCelebration(id);
-        }
-      } });
+        done: () => S.done.includes(lv.id),
+        complete: () => {
+          if (!S.done.includes(lv.id)) S.done.push(lv.id); S.lstep[lv.id] = 5; save(); updateScore();
+        },
+        known: (id) => S.found.includes(id) || S.given.includes(id),
+        prior: (id) => S.answers[id] || null,
+        reveal: (id) => {
+          if (!S.given.includes(id)) {
+            const alreadyKnown = S.found.includes(id);
+            S.given.push(id); save(); updateScore();
+            if (!alreadyKnown) queueCelebration(id);
+          }
+        } });
       pane.append(mapCard);
       return;
     }
@@ -2893,7 +2899,8 @@
       lab.lastRun ? '- Last run (' + lab.lastRun.seeds + ' runs, ' + lab.lastRun.steps + ' steps): ' + (lab.lastRun.symptoms.join(' ') || 'no symptoms') : '- No run yet in this world.',
     ].filter((x) => x !== null);
   }
-  const wordLines = () => skillsActive() ? ['Skill reward: q(skill|room) is a smoothed visit count. Reward is log q(skill|room) - log p(skill), with p(skill) = 1/2. The softmax gradient reads that reward. Use the level controls and bellman.run().']
+  const wordLines = () => preferActive() ? ['Two fixed replies. Fit Bradley-Terry scores from the preference rows, then maximize expected score with and without a KL penalty to the reference. Use the level controls and bellman.run().']
+    : skillsActive() ? ['Skill reward: q(skill|room) is a smoothed visit count. Reward is log q(skill|room) - log p(skill), with p(skill) = 1/2. The softmax gradient reads that reward. Use the level controls and bellman.run().']
     : hierarchyActive() ? ['Hierarchy: one goal-conditioned table trains on the door, then a given sequence calls it. Flat training uses S plus H and not those transitions. Use the level controls and bellman.run().']
     : hindsightActive() ? ['Hindsight: same four environment steps, then extra Q updates on goals recomputed from the final cell. Use the level controls and bellman.run().']
     : vpoActive() ? ['VPO: mean over eight preferences of the best score in a three-route set. GRPO: fixed mean reward for each route. Use the level controls and bellman.run().']
@@ -2988,7 +2995,8 @@
     window.bellman = {
       help: () => aiBrief(),
       page: () => pageMarkdown(),
-      math: (parts, world) => skillsActive() ? [{ label: 'Discriminator reward', tex: 'r(skill, room) = log q(skill|room) - log p(skill)' }]
+      math: (parts, world) => preferActive() ? [{ label: 'KL-regularized score', tex: 'J(\\pi) = E_{a \\sim \\pi}[r(a)] - \\beta \\, KL(\\pi \\| \\pi_{ref})' }]
+        : skillsActive() ? [{ label: 'Discriminator reward', tex: 'r(skill, room) = log q(skill|room) - log p(skill)' }]
         : hierarchyActive() ? [{ label: 'Low-level backup', tex: 'Q(o,a) = r + gamma * max Q(o\',a\') when the transition is not terminal' }]
         : hindsightActive() ? [{ label: 'Goal-conditioned backup', tex: 'Q(s,a,g) = r(s,a,g) + gamma * max Q(s\',a\',g) when not terminal' }]
         : vpoActive() ? [{ label: 'VPO set reward', tex: 'R(S) = mean_w max_y dot(w,r(y))' }]
@@ -3182,6 +3190,7 @@
     if (!vpoActive()) BBVPO.cancel();
     if (!supermimicActive()) BBSUPERMIMIC.cancel();
     if (window.BBGOALS_LEVEL && !goalsActive()) window.BBGOALS_LEVEL.cancel();
+    if (!preferActive() && window.BBPREFER) BBPREFER.cancel();
     if (window.BBREPLAN && !replanActive()) BBREPLAN.cancel();
     if (!hindsightActive() && window.BBHINDSIGHT) BBHINDSIGHT.cancel();
     if (window.BBELBO_LEVEL && !elboActive()) window.BBELBO_LEVEL.cancel();
