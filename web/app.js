@@ -2900,6 +2900,7 @@
     // Shared method-panel provider: gate discovery so undiscovered methods show no spoilers,
     // and hand the panel the discovery card + source links + the recipe blurb (game adaptation).
     window.ALGO_HELP.discoveryFor = (algoId) => {
+      if (algoId === 'supermimic' && window.BBSUPERMIMIC) return window.BBSUPERMIMIC.discoveryFor();
       const cid = window.ALGO_HELP.cardOf(algoId);
       if (!cid) return { discovered: false };
       const discovered = S.found.includes(cid) || S.given.includes(cid);

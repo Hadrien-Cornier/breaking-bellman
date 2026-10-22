@@ -22,10 +22,10 @@
   const state = { seed: 178, scale: 1, result: null, busy: false, answer: '', inspected: false, error: null };
   const SHARED_SOURCE = {
     algo: {
-      label: 'SuperMimic', re: /\bSuperMimic\b/g,
+      label: 'SuperMimic', re: [/\bSuperMimic\b/g],
       idea: 'Fit one differentiable dynamics model from simulator transitions, then improve the tracking policy through short imagined rollouts.',
       math: 'J_H = sum from t=0 to H-1 of gamma^t r_t + gamma^H V(s_H)',
-      symbols: 'H is the imagined horizon. V(s_H) is the terminal critic bootstrap.',
+      symbols: [['H', 'the imagined horizon'], ['V(s_H)', 'the terminal critic bootstrap after the imagined steps'], ['gamma', 'the discount on later rewards']],
       note: 'The paper uses 32 imagined steps. It reports model rollouts over 10 times faster and about 64 times fewer imagined steps than PPO on that model.',
       gameNote: 'This game uses one pendulum, one small fitted linear feature model, and bounded CPU budgets. It is not a humanoid or paper replication.',
     },
@@ -36,6 +36,7 @@
   };
   M.sharedSource = SHARED_SOURCE;
   let sourceKnown = () => false, revealSource = () => {};
+  M.discoveryFor = () => Object.assign({}, SHARED_SOURCE.discovery, { discovered: sourceKnown('supermimic') });
   let currentRun = null, redraw = null;
   const f = (x, n = 3) => Number(x).toFixed(n);
   const count = x => x >= 1e6 ? f(x / 1e6, 2) + 'M' : x >= 1e3 ? f(x / 1e3, 1) + 'k' : String(x);
@@ -99,16 +100,9 @@
       return h('p.small', { id: 'supermimic-source-context', text: 'Source and context use the shared method panel once the method-panel change lands.' });
     }
     A.ALGOS.supermimic = SHARED_SOURCE.algo;
-    SHARED_SOURCE.discovery.discovered = sourceKnown('supermimic');
-    if (!A.discoveryFor || !A.discoveryFor.supermimicProvider) {
-      const upstream = A.discoveryFor || (() => ({ discovered: false }));
-      const provider = algoId => algoId === 'supermimic' ? SHARED_SOURCE.discovery : upstream(algoId);
-      provider.supermimicProvider = true;
-      A.discoveryFor = provider;
-    }
     return h('div.row', { id: 'supermimic-source-context' }, [
       h('span.small', { text: 'Verified paper source and toy adaptation:' }),
-      A.makeTrigger('supermimic', { pin: true }),
+      A.makeTrigger('supermimic', 'SuperMimic source and context'),
     ]);
   }
   function pendulum(h, result) {

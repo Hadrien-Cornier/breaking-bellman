@@ -22,7 +22,18 @@ function check(ok, text) {
 }
 const results = [];
 cli('open', url);
+evaluate('() => {localStorage.removeItem("breaking-bellman-v1");return true;}');
+cli('open', url);
 evaluate('() => {document.querySelector("dialog.intro button")?.click();bellman.level("supermimic");return true;}');
+const gate = evaluate(`() => {
+  const trigger=document.querySelector('#supermimic-source-context .algo-name');
+  trigger.click();
+  const panel=document.querySelector('#algo-rem-popover');
+  const result={trigger:!!trigger,reminder:!!panel?.querySelector('.algo-idea'),discovery:!!panel?.querySelector('.algo-discovery')};
+  ALGO_HELP.closeReminder();
+  return result;
+}`);
+check(gate.trigger && gate.reminder && !gate.discovery, 'undiscovered shared reminder hides provenance');
 for (const width of [1280, 390]) {
   cli('emulate', '--viewport', width + 'x900x1');
   const run = evaluate(`async () => {
@@ -35,7 +46,9 @@ for (const width of [1280, 390]) {
     const shared = document.querySelector('#algo-rem-popover');
     return {
       width: innerWidth, scroll: document.documentElement.scrollWidth, result,
-      sourceVerified: !!shared && /Qiayuan Liao/.test(shared.innerText) && /20 October 2026/.test(shared.innerText) && /UC Berkeley/.test(shared.innerText),
+      sourceVerified: !!shared && /Qiayuan Liao/.test(shared.innerText) && /20 October 2026/.test(shared.innerText) && /UC Berkeley/.test(shared.innerText) &&
+        /Unitree G1/.test(shared.innerText) && /one pendulum/.test(shared.innerText) &&
+        shared.querySelectorAll('.algo-links a').length === 2 && !!shared.querySelector('.algo-evidence'),
       sharedPanel: !!trigger && !!shared && !source.querySelector('details'),
       qualified: /not a matched version/.test(root.innerText) && /128 L40/.test(root.innerText),
       separate: !!document.querySelector('#supermimic-rollout') && !!document.querySelector('#supermimic-gradients'),
@@ -69,7 +82,7 @@ for (const width of [1280, 390]) {
   }`);
   check(interaction.wrongDisabled && interaction.ready && interaction.done, 'causal quiz and completion gate at ' + width);
   check(interaction.feedback && !interaction.overflow, 'quiz feedback explains the distinction at ' + width);
-  evaluate('() => {const source=document.querySelector("#supermimic-source-context");source.scrollIntoView({block:"start"});source.querySelector(".algo-name")?.click();return true;}');
+  evaluate('() => {document.querySelector(".dc")?.click();ALGO_HELP.closeReminder();const source=document.querySelector("#supermimic-source-context");source.scrollIntoView({block:"start"});source.querySelector(".algo-name")?.click();return true;}');
   cli('screenshot', path.join(proof, 'source-' + width + '.png'));
   evaluate('() => {document.querySelector("#supermimic-gradients").scrollIntoView({block:"start"});return true;}');
   cli('screenshot', path.join(proof, 'measures-' + width + '.png'));
