@@ -472,6 +472,8 @@ await session(390, 844, 'pendulum', async (page) => {
   await page.click('#run-btn');
   await runDone(page);
   await page.locator('#stage').scrollIntoViewIfNeeded();
+  // The stage is on screen during the run, so idle frames record the hanging angle before the replay exists.
+  await page.evaluate(() => { window.pendulumAngles = []; });
   await page.locator('#stage').click(); // restart the real animation clock
   await page.waitForTimeout(2200);
   const motion = await page.evaluate(() => ({
