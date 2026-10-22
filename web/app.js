@@ -1060,6 +1060,7 @@
     if (id === 'skills') return window.BBSKILLS_LEVEL;
     if (id === 'hierarchy') return window.BBHIERARCHY;
     if (id === 'messages') return window.BBMESSAGES_LEVEL;
+    if (id === 'metarl') return window.BBMETARL;
     return null;
   }
   const vpoActive = () => S.mode === 'campaign' && S.level === 'vpo';
@@ -1075,7 +1076,8 @@
   const rareActive = () => S.mode === 'campaign' && S.level === 'rare';
   const hierarchyActive = () => S.mode === 'campaign' && S.level === 'hierarchy';
   const messagesActive = () => S.mode === 'campaign' && S.level === 'messages';
-  const customActive = () => skillsActive() || hierarchyActive() || thawActive() || rewardfitActive() || elboActive() || vpoActive() || supermimicActive() || goalsActive() || preferActive() || replanActive() || hindsightActive() || rareActive() || messagesActive();
+  const metarlActive = () => S.mode === 'campaign' && S.level === 'metarl';
+  const customActive = () => skillsActive() || hierarchyActive() || thawActive() || rewardfitActive() || elboActive() || vpoActive() || supermimicActive() || goalsActive() || preferActive() || replanActive() || hindsightActive() || rareActive() || messagesActive() || metarlActive();
   const customApi = () => customLessonApi(S.level);
   async function run() {
     if (customActive()) return customApi().run();
@@ -2900,6 +2902,7 @@
     ].filter((x) => x !== null);
   }
   const wordLines = () => preferActive() ? ['Two fixed replies. Fit Bradley-Terry scores from the preference rows, then maximize expected score with and without a KL penalty to the reference. Use the level controls and bellman.run().']
+    : metarlActive() ? ['Cross-task count: episode-2 successes given the episode-1 record. The left-door probe is given. Use the level controls and bellman.run().']
     : skillsActive() ? ['Skill reward: q(skill|room) is a smoothed visit count. Reward is log q(skill|room) - log p(skill), with p(skill) = 1/2. The softmax gradient reads that reward. Use the level controls and bellman.run().']
     : hierarchyActive() ? ['Hierarchy: one goal-conditioned table trains on the door, then a given sequence calls it. Flat training uses S plus H and not those transitions. Use the level controls and bellman.run().']
     : hindsightActive() ? ['Hindsight: same four environment steps, then extra Q updates on goals recomputed from the final cell. Use the level controls and bellman.run().']
@@ -2996,6 +2999,7 @@
       help: () => aiBrief(),
       page: () => pageMarkdown(),
       math: (parts, world) => preferActive() ? [{ label: 'KL-regularized score', tex: 'J(\\pi) = E_{a \\sim \\pi}[r(a)] - \\beta \\, KL(\\pi \\| \\pi_{ref})' }]
+        : metarlActive() ? [{ label: 'Episode-2 success count', tex: 'p(a|h) = S(h,a) / N(h,a)' }]
         : skillsActive() ? [{ label: 'Discriminator reward', tex: 'r(skill, room) = log q(skill|room) - log p(skill)' }]
         : hierarchyActive() ? [{ label: 'Low-level backup', tex: 'Q(o,a) = r + gamma * max Q(o\',a\') when the transition is not terminal' }]
         : hindsightActive() ? [{ label: 'Goal-conditioned backup', tex: 'Q(s,a,g) = r(s,a,g) + gamma * max Q(s\',a\',g) when not terminal' }]
@@ -3200,6 +3204,7 @@
     if (window.BBSKILLS_LEVEL && !skillsActive()) window.BBSKILLS_LEVEL.cancel();
     if (window.BBHIERARCHY && !hierarchyActive()) window.BBHIERARCHY.cancel();
     if (window.BBMESSAGES_LEVEL && !messagesActive()) window.BBMESSAGES_LEVEL.cancel();
+    if (!metarlActive() && window.BBMETARL) window.BBMETARL.cancel();
     $('#lab').hidden = customActive(); $('#vpo-lab').hidden = !customActive();
     if (S.mode !== 'review') S.reviewLab = null;
     MODES[S.mode](pane);
