@@ -1,6 +1,6 @@
 // Bonus level: Fetch. A dog learns to get a thrown stick, inspired by Huggy from the Hugging Face Deep RL course.
 // The repair is the reward, not the learner. Every number below was measured in Node with the page's engine
-// (EXPERIMENTS.md, batch 27: exp/out/b27.json and exp/out/b27b.json; 3 seeds, the PPO-like sentence below). Simulation.
+// (docs/EXPERIMENTS.md, batch 27: exp/out/b27.json and exp/out/b27b.json; 3 seeds, the PPO-like sentence below). Simulation.
 (function (C) {
   'use strict';
   const o = (steps, result, correct, why) => ({ steps, result, correct: !!correct, why });
