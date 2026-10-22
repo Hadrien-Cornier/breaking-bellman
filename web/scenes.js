@@ -1,4 +1,4 @@
-// Illustrated stages: a field unit plays the worlds (a room of machines, a canyon for the cliff, ...).
+// Illustrated stages: a small robot plays the worlds (a casino for the slot machines, a canyon for the cliff, ...).
 // The app hands each scene run 1's recorded data. A scene keeps its own clock: frame(ts) draws one frame,
 // click() skips ahead (or replays at the end), busy() is true while something moves that the eye should follow.
 (function () {
@@ -60,27 +60,27 @@
   function bubble(ctx, s, x, y, px, font, W) {
     ctx.font = '600 ' + px + 'px ' + font;
     const w = ctx.measureText(s).width + px * 1.4, h = px * 2, bx = clamp(x - w / 2, 4, W - w - 4), by = y - h - px * 0.7;
-    rr(ctx, bx, by, w, h, px * 0.45); ctx.fillStyle = 'rgba(10, 16, 18, 0.9)'; ctx.fill();
-    ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(170, 230, 220, 0.4)'; ctx.stroke();
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+    rr(ctx, bx, by, w, h, px * 0.6); ctx.fillStyle = '#fffdf6'; ctx.fill(); ctx.restore();
     const tx = clamp(x, bx + px, bx + w - px);
-    ctx.beginPath(); ctx.moveTo(tx - px * 0.4, by + h - 1); ctx.lineTo(tx, y - px * 0.05); ctx.lineTo(tx + px * 0.4, by + h - 1); ctx.closePath();
-    ctx.fillStyle = 'rgba(10, 16, 18, 0.9)'; ctx.fill();
-    text(ctx, s, bx + w / 2, by + h / 2 + 0.5, { font: '600 ' + px + 'px ' + font, color: '#e7f4f1' });
+    ctx.beginPath(); ctx.moveTo(tx - px * 0.45, by + h - 1); ctx.lineTo(tx + px * 0.1, y - px * 0.1); ctx.lineTo(tx + px * 0.45, by + h - 1); ctx.closePath();
+    ctx.fillStyle = '#fffdf6'; ctx.fill();
+    text(ctx, s, bx + w / 2, by + h / 2 + 0.5, { font: '600 ' + px + 'px ' + font, color: '#1d1a24' });
   }
-  // a callout beside a head that spans xl..xr at height y: on the right if it fits, else on the left
+  // a speech bubble beside a head that spans xl..xr at height y: on the right if it fits, else on the left
   function bubbleSide(ctx, s, xl, xr, y, px, font, W) {
     ctx.font = '600 ' + px + 'px ' + font;
     const w = ctx.measureText(s).width + px * 1.4, h = px * 2, gap = px * 0.9, right = xr + gap + w < W - 4;
     const bx = right ? xr + gap : Math.max(4, xl - gap - w), by = y - h / 2;
-    rr(ctx, bx, by, w, h, px * 0.45); ctx.fillStyle = 'rgba(10, 16, 18, 0.9)'; ctx.fill();
-    ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(170, 230, 220, 0.4)'; ctx.stroke();
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+    rr(ctx, bx, by, w, h, px * 0.6); ctx.fillStyle = '#fffdf6'; ctx.fill(); ctx.restore();
     const ex = right ? bx + 1 : bx + w - 1, tip = right ? xr + px * 0.15 : xl - px * 0.15;
-    ctx.beginPath(); ctx.moveTo(ex, y - px * 0.35); ctx.lineTo(tip, y); ctx.lineTo(ex, y + px * 0.35); ctx.closePath();
-    ctx.fillStyle = 'rgba(10, 16, 18, 0.9)'; ctx.fill();
-    text(ctx, s, bx + w / 2, by + h / 2 + 0.5, { font: '600 ' + px + 'px ' + font, color: '#e7f4f1' });
+    ctx.beginPath(); ctx.moveTo(ex, y - px * 0.4); ctx.lineTo(tip, y + px * 0.15); ctx.lineTo(ex, y + px * 0.35); ctx.closePath();
+    ctx.fillStyle = '#fffdf6'; ctx.fill();
+    text(ctx, s, bx + w / 2, by + h / 2 + 0.5, { font: '600 ' + px + 'px ' + font, color: '#1d1a24' });
   }
 
-  // ---------------------------------------------------------------- the field unit
+  // ---------------------------------------------------------------- the robot
   // Front view, feet at (x, y), about s tall. o: { mood: normal|happy|sad|wow|dizzy, blink, look (-1..1), bob,
   // reach: [x, y] for the right hand, wave, arms: 'out' (with tilt), scale, rot, alpha, antenna (color), noShadow }
   function robot(ctx, x, y, s, o) {
@@ -92,64 +92,72 @@
     if (o.rot) ctx.rotate(o.rot);
     ctx.scale(k, k);
     if (o.alpha != null) ctx.globalAlpha *= o.alpha;
-    const ink = '#1c2830', lw = Math.max(1, s * 0.02), sensor = o.antenna || '#2f8f86', eye = '#7ef0ea';
-    if (!o.noShadow) { ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(0, s * 0.015, s * 0.26, s * 0.045, 0, 0, 7); ctx.fill(); }
-    ctx.fillStyle = '#243038';
-    rr(ctx, -s * 0.2, -s * 0.07, s * 0.15, s * 0.07, s * 0.03); ctx.fill();
-    rr(ctx, s * 0.05, -s * 0.07, s * 0.15, s * 0.07, s * 0.03); ctx.fill();
+    const ln = '#25313a', lw = Math.max(1, s * 0.024), accent = '#ff8b3d', eye = '#6ff2ff';
+    if (!o.noShadow) { ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(0, 0, s * 0.33, s * 0.065, 0, 0, 7); ctx.fill(); }
+    // tracks
+    rr(ctx, -s * 0.27, -s * 0.14, s * 0.54, s * 0.13, s * 0.065); ctx.fillStyle = '#3b4851'; ctx.fill(); ctx.lineWidth = lw; ctx.strokeStyle = ln; ctx.stroke();
+    ctx.fillStyle = '#93a2ab';
+    for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(-s * 0.18 + i * s * 0.12, -s * 0.075, s * 0.028, 0, 7); ctx.fill(); }
     const b = o.bob || 0;
     ctx.translate(0, b);
-    const shell = (y0, y1) => {
-      const g = ctx.createLinearGradient(-s * 0.22, y0, s * 0.22, y1);
-      g.addColorStop(0, '#8ea0aa'); g.addColorStop(0.42, '#f4f7f8'); g.addColorStop(1, '#b7c4cb');
-      return g;
-    };
+    const shell = (y0, y1) => { const g = ctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, '#f6f9fa'); g.addColorStop(1, '#bfcad0'); return g; };
+    // arms behind the body
     const arm = (sx, sy, hx, hy) => {
       ctx.lineCap = 'round';
-      ctx.strokeStyle = ink; ctx.lineWidth = s * 0.055; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(hx, hy); ctx.stroke();
-      ctx.strokeStyle = '#d5dee3'; ctx.lineWidth = s * 0.03; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(hx, hy); ctx.stroke();
-      rr(ctx, hx - s * 0.035, hy - s * 0.028, s * 0.07, s * 0.056, s * 0.02);
-      ctx.fillStyle = '#d5dee3'; ctx.fill(); ctx.lineWidth = lw; ctx.strokeStyle = ink; ctx.stroke();
+      ctx.strokeStyle = ln; ctx.lineWidth = s * 0.085; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(hx, hy); ctx.stroke();
+      ctx.strokeStyle = '#dfe6ea'; ctx.lineWidth = s * 0.05; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(hx, hy); ctx.stroke();
+      ctx.fillStyle = '#dfe6ea'; ctx.beginPath(); ctx.arc(hx, hy, s * 0.048, 0, 7); ctx.fill(); ctx.lineWidth = lw; ctx.strokeStyle = ln; ctx.stroke();
       ctx.lineCap = 'butt';
     };
     const t = now();
     const wave = o.wave ? Math.sin(t / 140) * 0.12 * s : 0;
     const tilt = (o.tilt || 0) * s * 0.5;
-    if (o.arms === 'out') { arm(-s * 0.18, -s * 0.36, -s * 0.42, -s * 0.44 + tilt); arm(s * 0.18, -s * 0.36, s * 0.42, -s * 0.44 - tilt); }
+    if (o.arms === 'out') { arm(-s * 0.22, -s * 0.36, -s * 0.46, -s * 0.44 + tilt); arm(s * 0.22, -s * 0.36, s * 0.46, -s * 0.44 - tilt); }
     else {
-      arm(-s * 0.18, -s * 0.36, -s * 0.32, o.wave ? -s * 0.62 + wave : -s * 0.2);
-      if (o.reach) arm(s * 0.18, -s * 0.36, (o.reach[0] - x) / k, (o.reach[1] - y) / k - b);
-      else arm(s * 0.18, -s * 0.36, s * 0.32, -s * 0.2);
+      arm(-s * 0.22, -s * 0.36, -s * 0.36, o.wave ? -s * 0.62 + wave : -s * 0.2);
+      if (o.reach) arm(s * 0.22, -s * 0.36, (o.reach[0] - x) / k, (o.reach[1] - y) / k - b);
+      else arm(s * 0.22, -s * 0.36, s * 0.36, -s * 0.2);
     }
-    rr(ctx, -s * 0.2, -s * 0.82, s * 0.4, s * 0.74, [s * 0.16, s * 0.16, s * 0.08, s * 0.08]);
-    ctx.fillStyle = shell(-s * 0.82, -s * 0.08); ctx.fill();
-    ctx.lineWidth = lw; ctx.strokeStyle = ink; ctx.stroke();
-    rr(ctx, -s * 0.08, -s * 0.34, s * 0.16, s * 0.026, s * 0.013); ctx.fillStyle = sensor; ctx.fill();
-    rr(ctx, -s * 0.15, -s * 0.72, s * 0.3, s * 0.16, s * 0.05); ctx.fillStyle = '#101820'; ctx.fill();
-    const lk = clamp(o.look || 0, -1, 1) * s * 0.04, ey = -s * 0.64, mood = o.mood || 'normal';
-    ctx.strokeStyle = eye; ctx.fillStyle = eye; ctx.lineCap = 'round'; ctx.lineWidth = Math.max(1.5, s * 0.035);
-    ctx.save(); ctx.shadowColor = eye; ctx.shadowBlur = s * 0.07;
-    if (mood === 'wow') {
-      ctx.beginPath(); ctx.arc(lk, ey, s * 0.045, 0, 7); ctx.stroke();
-      ctx.beginPath(); ctx.arc(lk, ey, s * 0.016, 0, 7); ctx.fill();
-    } else if (o.blink) {
-      ctx.beginPath(); ctx.moveTo(lk - s * 0.07, ey); ctx.lineTo(lk + s * 0.07, ey); ctx.stroke();
-    } else if (mood === 'happy') {
-      ctx.beginPath(); ctx.arc(lk, ey + s * 0.02, s * 0.07, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke();
-    } else if (mood === 'sad') {
-      ctx.beginPath(); ctx.arc(lk, ey - s * 0.02, s * 0.07, Math.PI * 0.15, Math.PI * 0.85); ctx.stroke();
-    } else if (mood === 'dizzy') {
+    // body
+    rr(ctx, -s * 0.24, -s * 0.45, s * 0.48, s * 0.33, s * 0.08); ctx.fillStyle = shell(-s * 0.45, -s * 0.12); ctx.fill(); ctx.lineWidth = lw; ctx.strokeStyle = ln; ctx.stroke();
+    ctx.fillStyle = o.antenna || accent; ctx.beginPath(); ctx.arc(0, -s * 0.29, s * 0.055, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.beginPath(); ctx.arc(-s * 0.018, -s * 0.305, s * 0.018, 0, 7); ctx.fill();
+    ctx.fillStyle = '#8796a0'; ctx.fillRect(-s * 0.05, -s * 0.5, s * 0.1, s * 0.06);
+    // head
+    rr(ctx, -s * 0.29, -s * 0.84, s * 0.58, s * 0.35, s * 0.11); ctx.fillStyle = shell(-s * 0.84, -s * 0.49); ctx.fill(); ctx.lineWidth = lw; ctx.strokeStyle = ln; ctx.stroke();
+    ctx.fillStyle = '#9fb0ba';
+    for (const sx of [-1, 1]) { ctx.beginPath(); ctx.arc(sx * s * 0.29, -s * 0.665, s * 0.04, 0, 7); ctx.fill(); }
+    rr(ctx, -s * 0.215, -s * 0.785, s * 0.43, s * 0.235, s * 0.08); ctx.fillStyle = '#142029'; ctx.fill();
+    // face
+    const lk = clamp(o.look || 0, -1, 1) * s * 0.03, ey = -s * 0.685, ex = s * 0.095, er = s * 0.045, mood = o.mood || 'normal';
+    ctx.strokeStyle = eye; ctx.fillStyle = eye; ctx.lineCap = 'round'; ctx.lineWidth = s * 0.03;
+    ctx.save(); ctx.shadowColor = eye; ctx.shadowBlur = s * 0.08;
+    for (const sx of [-1, 1]) {
+      const cx = sx * ex + lk;
       ctx.beginPath();
-      ctx.moveTo(lk - s * 0.06, ey - s * 0.04); ctx.lineTo(lk + s * 0.06, ey + s * 0.04);
-      ctx.moveTo(lk + s * 0.06, ey - s * 0.04); ctx.lineTo(lk - s * 0.06, ey + s * 0.04);
-      ctx.stroke();
-    } else {
-      rr(ctx, lk - s * 0.07, ey - s * 0.018, s * 0.14, s * 0.036, s * 0.018); ctx.fill();
+      if (mood === 'happy') { ctx.arc(cx, ey + er * 0.5, er, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke(); }
+      else if (mood === 'dizzy') { ctx.moveTo(cx - er, ey - er); ctx.lineTo(cx + er, ey + er); ctx.moveTo(cx + er, ey - er); ctx.lineTo(cx - er, ey + er); ctx.stroke(); }
+      else if (mood === 'wow') { ctx.lineWidth = s * 0.022; ctx.arc(cx, ey, er * 1.25, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(cx, ey, er * 0.4, 0, 7); ctx.fill(); }
+      else if (o.blink) { ctx.moveTo(cx - er, ey); ctx.lineTo(cx + er, ey); ctx.stroke(); }
+      else if (mood === 'sad') { ctx.ellipse(cx, ey + er * 0.25, er * 0.85, er * 0.7, 0, 0, Math.PI); ctx.fill(); ctx.beginPath(); ctx.moveTo(cx - sx * er * 1.1, ey - er * 0.6); ctx.lineTo(cx + sx * er * 0.9, ey - er * 1.25); ctx.lineWidth = s * 0.02; ctx.stroke(); ctx.lineWidth = s * 0.03; }
+      else { ctx.ellipse(cx, ey, er * 0.82, er * 1.05, 0, 0, 7); ctx.fill(); }
     }
+    // mouth
+    const my = -s * 0.6;
+    ctx.lineWidth = s * 0.022; ctx.beginPath();
+    if (mood === 'happy') ctx.arc(lk, my - s * 0.025, s * 0.05, Math.PI * 0.15, Math.PI * 0.85);
+    else if (mood === 'sad' || mood === 'dizzy') ctx.arc(lk, my + s * 0.035, s * 0.045, Math.PI * 1.2, Math.PI * 1.8);
+    else if (mood === 'wow') ctx.ellipse(lk, my, s * 0.022, s * 0.03, 0, 0, 7);
+    else { ctx.moveTo(lk - s * 0.03, my); ctx.lineTo(lk + s * 0.03, my); }
+    ctx.stroke();
     ctx.restore(); ctx.lineCap = 'butt';
-    ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(0, -s * 0.84); ctx.lineTo(0, -s * 0.91); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, -s * 0.96); ctx.lineTo(s * 0.03, -s * 0.925); ctx.lineTo(0, -s * 0.89); ctx.lineTo(-s * 0.03, -s * 0.925); ctx.closePath();
-    ctx.fillStyle = sensor; ctx.fill(); ctx.strokeStyle = ink; ctx.stroke();
+    if (!o.reach && mood === 'normal' && !o.blink) {
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      for (const sx of [-1, 1]) { ctx.beginPath(); ctx.arc(sx * ex + lk - er * 0.25, ey - er * 0.4, er * 0.25, 0, 7); ctx.fill(); }
+    }
+    // antenna
+    ctx.strokeStyle = ln; ctx.lineWidth = lw * 1.2; ctx.beginPath(); ctx.moveTo(0, -s * 0.84); ctx.lineTo(0, -s * 0.93); ctx.stroke();
+    ctx.fillStyle = o.antenna || accent; ctx.beginPath(); ctx.arc(0, -s * 0.95, s * 0.038, 0, 7); ctx.fill(); ctx.lineWidth = lw; ctx.stroke();
     ctx.restore();
   }
   SC.robot = robot;
@@ -287,17 +295,17 @@
     const pick = d.q ? Array.from(d.q).reduce((b, v, i, a) => (v > a[b] ? i : b), 0) : -1;
     const bg = layer(ctx, W, H, (c) => {
       const wall = c.createLinearGradient(0, 0, 0, base(0));
-      wall.addColorStop(0, '#101816'); wall.addColorStop(1, '#1c2c28');
+      wall.addColorStop(0, '#150a1f'); wall.addColorStop(1, '#2d1340');
       c.fillStyle = wall; c.fillRect(0, 0, W, H);
-      c.fillStyle = 'rgba(255,255,255,0.02)';
+      c.fillStyle = 'rgba(255,255,255,0.025)';
       for (let x = 0; x < W; x += 22) c.fillRect(x, 0, 9, base(0));
-      // floor
+      // carpet
       const fy = base(0) - 2, cg = c.createLinearGradient(0, fy, 0, H);
-      cg.addColorStop(0, '#14211e'); cg.addColorStop(1, '#1e3330');
+      cg.addColorStop(0, '#3d0a1d'); cg.addColorStop(1, '#5e1229');
       c.fillStyle = cg; c.fillRect(0, fy, W, H - fy);
       for (let y = fy + 8, row = 0; y < H + 10; y += 12 + row * 1.5, row++) {
         for (let x = (row % 2) * 14; x < W + 20; x += 28) {
-          c.fillStyle = row % 3 === 0 ? 'rgba(212, 176, 96, 0.09)' : 'rgba(90, 180, 168, 0.07)';
+          c.fillStyle = row % 3 === 0 ? 'rgba(255, 196, 80, 0.16)' : 'rgba(80, 220, 200, 0.10)';
           c.beginPath(); c.moveTo(x, y - 4); c.lineTo(x + 5, y); c.lineTo(x, y + 4); c.lineTo(x - 5, y); c.closePath(); c.fill();
         }
       }
@@ -308,14 +316,13 @@
       c.stroke();
       // the neon sign, if the wall has room
       const room = base(0) - mh - topH;
-      if (rows === 1 && room > 36) {
-        const fs = Math.min(room * 0.22, W * 0.026), sy = topH + room * 0.48;
-        const plateW = Math.min(W * 0.46, Math.max(160, fs * 22)), plateH = fs * 2.8;
-        rr(c, (W - plateW) / 2, sy - fs * 1.2, plateW, plateH, 8);
-        c.fillStyle = 'rgba(8, 14, 16, 0.55)'; c.fill();
-        c.strokeStyle = 'rgba(180, 220, 210, 0.28)'; c.lineWidth = 1; c.stroke();
-        text(c, 'SLOTS', W / 2, sy - fs * 0.15, { font: '600 ' + fs + 'px ' + fonts.mono, color: '#d7ece6' });
-        text(c, 'average payout: a secret', W / 2, sy + fs * 0.95, { font: '500 ' + Math.max(9, fs * 0.72) + 'px ' + fonts.mono, color: '#8fb8b0' });
+      if (rows === 1 && room > 46) {
+        const fs = Math.min(room * 0.42, W * 0.05), sy = topH + room * 0.42;
+        c.save(); c.shadowColor = '#ff4fd8'; c.shadowBlur = fs * 0.5;
+        text(c, 'SLOTS', W / 2, sy, { font: '800 ' + fs + 'px ' + fonts.display, color: '#ffd1f4' });
+        c.shadowColor = '#4ff2ff'; c.shadowBlur = fs * 0.3;
+        text(c, 'average payout: a secret', W / 2, sy + fs * 0.85, { font: '500 ' + Math.max(9, fs * 0.32) + 'px ' + fonts.mono, color: '#c9fbff' });
+        c.restore();
       }
     });
     // the replay schedule: the first pulls slowly, then faster, then fast-forward

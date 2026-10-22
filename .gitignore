@@ -2,5 +2,5 @@ node_modules/
 exp/tmp/
 dist/
 local.config.json
-docs/research/sources/
+research/sources/
 .claude/

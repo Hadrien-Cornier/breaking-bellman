@@ -1,5 +1,5 @@
 // "An expert reads this run": short notes that tie the words of a value-learning sentence to what the charts show.
-// Added 16 Oct 2026 from a page comment. Every number below is measured in this page (docs/EXPERIMENTS.md, batches 24 to 26).
+// Added 16 Oct 2026 from a page comment. Every number below is measured in this page (EXPERIMENTS.md, batches 24 to 26).
 // Simulation. A note says what you see, why the words cause it, and what would change it.
 (function (C) {
   'use strict';

@@ -7,14 +7,13 @@ import path from 'node:path';
 import fastSource from './scripts/fast-source.js';
 import vpoSource from './scripts/vpo-source.js';
 import supermimicSource from './scripts/supermimic-source.js';
-import thawSource from './scripts/thaw-source.js';
 
 const root = path.dirname(new URL(import.meta.url).pathname);
 const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 
 export const ENGINE_FILES = fastSource.engineFiles;
-const CONTENT_FILES = ['web/content.js', 'web/content2.js', 'web/measured.js', 'web/content3.js', 'web/expert.js', 'web/papers.js', 'web/wonder.js', 'web/fetch-level.js', 'web/quiz-content.js', 'web/vpo-reference.js', 'web/vpo-level.js', 'web/supermimic-level.js', 'web/review-lessons.js', 'src/agents/goals.js', 'web/goals-level.js', 'web/replan-level.js', 'src/agents/hindsight.js', 'web/hindsight-level.js', 'src/agents/messages.js', 'web/messages-level.js', 'src/agents/elbo.js', 'web/elbo-level.js', 'src/agents/ensemble.js', 'web/ensemble-level.js', 'src/agents/rare.js', 'web/rare-level.js', 'src/agents/rewardfit.js', 'web/rewardfit-level.js', 'web/thaw-level.js', 'src/agents/skills.js', 'web/skills-level.js', 'src/agents/hierarchy.js', 'web/hierarchy-level.js', 'src/agents/metarl.js', 'web/metarl-level.js', 'src/agents/skew.js', 'web/skew-level.js'];
-const APP_FILES = ['src/sim/exact.js', 'web/aggregate.js', 'web/fast.js', 'web/llm.js', 'web/scenes.js', 'web/pagemd.js', 'web/help.js', 'web/algos.js', 'web/recap.js', 'web/rules.js', 'web/reward-backup.js', 'web/review.js', 'web/app.js'];
+const CONTENT_FILES = ['web/content.js', 'web/content2.js', 'web/measured.js', 'web/content3.js', 'web/expert.js', 'web/papers.js', 'web/wonder.js', 'web/fetch-level.js', 'web/quiz-content.js', 'web/vpo-reference.js', 'web/vpo-level.js', 'web/supermimic-level.js'];
+const APP_FILES = ['src/sim/exact.js', 'web/fast.js', 'web/llm.js', 'web/scenes.js', 'web/pagemd.js', 'web/help.js', 'web/algos.js', 'web/rules.js', 'web/reward-backup.js', 'web/app.js'];
 
 const exists = (f) => fs.existsSync(path.join(root, f));
 const join = (files) => files.filter(exists).map(read).join('\n;\n');
@@ -25,10 +24,7 @@ const body = read('web/page.html')
   .replace('/*@VPO_ENGINE@*/', () => noClose(join(vpoSource.engineFiles)))
   .replace('/*@VPO_VERSION@*/', () => 'window.BB_VPO_VERSION = ' + JSON.stringify(vpoSource.version()) + ';')
   .replace('/*@SUPERMIMIC_ENGINE@*/', () => noClose(join(supermimicSource.engineFiles)))
-  .replace('/*@REPLAN_ENGINE@*/', () => noClose(read('src/agents/replan.js')))
   .replace('/*@SUPERMIMIC_VERSION@*/', () => 'window.BB_SUPERMIMIC_VERSION = ' + JSON.stringify(supermimicSource.version()) + ';')
-  .replace('/*@THAW_ENGINE@*/', () => noClose(join(thawSource.engineFiles)))
-  .replace('/*@THAW_VERSION@*/', () => 'window.BB_THAW_VERSION = ' + JSON.stringify(thawSource.version()) + ';')
   .replace('/*@ENGINE@*/', () => noClose(join(ENGINE_FILES)))
   .replace('/*@CONTENT@*/', () => join(CONTENT_FILES))
   .replace('/*@APP@*/', () => join(APP_FILES))

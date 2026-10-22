@@ -44,7 +44,7 @@
     try {
       localStorage.setItem(LS, JSON.stringify({ found: S.found, given: S.given, seen: S.seen, done: S.done, answers: S.answers, missions: S.missions,
         saved: S.saved, mode: S.mode, level: S.level, lstep: S.lstep, made: S.made, reviews: S.reviews, unlockAll: S.unlockAll,
-        discoveries: S.discoveries, recapDismissed: S.recapDismissed, wondered: S.wondered, intro: S.intro }));
+        discoveries: S.discoveries, wondered: S.wondered, intro: S.intro }));
     } catch (e) { /* storage blocked */ }
   }
 
@@ -54,7 +54,7 @@
     world: 'cartpole',
     parts: C.cfg({}),
     knobs: {},
-    results: [], view: null, running: false, lastCfg: null, lastA: null,
+    results: [], running: false, lastCfg: null, lastA: null,
     found: saved.found || [],        // card ids discovered (built and working, or failures seen)
     given: saved.given || [],        // card ids shown by a level, not built
     seen: saved.seen || [],          // recipe ids run at least once (names of recipes with no card)
@@ -72,15 +72,7 @@
     wondered: saved.wondered || {},        // surprise id -> times shown ("Did you notice?")
     intro: saved.intro || 0,               // 1 after the first-visit welcome
     discoveries: saved.discoveries || {},  // card id -> what the discovery looked like (time, world, sentence, result, level answers)
-    // null means a save from before unlock notes remembered dismissal. Filled just below.
-    recapDismissed: Array.isArray(saved.recapDismissed) ? saved.recapDismissed.filter((id) => typeof id === 'string') : null,
   };
-  if (!Array.isArray(S.recapDismissed)) {
-    const seen = {};
-    S.recapDismissed = [];
-    for (const id of S.found.concat(S.given)) if (C.cards[id] && !seen[id]) { seen[id] = 1; S.recapDismissed.push(id); }
-    save();
-  }
   function MODES_OK(m) { return ['campaign', 'workbench', 'saboteur', 'codex', 'chat'].includes(m); }
 
   // ---------------------------------------------------------------- bring your own AI key (optional)
@@ -543,31 +535,14 @@
     const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     return { ctx, w, h: hgt };
   }
-  function fillBand(ctx, xs, lo, hi, X, Y) {
-    let start = -1;
-    const flush = (end) => {
-      if (start < 0 || end < start) return;
-      ctx.beginPath();
-      ctx.moveTo(X(xs[start]), Y(hi[start]));
-      for (let i = start + 1; i <= end; i++) ctx.lineTo(X(xs[i]), Y(hi[i]));
-      for (let i = end; i >= start; i--) ctx.lineTo(X(xs[i]), Y(lo[i]));
-      ctx.closePath(); ctx.fill();
-    };
-    for (let i = 0; i < xs.length; i++) {
-      const ok = isFinite(xs[i]) && lo && hi && isFinite(lo[i]) && isFinite(hi[i]);
-      if (ok && start < 0) start = i;
-      if (!ok && start >= 0) { flush(i - 1); start = -1; }
-    }
-    if (start >= 0) flush(xs.length - 1);
-  }
-  // series: [{ xs, ys, color, width, dash, alpha, label, bands }]; o.xlabel names the x axis in the page export
+  // series: [{ xs, ys, color, width, dash, alpha, label }]; o.xlabel names the x axis in the page export
   function lineChart(cv, series, o) {
-    cv._md = { series: series.map((s) => ({ label: s.label, xs: s.xs, ys: s.ys, bands: s.bands || null })), o };
+    cv._md = { series: series.map((s) => ({ label: s.label, xs: s.xs, ys: s.ys })), o };
     const { ctx, w, h: H } = setupCanvas(cv);
     const padL = 44, padR = 8, padT = 8, padB = 22;
     ctx.clearRect(0, 0, w, H);
     let xmax = o.xmax || 1, ymin = o.ymin, ymax = o.ymax;
-    const ys = series.flatMap((s) => (s.ys || []).concat(...(s.bands || []).flatMap((b) => (b.lo || []).concat(b.hi || []))).filter(isFinite));
+    const ys = series.flatMap((s) => s.ys.filter(isFinite));
     if (ymin == null) ymin = Math.min(0, ...ys);
     if (ymax == null) ymax = Math.max(1, ...ys);
     if (o.log) { ymin = Math.max(1, ymin); ymax = Math.max(ymin * 10, ymax); }
@@ -582,10 +557,6 @@
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     for (const t of niceTicks(0, xmax, 4)) ctx.fillText(short(t), X(t), H - padB + 5);
     if (o.ref != null) { ctx.setLineDash([4, 4]); ctx.strokeStyle = css('--muted'); ctx.beginPath(); ctx.moveTo(padL, Y(o.ref)); ctx.lineTo(w - padR, Y(o.ref)); ctx.stroke(); ctx.setLineDash([]); }
-    for (const s of series) if (s.bands) for (const b of s.bands) {
-      ctx.fillStyle = b.color; ctx.globalAlpha = b.alpha == null ? 0.2 : b.alpha;
-      fillBand(ctx, s.xs, b.lo, b.hi, X, Y); ctx.globalAlpha = 1;
-    }
     for (const s of series) {
       if (!s.xs.length) continue;
       ctx.strokeStyle = s.color; ctx.lineWidth = s.width || 1.5; ctx.globalAlpha = s.alpha == null ? 1 : s.alpha;
@@ -606,22 +577,46 @@
     return out;
   }
   function short(x) { const a = Math.abs(x); return a >= 1e6 ? (x / 1e6).toFixed(0) + 'M' : a >= 1e3 ? (x / 1e3).toFixed(a >= 1e4 ? 0 : 1) + 'k' : a < 1 && a > 0 ? x.toFixed(2) : String(Math.round(x * 10) / 10); }
-  function meanCurve(lists) { return RLAGG.meanCurve(lists); }
-  function movingMean(arr, w) { return RLAGG.movingMean(arr, w); }
-  // the mean curves of a finished run (also kept for a pinned run A)
-  function curvesOf(results, world) { return RLAGG.curvesOf(results, world); }
-  function haveRun() { return !!(S.view && S.view.seedCount); }
-  function spreadSeries(band, lineColor, bandColor, label) {
-    if (!band) return [];
-    return [{ xs: band.xs, ys: band.mean, color: lineColor, width: 2.2, end: true, label: label || 'mean',
-      bands: [
-        { lo: band.min, hi: band.max, loLabel: 'min', hiLabel: 'max', color: bandColor, alpha: 0.14 },
-        { lo: band.p25, hi: band.p75, loLabel: 'p25', hiLabel: 'p75', color: bandColor, alpha: 0.32 },
-      ] }];
+  function meanCurve(lists) {
+    // lists: arrays of {t, v}; average at the t of the longest list
+    const L = lists.reduce((m, l) => (l.length > m.length ? l : m), []);
+    return { xs: L.map((p) => p.t), ys: L.map((_, i) => { const v = lists.map((l) => l[i] && l[i].v).filter((x) => x != null && isFinite(x)); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : NaN; }) };
   }
-  function meanSeries(band, color, label) {
-    if (!band) return [];
-    return [{ xs: band.xs, ys: band.mean, color, width: 2.2, end: true, label: label || 'mean' }];
+  function movingMean(arr, w) { const o = new Float32Array(arr.length); let s = 0; for (let i = 0; i < arr.length; i++) { s += arr[i]; if (i >= w) s -= arr[i - w]; o[i] = s / Math.min(i + 1, w); } return Array.from(o); }
+
+  // the mean curves of a finished run (also kept for a pinned run A)
+  function curvesOf(results, world) {
+    if (world === 'bandit') {
+      const cs = results.map((r) => movingMean(r.bandit.optimal, 50));
+      const m = cs[0].map((_, i) => cs.reduce((s, c) => s + c[i], 0) / cs.length);
+      return { main: { xs: m.map((_, i) => i + 1), ys: m } };
+    }
+    if (world === 'mirage') {
+      // an episode is 1 step if the agent goes right and 2 if it goes left, so run lengths differ a
+      // lot. The curve is the left-door rate against the share of each run's own episodes (0 to 100%),
+      // so its right edge is the end of every run and it matches the "at the end" figure.
+      const NB = 100;
+      const m = [];
+      for (let b = 0; b < NB; b++) {
+        let acc = 0;
+        for (const r of results) {
+          const n = r.ep.left.length, a = Math.floor(n * b / NB), c = Math.max(a + 1, Math.floor(n * (b + 1) / NB));
+          const seg = r.ep.left.slice(a, c);
+          acc += seg.reduce((s, x) => s + x, 0) / Math.max(1, seg.length);
+        }
+        m.push(acc / results.length);
+      }
+      const mm = movingMean(m, 10);
+      return { main: { xs: mm.map((_, i) => i + 1), ys: mm } };
+    }
+    const per = results.map((r) => r.evals);
+    const mq = meanCurve(per.map((ev) => ev.map((e) => ({ t: e.t, v: isFinite(e.maxQ) ? e.maxQ : 1e9 }))));
+    return {
+      main: meanCurve(per.map((ev) => ev.map((e) => ({ t: e.t, v: e.ret })))),
+      pred: meanCurve(per.map((ev) => ev.map((e) => ({ t: e.t, v: e.pred })))),
+      disc: meanCurve(per.map((ev) => ev.map((e) => ({ t: e.t, v: e.disc })))),
+      maxQ: mq,
+    };
   }
   function chartBox(id, title, legend) {
     return h('div.chart-wrap', null, [
@@ -629,20 +624,7 @@
       h('canvas.chart', { id, 'aria-label': title }),
     ]);
   }
-  function finiteExtent(band) {
-    const vals = [];
-    if (!band) return vals;
-    for (let i = 0; i < band.min.length; i++) {
-      if (isFinite(band.min[i])) vals.push(band.min[i]);
-      if (isFinite(band.max[i])) vals.push(band.max[i]);
-    }
-    return vals;
-  }
   function renderCharts(partials, done) {
-    if (done && !S.view && S.results && S.results.length) {
-      const parts = S.lastCfg ? S.lastCfg.parts : S.parts;
-      S.view = RLAGG.viewFromResults(S.results, { world: S.world, parts, family: fam(parts) });
-    }
     const box = $('#charts'); const steps = (S.lastCfg && S.lastCfg.steps) || 1;
     const ink = css('--ink'), acc = css('--accent'), val = css('--f-value'), pol = css('--f-policy'), muted = css('--muted');
     const A = S.pinA && S.pinA.world === S.world ? S.pinA : null;
@@ -652,14 +634,14 @@
       const isB = S.world === 'bandit';
       box.replaceChildren(h('div.eyebrow', { text: isB ? 'Share of pulls on the best machine' : 'Share of episodes that take the left door' }),
         chartBox('ch-main', isB ? 'Best machine chosen (moving mean of 50 pulls, mean of runs)' : 'Left door from A (mean of runs, window 10% of each run)', [[ink, 'this run']].concat(aLeg, isB ? [] : [[muted, '5%: random tries alone']])));
-      if (!done || !S.view) return;
-      const c = S.view.curves.main;
+      if (!done) return;
+      const c = curvesOf(S.results, S.world).main;
       lineChart($('#ch-main'), aSer(A && A.curves.main).concat([{ xs: c.xs, ys: c.ys, color: ink, width: 2.2, end: true, label: 'this run' }]),
         { xmax: isB ? Math.max(c.xs.length, A ? A.curves.main.xs.length : 0) : 100, ymin: 0, ymax: 1, ref: isB ? null : 0.05, xlabel: isB ? 'pulls' : "share of each run's episodes (%)" });
       return;
     }
     const F = fam(S.lastCfg ? S.lastCfg.parts : S.parts), P_ = S.lastCfg ? S.lastCfg.parts : S.parts;
-    const key = S.world + ':' + F + ':' + (A ? 'A' : '') + ':' + (done ? 'agg' : 'run');
+    const key = S.world + ':' + F + ':' + (A ? 'A' : '');
     const hasCritic = F === 'value' || (F === 'pg' && P_.baseline === 'critic') || (F === 'ac' && P_.critics !== 'none');
     const task = S.world === 'goalgrid' || S.world === 'fork' || S.world === 'fetch' ? 'success' : S.world === 'reach' ? 'dist' : null;
     if (box.dataset.key !== key || !$('#ch-ret')) {
@@ -667,12 +649,12 @@
       const who = F === 'value' ? 'Q' : F === 'pg' ? 'V (the critic)' : 'the critic';
       box.replaceChildren(...[
         h('div.eyebrow', { text: (F === 'ac' && P_.source === 'fixed' ? 'Learning from a fixed dataset: each step is one update. ' : '') + 'Test runs every ' + short(Math.round(steps / 40)) + ' steps' }),
-        chartBox('ch-ret', 'Score per test episode', [[acc, done ? 'seed range' : 'each seed'], [ink, 'mean']].concat(aLeg)),
+        chartBox('ch-ret', 'Score per test episode', [[acc, 'each seed'], [ink, 'mean']].concat(aLeg)),
         task ? chartBox('ch-task', task === 'success' ? 'Share of tests that reach the goal' : 'Distance to the target at the end (m)', [[ink, 'mean']].concat(task === 'dist' ? [[muted, 'classical controller', true]] : [])) : null,
         hasCritic ? chartBox('ch-val', 'Predicted value vs value earned', [[val, who + ' predicts at start'], [ink, 'earned (discounted)']].concat(aLeg.length ? [[muted, 'A: predicted', true]] : [])) : null,
-        F === 'value' ? chartBox('ch-q', 'Largest |Q| seen (log scale)', (done ? [[pol, 'seed range'], [ink, 'mean']] : [[pol, 'each seed']]).concat(aLeg)) : null,
-        F === 'pg' ? chartBox('ch-kl', 'How far each update moves the policy (KL)', (done ? [[pol, 'seed range'], [ink, 'mean']] : [[pol, 'each seed']]).concat([[muted, '0.02', true]])) : null,
-        F === 'pg' && !['pendulum'].includes(S.world) ? chartBox('ch-ent', 'Randomness of the policy (entropy, nats)', done ? [[pol, 'seed range'], [ink, 'mean']] : [[pol, 'each seed']]) : null,
+        F === 'value' ? chartBox('ch-q', 'Largest |Q| seen (log scale)', [[pol, 'each seed']].concat(aLeg)) : null,
+        F === 'pg' ? chartBox('ch-kl', 'How far each update moves the policy (KL)', [[pol, 'each seed'], [muted, '0.02', true]]) : null,
+        F === 'pg' && !['pendulum'].includes(S.world) ? chartBox('ch-ent', 'Randomness of the policy (entropy, nats)', [[pol, 'each seed']]) : null,
         F === 'ac' && P_.critics !== 'none' ? chartBox('ch-qq', 'Critic: value of the policy\'s actions vs the memory\'s actions', [[pol, 'policy\'s actions'], [val, 'actions in memory']]) : null,
       ].filter(Boolean));  // a null child would show as the text "null"
       if (F === 'value' && $('#ch-val')) $('#ch-val').parentNode.querySelector('.chart-title').append(h('button.btn.tiny.ghost', { type: 'button', onclick: openExpert }, 'Why this gap?'));
@@ -685,43 +667,9 @@
     }
     }
     const maxSteps = (S.lastCfg && S.lastCfg.knobs && S.lastCfg.knobs.maxSteps) || RLA.knobDefaults(S.world).maxSteps;
+    const per = partials.map((p) => p.evals);
     const isCliff = S.world === 'cliff', isCart = S.world === 'cartpole';
     const xmax = Math.max(steps, A ? A.steps : 0), xlabel = F === 'ac' && P_.source === 'fixed' ? 'updates' : 'training steps';
-    if (done && S.view) {
-      const B = S.view.bands;
-      const allR = finiteExtent(B.ret).concat(A ? A.curves.main.ys : []).filter(isFinite);
-      const yl = isCliff ? [-200, 0] : isCart ? [0, maxSteps] : S.world === 'goalgrid' ? [0, 1] : S.world === 'pendulum' ? [Math.min(-1600, ...allR), 0] : [Math.min(0, ...allR), Math.max(0, ...allR)];
-      lineChart($('#ch-ret'), aSer(A && A.curves.main).concat(spreadSeries(B.ret, ink, acc)),
-        { xmax, ymin: yl[0], ymax: yl[1], ref: isCliff ? -13 : null, xlabel, note: isCliff ? 'The dashed line at -13 is the score of the shortest path.' : null });
-      if (task && $('#ch-task') && B.task) {
-        const ref = task === 'dist' ? S.view.taskRef : null;
-        lineChart($('#ch-task'), meanSeries(B.task, ink),
-          { xmax, ymin: 0, ymax: task === 'success' ? 1 : Math.max(0.3, ...B.task.mean.filter(isFinite)), ref, xlabel, note: ref != null ? 'The dashed line is the classical controller.' : null });
-      }
-      if (hasCritic && $('#ch-val') && B.pred && B.disc) {
-        const vals = B.pred.mean.concat(B.disc.mean).filter(isFinite);
-        const cap = F === 'value' ? 1e4 : 1e6;
-        lineChart($('#ch-val'), aSer(A && A.curves.pred, 'A: predicted').concat(meanSeries(B.pred, val, 'predicted at start'), meanSeries(B.disc, ink, 'earned (discounted)')),
-          { xmax, ymin: Math.min(0, ...vals.map((v) => Math.max(v, -cap))), ymax: Math.max(F === 'value' ? 10 : 0.1, ...vals.map((v) => Math.min(v, cap))), xlabel });
-      }
-      if (F === 'value' && B.maxQ) {
-        const ext = finiteExtent(B.maxQ).concat(A ? A.curves.maxQ.ys.filter(isFinite) : []);
-        lineChart($('#ch-q'), aSer(A && A.curves.maxQ).concat(spreadSeries(B.maxQ, ink, pol)),
-          { xmax, log: true, xlabel, note: 'A value of 1000000000 stands for infinity (the estimate overflowed).', ymin: 1, ymax: Math.max(1000, ...ext) });
-      }
-      if (F === 'pg' && B.kl) {
-        const capped = finiteExtent(B.kl).map((v) => Math.min(v, 5));
-        lineChart($('#ch-kl'), spreadSeries(B.kl, ink, pol), { xmax, ymin: 0, ymax: Math.max(0.05, ...capped), ref: 0.02, xlabel });
-        if ($('#ch-ent') && B.ent) lineChart($('#ch-ent'), spreadSeries(B.ent, ink, pol), { xmax, ymin: 0, ymax: Math.max(0.1, ...finiteExtent(B.ent)), xlabel });
-      }
-      if (F === 'ac' && $('#ch-qq') && B.qPolicy && B.qData) {
-        const vals = B.qPolicy.mean.concat(B.qData.mean).filter(isFinite).map((v) => Math.max(-1e6, Math.min(1e6, v)));
-        lineChart($('#ch-qq'), meanSeries(B.qData, val, 'actions in memory').concat(meanSeries(B.qPolicy, pol, "policy's actions")),
-          { xmax, ymin: Math.min(0, ...vals), ymax: Math.max(0.1, ...vals), xlabel });
-      }
-      return;
-    }
-    const per = partials.map((p) => p.evals);
     const ret = per.map((ev, i) => ({ xs: ev.map((e) => e.t), ys: ev.map((e) => e.ret), color: acc, alpha: 0.35, width: 1, label: 'seed ' + (i + 1) }));
     const mr = meanCurve(per.map((ev) => ev.map((e) => ({ t: e.t, v: e.ret }))));
     const allR = per.flatMap((ev) => ev.map((e) => e.ret)).concat(A ? A.curves.main.ys : []).filter(isFinite);
@@ -833,7 +781,7 @@
     const world = RLA.worlds[S.world].make(knobs, RLA.rng.make(5));
     world.reset();
     $('#lab-world').textContent = C.worldNames[S.world];
-    const r0 = S.view ? S.view.playback : null;
+    const r0 = S.results[0];
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     // replay a trace of states: set each state, draw, add the overlay
     const playTrace = (tr, label, overlayAt) => {
@@ -933,12 +881,12 @@
   }
   function renderAutopsy() {
     const box = $('#symptoms'); box.replaceChildren();
-    if (!S.view) { box.append(h('p.small', { text: 'No run yet.' })); return null; }
-    const a = S.view.autopsy;
+    if (!S.results.length) { box.append(h('p.small', { text: 'No run yet.' })); return null; }
+    const a = RLA.autopsy(S.results);
     if (!a.symptoms.length) box.append(h('p.small', { text: 'No symptom found.' }));
     for (const s of a.symptoms) box.append(h('div.sym.' + s.level, null, [h('span.dot'), h('div', null, [h('b', { text: s.label }), h('p', { text: s.evidence })])]));
-    for (const n of S.view.notes || []) box.append(h('p.small', { text: 'Note: ' + n }));
-    box.append(h('p.small', { text: 'Measured on ' + S.view.seedCount + ' run' + (S.view.seedCount > 1 ? 's' : '') + '. ' + (S.source === 'local' ? 'Saved in this browser. Simulation.' : S.stored ? 'Stored simulation.' : 'Trained in this page. Simulation.') }));
+    for (const n of S.results[0].notes || []) box.append(h('p.small', { text: 'Note: ' + n }));
+    box.append(h('p.small', { text: 'Measured on ' + S.results.length + ' run' + (S.results.length > 1 ? 's' : '') + '. ' + (S.source === 'local' ? 'Saved in this browser. Simulation.' : S.stored ? 'Stored simulation.' : 'Trained in this page. Simulation.') }));
     if (window.RLHELP) window.RLHELP.enhance(box, metricCtx());
     return a;
   }
@@ -1046,41 +994,10 @@
     $('#run-source').textContent = 'Settings changed. Run this sentence to measure it.';
     showRunStopped('Run canceled after the settings changed.');
   }
-  function customLessonApi(id) {
-    if (id === 'vpo') return window.BBVPO;
-    if (id === 'supermimic') return window.BBSUPERMIMIC;
-    if (id === 'goals') return window.BBGOALS_LEVEL;
-    if (id === 'replan') return window.BBREPLAN;
-    if (id === 'hindsight') return window.BBHINDSIGHT;
-    if (id === 'elbo') return window.BBELBO_LEVEL;
-    if (id === 'rewardfit') return window.BBREWARDFIT;
-    if (id === 'rare') return window.BBRARE;
-    if (id === 'thaw') return window.BBTHAW;
-    if (id === 'skills') return window.BBSKILLS_LEVEL;
-    if (id === 'hierarchy') return window.BBHIERARCHY;
-    if (id === 'messages') return window.BBMESSAGES_LEVEL;
-    if (id === 'metarl') return window.BBMETARL;
-    if (id === 'ensemble') return window.BBENSEMBLE_LEVEL;
-    if (id === 'skew') return window.BBSKEW;
-    return null;
-  }
   const vpoActive = () => S.mode === 'campaign' && S.level === 'vpo';
   const supermimicActive = () => S.mode === 'campaign' && S.level === 'supermimic';
-  const goalsActive = () => S.mode === 'campaign' && S.level === 'goals';
-  const replanActive = () => S.mode === 'campaign' && S.level === 'replan';
-  const hindsightActive = () => S.mode === 'campaign' && S.level === 'hindsight';
-  const elboActive = () => S.mode === 'campaign' && S.level === 'elbo';
-  const rewardfitActive = () => S.mode === 'campaign' && S.level === 'rewardfit';
-  const thawActive = () => S.mode === 'campaign' && S.level === 'thaw';
-  const skillsActive = () => S.mode === 'campaign' && S.level === 'skills';
-  const rareActive = () => S.mode === 'campaign' && S.level === 'rare';
-  const hierarchyActive = () => S.mode === 'campaign' && S.level === 'hierarchy';
-  const messagesActive = () => S.mode === 'campaign' && S.level === 'messages';
-  const metarlActive = () => S.mode === 'campaign' && S.level === 'metarl';
-  const ensembleActive = () => S.mode === 'campaign' && S.level === 'ensemble';
-  const skewActive = () => S.mode === 'campaign' && S.level === 'skew';
-  const customActive = () => skillsActive() || hierarchyActive() || thawActive() || rewardfitActive() || elboActive() || vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || rareActive() || messagesActive() || metarlActive() || ensembleActive() || skewActive();
-  const customApi = () => customLessonApi(S.level);
+  const customActive = () => vpoActive() || supermimicActive();
+  const customApi = () => supermimicActive() ? BBSUPERMIMIC : BBVPO;
   async function run() {
     if (customActive()) return customApi().run();
     if (S.running) return null;
@@ -1093,7 +1010,6 @@
     $('#expert-card').hidden = true; $('#wonder').hidden = true;
     const seeds = range(1, nSeeds).map((i) => i * 101);
     S.results = [];
-    S.view = null;
     S.lastA = null;
     showRunPending();
     const prog = $('#prog'); prog.style.width = '2%';
@@ -1110,25 +1026,22 @@
           ? (stored.source === 'local' ? 'Saved in this browser: loading measured results.' : 'Stored simulation: loading measured results.')
           : 'Live simulation: training in this page.';
       }
-      let results = null;
-      if (stored && stored.record && stored.record.schema === 'bb-seed-aggregate-v1') S.view = stored.record.view;
-      else results = stored && stored.record ? stored.record.results : await runSeeds(cfg, seeds, (partials) => {
+      const results = stored && stored.record ? stored.record.results : await runSeeds(cfg, seeds, (partials) => {
         if (!current()) return;
         const done = partials.reduce((s, p) => s + p.t, 0) / (steps * seeds.length);
         prog.style.width = Math.round(100 * done) + '%';
         if (S.world !== 'bandit' && S.world !== 'mirage') renderCharts(partials, false);
       });
       if (!current()) return null;
-      const savedLocally = results && !(stored && stored.record) && await fastClient.save(config, results);
+      const savedLocally = !(stored && stored.record) && await fastClient.save(config, results);
       if (!current()) return null;
       S.stored = !!(stored && stored.record);
       S.source = S.stored ? stored.source : 'live';
       $('#run-source').textContent = S.stored
         ? (S.source === 'local' ? 'Saved in this browser. Simulation. Ordered seeds: ' : 'Stored simulation. Ordered seeds: ') + seeds.join(', ') + '. Budget: ' + steps + ' steps per seed. Version: ' + window.BB_FAST.base.split('/').pop() + '. Recorded replay seed: ' + seeds[0] + '. Live reruns can vary numerically across browsers.'
         : 'Live simulation: trained in this page. Replay seed: ' + seeds[0] + '.' + (savedLocally ? ' Saved in this browser for next time.' : '');
-      if (results) S.view = RLAGG.viewFromResults(results, config);
-      S.results = results || [];
-      renderCharts([], true);
+      S.results = results;
+      renderCharts(results.map((r) => ({ evals: r.evals, diag: r.diag })), true);
       renderStage();
       const a = renderAutopsy();
       S.lastA = a;
@@ -1159,60 +1072,61 @@
     }
   }
   // ---------------------------------------------------------------- discovery celebration
-  // ---------------------------------------------------------------- unlock note
-  // Stays until the player presses Dismiss. A reload before that opens it again.
-  // Dismiss is remembered. The same note can be opened from a Campaign or Codex card.
+  // One short burst + name reveal for any card the player sees for the first time. Every true
+  // discovery funnels here: discover() below (methods built and working, failures seen, knob finds),
+  // and a level's genuine first reveal (reveal / revealOnDone). A known card, a reload or revisiting
+  // a node never queues, so nothing replays.
   const freshNodes = new Set();          // cards revealed this session: their tree node lights up once
-  let celQueue = [], celTimer = null, unlockEl = null, unlockIds = [];
+  let celQueue = [], celTimer = null, celActive = null;
+  const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   function queueCelebration(cardId) {
     if (!C.cards[cardId]) return;
     freshNodes.add(cardId);
     celQueue.push(cardId);
-    if (S.mode === 'campaign') S.scrollDiscoveries = true;
+    // debounce so one run's discoveries (a method plus failures, or a run plus a level reveal) land together
     clearTimeout(celTimer); celTimer = setTimeout(flushCelebration, 120);
   }
   function flushCelebration() {
     const ids = celQueue; celQueue = [];
-    if (ids.length) openUnlock(unlockIds.concat(ids), false);
+    if (ids.length) showCelebration(ids);
   }
-  function knownCard(id) { return !!(C.cards[id] && (S.found.includes(id) || S.given.includes(id))); }
-  function openUnlock(ids, reopen) {
-    const list = [];
-    for (const id of ids) if (knownCard(id) && !list.includes(id)) list.push(id);
-    if (!list.length) return;
-    if (unlockEl) unlockEl.remove();
-    unlockIds = list.slice();
-    let onKey = null;
-    const dismissBtn = h('button.btn', { type: 'button', id: 'unlock-dismiss' }, reopen ? 'Close' : 'Dismiss');
-    const overlay = h('div.dc', { role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'unlock-title' }, [
+  function dcItem(id) {
+    const c = C.cards[id];
+    const kind = c.kind === 'failure' ? 'Failure' : c.kind === 'frontier' ? 'Frontier model'
+      : S.found.includes(id) ? 'Method, built by you' : 'Method, given by a level';
+    return h('div.dc-item', null, [
+      h('div.dc-kind', { text: kind }),
+      h('div.dc-name', null, [h('span.dc-q', { 'aria-hidden': 'true', text: '???' }), h('span.dc-real', { text: c.name })]),
+      h('div.dc-node', { 'aria-hidden': 'true' }, [h('span', { text: c.short || c.name })]),
+    ]);
+  }
+  function showCelebration(ids) {
+    if (celActive && celActive._dismiss) celActive._dismiss();
+    let done = false, onKey = null;
+    const overlay = h('div.dc', { role: 'status', 'aria-live': 'polite', 'aria-atomic': 'true' }, [
       h('div.dc-burst', { 'aria-hidden': 'true' }),
       h('div.dc-card', null, [
-        h('div.dc-eyebrow', { id: 'unlock-title', text: reopen ? 'Unlock note' : (list.length > 1 ? list.length + ' new discoveries' : 'New discovery') }),
-        h('div.dc-items', null, list.map((id) => cardView(id, true, { dialog: true }))),
-        h('p.dc-skip', { text: 'This stays open until you dismiss it. You can open it again from the card in Campaign or in the Codex.' }),
-        dismissBtn,
+        h('div.dc-eyebrow', { text: ids.length > 1 ? ids.length + ' new discoveries' : 'New discovery' }),
+        h('div.dc-items', null, ids.map(dcItem)),
+        h('div.dc-skip', { 'aria-hidden': 'true', text: 'click or press any key to continue' }),
       ]),
     ]);
-    const dismiss = (record) => {
+    const dismiss = () => {
+      if (done) return; done = true;
       if (onKey) window.removeEventListener('keydown', onKey);
-      if (record && !reopen) {
-        for (const id of list) if (!S.recapDismissed.includes(id)) S.recapDismissed.push(id);
-        save();
-      }
-      if (unlockEl === overlay) { unlockEl = null; unlockIds = []; }
-      overlay.remove();
+      overlay.classList.add('dc-out');
+      if (celActive === overlay) celActive = null;
+      setTimeout(() => overlay.remove(), reducedMotion() ? 130 : 220);
     };
-    dismissBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); dismiss(!reopen); });
-    onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); dismiss(!reopen); } };
-    unlockEl = overlay;
+    // a deliberate click or key dismisses the celebration (it does not activate anything behind it);
+    // focus is never moved and no key is swallowed, so the game keeps working underneath
+    onKey = (e) => { if (e.key === 'Tab' || /^(Shift|Control|Alt|Meta)$/.test(e.key)) return; dismiss(); };
+    overlay._dismiss = dismiss;
+    celActive = overlay;
     document.body.append(overlay);
+    overlay.addEventListener('click', dismiss);
     window.addEventListener('keydown', onKey);
-    dismissBtn.focus();
-  }
-  function showPendingUnlock() {
-    if (!window.RECAP) return;
-    const st = window.RECAP.unlockState({ recapDismissed: S.recapDismissed }, S.found, S.given);
-    if (st.pending.length) openUnlock(st.pending, false);
+    setTimeout(dismiss, 1900); // short: the reveal plays, then it gets out of the way
   }
   function discover(cardId, cfg, a) {
     if (S.found.includes(cardId)) return;
@@ -1220,7 +1134,6 @@
     S.found.push(cardId);
     S.discoveries[cardId] = discoveryRecord(cfg, a);
     save(); updateScore();
-    if (S.mode === 'campaign') S.scrollDiscoveries = true;
     if (!alreadyKnown) queueCelebration(cardId); // only a first-ever card celebrates
   }
   // the words that matter in a sentence, as text
@@ -1233,9 +1146,8 @@
     const qs = lv ? [['predict', lv.predict], ['diagnose', lv.diagnose], ['explain', lv.explain]].filter((x) => x[1] && x[1].id) : [];
     return {
       ts: new Date().toISOString(), world: C.worldNames[cfg.world], family: C.families[fam(cfg.parts)].name,
-      sentence: sentenceText(cfg.parts, cfg.world), result: headline(a, cfg.world) + ' (' + cfg.steps + ' steps, ' + (S.view ? S.view.seedCount : S.results.length) + ' seeds)',
+      sentence: sentenceText(cfg.parts, cfg.world), result: headline(a, cfg.world) + ' (' + cfg.steps + ' steps, ' + S.results.length + ' seeds)',
       where: lv ? 'Campaign level "' + lv.title + '"' : S.mode === 'workbench' ? 'Workbench' : S.mode,
-      levelId: lv ? lv.id : null, step: lv ? (S.lstep[lv.id] || 0) : null,
       predictions: qs.length ? qs.map(([k, q]) => k + ' ' + (S.answers[q.id] ? (S.answers[q.id].correct ? 'right' : 'wrong') : 'not answered')).join(', ') + ' (first tries)' : 'no level questions',
     };
   }
@@ -1318,10 +1230,10 @@
 
   // ---------------------------------------------------------------- contrasting cases: pin run A, compare with the next run
   function pinA() {
-    if (!haveRun()) return;
+    if (!S.results.length) return;
     S.pinA = { world: S.world, parts: Object.assign({}, S.lastCfg.parts), knobs: Object.assign({}, S.lastCfg.knobs), steps: S.lastCfg.steps,
-      curves: S.view.curves, head: headline(S.lastA, S.world), name: nameOf(S.lastCfg.parts, S.world), summary: S.lastA ? S.lastA.summary : null };
-    drawCompare(); $('#charts').replaceChildren(); renderCharts([], true);
+      curves: curvesOf(S.results, S.world), head: headline(S.lastA, S.world), name: nameOf(S.lastCfg.parts, S.world), summary: S.lastA ? S.lastA.summary : null };
+    drawCompare(); $('#charts').replaceChildren(); renderCharts(S.results.map((r) => ({ evals: r.evals, diag: r.diag })), true);
     toast('Pinned as A. Change one word, run, and compare.');
   }
   function nameOf(p, world) {
@@ -1331,7 +1243,7 @@
   function drawCompare() {
     const box = $('#compare'); box.replaceChildren();
     const A = S.pinA;
-    const pinBtn = h('button.btn.ghost', { type: 'button', disabled: !haveRun(), onclick: pinA }, A ? 'Pin this run as A instead' : 'Pin this run as A');
+    const pinBtn = h('button.btn.ghost', { type: 'button', disabled: !S.results.length, onclick: pinA }, A ? 'Pin this run as A instead' : 'Pin this run as A');
     if (!A) { box.append(h('div.row', null, [pinBtn, h('span.small', { text: 'Compare two sentences that differ by one word.' })])); return; }
     const diff = wordDiff(A.parts, S.parts, S.world);
     const sameWorld = A.world === S.world;
@@ -1341,14 +1253,23 @@
         sameWorld ? '' : ' A ran on another world, so the charts do not show it.']),
       h('div.row', null, [pinBtn,
         h('button.btn.ghost', { type: 'button', onclick: () => { S.parts = Object.assign({}, A.parts); onPartsChanged(); drawCompare(); } }, 'Restore A\'s words'),
-        h('button.btn.ghost', { type: 'button', onclick: () => { S.pinA = null; drawCompare(); $('#charts').replaceChildren(); if (haveRun()) renderCharts([], true); } }, 'Clear A')]),
+        h('button.btn.ghost', { type: 'button', onclick: () => { S.pinA = null; drawCompare(); $('#charts').replaceChildren(); if (S.results.length) renderCharts(S.results.map((r) => ({ evals: r.evals, diag: r.diag })), true); } }, 'Clear A')]),
     );
     if (window.RLHELP) window.RLHELP.enhance(box, metricCtx());
   }
 
   // ---------------------------------------------------------------- try every combination of a few words (a full factorial table)
   // One number per run, with its direction. Lower is better only in the mirage.
-  function metricOf(a, world) { return RLAGG.metricOf(a, world); }
+  function metricOf(a, world) {
+    const s = a.summary;
+    if (world === 'bandit') return { v: 100 * s.optimalLast20, up: true, pct: true, label: '% of late pulls on the best machine' };
+    if (world === 'mirage') return { v: 100 * s.leftPeak, up: false, pct: true, label: '% left door at the worst point (lower is better)' };
+    if (world === 'cliff') return { v: s.finalReturn, up: true, label: 'greedy score' };
+    if (world === 'pendulum') return { v: isFinite(s.pendulumScore) ? s.pendulumScore : s.finalReturn, up: true, label: 'test score (0 is perfect)' };
+    if (world === 'reach') return { v: isFinite(s.testReturn) ? s.testReturn : s.finalReturn, up: true, label: 'test score' };
+    if (world === 'fork' || world === 'goalgrid' || world === 'fetch') return { v: 100 * s.successRate, up: true, pct: true, label: '% of tests solved' };
+    return { v: s.finalReturn, up: true, label: 'score' };
+  }
   // The grid's metric header cell: the level's measure name plus the shared metric-help trigger
   function gridMetricHead(m) {
     const th = h('th', null, [m.label]);
@@ -1360,7 +1281,20 @@
   // belongs to the same statistic as the center even when that statistic is not a plain mean
   // over seeds (the mirage shows the worst of three windows). A fixed stream keeps every cell
   // reproducible.
-  function metricSE(res, world) { return RLAGG.metricSE(res, world); }
+  function metricSE(res, world) {
+    const n = res.length;
+    if (n < 2) return NaN;
+    const rng = RLA.rng.make(1337), draws = [];
+    for (let b = 0; b < 200; b++) {
+      const rs = [];
+      for (let i = 0; i < n; i++) rs.push(res[Math.floor(rng.next() * n)]);
+      const v = metricOf(RLA.autopsy(rs), world).v;
+      if (isFinite(v)) draws.push(v);
+    }
+    if (draws.length < 2) return NaN;
+    const m = draws.reduce((s, x) => s + x, 0) / draws.length;
+    return Math.sqrt(draws.reduce((s, x) => s + (x - m) ** 2, 0) / (draws.length - 1));
+  }
   const gridKeys = (p, world) => (world === 'bandit' && fam(p) === 'value' ? ['eps', 'ucb', 'optimistic', 'step'] : C.families[fam(p)].keys);
   const optVals = (k) => W[k].options.map((o) => o[0]);
   const GRID_MAX = 32;
@@ -1418,19 +1352,12 @@
         const config = RLA.exact.resolve(cfg, seeds, window.BB_FAST.versions, C);
         const stored = fast ? await fastClient.lookup(config) : null;
         if (runIdentity() !== identity) throw new Error('Settings changed. Run the table again.');
-        let res = null, a, se;
-        if (stored && stored.record && stored.record.schema === 'bb-seed-aggregate-v1') {
-          a = stored.record.view.autopsy;
-          se = stored.record.view.metric.se;
-        } else {
-          res = stored && stored.record ? stored.record.results : await runSeeds(cfg, seeds, () => {});
-          if (runIdentity() !== identity) throw new Error('Settings changed. Run the table again.');
-          if (!(stored && stored.record)) await fastClient.save(config, res);
-          if (runIdentity() !== identity) throw new Error('Settings changed. Run the table again.');
-          a = RLA.autopsy(res); se = metricSE(res, world);
-        }
+        const res = stored && stored.record ? stored.record.results : await runSeeds(cfg, seeds, () => {});
         if (runIdentity() !== identity) throw new Error('Settings changed. Run the table again.');
-        const m = metricOf(a, world);
+        if (!(stored && stored.record)) await fastClient.save(config, res);
+        if (runIdentity() !== identity) throw new Error('Settings changed. Run the table again.');
+        const a = RLA.autopsy(res), m = metricOf(a, world);
+        const se = metricSE(res, world);
         G.metric = m;
         G.rows.push({ vals: combos[i], parts, v: m.v, se, works: C.works[world](a), rec: recognize(parts, world), stored: !!(stored && stored.record), source: stored && stored.source });
       }
@@ -1578,7 +1505,7 @@
     return rs.slice(0, 5).map(f).join(', ') + ', … (' + (rs.length - 8) + ' more) …, ' + rs.slice(-3).map(f).join(', ');
   }
   function replayView() {
-    const st = { sess: null, pr: null, stage: 0, busy: false, cfg: null, t: 0, token: 0 };
+    const st = { sess: null, pr: null, stage: 0, busy: false, cfg: null, t: 0 };
     const out = h('div.rp-body');
     const startBtn = h('button.btn.ghost', { type: 'button' }, 'Watch one update');
     startBtn.addEventListener('click', () => start());
@@ -1593,7 +1520,6 @@
     }
     async function start() {
       if (st.busy) return; st.busy = true; startBtn.disabled = true;
-      const token = ++st.token;
       const cfg = { world: S.world, knobs: Object.assign({}, S.knobs), parts: Object.assign({}, S.parts), hyper: hyperNow(), seed: 1 };
       let sess;
       try { sess = RLA.session(cfg); }
@@ -1603,9 +1529,7 @@
         const k = Math.min(200, N - done); if (sess.learner.offline) sess.trainOffline(k); else sess.advance(k); done += k;
         out.replaceChildren(h('p.small', { text: 'Training ' + done + ' of ' + N + ' moves…' }));
         await new Promise((r) => setTimeout(r, 0));
-        if (token !== st.token || !box.isConnected) { st.busy = false; startBtn.disabled = false; return; }
       }
-      if (token !== st.token || !box.isConnected) { st.busy = false; startBtn.disabled = false; return; }
       st.sess = sess; st.cfg = cfg;
       next(0);
       st.busy = false; startBtn.disabled = false; startBtn.textContent = 'Start again with the current sentence';
@@ -1937,14 +1861,6 @@
       }
       frame(['The row', 'The target', 'The critic step', 'The policy step', 'What the critic believes'], body);
     }
-    box.resetReplay = () => {
-      st.token += 1;
-      cancelAnimationFrame(epAnim);
-      st.busy = false; st.sess = null; st.pr = null; st.cfg = null;
-      out.replaceChildren();
-      startBtn.disabled = false;
-      startBtn.textContent = 'Watch one update';
-    };
     return box;
   }
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -2009,7 +1925,7 @@
   // ---------------------------------------------------------------- world and sentence setters
   function setWorld(w, knobs) {
     cancelRun();
-    S.world = w; S.knobs = Object.assign({}, knobs || {}); S.results = []; S.view = null; S.lastA = null;
+    S.world = w; S.knobs = Object.assign({}, knobs || {}); S.results = []; S.lastA = null;
     budgetOptions(); renderStage(); renderAutopsy(); refreshSentences(); drawCompare(); drawGrid();
     $('#run-result').textContent = '';
     $('#charts').replaceChildren(h('p.small', { text: 'Curves appear here while a run trains.' }));
@@ -2068,12 +1984,10 @@
       }, [h('span.small', { text: 'Level ' + (i + 1) + ' · ' + C.worldNames[l.world] + (S.done.includes(l.id) ? ' · done' : l === next ? ' · next' : '') }), h('b', { text: l.title })]);
     };
     const tree = h('div.stack', null, C.phases.map((ph) => h('div', null, [
-      h('div.phase', { text: 'Phase ' + ph.n + ': ' + ph.title }),
-      h('div.tree', { role: 'list' }, C.levels.filter((l) => (l.phase == null ? 1 : l.phase) === ph.n).map(node)),
+      h('div.eyebrow', { text: 'Phase ' + ph.n + ': ' + ph.title }),
+      h('div.tree', { role: 'list' }, C.levels.filter((l) => (l.phase || 1) === ph.n).map(node)),
     ])));
-    const wideMap = window.matchMedia ? window.matchMedia('(min-width: 960px)') : { matches: true };
-    const mapCard = h('details.card.map-card', { open: wideMap.matches }, [
-      h('summary', { text: 'All levels' }),
+    pane.append(h('div.card', null, [
       h('p', { text: 'Predict, run, then inspect the learner. Most levels ask you to repair a failure by changing words in its update rule. The comparison lessons measure several objectives or training routes. Play in any order: nothing is locked.' }),
       tree,
       h('div.row.savebar', null, [
@@ -2082,28 +1996,10 @@
         h('button.btn.ghost.tiny', { type: 'button', onclick: loadSave }, 'Load save file'),
         h('button.btn.ghost.tiny', { type: 'button', onclick: copyBrief, title: 'Copies a short Markdown brief: where you are, the words you can change, and how an AI can drive this page.' }, 'Copy for your AI'),
       ]),
-    ]);
+    ]));
     if (lv.custom) {
-      const api = customLessonApi(lv.id);
-      if (!api || typeof api.mount !== 'function') {
-        pane.append(h('div.card', null, [h('h2', { text: lv.title }), h('p', { text: 'This lesson is not mounted.' })]));
-        pane.append(mapCard);
-        return;
-      }
-      const iNext = C.levels.indexOf(lv);
-      api.mount(pane, $('#vpo-lab'), { h, mc: mcBlock, step: () => S.lstep[lv.id] || 0, setStep: (n) => setStep(lv, n), refresh: () => render(),
-        mark: (n) => { if ((S.lstep[lv.id] || 0) < n) { S.lstep[lv.id] = n; save(); updateScore(); } },
-        markStep: (n) => { if ((S.lstep[lv.id] || 0) < n) { S.lstep[lv.id] = n; save(); updateScore(); } },
-        answer: (id) => S.answers[id] || null,
-        record: (id, choice, correct) => recordAnswer(id, choice, correct),
-        recordAnswer: (id, choice, correct) => recordAnswer(id, choice, correct),
-        openLevel: (id) => { const nx = C.levels.find((l) => l.id === id); if (!nx) return; S.level = nx.id; save(); enterLevel(nx); render(); window.scrollTo({ top: 0 }); },
-        next: () => { const nx = C.levels[iNext + 1]; return nx ? { id: nx.id, title: nx.title, world: nx.world } : null; },
-        openNext: () => { const nx = C.levels[iNext + 1]; if (!nx) return null; S.level = nx.id; save(); enterLevel(nx); render(); window.scrollTo({ top: 0 }); return nx.id; },
-        progress: () => S.lstep[lv.id] || 0,
-        setProgress: (n) => { if ((S.lstep[lv.id] || 0) < n) { S.lstep[lv.id] = n; save(); } },
-        answerFor: (id) => S.answers[id] || null,
-        done: () => S.done.includes(lv.id), complete: () => {
+      const api = lv.id === 'supermimic' ? BBSUPERMIMIC : BBVPO;
+      api.mount(pane, $('#vpo-lab'), { h, done: () => S.done.includes(lv.id), complete: () => {
         if (!S.done.includes(lv.id)) S.done.push(lv.id); S.lstep[lv.id] = 5; save(); updateScore();
       }, known: id => S.found.includes(id) || S.given.includes(id), reveal: id => {
         if (!S.given.includes(id)) {
@@ -2112,7 +2008,6 @@
           if (!alreadyKnown) queueCelebration(id);
         }
       } });
-      pane.append(mapCard);
       return;
     }
     const st = S.lstep[lv.id] || 0;
@@ -2130,7 +2025,7 @@
       mcBlock(lv.diagnose, () => setStep(lv, 3)),
     ])));
     if (st >= 3) {
-      const status = h('p.small', { text: S.runNote && S.runNote.level === lv.id ? S.runNote.text : 'Tap a word to see the choices. Words in a dashed box do nothing in this sentence.' });
+      const status = h('p.small', { text: 'Tap a word to see the choices. Words in a dashed box do nothing in this sentence.' });
       steps.append(mk(3, lv.repairKnobs ? 'Repair: change the reward' : 'Repair: change the words', h('div.stack', null, [
         h('p', { html: lv.repairText }),
         lv.repairKnobs ? rewardPanel(lv) : mainSentence({ focus: () => lv.focus, withName: true, withMath: true }),
@@ -2140,7 +2035,6 @@
           const ok = lv.goal.test(a, S.parts);
           const notes = (lv.notes || []).filter((n) => n.when(a, S.parts, S.knobs)).map((n) => (typeof n.text === 'function' ? n.text(a, S.parts, S.knobs) : n.text.replace('{final}', fmt(a.summary.finalReturn))));
           if (ok) {
-            S.runNote = null;
             if (!S.done.includes(lv.id)) S.done.push(lv.id);
             for (const id of [].concat(lv.revealOnDone || [])) if (!S.given.includes(id)) { const alreadyKnown = S.found.includes(id); S.given.push(id); if (!alreadyKnown) queueCelebration(id); }
             const rec = recognize(S.parts, S.world);
@@ -2150,11 +2044,7 @@
               triad: C.failures.find((f) => f.card === 'triad').when(a, S.lastCfg),
             };
             setStep(lv, lv.explain ? 4 : 5); save(); render();
-          } else {
-            S.runNote = { level: lv.id, text: (notes.length ? notes.join(' ') + ' ' : '') + 'Not fixed yet: ' + lv.goal.text + ' Read the autopsy, or pin this run as A and change one word.' };
-            S.scrollDiscoveries = true;
-            render();
-          }
+          } else status.textContent = (notes.length ? notes.join(' ') + ' ' : '') + 'Not fixed yet: ' + lv.goal.text + ' Read the autopsy, or pin this run as A and change one word.';
         } }, 'Run this sentence')]),
         status,
         h('details', null, [h('summary', { text: 'Hint' }), h('p', { html: lv.hint })]),
@@ -2163,16 +2053,7 @@
     if (st >= 4 && lv.explain) steps.append(mk(4, 'Explain why it works', mcBlock(lv.explain, () => setStep(lv, 5))));
     if (st >= 5) steps.append(mk(5, 'Your sentence and the published one', consolidation(lv)));
     card.append(steps);
-    if (typeof levelDiscoveryBlock === 'function') {
-      const foundHere = levelDiscoveryBlock(lv);
-      if (foundHere) card.append(foundHere);
-    }
-    if (S.scrollDiscoveries) {
-      S.scrollDiscoveries = false;
-      requestAnimationFrame(() => { const box = card.querySelector('#level-discoveries'); if (box) box.scrollIntoView({ block: 'start' }); });
-    }
     pane.append(card);
-    pane.append(mapCard);
     // A direct child of the layout, in front of the columns, so the two tables can sit
     // side by side. No new campaign step and no new save field.
     if (lv.id === 'cliff' && st >= 2 && window.BBBACKUP) {
@@ -2382,32 +2263,6 @@
     ]));
   };
 
-  // Drop the previous exercise's run, replay and charts when the selected review changes.
-  // Saved progress and the pinned comparison stay in their own slots. Same exercise does not reset.
-  function applyReviewTransition(id) {
-    const c = C.cards[id];
-    if (!c || !window.REVIEW) return;
-    const world = c.review;
-    const knobs = c.reviewKnobs || {};
-    const plan = window.REVIEW.plan(
-      { id: S.reviewLab, world: S.world, knobs: S.knobs, running: !!S.running },
-      { id: id, world: world, knobs: knobs });
-    if (!plan.resetTransient) return;
-    setWorld(plan.world, plan.knobs);
-    if (S.rv && S.rv.parts) setParts(S.rv.parts);
-    const replay = $('#replay-lab .replay');
-    if (replay && replay.resetReplay) replay.resetReplay();
-    $('#expert-card').hidden = true;
-    $('#wonder').hidden = true;
-    $('#run-source').textContent = 'Live simulation: training in this page.';
-    $('#prog').style.width = '0%';
-    S.reviewLab = id;
-  }
-  function clearReviewReplay() {
-    const replay = $('#replay-lab .replay');
-    if (replay && replay.resetReplay) replay.resetReplay();
-  }
-
   // --- Review: rebuild a discovered method from memory, mixed across worlds
   function reviewQueue() {
     const ids = Object.keys(C.cards).filter((id) => C.cards[id].review && S.found.includes(id));
@@ -2431,112 +2286,40 @@
     pane.append(intro);
     if (!q.length) { pane.append(h('div.card', null, [h('p', { text: 'Nothing to review yet. Each method you discover in the Campaign or the Workbench comes back here.' })])); return; }
     const plain = (cid) => C.cfg({ family: (recipeOfCard(cid) || {}).family || 'value' });
-    if (!S.rv || !q.includes(S.rv.id)) S.rv = { id: q[0], parts: plain(q[0]), checked: null, hint: false };
-    if (S.rv.hint == null) S.rv.hint = false;
+    if (!S.rv || !q.includes(S.rv.id)) S.rv = { id: q[0], parts: plain(q[0]), checked: null };
     const id = S.rv.id, c = C.cards[id], rec = recipeOfCard(id), world = c.review;
-    applyReviewTransition(id);
-    const lesson = (window.REVIEW_LESSONS || {})[id] || {};
-    const eyebrow = h('div.eyebrow', { text: C.worldNames[world] + ' · practiced ' + ((S.reviews[id] || {}).n || 0) + ' times' });
-    const tail = h('div.stack');
-    const m = mountSentence({ getParts: () => S.rv.parts, setPart: (k, v) => {
-      S.rv.parts[k] = v;
-      if (S.parts[k] !== v) { S.parts[k] = v; onPartsChanged(); }
-      S.rv.checked = null;
-      S.rv.hint = false;
-      refreshSentences();
-      paint();
-    }, world: () => world, withMath: true });
-    function solutionLines() {
-      const keys = Object.keys(rec.keys);
-      const wrong = S.rv.checked || keys.filter((k) => !keysMatch(S.rv.parts, { [k]: rec.keys[k] }));
-      return keys.map((k) => {
-        const ok = !wrong.includes(k), pub = rec.keys[k];
-        const meaning = Array.isArray(pub) ? '' : (optOf(k, pub) || [])[2] || '';
-        return h('p.small' + (ok ? '' : '.miss'), { html: (ok ? '✓ ' : '✗ ') + '<b>' + W[k].q + '</b> ' + (ok ? wordText(k, S.rv.parts[k]) + '.' : 'You chose "' + wordText(k, S.rv.parts[k]) + '". ' + c.name + ' uses "' + wordText(k, pub) + '". ' + meaning) });
-      });
-    }
-    function paint() {
-      const gate = window.REVIEW.hintGate(S.reviews[id], S.rv.hint);
-      const order = window.REVIEW.sections(gate.attempted, gate.showSolution);
-      eyebrow.textContent = C.worldNames[world] + ' · practiced ' + ((S.reviews[id] || {}).n || 0) + ' times';
-      const kids = [];
-      if (Array.isArray(S.rv.checked)) {
-        const n = S.rv.checked.length;
-        kids.push(h('p', { html: n ? '<b>Not yet: ' + n + ' word' + (n > 1 ? 's' : '') + ' differ.</b>' : '<b>Rebuilt from memory.</b>' }));
-      }
-      if (order.indexOf('inspect') !== -1) {
-        const peek = peekFor(id);
-        kids.push(h('section.review-inspect', { 'data-review': 'inspect' }, [
-          h('h3', { text: 'Why this helps' }),
-          h('p', { text: lesson.inspect || '' }),
-          peek,
-        ]));
-      }
-      if (order.indexOf('solution') !== -1) {
-        kids.push(h('div.stack', { 'data-review': 'solution' }, [
-          h('h3', { text: 'Detailed solution' }),
-          ...solutionLines(),
-          h('p', { html: '<b>Why it works:</b> ' + c.fixes }),
-          h('p.small', { html: '<b>How it still fails:</b> ' + c.stillWrong }),
-        ]));
-      } else if (order.indexOf('hint') !== -1) {
-        kids.push(h('button.btn.ghost', {
-          type: 'button', 'data-review': 'hint', 'aria-label': 'Show the detailed solution',
-          onclick: () => { S.rv.hint = true; paint(); },
-        }, 'Show the detailed solution'));
-      }
-      kids.push(h('div.row', null, [
-        h('button.btn.ghost', { type: 'button', onclick: async () => {
-          setWorld(world, c.reviewKnobs || {});
-          S.reviewLab = id;
-          S.parts = Object.assign({}, S.rv.parts);
-          budgetOptions();
-          onPartsChanged();
-          clearReviewReplay();
-          await run();
-        } }, 'Run my sentence on ' + C.worldNames[world]),
-        h('button.btn', { type: 'button', onclick: () => {
-          const nq = reviewQueue().filter((x) => x !== id);
-          const next = nq[0] || id;
-          S.rv = { id: next, parts: plain(next), checked: null, hint: false };
-          render();
-        } }, 'Next method'),
-      ]));
-      tail.replaceChildren(...kids);
-    }
+    const m = mountSentence({ getParts: () => S.rv.parts, setPart: (k, v) => { S.rv.parts[k] = v; S.rv.checked = null; refreshSentences(); fb.replaceChildren(); }, world: () => world, withMath: true });
+    const fb = h('div.stack');
     const check = () => {
-      const keys = Object.keys(rec.keys);
-      S.rv.checked = keys.filter((k) => !keysMatch(S.rv.parts, { [k]: rec.keys[k] }));
-      S.rv.hint = false;
-      recordReview(id, S.rv.checked);
-      paint();
+      const keys = Object.keys(rec.keys), wrong = keys.filter((k) => !keysMatch(S.rv.parts, { [k]: rec.keys[k] }));
+      S.rv.checked = wrong;
+      recordReview(id, wrong);
+      fb.replaceChildren(
+        h('p', { html: wrong.length ? '<b>Not yet: ' + wrong.length + ' word' + (wrong.length > 1 ? 's' : '') + ' differ.</b>' : '<b>Rebuilt from memory.</b>' }),
+        ...keys.map((k) => {
+          const ok = !wrong.includes(k), pub = rec.keys[k];
+          const meaning = Array.isArray(pub) ? '' : (optOf(k, pub) || [])[2] || '';
+          return h('p.small' + (ok ? '' : '.miss'), { html: (ok ? '✓ ' : '✗ ') + '<b>' + W[k].q + '</b> ' + (ok ? wordText(k, S.rv.parts[k]) + '.' : 'You chose "' + wordText(k, S.rv.parts[k]) + '". ' + c.name + ' uses "' + wordText(k, pub) + '". ' + meaning) });
+        }),
+        h('p', { html: '<b>Why it works:</b> ' + c.fixes }),
+        h('p.small', { html: '<b>How it still fails:</b> ' + c.stillWrong }),
+        peekFor(id),
+        h('section.game-rules', { 'aria-label': 'Review game rules' }, rulesPanel(world, c.reviewKnobs || {})),
+        h('div.row', null, [
+          h('button.btn.ghost', { type: 'button', onclick: async () => { setWorld(world, c.reviewKnobs || {}); S.parts = Object.assign({}, S.rv.parts); budgetOptions(); onPartsChanged(); await run(); } }, 'Run my sentence on ' + C.worldNames[world]),
+          h('button.btn', { type: 'button', onclick: () => { const nq = reviewQueue().filter((x) => x !== id); S.rv = { id: nq[0] || id, parts: plain(nq[0] || id), checked: null }; render(); } }, 'Next method'),
+        ]),
+      );
     };
-    pane.append(h('div.card.review-context', { 'data-review': 'context' }, [
-      h('div.eyebrow', { text: 'Why this method' }),
-      h('p', { text: lesson.task || '' }),
-      h('p', { text: 'Earlier method: ' + (lesson.before || '') + '.' }),
-      h('p', { text: 'What still fails: ' + (lesson.failure || '') }),
-      h('p', { text: 'What this method changes: ' + (lesson.aim || '') }),
-    ]));
-    pane.append(h('div.card', { 'data-review': 'rebuild' }, [
-      eyebrow,
+    pane.append(h('div.card', null, [
+      h('div.eyebrow', { text: C.worldNames[world] + ' · practiced ' + ((S.reviews[id] || {}).n || 0) + ' times' }),
       h('h2', { text: 'Rebuild ' + c.name }),
-      h('p', { text: 'Change the plain sentence until it is this method. Then check. The lab shows this method\'s world.' }),
+      h('p', { text: 'Start from the plain sentence below and set the words that make ' + c.name + '. Then check.' }),
       m,
-      h('div.row', null, [
-        h('button.btn', { type: 'button', onclick: check }, 'Check my sentence'),
-        h('button.btn.ghost', { type: 'button', onclick: () => {
-          S.rv.parts = plain(id);
-          S.rv.checked = null;
-          S.rv.hint = false;
-          setParts(S.rv.parts);
-          refreshSentences();
-          paint();
-        } }, 'Reset to the plain sentence'),
-      ]),
-      tail,
+      h('div.row', null, [h('button.btn', { type: 'button', onclick: check }, 'Check my sentence'),
+        h('button.btn.ghost', { type: 'button', onclick: () => { S.rv.parts = plain(id); refreshSentences(); fb.replaceChildren(); } }, 'Reset to the plain sentence')]),
+      fb,
     ]));
-    paint();
   };
 
   // --- a card can name a world you have not played yet: show that world in place (16 Oct 2026, from a page comment)
@@ -2663,51 +2446,28 @@
   }
 
   // --- Codex: the family tree fills in as you discover
-  function levelDiscoveryBlock(lv) {
-    if (!window.RECAP) return null;
-    const ids = window.RECAP.cardsForLevel(lv, S);
-    if (!ids.length) return null;
-    return h('section.level-discoveries', { id: 'level-discoveries' }, [
-      h('h3', { text: 'Discovered on this level' }),
-      h('p.small', { text: 'Same text as the Codex. A card appears here after a run on this level opens it.' }),
-      ...ids.map((id) => cardView(id, true)),
-    ]);
-  }
   function paperLinks(id) {
     const ls = (C.paperLinks || {})[id];
     if (!ls || !ls.length) return null;
     return h('span.plinks', null, ls.map((l) => h('a.plink', { href: l.u, target: '_blank', rel: 'noopener' }, l.t)));
   }
-  function cardView(id, open, opts) {
+  function cardView(id, open) {
     const c = C.cards[id], known = S.found.includes(id) || S.given.includes(id);
     const kindName = c.kind === 'failure' ? 'Failure' : c.kind === 'frontier' ? 'Frontier model' : 'Method';
-    if (!known && !open) return h('div.entry.hidden-card', { 'data-card': id }, [h('div.eyebrow', { text: kindName }), h('h3', { text: '???' }), h('p.small', { text: c.kind === 'frontier' ? 'Opens in phase 5.' : 'Not discovered yet.' })]);
+    if (!known && !open) return h('div.entry.hidden-card', null, [h('div.eyebrow', { text: kindName }), h('h3', { text: '???' }), h('p.small', { text: c.kind === 'frontier' ? 'Opens in phase 5.' : 'Not discovered yet.' })]);
     const tag = c.status === 'checked' ? h('span.tag.checked', { text: 'Checked against the source' }) : h('span.tag.unchecked', { text: 'Not checked' });
     const rec = recipeOfCard(id);
-    const d = S.discoveries[id];
-    const dialog = opts && opts.dialog;
-    return h('div.entry' + (open ? '.discovery' : ''), { 'data-card': id }, [
+    return h('div.entry' + (open ? '.discovery' : ''), null, [
       h('div.row', { style: 'justify-content:space-between' }, [h('div.eyebrow', { text: c.kind ? kindName : S.found.includes(id) ? 'Method, built by you' : 'Method, given by a level' }), tag]),
       h('h3', { text: c.name }),
-      c.ideaLine ? h('p', null, [h('b', { text: 'Idea. ' }), c.ideaLine]) : null,
       h('dl', null, [
         h('dt', { text: 'Source' }), h('dd', null, [h('span', { html: c.paper }), paperLinks(id)]),
         rec ? h('dt', { text: 'Words' }) : null, rec ? h('dd', { text: Object.keys(rec.keys).map((k) => wordText(k, rec.keys[k])).join(' · ') }) : null,
         h('dt', { text: c.kind === 'failure' ? 'What' : c.kind === 'frontier' ? 'What it adds' : 'Fixes' }), h('dd', { html: c.fixes }),
         h('dt', { text: c.kind === 'failure' ? 'Measured' : c.kind === 'frontier' ? 'Limits' : 'Still fails' }), h('dd', { html: c.stillWrong }),
       ]),
-      c.practice ? h('p', null, [h('b', { text: 'In practice. ' }), c.practice]) : null,
-      c.pullQuote ? h('blockquote.pull-quote', null, [
-        h('p', { text: '"' + c.pullQuote + '"' }),
-        h('p.small', { text: (c.pullCite ? c.pullCite + '. ' : '') + 'The evidence drawer has the rest of the checked source text.' }),
-      ]) : (c.quoteGap ? h('p.small', { text: c.quoteGap }) : null),
-      d ? h('div.disc-context', null, [
-        h('p.small', { text: 'When you found it: ' + [d.where, d.world, d.result].filter(Boolean).join('. ') + '.' }),
-        d.sentence ? h('p.small', { text: 'Sentence: ' + d.sentence }) : null,
-      ]) : null,
-      dialog ? null : peekFor(id),
-      c.evidence ? h('details.card-evidence', null, [h('summary', { text: 'Evidence from the source' }), h('div', { html: c.evidence })]) : null,
-      dialog ? null : h('button.btn.ghost', { type: 'button', onclick: () => openUnlock([id], true) }, 'Open the unlock note'),
+      peekFor(id),
+      c.evidence ? h('details', null, [h('summary', { text: 'Evidence from the source' }), h('div', { html: c.evidence })]) : null,
     ]);
   }
   MODES.codex = function (pane) {
@@ -2823,11 +2583,11 @@
   };
   function labState() {
     if (customActive()) return customApi().state();
-    const a = S.view ? S.view.autopsy : null;
+    const a = S.results.length ? RLA.autopsy(S.results) : null;
     return {
       world: S.world, knobs: Object.assign(RLA.knobDefaults(S.world), S.knobs),
       words: S.parts, sentenceName: nameOf(S.parts, S.world), idleWords: idleWords(S.parts, S.world),
-      lastRun: a ? { seeds: S.view.seedCount, steps: S.lastCfg.steps, words: S.lastCfg.parts, symptoms: a.symptoms.map((s) => s.label + ': ' + s.evidence), summary: a.summary } : null,
+      lastRun: a ? { seeds: S.results.length, steps: S.lastCfg.steps, words: S.lastCfg.parts, symptoms: a.symptoms.map((s) => s.label + ': ' + s.evidence), summary: a.summary } : null,
       discovered: S.found.map((id) => C.cards[id].name), mode: S.mode,
       level: S.mode === 'campaign' ? (C.levels.find((l) => l.id === S.level) || {}).title : null,
     };
@@ -2868,7 +2628,7 @@
           return out;
         } },
       { name: 'set_world', description: 'Change the world and its knobs (knobs not given keep their defaults).', inputSchema: { type: 'object', properties: { world: { type: 'string', enum: Object.keys(C.worldNames) }, knobs: { type: 'object' } }, required: ['world'] },
-        execute: ({ world, knobs }) => { if (customLessonApi(world)) return window.bellman.level(world); if (customActive()) S.mode = 'workbench'; setWorld(world, knobs || {}); note('world → ' + world + ' ' + JSON.stringify(knobs || {})); return { world: S.world, knobs: S.knobs }; } },
+        execute: ({ world, knobs }) => { if (world === 'vpo' || world === 'supermimic') return window.bellman.level(world); if (customActive()) S.mode = 'workbench'; setWorld(world, knobs || {}); note('world → ' + world + ' ' + JSON.stringify(knobs || {})); return { world: S.world, knobs: S.knobs }; } },
       { name: 'run_experiment', description: 'Train the current sentence on the current world for real (seconds) and return the autopsy. seeds applies to CartPole only (1, 3 or 5); the other worlds use many runs.', inputSchema: { type: 'object', properties: { seeds: { type: 'integer', minimum: 1, maximum: 5 } } },
         execute: async ({ seeds }) => { if (customActive()) return customApi().run(); const so = C.seedOptions[S.world]; if (seeds && S.world === 'cartpole') $('#seeds').value = String(so.reduce((b, n) => (Math.abs(n - seeds) < Math.abs(b - seeds) ? n : b), so[0])); note('running ' + $('#seeds').value + ' runs…'); const a = await run(); if (!a) throw new Error('run failed'); note('done'); return { symptoms: a.symptoms, summary: a.summary }; } },
     ];
@@ -2899,21 +2659,8 @@
       lab.lastRun ? '- Last run (' + lab.lastRun.seeds + ' runs, ' + lab.lastRun.steps + ' steps): ' + (lab.lastRun.symptoms.join(' ') || 'no symptoms') : '- No run yet in this world.',
     ].filter((x) => x !== null);
   }
-  const wordLines = () => skewActive() ? ['Skew: fit a 3-bin density, refuse an inverse on a zero count, and sample goal weights on one shared budget. Use the level controls and bellman.run().']
-    : ensembleActive() ? ['Two reward tables: planner score is the average minus a coefficient times the absolute difference. The true aisle reward is applied only after the actions are chosen. Use the level controls and bellman.run().']
-    : metarlActive() ? ['Cross-task count: episode-2 successes given the episode-1 record. The left-door probe is given. Use the level controls and bellman.run().']
-    : skillsActive() ? ['Skill reward: q(skill|room) is a smoothed visit count. Reward is log q(skill|room) - log p(skill), with p(skill) = 1/2. The softmax gradient reads that reward. Use the level controls and bellman.run().']
-    : hierarchyActive() ? ['Hierarchy: one goal-conditioned table trains on the door, then a given sequence calls it. Flat training uses S plus H and not those transitions. Use the level controls and bellman.run().']
-    : hindsightActive() ? ['Hindsight: same four environment steps, then extra Q updates on goals recomputed from the final cell. Use the level controls and bellman.run().']
-    : vpoActive() ? ['VPO: mean over eight preferences of the best score in a three-route set. GRPO: fixed mean reward for each route. Use the level controls and bellman.run().']
+  const wordLines = () => vpoActive() ? ['VPO: mean over eight preferences of the best score in a three-route set. GRPO: fixed mean reward for each route. Use the level controls and bellman.run().']
     : supermimicActive() ? ['SuperMimic-inspired: compare PPO in physics, PPO in one fitted model, and backpropagation through that same model. Use the level controls and bellman.run().']
-      : elboActive() ? ['Evidence lower bound: expected log p(bright | cause) minus KL(q || prior). The gap is KL(q || posterior). Use the level controls and bellman.run().']
-      : goalsActive() ? ['Goal-conditioned counts: p(action | state, room) = count(action, state, room) / count(state, room). A hidden count drops the room. Use the level controls and bellman.run().']
-      : replanActive() ? ['Replan: score every 4-action sequence on the known mean model. Open-loop drives the winner. Replan drives only the first action and plans again from the observed cell. Use the level controls.']
-      : rewardfitActive() ? ['Reward fit: features are closeness, hole, lane, and step. The soft policy is proportional to exp(Q). The planner reads weights only. Use the level controls and bellman.run().']
-      : thawActive() ? ['Thaw: a linear policy fit on a frozen light-arm dataset, then a short finite-difference update on the heavy arm, compared with the same budget from zeros. Use the level controls and bellman.run().']
-      : rareActive() ? ['Visit bonus: an untried action is worth 1/(1 - gamma) until it is taken. The repair adds 1/sqrt(n(s\')) inside the Q target, on top of the environment reward, which stays 0 or 1. Use the level controls and bellman.run().']
-      : messagesActive() ? ['Backward messages: beta(s, a) excludes the action prior. The conditioned probability multiplies it back in and normalizes. Use the level controls.']
       : C.families[fam(S.parts)].keys.map((k) => '- `' + k + '` (' + W[k].q + '): ' + W[k].options.map((o) => '`' + o[0] + '` = ' + plainText(o[1])).join('; ') + '. Now: `' + S.parts[k] + '`.');
   function aiBrief() {
     return [
@@ -2997,21 +2744,8 @@
     window.bellman = {
       help: () => aiBrief(),
       page: () => pageMarkdown(),
-      math: (parts, world) => skewActive() ? [{ label: 'Powered density', tex: 'w(g) \\propto p(g)^{\\alpha},\\ \\alpha \\in \\{-1,0,+1\\}' }, { label: 'Add-one density', tex: 'p(g) = (n(g)+1)/Z' }]
-        : ensembleActive() ? [{ label: 'Disagreement penalty', tex: 's(e)=(m_1(e)+m_2(e))/2-\\lambda|m_1(e)-m_2(e)|' }]
-        : metarlActive() ? [{ label: 'Episode-2 success count', tex: 'p(a|h) = S(h,a) / N(h,a)' }]
-        : skillsActive() ? [{ label: 'Discriminator reward', tex: 'r(skill, room) = log q(skill|room) - log p(skill)' }]
-        : hierarchyActive() ? [{ label: 'Low-level backup', tex: 'Q(o,a) = r + gamma * max Q(o\',a\') when the transition is not terminal' }]
-        : hindsightActive() ? [{ label: 'Goal-conditioned backup', tex: 'Q(s,a,g) = r(s,a,g) + gamma * max Q(s\',a\',g) when not terminal' }]
-        : vpoActive() ? [{ label: 'VPO set reward', tex: 'R(S) = mean_w max_y dot(w,r(y))' }]
+      math: (parts, world) => vpoActive() ? [{ label: 'VPO set reward', tex: 'R(S) = mean_w max_y dot(w,r(y))' }]
         : supermimicActive() ? [{ label: 'Short-horizon objective', tex: 'J_H = sum_{t=0}^{H-1} gamma^t r_t + gamma^H V(s_H)' }]
-          : elboActive() ? [{ label: 'Evidence lower bound', tex: '\\mathrm{ELBO}(q)=\\mathbb{E}_q[\\log p(x\\mid z)]-\\mathrm{KL}(q(z)\\|p(z))' }, { label: 'Gap', tex: '\\log p(x)-\\mathrm{ELBO}(q)=\\mathrm{KL}(q(z)\\|p(z\\mid x))' }]
-          : goalsActive() ? [{ label: 'Action count', tex: 'p(a|s,g) = n(a,s,g) / n(s,g)' }]
-          : replanActive() ? [{ label: 'Mean-model return', tex: 'J(a_0:H-1) = sum_t r(s_t, a_t) under the mean model' }]
-          : rewardfitActive() ? [{ label: 'Soft-optimal action likelihood', tex: '\\log \\pi_w(a|s) = Q_w(s,a) - \\log \\sum_a \\exp Q_w(s,a)' }]
-          : thawActive() ? [{ label: 'One-joint return', tex: 'J = sum_t -(angle_t - 1)^2' }]
-          : rareActive() ? [{ label: 'Backed-up target', tex: 'y = r_{env} + 1/\\sqrt{n(s\')} + \\gamma \\max_{a\'} \\hat{Q}(s\', a\')' }, { label: 'Environment reward', tex: 'r_{env} \\in \\{0, 1\\}' }]
-          : messagesActive() ? [{ label: 'Conditioned action', tex: '\\pi_t(a|s) = p(a|s) \\beta_t(s,a) / \\beta_t(s)' }]
           : texLines(Object.assign({}, S.parts, parts || {}), world || S.world).map(([label, tex]) => ({ label, tex })),
       state: () => labState(),
       levels: () => C.levels.map((l) => { const i = levelInfo(l); return { n: i.n, id: i.id, title: i.title, world: i.world, done: i.done, step: i.step }; }),
@@ -3165,7 +2899,7 @@
 
   // first visit: what this is, in four lines
   function showIntro() {
-    const close = (mode) => { S.intro = 1; save(); dlg.close(); dlg.remove(); if (mode && mode !== S.mode) { S.mode = mode; save(); if (mode === 'campaign') enterLevel(C.levels.find((l) => l.id === S.level) || C.levels[0]); render(); } showPendingUnlock(); };
+    const close = (mode) => { S.intro = 1; save(); dlg.close(); dlg.remove(); if (mode && mode !== S.mode) { S.mode = mode; save(); if (mode === 'campaign') enterLevel(C.levels.find((l) => l.id === S.level) || C.levels[0]); render(); } };
     const step = (n, t, d) => h('li', null, [h('span.num', { text: n }), h('div', null, [h('b', { text: t }), h('p.small', { text: d })])]);
     const dlg = h('dialog.intro', { 'aria-label': 'Welcome' }, [h('div.stack', null, [
       h('div.eyebrow', { text: 'A small game about reinforcement learning' }),
@@ -3193,23 +2927,8 @@
     S.afterRun = null; S.onPartsChange = null;
     if (!vpoActive()) BBVPO.cancel();
     if (!supermimicActive()) BBSUPERMIMIC.cancel();
-    if (window.BBGOALS_LEVEL && !goalsActive()) window.BBGOALS_LEVEL.cancel();
-    if (window.BBREPLAN && !replanActive()) BBREPLAN.cancel();
-    if (!hindsightActive() && window.BBHINDSIGHT) BBHINDSIGHT.cancel();
-    if (window.BBELBO_LEVEL && !elboActive()) window.BBELBO_LEVEL.cancel();
-    if (window.BBRARE && !rareActive()) BBRARE.cancel();
-    if (!rewardfitActive() && window.BBREWARDFIT) BBREWARDFIT.cancel();
-    if (window.BBTHAW && !thawActive()) window.BBTHAW.cancel();
-    if (window.BBSKILLS_LEVEL && !skillsActive()) window.BBSKILLS_LEVEL.cancel();
-    if (window.BBHIERARCHY && !hierarchyActive()) window.BBHIERARCHY.cancel();
-    if (window.BBMESSAGES_LEVEL && !messagesActive()) window.BBMESSAGES_LEVEL.cancel();
-    if (!metarlActive() && window.BBMETARL) window.BBMETARL.cancel();
-    if (window.BBENSEMBLE_LEVEL && !ensembleActive()) window.BBENSEMBLE_LEVEL.cancel();
-    if (!skewActive() && window.BBSKEW) BBSKEW.cancel();
     $('#lab').hidden = customActive(); $('#vpo-lab').hidden = !customActive();
-    if (S.mode !== 'review') S.reviewLab = null;
     MODES[S.mode](pane);
-    if (!customActive()) $('#vpo-lab').replaceChildren();
     refreshSentences();
     if (!customActive()) renderRules();
     updateScore();
@@ -3227,7 +2946,7 @@
     const w = Math.round($('#stage').getBoundingClientRect().width);
     if (w === stageW) return;
     stageW = w;
-    if (haveRun()) renderCharts([], true);
+    if (S.results.length) renderCharts(S.results.map((r) => ({ evals: r.evals, diag: r.diag })), true);
     renderStage();
   });
 
@@ -3261,5 +2980,4 @@
     window.ALGO_HELP.installAuto(document.body);
   }
   if (!S.intro) showIntro();
-  else showPendingUnlock();
 })();

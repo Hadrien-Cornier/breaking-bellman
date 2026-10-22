@@ -161,37 +161,28 @@
 
   // a line chart as tables of numbers. Lines on one x grid share a table (a grid that starts another one, as in a run still
   // going, counts as the same); a line on another grid (a pinned run A with other steps) gets its own table, so no value
-  // is ever shown at an x where it was not measured. A finished seed aggregate adds its min, max and quartile columns.
-  // Each table has up to 11 rows spread over x, then each line's extremes.
+  // is ever shown at an x where it was not measured. Each table has up to 11 rows spread over x, then each line's extremes.
   function chart(md) {
     const series = md.series.filter((s) => s.xs && s.xs.length);
     if (!series.length) return '(No data yet: the chart fills in when a run ends.)';
     const o = md.o || {}, xl = o.xlabel || 'x';
-    const columns = [];
-    for (const s of series) {
-      columns.push({ name: s.label || 'line', xs: s.xs, ys: s.ys });
-      for (const b of s.bands || []) {
-        if (b && b.lo) columns.push({ name: b.loLabel || 'low', xs: s.xs, ys: b.lo });
-        if (b && b.hi) columns.push({ name: b.hiLabel || 'high', xs: s.xs, ys: b.hi });
-      }
-    }
     const count = {}, seen = {};
-    for (const c of columns) count[c.name] = (count[c.name] || 0) + 1;
-    for (const c of columns) if (count[c.name] > 1) c.name = c.name + ' ' + (seen[c.name] = (seen[c.name] || 0) + 1);
+    for (const s of series) { const b = s.label || 'line'; count[b] = (count[b] || 0) + 1; }
+    const names = series.map((s) => { const b = s.label || 'line'; return count[b] > 1 ? b + ' ' + (seen[b] = (seen[b] || 0) + 1) : b; });
     const starts = (a, b) => { for (let i = 0, n = Math.min(a.length, b.length); i < n; i++) if (Math.abs(a[i] - b[i]) > 1e-9) return false; return true; };
     const groups = [];
-    for (const c of columns) {
-      const g = groups.find((x) => starts(x.xs, c.xs));
-      if (g) { g.items.push(c); if (c.xs.length > g.xs.length) g.xs = c.xs; } else groups.push({ xs: c.xs, items: [c] });
-    }
-    const fin = (ys) => Array.from(ys).filter((v) => v != null && isFinite(v));
-    const ext = (ys, f) => { const v = fin(ys); return v.length ? fmtNum(f(...v)) : ' '; };
+    series.forEach((s, j) => {
+      const g = groups.find((x) => starts(x.xs, s.xs));
+      if (g) { g.items.push(j); if (s.xs.length > g.xs.length) g.xs = s.xs; } else groups.push({ xs: s.xs, items: [j] });
+    });
+    const fin = (s) => Array.from(s.ys).filter((v) => v != null && isFinite(v));
+    const ext = (s, f) => { const v = fin(s); return v.length ? fmtNum(f(...v)) : ' '; };
     const tables = groups.map((g) => {
-      const n = g.xs.length, k = Math.min(11, n), its = g.items;
+      const n = g.xs.length, k = Math.min(11, n), its = g.items.map((j) => series[j]);
       const idx = Array.from({ length: k }, (_, i) => Math.round((i * (n - 1)) / Math.max(1, k - 1)));
       const rows = idx.map((i) => '| ' + fmtNum(g.xs[i]) + ' | ' + its.map((s) => (i < s.ys.length && fmtNum(s.ys[i])) || ' ').join(' | ') + ' |');
-      return ['| ' + xl + ' | ' + its.map((s) => s.name).join(' | ') + ' |', '|' + ' --- |'.repeat(its.length + 1)].concat(rows,
-        ['| lowest | ' + its.map((s) => ext(s.ys, Math.min)).join(' | ') + ' |', '| highest | ' + its.map((s) => ext(s.ys, Math.max)).join(' | ') + ' |']).join('\n');
+      return ['| ' + xl + ' | ' + g.items.map((j) => names[j]).join(' | ') + ' |', '|' + ' --- |'.repeat(its.length + 1)].concat(rows,
+        ['| lowest | ' + its.map((s) => ext(s, Math.min)).join(' | ') + ' |', '| highest | ' + its.map((s) => ext(s, Math.max)).join(' | ') + ' |']).join('\n');
     });
     const axis = 'x axis: ' + xl + ', 0 to ' + fmtNum(o.xmax) + '. y axis: ' + (o.ymin != null ? fmtNum(o.ymin) : 'auto') + ' to ' + (o.ymax != null ? fmtNum(o.ymax) : 'auto') + (o.log ? ', log scale' : '') + '.'
       + (o.ref != null ? ' Dashed line at y = ' + fmtNum(o.ref) + '.' : '') + (o.note ? ' ' + o.note : '')
