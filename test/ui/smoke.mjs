@@ -487,7 +487,7 @@ await session(390, 844, 'pendulum', async (page) => {
   check(/replay from hanging still/.test(await page.locator('#stage-caption').innerText()), 'caption identifies the separate replay');
   await page.locator('#stage').screenshot({ path: out + '/phone-pendulum.png' });
 });
-// Rules are visible before the first move, across every selection and at phone/desktop widths.
+// Rules stay on the page at phone and desktop widths, after the world and Run.
 await session(390, 844, 'rules', async (page) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   for (const width of [390, 1280]) {
@@ -501,8 +501,8 @@ await session(390, 844, 'rules', async (page) => {
           if (!text.includes(label)) failures.push(name + ': missing ' + label);
         }
         if (objective && !text.includes(objective)) failures.push(name + ': wrong challenge');
-        if (!(panel.compareDocumentPosition(document.querySelector('#stage')) & Node.DOCUMENT_POSITION_FOLLOWING)) failures.push(name + ': rules follow manual play');
-        if (!(panel.compareDocumentPosition(document.querySelector('#run-btn')) & Node.DOCUMENT_POSITION_FOLLOWING)) failures.push(name + ': rules follow Run');
+        if (!(panel.compareDocumentPosition(document.querySelector('#stage')) & Node.DOCUMENT_POSITION_PRECEDING)) failures.push(name + ': world stays ahead of the rules');
+        if (!(panel.compareDocumentPosition(document.querySelector('#run-btn')) & Node.DOCUMENT_POSITION_PRECEDING)) failures.push(name + ': Run stays ahead of the rules');
         const inline = document.querySelector('#challenge-rules');
         if (inline && inline.innerText !== text) failures.push(name + ': stale inline rules');
         if (document.documentElement.scrollWidth > innerWidth) failures.push(name + ': overflow');
