@@ -65,6 +65,8 @@ async function setWord(page, scope, key, label) {
 
 await session(375, 812, 'phone', async (page) => {
   await page.screenshot({ path: out + '/phone-start.png' });
+  // Level 1 is the goal-conditioned lesson. This session still plays the slot machines.
+  await page.locator('#mode-pane .node', { hasText: 'Ten slot machines' }).click();
   await page.locator('.mc .opt').nth(1).click();
   await page.getByText('Run the starting sentence').click();
   await runDone(page);
@@ -86,7 +88,7 @@ await session(375, 812, 'phone', async (page) => {
   await page.locator('#mode-pane .mc').last().locator('.opt').nth(0).click();
   await page.waitForSelector('text=Your sentence and the published one');
   const cons = await page.locator('#mode-pane .step').last().innerText();
-  check(/ε-greedy/.test(cons), 'level 1 consolidation names ε-greedy');
+  check(/ε-greedy/.test(cons), 'the slots lesson consolidation names ε-greedy');
   await page.screenshot({ path: out + '/phone-l1-done.png', fullPage: true });
 });
 
@@ -213,15 +215,18 @@ await session(1280, 900, 'desktop', async (page) => {
 await session(1280, 900, 'phases', async (page) => {
   await page.getByRole('tab', { name: 'Campaign' }).click();
   // every level is open, in any order; the save bar and the agent hooks are there
-  check(await page.locator('#mode-pane .node').count() === 19 && !(await page.locator('#mode-pane .node[disabled]').count()), 'all 19 levels are open');
+  check(await page.locator('#mode-pane .node').count() === 20 && !(await page.locator('#mode-pane .node[disabled]').count()), 'all 20 levels are open');
   check(await page.locator('#mode-pane .savebar button', { hasText: 'Download save file' }).count() === 1, 'the level map offers a save file');
   const brief = await page.evaluate(() => window.bellman.help());
-  check(/Level \d+ of 19/.test(brief) && /bellman\.run\(\)/.test(brief), 'window.bellman gives a brief for an AI helper');
+  check(/Level \d+ of 20/.test(brief) && /bellman\.run\(\)/.test(brief), 'window.bellman gives a brief for an AI helper');
   const wr = await page.evaluate(() => {
+    // Level 1 is a custom lesson, so the sentence API is checked from the workbench, then Campaign is restored.
+    document.querySelector('[data-mode="workbench"]').click();
     const b = window.bellman, w0 = Object.assign({}, b.words().words);
     const a = b.words({ eps: true }), ae = a.words.eps, ar = a.rejected;
     const t = b.words({ eps: 'false' }).words.eps, bad = b.words({ eps: 'sometimes', nope: 1 }).rejected;
     b.words(w0);
+    document.querySelector('[data-mode="campaign"]').click();
     return { ae, ar: ar || null, t, bad: bad || null };
   });
   check(wr.ae === true && wr.ar === null && wr.t === false && JSON.stringify(wr.bad) === '{"eps":"sometimes","nope":1}', 'bellman.words takes true or "false" and returns bad words as rejected');
@@ -389,6 +394,7 @@ await session(375, 812, 'phone-frontier', async (page) => {
 });
 // comment fixes of 15 Oct: the combination table, the episode animation, the discovery map
 await session(375, 812, 'comments', async (page) => {
+  await page.locator('#mode-pane .node', { hasText: 'Ten slot machines' }).click();
   await page.locator('#grid-card summary').click();
   check(await page.locator('#grid-lab .chip.gw.on').count() === 4, 'slots: the four bandit words are picked by default');
   await page.locator('#grid-lab button', { hasText: /^Run all 16/ }).click();
@@ -435,7 +441,7 @@ await session(375, 812, 'expert', async (page) => {
   await page.locator('#expert-card').screenshot({ path: out + '/expert-cliff-min.png' });
 });
 await session(390, 844, 'pendulum', async (page) => {
-  await page.getByRole('button', { name: /Level 10 ·/ }).click();
+  await page.locator('#mode-pane .node', { hasText: 'Actions that are numbers' }).click();
   await page.evaluate(() => {
     const joint = BB.scenes.joint;
     BB.scenes.joint = (ctx, w, h, d) => {
@@ -511,7 +517,7 @@ await session(390, 844, 'rules', async (page) => {
       }
       return failures;
     });
-    check(!missing.length, 'all 19 levels, 11 missions, knob updates and family/world selections have pre-play rules at ' + width + 'px: ' + missing.join('; '));
+    check(!missing.length, 'all 20 levels, 11 missions, knob updates and family/world selections have pre-play rules at ' + width + 'px: ' + missing.join('; '));
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => bellman.level('continuous'));
