@@ -47,12 +47,13 @@
     name: 'Reward fitting on a small grid', short: 'Fit a reward',
     fixes: 'The proxy pays only for closeness and plans through the hole. Weights that maximize the soft-optimal likelihood of demonstrations, followed by a planner that sees only those weights, can walk around it.',
     stillWrong: 'The fit is one maximum inside a four-feature family on a 5 by 3 grid. It is not a unique human reward. Lecture 13 also titles an adversarial method Inverse RL as a GAN. This toy does not train that method.',
-    paper: 'CS 285 Spring 2026, lecture 13, Control as Inference. The likelihood is the maximum-entropy objective of Ziebart, Maas, Bagnell, and Dey (2008), AAAI, computed exactly on this grid.',
-    evidence: '<p>Spring 2026 lecture 13 PDF, section Inverse reinforcement learning, extracted 2026-10-22: "many reward functions can explain the same behavior." The same deck titles a later part Inverse RL as a GAN. This lesson does not train a discriminator.</p>',
+    paper: 'CS 285 Spring 2026 lecture 13, heading Q-learning with soft optimality. The fit sums log pi(a|s) on the demonstrated actions. pi is the discounted soft Bellman policy on this grid. Levine (2018) reviews that backup. Ziebart, Maas, Bagnell, and Dey (2008) normalize a reward over whole trajectories. This page does not compute that partition.',
+    evidence: '<p>Spring 2026 lecture 13 PDF, section Inverse reinforcement learning, extracted 2026-10-22: "many reward functions can explain the same behavior." The same deck has a separate heading, The IRL partition function, and later titles Inverse RL as a GAN. This lesson does not sum over trajectories and does not train a discriminator. The soft-backup citation on the slides is Levine (2018), Reinforcement Learning and Control as Probabilistic Inference.</p>',
   };
   C.paperLinks.maxentirl = [
     { t: 'Lecture 13 slides', u: 'https://rail.eecs.berkeley.edu/deeprlcourse/static/slides/lec-13.pdf' },
-    { t: 'Ziebart et al. 2008', u: 'https://www.aaai.org/Papers/AAAI/2008/AAAI08-227.pdf' },
+    { t: 'Levine 2018', u: 'https://arxiv.org/abs/1805.00909' },
+    { t: 'Ziebart et al. 2008, trajectory partition', u: 'https://www.aaai.org/Papers/AAAI/2008/AAAI08-227.pdf' },
   ];
 
   const state = {
@@ -263,7 +264,9 @@
           h('p.small', null, [
             'Slides: ',
             h('a', { href: 'https://rail.eecs.berkeley.edu/deeprlcourse/static/slides/lec-13.pdf', target: '_blank', rel: 'noopener' }, 'lecture 13'),
-            '. Maximum-entropy IRL paper: ',
+            ', heading Q-learning with soft optimality. Soft backup review: ',
+            h('a', { href: 'https://arxiv.org/abs/1805.00909', target: '_blank', rel: 'noopener' }, 'Levine (2018)'),
+            '. Trajectory partition, not computed here: ',
             h('a', { href: 'https://www.aaai.org/Papers/AAAI/2008/AAAI08-227.pdf', target: '_blank', rel: 'noopener' }, 'Ziebart, Maas, Bagnell, and Dey (2008)'),
             '.',
           ]),
@@ -358,7 +361,7 @@
           h('dl', null, [
             h('div.rules-row', null, [h('dt', { text: 'Goal' }), h('dd', { text: 'Reach the goal without treating the hole as a free shortcut.' })]),
             h('div.rules-row', null, [h('dt', { text: 'Reward' }), h('dd', { text: 'A dot product of closeness, hole, lane, and step. The proxy uses closeness only.' })]),
-            h('div.rules-row', null, [h('dt', { text: 'Objective' }), h('dd', { text: 'Sum of log pi(a|s) on the demonstrated actions. pi is the soft-optimal policy.' })]),
+            h('div.rules-row', null, [h('dt', { text: 'Objective' }), h('dd', { text: 'Sum of log pi(a|s) on the demonstrated actions. pi is the discounted soft Bellman policy. This is not a sum over whole trajectories.' })]),
             h('div.rules-row', null, [h('dt', { text: 'Episode ends' }), h('dd', { text: 'When the plan enters the goal, or if it loops.' })]),
             h('div.rules-row', null, [h('dt', { text: 'Score' }), h('dd', { text: 'Log likelihood of the demonstrations, then the cells of the greedy plan.' })]),
             h('div.rules-row', null, [h('dt', { text: 'Pass this challenge' }), h('dd', { text: level.goal.text })]),

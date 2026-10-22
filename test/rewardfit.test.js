@@ -123,6 +123,9 @@ test('rewardfit is its own mounted lesson after the offline levels', () => {
   const app = fs.readFileSync('web/app.js', 'utf8');
   assert.match(app, /id === 'rewardfit'/);
   assert.doesNotMatch(app, /supermimic' \? BBSUPERMIMIC : BBVPO/);
+  assert.match(C.cards.maxentirl.paper, /log pi\(a\|s\)/);
+  assert.match(C.cards.maxentirl.paper, /does not compute that partition/);
+  assert.doesNotMatch(C.cards.maxentirl.paper, /maximum-entropy objective of Ziebart/);
   function el() {
     return {
       namespaceURI: 'http://www.w3.org/2000/svg', attrs: {}, children: [], className: '', textContent: '', style: {}, isConnected: true,
