@@ -201,7 +201,7 @@
 
   function copyRewards(table) {
     const out = {};
-    for (const edge of EDGES) out[edge] = readReward(table, edge, 'reward');
+    for (const edge of EDGES) out[edge] = readReward(table, edge, 'table');
     return out;
   }
 
