@@ -1046,14 +1046,25 @@
     $('#run-source').textContent = 'Settings changed. Run this sentence to measure it.';
     showRunStopped('Run canceled after the settings changed.');
   }
+  function customLessonApi(id) {
+    if (id === 'vpo') return window.BBVPO;
+    if (id === 'supermimic') return window.BBSUPERMIMIC;
+    if (id === 'goals') return window.BBGOALS_LEVEL;
+    if (id === 'replan') return window.BBREPLAN;
+    if (id === 'hindsight') return window.BBHINDSIGHT;
+    if (id === 'elbo') return window.BBELBO_LEVEL;
+    if (id === 'rewardfit') return window.BBREWARDFIT;
+    return null;
+  }
   const vpoActive = () => S.mode === 'campaign' && S.level === 'vpo';
   const supermimicActive = () => S.mode === 'campaign' && S.level === 'supermimic';
   const goalsActive = () => S.mode === 'campaign' && S.level === 'goals';
   const replanActive = () => S.mode === 'campaign' && S.level === 'replan';
   const hindsightActive = () => S.mode === 'campaign' && S.level === 'hindsight';
   const elboActive = () => S.mode === 'campaign' && S.level === 'elbo';
-  const customActive = () => vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || elboActive();
-  const customApi = () => elboActive() ? window.BBELBO_LEVEL : hindsightActive() ? BBHINDSIGHT : replanActive() ? BBREPLAN : goalsActive() ? window.BBGOALS_LEVEL : supermimicActive() ? BBSUPERMIMIC : BBVPO;
+  const rewardfitActive = () => S.mode === 'campaign' && S.level === 'rewardfit';
+  const customActive = () => vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || elboActive() || rewardfitActive();
+  const customApi = () => customLessonApi(S.level);
   async function run() {
     if (customActive()) return customApi().run();
     if (S.running) return null;
@@ -2057,8 +2068,8 @@
       ]),
     ]);
     if (lv.custom) {
-      const api = lv.id === 'elbo' ? window.BBELBO_LEVEL : lv.id === 'hindsight' ? BBHINDSIGHT : lv.id === 'replan' ? BBREPLAN : lv.id === 'goals' ? window.BBGOALS_LEVEL : lv.id === 'supermimic' ? BBSUPERMIMIC : lv.id === 'vpo' ? BBVPO : null;
-      if (!api || !api.mount) {
+      const api = customLessonApi(lv.id);
+      if (!api || typeof api.mount !== 'function') {
         pane.append(h('div.card', null, [h('h2', { text: lv.title }), h('p', { text: 'This lesson is not mounted.' })]));
         pane.append(mapCard);
         return;
@@ -2073,6 +2084,9 @@
         openLevel: (id) => { const nx = C.levels.find((l) => l.id === id); if (!nx) return; S.level = nx.id; save(); enterLevel(nx); render(); window.scrollTo({ top: 0 }); },
         next: () => { const nx = C.levels[iNext + 1]; return nx ? { id: nx.id, title: nx.title, world: nx.world } : null; },
         openNext: () => { const nx = C.levels[iNext + 1]; if (!nx) return null; S.level = nx.id; save(); enterLevel(nx); render(); window.scrollTo({ top: 0 }); return nx.id; },
+        progress: () => S.lstep[lv.id] || 0,
+        setProgress: (n) => { if ((S.lstep[lv.id] || 0) < n) { S.lstep[lv.id] = n; save(); } },
+        answerFor: (id) => S.answers[id] || null,
         complete: () => {
         if (!S.done.includes(lv.id)) S.done.push(lv.id); S.lstep[lv.id] = 5; save(); updateScore();
       }, known: id => S.found.includes(id) || S.given.includes(id), reveal: id => {
@@ -2838,7 +2852,7 @@
           return out;
         } },
       { name: 'set_world', description: 'Change the world and its knobs (knobs not given keep their defaults).', inputSchema: { type: 'object', properties: { world: { type: 'string', enum: Object.keys(C.worldNames) }, knobs: { type: 'object' } }, required: ['world'] },
-        execute: ({ world, knobs }) => { if (world === 'vpo' || world === 'supermimic' || world === 'goals' || world === 'replan' || world === 'hindsight' || world === 'elbo') return window.bellman.level(world); if (customActive()) S.mode = 'workbench'; setWorld(world, knobs || {}); note('world → ' + world + ' ' + JSON.stringify(knobs || {})); return { world: S.world, knobs: S.knobs }; } },
+        execute: ({ world, knobs }) => { if (world === 'vpo' || world === 'supermimic' || world === 'goals' || world === 'replan' || world === 'hindsight' || world === 'elbo' || world === 'rewardfit') return window.bellman.level(world); if (customActive()) S.mode = 'workbench'; setWorld(world, knobs || {}); note('world → ' + world + ' ' + JSON.stringify(knobs || {})); return { world: S.world, knobs: S.knobs }; } },
       { name: 'run_experiment', description: 'Train the current sentence on the current world for real (seconds) and return the autopsy. seeds applies to CartPole only (1, 3 or 5); the other worlds use many runs.', inputSchema: { type: 'object', properties: { seeds: { type: 'integer', minimum: 1, maximum: 5 } } },
         execute: async ({ seeds }) => { if (customActive()) return customApi().run(); const so = C.seedOptions[S.world]; if (seeds && S.world === 'cartpole') $('#seeds').value = String(so.reduce((b, n) => (Math.abs(n - seeds) < Math.abs(b - seeds) ? n : b), so[0])); note('running ' + $('#seeds').value + ' runs…'); const a = await run(); if (!a) throw new Error('run failed'); note('done'); return { symptoms: a.symptoms, summary: a.summary }; } },
     ];
@@ -2875,6 +2889,7 @@
       : elboActive() ? ['Evidence lower bound: expected log p(bright | cause) minus KL(q || prior). The gap is KL(q || posterior). Use the level controls and bellman.run().']
       : goalsActive() ? ['Goal-conditioned counts: p(action | state, room) = count(action, state, room) / count(state, room). A hidden count drops the room. Use the level controls and bellman.run().']
       : replanActive() ? ['Replan: score every 4-action sequence on the known mean model. Open-loop drives the winner. Replan drives only the first action and plans again from the observed cell. Use the level controls.']
+      : rewardfitActive() ? ['Reward fit: features are closeness, hole, lane, and step. The soft policy is proportional to exp(Q). The planner reads weights only. Use the level controls and bellman.run().']
       : C.families[fam(S.parts)].keys.map((k) => '- `' + k + '` (' + W[k].q + '): ' + W[k].options.map((o) => '`' + o[0] + '` = ' + plainText(o[1])).join('; ') + '. Now: `' + S.parts[k] + '`.');
   function aiBrief() {
     return [
@@ -2964,6 +2979,7 @@
           : elboActive() ? [{ label: 'Evidence lower bound', tex: '\\mathrm{ELBO}(q)=\\mathbb{E}_q[\\log p(x\\mid z)]-\\mathrm{KL}(q(z)\\|p(z))' }, { label: 'Gap', tex: '\\log p(x)-\\mathrm{ELBO}(q)=\\mathrm{KL}(q(z)\\|p(z\\mid x))' }]
           : goalsActive() ? [{ label: 'Action count', tex: 'p(a|s,g) = n(a,s,g) / n(s,g)' }]
           : replanActive() ? [{ label: 'Mean-model return', tex: 'J(a_0:H-1) = sum_t r(s_t, a_t) under the mean model' }]
+          : rewardfitActive() ? [{ label: 'Soft-optimal action likelihood', tex: '\\log \\pi_w(a|s) = Q_w(s,a) - \\log \\sum_a \\exp Q_w(s,a)' }]
           : texLines(Object.assign({}, S.parts, parts || {}), world || S.world).map(([label, tex]) => ({ label, tex })),
       state: () => labState(),
       levels: () => C.levels.map((l) => { const i = levelInfo(l); return { n: i.n, id: i.id, title: i.title, world: i.world, done: i.done, step: i.step }; }),
@@ -3149,6 +3165,7 @@
     if (window.BBREPLAN && !replanActive()) BBREPLAN.cancel();
     if (!hindsightActive() && window.BBHINDSIGHT) BBHINDSIGHT.cancel();
     if (window.BBELBO_LEVEL && !elboActive()) window.BBELBO_LEVEL.cancel();
+    if (!rewardfitActive() && window.BBREWARDFIT) BBREWARDFIT.cancel();
     $('#lab').hidden = customActive(); $('#vpo-lab').hidden = !customActive();
     if (S.mode !== 'review') S.reviewLab = null;
     MODES[S.mode](pane);
