@@ -97,8 +97,17 @@
       } else body.append(h('p.small', { text:'Train both learners to inspect their actual sampled routes and updates.' }));
       body.append(h('h3', { text:'3. Read the measured comparison' }), reference(h),
         h('p', { text:'Which conclusion follows? More alternatives can help search, but a vector objective alone does not guarantee an advantage. Your game run may tie or favor either learner.' }),
-        h('label.field', { for:'vpo-answer' }, [h('span.small', { text:'Explain the result' }), h('select', { id:'vpo-answer', onchange:e=>{state.answer=e.target.value;redraw();} }, [['','Choose a conclusion'],['win','VPO must beat GRPO with 30 candidates'],['evidence','Both can improve; the measured VPO edge was small']].map(([value,text])=>h('option', { value, text, selected:state.answer===value })))]),
-        state.answer==='win' ? h('p.small', { role:'status', text:'More candidates help only when they add a better route. The frozen result missed the planned effect size, and GRPO also improved.' }) : null,
+        h('label.field', { for:'vpo-answer' }, [h('span.small', { text:'Explain the result' }), h('select', { id:'vpo-answer', onchange:e=>{state.answer=e.target.value;redraw();} }, [
+          ['','Choose a conclusion'],
+          ['win','VPO must win: its set objective makes 30 candidates beat fixed-score GRPO'],
+          ['none','Neither method improved: a missed effect-size gate makes the measurements uninformative'],
+          ['evidence','Both improved with more candidates; the small VPO edge did not establish the mechanism'],
+        ].map(([value,text])=>h('option', { value, text, selected:state.answer===value })))]),
+        state.answer ? h('p.small', { role:'status', text: state.answer==='win'
+          ? 'The decisive error is treating more candidates as a guaranteed VPO advantage. More candidates help either learner only when they add a better route, and GRPO improved slightly more from best@3 to best@30.'
+          : state.answer==='none'
+            ? 'The decisive error is treating a failed effect-size gate as no evidence at all. Both measured policies improved with more candidates; the gate limits the causal claim about VPO.'
+            : 'The measured result supports a search benefit for both learners. It does not establish that the vector set objective caused VPO to outperform GRPO.' }) : null,
         h('button.btn', { id:'vpo-complete', type:'button', disabled:!state.result||!state.inspected||state.answer!=='evidence', onclick:()=>{complete();redraw();} }, done()?'Lesson complete':'I compared both learners and inspected preferences'),
         h('p.small', { text:'To finish, train both learners, sample preference directions and explain the evidence. Completing this lesson does not require VPO to win.' }));
       lab.replaceChildren(h('section.card.game-rules', { id:'vpo-rules' }, [h('h3', { text:'Game rules · Two treasures' }),
