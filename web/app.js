@@ -44,7 +44,7 @@
     try {
       localStorage.setItem(LS, JSON.stringify({ found: S.found, given: S.given, seen: S.seen, done: S.done, answers: S.answers, missions: S.missions,
         saved: S.saved, mode: S.mode, level: S.level, lstep: S.lstep, made: S.made, reviews: S.reviews, unlockAll: S.unlockAll,
-        discoveries: S.discoveries, wondered: S.wondered, intro: S.intro }));
+        discoveries: S.discoveries, recapDismissed: S.recapDismissed, wondered: S.wondered, intro: S.intro }));
     } catch (e) { /* storage blocked */ }
   }
 
@@ -72,7 +72,15 @@
     wondered: saved.wondered || {},        // surprise id -> times shown ("Did you notice?")
     intro: saved.intro || 0,               // 1 after the first-visit welcome
     discoveries: saved.discoveries || {},  // card id -> what the discovery looked like (time, world, sentence, result, level answers)
+    // null means a save from before unlock notes remembered dismissal. Filled just below.
+    recapDismissed: Array.isArray(saved.recapDismissed) ? saved.recapDismissed.filter((id) => typeof id === 'string') : null,
   };
+  if (!Array.isArray(S.recapDismissed)) {
+    const seen = {};
+    S.recapDismissed = [];
+    for (const id of S.found.concat(S.given)) if (C.cards[id] && !seen[id]) { seen[id] = 1; S.recapDismissed.push(id); }
+    save();
+  }
   function MODES_OK(m) { return ['campaign', 'workbench', 'saboteur', 'codex', 'chat'].includes(m); }
 
   // ---------------------------------------------------------------- bring your own AI key (optional)
@@ -1072,61 +1080,60 @@
     }
   }
   // ---------------------------------------------------------------- discovery celebration
-  // One short burst + name reveal for any card the player sees for the first time. Every true
-  // discovery funnels here: discover() below (methods built and working, failures seen, knob finds),
-  // and a level's genuine first reveal (reveal / revealOnDone). A known card, a reload or revisiting
-  // a node never queues, so nothing replays.
+  // ---------------------------------------------------------------- unlock note
+  // Stays until the player presses Dismiss. A reload before that opens it again.
+  // Dismiss is remembered. The same note can be opened from a Campaign or Codex card.
   const freshNodes = new Set();          // cards revealed this session: their tree node lights up once
-  let celQueue = [], celTimer = null, celActive = null;
-  const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let celQueue = [], celTimer = null, unlockEl = null, unlockIds = [];
   function queueCelebration(cardId) {
     if (!C.cards[cardId]) return;
     freshNodes.add(cardId);
     celQueue.push(cardId);
-    // debounce so one run's discoveries (a method plus failures, or a run plus a level reveal) land together
+    if (S.mode === 'campaign') S.scrollDiscoveries = true;
     clearTimeout(celTimer); celTimer = setTimeout(flushCelebration, 120);
   }
   function flushCelebration() {
     const ids = celQueue; celQueue = [];
-    if (ids.length) showCelebration(ids);
+    if (ids.length) openUnlock(unlockIds.concat(ids), false);
   }
-  function dcItem(id) {
-    const c = C.cards[id];
-    const kind = c.kind === 'failure' ? 'Failure' : c.kind === 'frontier' ? 'Frontier model'
-      : S.found.includes(id) ? 'Method, built by you' : 'Method, given by a level';
-    return h('div.dc-item', null, [
-      h('div.dc-kind', { text: kind }),
-      h('div.dc-name', null, [h('span.dc-q', { 'aria-hidden': 'true', text: '???' }), h('span.dc-real', { text: c.name })]),
-      h('div.dc-node', { 'aria-hidden': 'true' }, [h('span', { text: c.short || c.name })]),
-    ]);
-  }
-  function showCelebration(ids) {
-    if (celActive && celActive._dismiss) celActive._dismiss();
-    let done = false, onKey = null;
-    const overlay = h('div.dc', { role: 'status', 'aria-live': 'polite', 'aria-atomic': 'true' }, [
+  function knownCard(id) { return !!(C.cards[id] && (S.found.includes(id) || S.given.includes(id))); }
+  function openUnlock(ids, reopen) {
+    const list = [];
+    for (const id of ids) if (knownCard(id) && !list.includes(id)) list.push(id);
+    if (!list.length) return;
+    if (unlockEl) unlockEl.remove();
+    unlockIds = list.slice();
+    let onKey = null;
+    const dismissBtn = h('button.btn', { type: 'button', id: 'unlock-dismiss' }, reopen ? 'Close' : 'Dismiss');
+    const overlay = h('div.dc', { role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'unlock-title' }, [
       h('div.dc-burst', { 'aria-hidden': 'true' }),
       h('div.dc-card', null, [
-        h('div.dc-eyebrow', { text: ids.length > 1 ? ids.length + ' new discoveries' : 'New discovery' }),
-        h('div.dc-items', null, ids.map(dcItem)),
-        h('div.dc-skip', { 'aria-hidden': 'true', text: 'click or press any key to continue' }),
+        h('div.dc-eyebrow', { id: 'unlock-title', text: reopen ? 'Unlock note' : (list.length > 1 ? list.length + ' new discoveries' : 'New discovery') }),
+        h('div.dc-items', null, list.map((id) => cardView(id, true, { dialog: true }))),
+        h('p.dc-skip', { text: 'This stays open until you dismiss it. You can open it again from the card in Campaign or in the Codex.' }),
+        dismissBtn,
       ]),
     ]);
-    const dismiss = () => {
-      if (done) return; done = true;
+    const dismiss = (record) => {
       if (onKey) window.removeEventListener('keydown', onKey);
-      overlay.classList.add('dc-out');
-      if (celActive === overlay) celActive = null;
-      setTimeout(() => overlay.remove(), reducedMotion() ? 130 : 220);
+      if (record && !reopen) {
+        for (const id of list) if (!S.recapDismissed.includes(id)) S.recapDismissed.push(id);
+        save();
+      }
+      if (unlockEl === overlay) { unlockEl = null; unlockIds = []; }
+      overlay.remove();
     };
-    // a deliberate click or key dismisses the celebration (it does not activate anything behind it);
-    // focus is never moved and no key is swallowed, so the game keeps working underneath
-    onKey = (e) => { if (e.key === 'Tab' || /^(Shift|Control|Alt|Meta)$/.test(e.key)) return; dismiss(); };
-    overlay._dismiss = dismiss;
-    celActive = overlay;
+    dismissBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); dismiss(!reopen); });
+    onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); dismiss(!reopen); } };
+    unlockEl = overlay;
     document.body.append(overlay);
-    overlay.addEventListener('click', dismiss);
     window.addEventListener('keydown', onKey);
-    setTimeout(dismiss, 1900); // short: the reveal plays, then it gets out of the way
+    dismissBtn.focus();
+  }
+  function showPendingUnlock() {
+    if (!window.RECAP) return;
+    const st = window.RECAP.unlockState({ recapDismissed: S.recapDismissed }, S.found, S.given);
+    if (st.pending.length) openUnlock(st.pending, false);
   }
   function discover(cardId, cfg, a) {
     if (S.found.includes(cardId)) return;
@@ -1134,6 +1141,7 @@
     S.found.push(cardId);
     S.discoveries[cardId] = discoveryRecord(cfg, a);
     save(); updateScore();
+    if (S.mode === 'campaign') S.scrollDiscoveries = true;
     if (!alreadyKnown) queueCelebration(cardId); // only a first-ever card celebrates
   }
   // the words that matter in a sentence, as text
@@ -1148,6 +1156,7 @@
       ts: new Date().toISOString(), world: C.worldNames[cfg.world], family: C.families[fam(cfg.parts)].name,
       sentence: sentenceText(cfg.parts, cfg.world), result: headline(a, cfg.world) + ' (' + cfg.steps + ' steps, ' + S.results.length + ' seeds)',
       where: lv ? 'Campaign level "' + lv.title + '"' : S.mode === 'workbench' ? 'Workbench' : S.mode,
+      levelId: lv ? lv.id : null, step: lv ? (S.lstep[lv.id] || 0) : null,
       predictions: qs.length ? qs.map(([k, q]) => k + ' ' + (S.answers[q.id] ? (S.answers[q.id].correct ? 'right' : 'wrong') : 'not answered')).join(', ') + ' (first tries)' : 'no level questions',
     };
   }
@@ -2025,7 +2034,7 @@
       mcBlock(lv.diagnose, () => setStep(lv, 3)),
     ])));
     if (st >= 3) {
-      const status = h('p.small', { text: 'Tap a word to see the choices. Words in a dashed box do nothing in this sentence.' });
+      const status = h('p.small', { text: S.runNote && S.runNote.level === lv.id ? S.runNote.text : 'Tap a word to see the choices. Words in a dashed box do nothing in this sentence.' });
       steps.append(mk(3, lv.repairKnobs ? 'Repair: change the reward' : 'Repair: change the words', h('div.stack', null, [
         h('p', { html: lv.repairText }),
         lv.repairKnobs ? rewardPanel(lv) : mainSentence({ focus: () => lv.focus, withName: true, withMath: true }),
@@ -2035,6 +2044,7 @@
           const ok = lv.goal.test(a, S.parts);
           const notes = (lv.notes || []).filter((n) => n.when(a, S.parts, S.knobs)).map((n) => (typeof n.text === 'function' ? n.text(a, S.parts, S.knobs) : n.text.replace('{final}', fmt(a.summary.finalReturn))));
           if (ok) {
+            S.runNote = null;
             if (!S.done.includes(lv.id)) S.done.push(lv.id);
             for (const id of [].concat(lv.revealOnDone || [])) if (!S.given.includes(id)) { const alreadyKnown = S.found.includes(id); S.given.push(id); if (!alreadyKnown) queueCelebration(id); }
             const rec = recognize(S.parts, S.world);
@@ -2044,7 +2054,11 @@
               triad: C.failures.find((f) => f.card === 'triad').when(a, S.lastCfg),
             };
             setStep(lv, lv.explain ? 4 : 5); save(); render();
-          } else status.textContent = (notes.length ? notes.join(' ') + ' ' : '') + 'Not fixed yet: ' + lv.goal.text + ' Read the autopsy, or pin this run as A and change one word.';
+          } else {
+            S.runNote = { level: lv.id, text: (notes.length ? notes.join(' ') + ' ' : '') + 'Not fixed yet: ' + lv.goal.text + ' Read the autopsy, or pin this run as A and change one word.' };
+            S.scrollDiscoveries = true;
+            render();
+          }
         } }, 'Run this sentence')]),
         status,
         h('details', null, [h('summary', { text: 'Hint' }), h('p', { html: lv.hint })]),
@@ -2053,6 +2067,14 @@
     if (st >= 4 && lv.explain) steps.append(mk(4, 'Explain why it works', mcBlock(lv.explain, () => setStep(lv, 5))));
     if (st >= 5) steps.append(mk(5, 'Your sentence and the published one', consolidation(lv)));
     card.append(steps);
+    if (typeof levelDiscoveryBlock === 'function') {
+      const foundHere = levelDiscoveryBlock(lv);
+      if (foundHere) card.append(foundHere);
+    }
+    if (S.scrollDiscoveries) {
+      S.scrollDiscoveries = false;
+      requestAnimationFrame(() => { const box = card.querySelector('#level-discoveries'); if (box) box.scrollIntoView({ block: 'start' }); });
+    }
     pane.append(card);
     // A direct child of the layout, in front of the columns, so the two tables can sit
     // side by side. No new campaign step and no new save field.
@@ -2446,28 +2468,51 @@
   }
 
   // --- Codex: the family tree fills in as you discover
+  function levelDiscoveryBlock(lv) {
+    if (!window.RECAP) return null;
+    const ids = window.RECAP.cardsForLevel(lv, S);
+    if (!ids.length) return null;
+    return h('section.level-discoveries', { id: 'level-discoveries' }, [
+      h('h3', { text: 'Discovered on this level' }),
+      h('p.small', { text: 'Same text as the Codex. A card appears here after a run on this level opens it.' }),
+      ...ids.map((id) => cardView(id, true)),
+    ]);
+  }
   function paperLinks(id) {
     const ls = (C.paperLinks || {})[id];
     if (!ls || !ls.length) return null;
     return h('span.plinks', null, ls.map((l) => h('a.plink', { href: l.u, target: '_blank', rel: 'noopener' }, l.t)));
   }
-  function cardView(id, open) {
+  function cardView(id, open, opts) {
     const c = C.cards[id], known = S.found.includes(id) || S.given.includes(id);
     const kindName = c.kind === 'failure' ? 'Failure' : c.kind === 'frontier' ? 'Frontier model' : 'Method';
-    if (!known && !open) return h('div.entry.hidden-card', null, [h('div.eyebrow', { text: kindName }), h('h3', { text: '???' }), h('p.small', { text: c.kind === 'frontier' ? 'Opens in phase 5.' : 'Not discovered yet.' })]);
+    if (!known && !open) return h('div.entry.hidden-card', { 'data-card': id }, [h('div.eyebrow', { text: kindName }), h('h3', { text: '???' }), h('p.small', { text: c.kind === 'frontier' ? 'Opens in phase 5.' : 'Not discovered yet.' })]);
     const tag = c.status === 'checked' ? h('span.tag.checked', { text: 'Checked against the source' }) : h('span.tag.unchecked', { text: 'Not checked' });
     const rec = recipeOfCard(id);
-    return h('div.entry' + (open ? '.discovery' : ''), null, [
+    const d = S.discoveries[id];
+    const dialog = opts && opts.dialog;
+    return h('div.entry' + (open ? '.discovery' : ''), { 'data-card': id }, [
       h('div.row', { style: 'justify-content:space-between' }, [h('div.eyebrow', { text: c.kind ? kindName : S.found.includes(id) ? 'Method, built by you' : 'Method, given by a level' }), tag]),
       h('h3', { text: c.name }),
+      c.ideaLine ? h('p', null, [h('b', { text: 'Idea. ' }), c.ideaLine]) : null,
       h('dl', null, [
         h('dt', { text: 'Source' }), h('dd', null, [h('span', { html: c.paper }), paperLinks(id)]),
         rec ? h('dt', { text: 'Words' }) : null, rec ? h('dd', { text: Object.keys(rec.keys).map((k) => wordText(k, rec.keys[k])).join(' · ') }) : null,
         h('dt', { text: c.kind === 'failure' ? 'What' : c.kind === 'frontier' ? 'What it adds' : 'Fixes' }), h('dd', { html: c.fixes }),
         h('dt', { text: c.kind === 'failure' ? 'Measured' : c.kind === 'frontier' ? 'Limits' : 'Still fails' }), h('dd', { html: c.stillWrong }),
       ]),
-      peekFor(id),
-      c.evidence ? h('details', null, [h('summary', { text: 'Evidence from the source' }), h('div', { html: c.evidence })]) : null,
+      c.practice ? h('p', null, [h('b', { text: 'In practice. ' }), c.practice]) : null,
+      c.pullQuote ? h('blockquote.pull-quote', null, [
+        h('p', { text: '"' + c.pullQuote + '"' }),
+        h('p.small', { text: (c.pullCite ? c.pullCite + '. ' : '') + 'The evidence drawer has the rest of the checked source text.' }),
+      ]) : (c.quoteGap ? h('p.small', { text: c.quoteGap }) : null),
+      d ? h('div.disc-context', null, [
+        h('p.small', { text: 'When you found it: ' + [d.where, d.world, d.result].filter(Boolean).join('. ') + '.' }),
+        d.sentence ? h('p.small', { text: 'Sentence: ' + d.sentence }) : null,
+      ]) : null,
+      dialog ? null : peekFor(id),
+      c.evidence ? h('details.card-evidence', null, [h('summary', { text: 'Evidence from the source' }), h('div', { html: c.evidence })]) : null,
+      dialog ? null : h('button.btn.ghost', { type: 'button', onclick: () => openUnlock([id], true) }, 'Open the unlock note'),
     ]);
   }
   MODES.codex = function (pane) {
@@ -2899,7 +2944,7 @@
 
   // first visit: what this is, in four lines
   function showIntro() {
-    const close = (mode) => { S.intro = 1; save(); dlg.close(); dlg.remove(); if (mode && mode !== S.mode) { S.mode = mode; save(); if (mode === 'campaign') enterLevel(C.levels.find((l) => l.id === S.level) || C.levels[0]); render(); } };
+    const close = (mode) => { S.intro = 1; save(); dlg.close(); dlg.remove(); if (mode && mode !== S.mode) { S.mode = mode; save(); if (mode === 'campaign') enterLevel(C.levels.find((l) => l.id === S.level) || C.levels[0]); render(); } showPendingUnlock(); };
     const step = (n, t, d) => h('li', null, [h('span.num', { text: n }), h('div', null, [h('b', { text: t }), h('p.small', { text: d })])]);
     const dlg = h('dialog.intro', { 'aria-label': 'Welcome' }, [h('div.stack', null, [
       h('div.eyebrow', { text: 'A small game about reinforcement learning' }),
@@ -2980,4 +3025,5 @@
     window.ALGO_HELP.installAuto(document.body);
   }
   if (!S.intro) showIntro();
+  else showPendingUnlock();
 })();

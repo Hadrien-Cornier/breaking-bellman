@@ -41,6 +41,9 @@ const onlySession = process.env.BB_SMOKE_SESSION;
 async function session(w, h, name, fn) {
   if (onlySession && onlySession !== name) return;
   const page = await browser.newPage({ viewport: { width: w, height: h } });
+  // An unlock note stays until Dismiss. Clear it when a later action would otherwise hit the modal.
+  const dismissUnlock = page.locator('#unlock-dismiss');
+  await page.addLocatorHandler(dismissUnlock, async () => { await dismissUnlock.click(); });
   page.on('console', (m) => { if (m.type() === 'error') errors.push(name + ': ' + m.text()); });
   page.on('pageerror', (e) => errors.push(name + ' pageerror: ' + e.message));
   await page.goto('file://' + out + '/page.html');
