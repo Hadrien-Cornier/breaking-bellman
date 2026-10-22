@@ -581,3 +581,18 @@ ul.preset-diff li { margin: 2px 0; }
 @media (max-width: 520px) {
   #dyna-lesson .vpo-table table { font-size: .72rem; }
 }
+
+#ensemble-lesson, #ensemble-rules { min-width: 0; overflow-wrap: anywhere; }
+#ensemble-lesson .btn, #ensemble-lesson .opt { max-width: 100%; white-space: normal; text-align: left; min-height: 44px; }
+#ensemble-lesson .opt { width: 100%; }
+#ensemble-lesson .vpo-table { display: block; width: 100%; max-width: 100%; min-width: 0; overflow-x: auto; }
+#ensemble-lesson .ensemble-doors { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+#ensemble-lesson .ensemble-door { min-width: 0; padding: 8px 4px; border-radius: 4px; background: var(--sunk); text-align: center; font-size: .75rem; }
+#ensemble-lesson .ensemble-door.mean { box-shadow: inset 0 0 0 1px var(--warn); }
+#ensemble-lesson .ensemble-door.penalty { box-shadow: inset 0 0 0 1px var(--good); }
+#ensemble-lesson .ensemble-door.both { box-shadow: inset 0 0 0 1px var(--accent); }
+#ensemble-lesson input[type="number"] { width: 4.5rem; max-width: 100%; }
+#ensemble-rules .rules-row { min-width: 0; }
+@media (max-width: 520px) {
+  #ensemble-lesson .vpo-table table { font-size: .72rem; }
+}

@@ -1059,6 +1059,9 @@
     if (id === 'skills') return window.BBSKILLS_LEVEL;
     if (id === 'hierarchy') return window.BBHIERARCHY;
     if (id === 'messages') return window.BBMESSAGES_LEVEL;
+    if (id === 'metarl') return window.BBMETARL;
+    if (id === 'ensemble') return window.BBENSEMBLE_LEVEL;
+    if (id === 'skew') return window.BBSKEW;
     if (id === 'dyna') return window.BBDYNA_LEVEL;
     return null;
   }
@@ -1074,8 +1077,11 @@
   const rareActive = () => S.mode === 'campaign' && S.level === 'rare';
   const hierarchyActive = () => S.mode === 'campaign' && S.level === 'hierarchy';
   const messagesActive = () => S.mode === 'campaign' && S.level === 'messages';
+  const metarlActive = () => S.mode === 'campaign' && S.level === 'metarl';
+  const ensembleActive = () => S.mode === 'campaign' && S.level === 'ensemble';
+  const skewActive = () => S.mode === 'campaign' && S.level === 'skew';
   const dynaActive = () => S.mode === 'campaign' && S.level === 'dyna';
-  const customActive = () => skillsActive() || hierarchyActive() || thawActive() || rewardfitActive() || elboActive() || vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || rareActive() || messagesActive() || dynaActive();
+  const customActive = () => skillsActive() || hierarchyActive() || thawActive() || rewardfitActive() || elboActive() || vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || rareActive() || messagesActive() || metarlActive() || ensembleActive() || skewActive() || dynaActive();
   const customApi = () => customLessonApi(S.level);
   async function run() {
     if (customActive()) return customApi().run();
@@ -2895,7 +2901,10 @@
       lab.lastRun ? '- Last run (' + lab.lastRun.seeds + ' runs, ' + lab.lastRun.steps + ' steps): ' + (lab.lastRun.symptoms.join(' ') || 'no symptoms') : '- No run yet in this world.',
     ].filter((x) => x !== null);
   }
-  const wordLines = () => skillsActive() ? ['Skill reward: q(skill|room) is a smoothed visit count. Reward is log q(skill|room) - log p(skill), with p(skill) = 1/2. The softmax gradient reads that reward. Use the level controls and bellman.run().']
+  const wordLines = () => skewActive() ? ['Skew: fit a 3-bin density, refuse an inverse on a zero count, and sample goal weights on one shared budget. Use the level controls and bellman.run().']
+    : ensembleActive() ? ['Two reward tables: planner score is the average minus a coefficient times the absolute difference. The true aisle reward is applied only after the actions are chosen. Use the level controls and bellman.run().']
+    : metarlActive() ? ['Cross-task count: episode-2 successes given the episode-1 record. The left-door probe is given. Use the level controls and bellman.run().']
+    : skillsActive() ? ['Skill reward: q(skill|room) is a smoothed visit count. Reward is log q(skill|room) - log p(skill), with p(skill) = 1/2. The softmax gradient reads that reward. Use the level controls and bellman.run().']
     : hierarchyActive() ? ['Hierarchy: one goal-conditioned table trains on the door, then a given sequence calls it. Flat training uses S plus H and not those transitions. Use the level controls and bellman.run().']
     : hindsightActive() ? ['Hindsight: same four environment steps, then extra Q updates on goals recomputed from the final cell. Use the level controls and bellman.run().']
     : vpoActive() ? ['VPO: mean over eight preferences of the best score in a three-route set. GRPO: fixed mean reward for each route. Use the level controls and bellman.run().']
@@ -2991,7 +3000,10 @@
     window.bellman = {
       help: () => aiBrief(),
       page: () => pageMarkdown(),
-      math: (parts, world) => skillsActive() ? [{ label: 'Discriminator reward', tex: 'r(skill, room) = log q(skill|room) - log p(skill)' }]
+      math: (parts, world) => skewActive() ? [{ label: 'Powered density', tex: 'w(g) \\propto p(g)^{\\alpha},\\ \\alpha \\in \\{-1,0,+1\\}' }, { label: 'Add-one density', tex: 'p(g) = (n(g)+1)/Z' }]
+        : ensembleActive() ? [{ label: 'Disagreement penalty', tex: 's(e)=(m_1(e)+m_2(e))/2-\\lambda|m_1(e)-m_2(e)|' }]
+        : metarlActive() ? [{ label: 'Episode-2 success count', tex: 'p(a|h) = S(h,a) / N(h,a)' }]
+        : skillsActive() ? [{ label: 'Discriminator reward', tex: 'r(skill, room) = log q(skill|room) - log p(skill)' }]
         : hierarchyActive() ? [{ label: 'Low-level backup', tex: 'Q(o,a) = r + gamma * max Q(o\',a\') when the transition is not terminal' }]
         : hindsightActive() ? [{ label: 'Goal-conditioned backup', tex: 'Q(s,a,g) = r(s,a,g) + gamma * max Q(s\',a\',g) when not terminal' }]
         : vpoActive() ? [{ label: 'VPO set reward', tex: 'R(S) = mean_w max_y dot(w,r(y))' }]
@@ -3195,6 +3207,9 @@
     if (window.BBSKILLS_LEVEL && !skillsActive()) window.BBSKILLS_LEVEL.cancel();
     if (window.BBHIERARCHY && !hierarchyActive()) window.BBHIERARCHY.cancel();
     if (window.BBMESSAGES_LEVEL && !messagesActive()) window.BBMESSAGES_LEVEL.cancel();
+    if (!metarlActive() && window.BBMETARL) window.BBMETARL.cancel();
+    if (window.BBENSEMBLE_LEVEL && !ensembleActive()) window.BBENSEMBLE_LEVEL.cancel();
+    if (!skewActive() && window.BBSKEW) BBSKEW.cancel();
     if (window.BBDYNA_LEVEL && !dynaActive()) window.BBDYNA_LEVEL.cancel();
     $('#lab').hidden = customActive(); $('#vpo-lab').hidden = !customActive();
     if (S.mode !== 'review') S.reviewLab = null;
