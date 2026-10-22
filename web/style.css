@@ -434,6 +434,28 @@ ol.steps .num { display: grid; place-items: center; width: 30px; height: 30px; b
 ul.preset-diff { margin: 4px 0 0 18px; padding: 0; }
 ul.preset-diff li { margin: 2px 0; }
 
+/* Terminal-reward backup on the cliff lesson. Full width under the two columns. */
+#reward-backup { grid-column: 1 / -1; min-width: 0; container-type: inline-size; container-name: reward-backup; }
+#reward-backup :is(button, input, label) { scroll-margin-top: 150px; }
+#reward-backup button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+#reward-backup h4 { margin: 0; font-size: 0.95rem; }
+#reward-backup .round-label { display: grid; gap: 4px; width: min(100%, 28rem); }
+#reward-backup input[type="range"] { width: 100%; accent-color: var(--accent); }
+#reward-backup .lanes { display: grid; grid-template-columns: 1fr; gap: 14px; min-width: 0; }
+#reward-backup .cells { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; min-width: 0; }
+#reward-backup .cell { position: relative; min-width: 0; overflow: hidden; padding: 6px 1px 4px; text-align: center; background: var(--sunk); border-radius: 4px; }
+#reward-backup .cell.terminal { outline: 1px dashed var(--muted); }
+#reward-backup .cell.lit { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 65%, transparent); }
+#reward-backup .glow { position: absolute; inset: 0; background: color-mix(in srgb, var(--accent) 55%, white); pointer-events: none; }
+#reward-backup .cell span { position: relative; z-index: 1; display: block; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 0.68rem; line-height: 1.2; }
+#reward-backup .cell .name, #reward-backup .cell .pay { color: var(--muted); font-size: 0.62rem; }
+#reward-backup .checks { display: grid; gap: 6px; }
+#reward-backup .checks label { display: flex; gap: 8px; align-items: flex-start; }
+#reward-backup output { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; color: var(--ink); }
+@container reward-backup (min-width: 760px) {
+  #reward-backup .lanes { grid-template-columns: 1fr 1fr; }
+}
+
 /* The SuperMimic-inspired lesson reuses the custom lesson column and table styles. */
 #supermimic-lesson, #supermimic-rollout, #supermimic-gradients, #supermimic-exploit { min-width: 0; }
 #supermimic-lesson .opt { width: 100%; }
