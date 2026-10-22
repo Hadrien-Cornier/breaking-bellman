@@ -163,7 +163,7 @@ details[open] > summary { margin-bottom: 8px; }
 .stack > * { min-width: 0; }
 
 /* the sentence */
-.sentence { display: grid; gap: 4px; min-width: 0; }
+.sentence { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; min-width: 0; }
 .sentence .sl { font-size: 0.95rem; line-height: 2; max-width: none; }
 .sentence .sl > b { font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-right: 2px; }
 .w { border: 1.5px solid var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--surface)); border-radius: 6px; padding: 0 7px; font-weight: 600; line-height: 1.55; }
