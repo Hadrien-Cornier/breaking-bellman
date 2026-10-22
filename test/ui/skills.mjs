@@ -53,6 +53,8 @@ function workspaceCopy(filePath) {
 function loadFile(filePath, label) {
   const uploadPath = workspaceCopy(filePath);
   evaluate(`() => {
+    const details = document.querySelector('details.map-card');
+    if (details) details.open = true;
     const button = [...document.querySelectorAll('button')].find((el) => el.textContent.includes('Load save file'));
     button.click();
     const input = document.querySelector('input[type=file]');
@@ -255,6 +257,8 @@ function walk(width) {
   check(next.scroll <= next.width, 'no horizontal overflow on the next lesson at ' + width);
 
   evaluate(`() => {
+    const details = document.querySelector('details.map-card');
+    if (details) details.open = true;
     const slots = [...document.querySelectorAll('#mode-pane .node')].find((el) => el.innerText.includes('Ten slot machines'));
     slots.click();
     return true;
@@ -303,6 +307,8 @@ for (const width of [1280, 390]) {
 
 const exported = evaluate(`async () => {
   bellman.level('skills');
+  const details = document.querySelector('details.map-card');
+  if (details) details.open = true;
   document.querySelector('#mode-pane .savebar button').click();
   const link = document.querySelector('a[download]');
   const text = await fetch(link.href).then((response) => response.text());
