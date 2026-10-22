@@ -243,7 +243,7 @@ await session(1280, 900, 'phases', async (page) => {
   const levelCount = await page.evaluate(() => window.CONTENT.levels.length);
   const titles = await page.evaluate(() => window.CONTENT.levels.map((l) => l.title));
   check(await page.locator('#mode-pane .node').count() === levelCount && !(await page.locator('#mode-pane .node[disabled]').count()), 'every campaign level is open');
-  check(titles.includes('Ten slot machines') && titles.includes('Tell it the goal') && titles.includes('A policy that stops trying') && titles.includes('A bound that is tight only when the guess matches') && titles.includes('Tilt the reference'), 'title navigation still finds the slot, goal, entropy, bound, and preference lessons');
+  check(titles.includes('Ten slot machines') && titles.includes('Tell it the goal') && titles.includes('A policy that stops trying') && titles.includes('A bound that is tight only when the guess matches') && titles.includes('A few fresh steps') && titles.includes('Tilt the reference'), 'title navigation still finds the slot, goal, entropy, bound, thaw, and preference lessons');
   check(await page.locator('#mode-pane .savebar button', { hasText: 'Download save file' }).count() === 1, 'the level map offers a save file');
   const brief = await page.evaluate(() => window.bellman.help());
   check(new RegExp('Level \\d+ of ' + levelCount).test(brief) && /bellman\.run\(\)/.test(brief), 'window.bellman gives a brief for an AI helper');
