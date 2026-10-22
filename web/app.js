@@ -1062,6 +1062,7 @@
     if (id === 'metarl') return window.BBMETARL;
     if (id === 'ensemble') return window.BBENSEMBLE_LEVEL;
     if (id === 'skew') return window.BBSKEW;
+    if (id === 'mopo') return window.BBMOPO_LEVEL;
     return null;
   }
   const vpoActive = () => S.mode === 'campaign' && S.level === 'vpo';
@@ -1079,7 +1080,8 @@
   const metarlActive = () => S.mode === 'campaign' && S.level === 'metarl';
   const ensembleActive = () => S.mode === 'campaign' && S.level === 'ensemble';
   const skewActive = () => S.mode === 'campaign' && S.level === 'skew';
-  const customActive = () => skillsActive() || hierarchyActive() || thawActive() || rewardfitActive() || elboActive() || vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || rareActive() || messagesActive() || metarlActive() || ensembleActive() || skewActive();
+  const mopoActive = () => S.mode === 'campaign' && S.level === 'mopo';
+  const customActive = () => skillsActive() || hierarchyActive() || thawActive() || rewardfitActive() || elboActive() || vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || rareActive() || messagesActive() || metarlActive() || ensembleActive() || skewActive() || mopoActive();
   const customApi = () => customLessonApi(S.level);
   async function run() {
     if (customActive()) return customApi().run();
@@ -2914,6 +2916,7 @@
       : thawActive() ? ['Thaw: a linear policy fit on a frozen light-arm dataset, then a short finite-difference update on the heavy arm, compared with the same budget from zeros. Use the level controls and bellman.run().']
       : rareActive() ? ['Visit bonus: an untried action is worth 1/(1 - gamma) until it is taken. The repair adds 1/sqrt(n(s\')) inside the Q target, on top of the environment reward, which stays 0 or 1. Use the level controls and bellman.run().']
       : messagesActive() ? ['Backward messages: beta(s, a) excludes the action prior. The conditioned probability multiplies it back in and normalizes. Use the level controls.']
+      : mopoActive() ? ['MOPO penalty: penalized reward points equal the mean of two fixed reward tables minus a coefficient times their absolute gap. The coefficient is reward points of penalty per reward point of gap. The planner does not read the dataset bit. The dataset is frozen. Use the level controls and bellman.run().']
       : C.families[fam(S.parts)].keys.map((k) => '- `' + k + '` (' + W[k].q + '): ' + W[k].options.map((o) => '`' + o[0] + '` = ' + plainText(o[1])).join('; ') + '. Now: `' + S.parts[k] + '`.');
   function aiBrief() {
     return [
@@ -3012,6 +3015,7 @@
           : thawActive() ? [{ label: 'One-joint return', tex: 'J = sum_t -(angle_t - 1)^2' }]
           : rareActive() ? [{ label: 'Backed-up target', tex: 'y = r_{env} + 1/\\sqrt{n(s\')} + \\gamma \\max_{a\'} \\hat{Q}(s\', a\')' }, { label: 'Environment reward', tex: 'r_{env} \\in \\{0, 1\\}' }]
           : messagesActive() ? [{ label: 'Conditioned action', tex: '\\pi_t(a|s) = p(a|s) \\beta_t(s,a) / \\beta_t(s)' }]
+          : mopoActive() ? [{ label: 'Penalized reward', tex: '\\tilde{r}=(r_A+r_B)/2-\\lambda|r_A-r_B|' }]
           : texLines(Object.assign({}, S.parts, parts || {}), world || S.world).map(([label, tex]) => ({ label, tex })),
       state: () => labState(),
       levels: () => C.levels.map((l) => { const i = levelInfo(l); return { n: i.n, id: i.id, title: i.title, world: i.world, done: i.done, step: i.step }; }),
@@ -3206,6 +3210,7 @@
     if (!metarlActive() && window.BBMETARL) window.BBMETARL.cancel();
     if (window.BBENSEMBLE_LEVEL && !ensembleActive()) window.BBENSEMBLE_LEVEL.cancel();
     if (!skewActive() && window.BBSKEW) BBSKEW.cancel();
+    if (window.BBMOPO_LEVEL && !mopoActive()) window.BBMOPO_LEVEL.cancel();
     $('#lab').hidden = customActive(); $('#vpo-lab').hidden = !customActive();
     if (S.mode !== 'review') S.reviewLab = null;
     MODES[S.mode](pane);
