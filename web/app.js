@@ -2026,6 +2026,7 @@
       const api = lv.id === 'hindsight' ? BBHINDSIGHT : lv.id === 'replan' ? BBREPLAN : lv.id === 'goals' ? window.BBGOALS_LEVEL : lv.id === 'supermimic' ? BBSUPERMIMIC : lv.id === 'vpo' ? BBVPO : null;
       if (!api || !api.mount) {
         pane.append(h('div.card', null, [h('h2', { text: lv.title }), h('p', { text: 'This lesson is not mounted.' })]));
+        pane.append(mapCard);
         return;
       }
       const iNext = C.levels.indexOf(lv);
