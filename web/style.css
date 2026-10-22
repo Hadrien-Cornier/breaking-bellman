@@ -564,3 +564,16 @@ ul.preset-diff li { margin: 2px 0; }
 @media (max-width: 520px) {
   #messages-lesson .vpo-table table { font-size: .72rem; }
 }
+
+/* Latent observation table. Counts stay inside this column. */
+#latent-lesson, #latent-readout, #latent-rules, #latent-table, #latent-flags { min-width: 0; }
+#latent-lesson .opt { width: 100%; }
+#latent-lesson a, #latent-lesson p, #latent-lesson caption, #latent-lesson button { overflow-wrap: anywhere; }
+#latent-lesson .latent-controls { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; max-width: 100%; }
+#latent-lesson .latent-controls button, #latent-lesson .opt, #latent-lesson .btn { min-height: 44px; max-width: 100%; }
+#latent-table { overflow-x: auto; max-width: 100%; }
+#latent-table table { width: max-content; min-width: 100%; }
+#latent-table th, #latent-table td { white-space: nowrap; }
+@media (max-width: 520px) {
+  #latent-lesson .vpo-table table { font-size: .72rem; }
+}
