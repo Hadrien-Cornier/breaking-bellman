@@ -5,12 +5,13 @@ require('../src/sim/autopsy.js');
 function harness({saved=true}={}){
   const C=content(),lv=C.levels.find(l=>l.id==='cells'),S={mode:'campaign',level:'cells',world:lv.world,parts:lv.start,knobs:lv.knobs,results:[],seen:[],found:[]};
   const elements={},paints=[],calls=[];let release;
-  const lookup=new Promise(r=>release=r),$=s=>elements[s]??=(s==='#seeds'?{value:'3'}:s==='#budget'?{value:'30'}:s==='#run-mode'?{value:'fast'}:{style:{},replaceChildren(){}});
+  const lookup=new Promise(r=>release=r),box=()=>({style:{},children:[],replaceChildren(...children){this.children=children;}});
+  const $=s=>elements[s]??=(s==='#seeds'?{value:'3'}:s==='#budget'?{value:'30'}:s==='#run-mode'?{value:'fast'}:box());
   const results=[101,202,303].map(seed=>RLA.run({world:lv.world,parts:lv.start,knobs:lv.knobs,steps:30,seed,hyper:C.hyperOf(lv.start,lv.world)}));
   const context=vm.createContext({C,S,RLA,$,AbortController,window:{BB_FAST:{versions:{engine:'test'},base:'fast/test'},RLFAST:{createCache:()=>({save:async(config,results)=>{calls.push({save:true,config,results});return saved;},lookup:(cfg,signal)=>{calls.push({cfg,signal});return lookup;}})}},
     range:(a,b)=>Array.from({length:b-a+1},(_,i)=>a+i),runSeeds:async(cfg,seeds,update)=>{calls.push({live:true,cfg,seeds});update(results.map(r=>({...r,t:30})));return results;},
-    renderCharts:()=>paints.push('charts'),renderStage:()=>paints.push('stage'),renderAutopsy:()=>RLA.autopsy(S.results),renderExpert(){},renderWonder(){},
-    recognize:()=>null,discover(){},headline:()=>'',h:()=>({}),metricCtx:()=>({}),save(){},refreshSentences(){},drawCompare(){},stopAll(){},toast(){} });
+    renderCharts:()=>paints.push('charts'),renderStage:()=>paints.push(S.results.length?'stage':'pending'),renderAutopsy:()=>RLA.autopsy(S.results),renderExpert(){},renderWonder(){},
+    recognize:()=>null,discover(){},headline:()=>'',h:(tag,attrs)=>({tag,...attrs}),metricCtx:()=>({}),save(){},refreshSentences(){},drawCompare(){},stopAll(){},toast(){} });
   const src=fs.readFileSync(require.resolve('../web/app.js'),'utf8');vm.runInContext(src.slice(src.indexOf('  function hyperNow()'),src.indexOf('  // ---------------------------------------------------------------- discovery celebration')),context);
   return {context,S,$,paints,calls,release,results};
 }
@@ -24,12 +25,25 @@ test('exact stored results feed unchanged consumers and a miss invokes Live at t
 });
 test('settings changed during a stored fetch cannot paint results for the old request',async()=>{
   const h=harness(),run=h.context.run();h.S.parts={...h.S.parts,store:'net'};h.release({record:{results:h.results}});await run;
-  assert.deepEqual(h.paints,[]);assert.equal(h.S.results.length,0);assert.equal(h.S.running,false);
+  assert.deepEqual(h.paints,['pending']);assert.equal(h.S.results.length,0);assert.equal(h.S.running,false);
 });
 test('cancelling an old fetch cannot paint or reset a newer run',async()=>{
   const h=harness(),old=h.context.run();h.context.cancelRun();assert(h.calls[0].signal.aborted);
   const next=h.context.run();h.release({record:{results:h.results}});await Promise.all([old,next]);
-  assert.deepEqual(h.paints,['charts','stage']);assert.equal(h.S.results.length,3);assert.equal(h.S.running,false);
+  assert.deepEqual(h.paints,['pending','pending','charts','stage']);assert.equal(h.S.results.length,3);assert.equal(h.S.running,false);
+});
+
+test('starting a new run synchronously replaces every stale result surface with an explicit pending state',async()=>{
+  const h=harness();h.S.results=h.results;
+  h.$('#run-result').textContent='Works: 100%';h.$('#symptoms').textContent='Reached the goal in 100%';h.$('#stage-caption').textContent='100% reached the goal';
+  h.$('#charts').replaceChildren({text:'old charts'});
+  const run=h.context.run();
+  assert.equal(h.S.results.length,0);
+  assert.match(h.$('#run-result').textContent,/New run in progress/);
+  assert.match(h.$('#charts').children[0].text,/Preparing this run/);
+  assert.match(h.$('#symptoms').children[0].text,/New run in progress/);
+  assert.match(h.$('#stage-caption').textContent,/New run in progress/);
+  h.release({record:{results:h.results}});await run;
 });
 
 test('local provenance is distinct; Live fallback saves exact resolved config and full results',async()=>{

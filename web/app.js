@@ -965,16 +965,34 @@
   }
   const fastClient = window.RLFAST.createCache(window.BB_FAST);
   let activeRun = null;
+  let campaignRunLevel = null;
   function runIdentity() {
     return RLA.exact.stringify({ mode: S.mode, level: S.level, world: S.world, parts: S.parts, knobs: S.knobs,
       hyper: hyperNow(), steps: +$('#budget').value, seeds: +$('#seeds').value, runMode: $('#run-mode').value });
+  }
+  function showRunPending() {
+    $('#run-result').textContent = 'New run in progress…';
+    $('#charts').replaceChildren(h('p.small', { role: 'status', text: 'Preparing this run. Curves appear when training reports progress.' }));
+    $('#symptoms').replaceChildren(h('p.small', { role: 'status', text: 'New run in progress. The autopsy appears when it finishes.' }));
+    renderStage();
+    $('#stage-caption').textContent = 'New run in progress. The replay appears when it finishes.';
+    drawCompare();
+  }
+  function showRunStopped(message) {
+    $('#run-result').textContent = message;
+    $('#charts').replaceChildren(h('p.small', { text: 'No curves are available because this run did not finish.' }));
+    $('#symptoms').replaceChildren(h('p.small', { text: 'No autopsy is available because this run did not finish.' }));
+    $('#stage-caption').textContent = message + ' Run the sentence again to see a replay.';
+    drawCompare();
   }
   function cancelRun() {
     if (!activeRun) return;
     activeRun.controller.abort(); activeRun = null;
     stopAll(new Error('cancelled'));
     S.running = false; $('#run-btn').disabled = false;
+    $('#prog').style.width = '0%';
     $('#run-source').textContent = 'Settings changed. Run this sentence to measure it.';
+    showRunStopped('Run canceled after the settings changed.');
   }
   const vpoActive = () => S.mode === 'campaign' && S.level === 'vpo';
   const supermimicActive = () => S.mode === 'campaign' && S.level === 'supermimic';
@@ -991,10 +1009,13 @@
     S.lastCfg = cfg;
     $('#expert-card').hidden = true; $('#wonder').hidden = true;
     const seeds = range(1, nSeeds).map((i) => i * 101);
-    $('#charts').replaceChildren(); const prog = $('#prog'); prog.style.width = '2%';
     S.results = [];
+    S.lastA = null;
+    showRunPending();
+    const prog = $('#prog'); prog.style.width = '2%';
     S.stored = false; S.source = 'live';
     $('#run-source').textContent = $('#run-mode').value === 'fast' ? 'Looking for an exact stored simulation…' : 'Live simulation: training in this page.';
+    let completed = false;
     try {
       const config = RLA.exact.resolve(cfg, seeds, window.BB_FAST.versions, C);
       let stored = null;
@@ -1036,12 +1057,18 @@
     if (window.RLHELP) window.RLHELP.enhance($('#run-result'), metricCtx());
       save(); refreshSentences(); drawCompare();
       if (S.afterRun) S.afterRun(a);
+      completed = true;
       return a;
     } catch (err) {
-      if (current()) toast('Run failed: ' + err.message);
+      if (current()) {
+        const message = 'Run failed: ' + err.message;
+        toast(message);
+        $('#run-source').textContent = message + '.';
+        showRunStopped('The run did not finish.');
+      }
       return null;
     } finally {
-      if (activeRun === ticket) { activeRun = null; S.running = false; $('#run-btn').disabled = false; prog.style.width = '100%'; }
+      if (activeRun === ticket) { activeRun = null; S.running = false; $('#run-btn').disabled = false; prog.style.width = completed ? '100%' : '0%'; }
     }
   }
   // ---------------------------------------------------------------- discovery celebration
@@ -1909,6 +1936,41 @@
 
   // --- Campaign: a failure, a diagnosis, a repair in words, an explanation, the published sentence
   const setStep = (lv, n) => { if ((S.lstep[lv.id] || 0) < n) { S.lstep[lv.id] = n; save(); render(); } };
+  function setCampaignRunView(lv, state) {
+    const button = $('[data-campaign-run="' + lv.id + '"]');
+    const status = $('[data-campaign-run-status="' + lv.id + '"]');
+    if (!button || !status) return;
+    const busy = state === 'running';
+    button.disabled = busy;
+    button.setAttribute('aria-busy', busy ? 'true' : 'false');
+    button.textContent = busy ? 'Running the starting sentence…' : 'Run the starting sentence';
+    status.textContent = busy ? 'Training started. This button unlocks when the run finishes.'
+      : state === 'failed' ? 'The run did not finish. Try again.'
+        : 'Real training in your browser, ' + lv.seeds + ' runs.';
+  }
+  async function runCampaignStart(lv) {
+    if (campaignRunLevel) return;
+    campaignRunLevel = lv.id;
+    setCampaignRunView(lv, 'running');
+    enterLevel(lv, true);
+    const a = await run();
+    if (campaignRunLevel === lv.id) campaignRunLevel = null;
+    setCampaignRunView(lv, a ? 'idle' : 'failed');
+    if (!a) return;
+    for (const id of [].concat(lv.reveal || [])) if (!S.given.includes(id)) {
+      const alreadyKnown = S.found.includes(id); S.given.push(id); if (!alreadyKnown) queueCelebration(id);
+    }
+    save(); setStep(lv, 2);
+  }
+  function campaignRunRow(lv) {
+    const busy = campaignRunLevel === lv.id;
+    return h('div.row', null, [
+      h('button.btn', { type: 'button', disabled: busy, 'aria-busy': busy ? 'true' : 'false', 'data-campaign-run': lv.id, onclick: () => runCampaignStart(lv) },
+        busy ? 'Running the starting sentence…' : 'Run the starting sentence'),
+      h('span.small', { role: 'status', 'data-campaign-run-status': lv.id,
+        text: busy ? 'Training started. This button unlocks when the run finishes.' : 'Real training in your browser, ' + lv.seeds + ' runs.' }),
+    ]);
+  }
   MODES.campaign = function (pane) {
     const lv = C.levels.find((l) => l.id === S.level) || C.levels[0];
     S.focus = lv.focus;
@@ -1956,11 +2018,7 @@
     steps.append(mk(0, 'Predict before you run', mcBlock(lv.predict, () => setStep(lv, 1))));
     if (st >= 1) steps.append(mk(1, 'Run it', h('div.stack', null, [
       h('p', { html: lv.runText }),
-      h('div.row', null, [h('button.btn', { type: 'button', onclick: async () => {
-        enterLevel(lv, true);
-        const a = await run();
-        if (a) { for (const id of [].concat(lv.reveal || [])) if (!S.given.includes(id)) { const alreadyKnown = S.found.includes(id); S.given.push(id); if (!alreadyKnown) queueCelebration(id); } save(); setStep(lv, 2); }
-      } }, 'Run the starting sentence'), h('span.small', { text: 'Real training in your browser, ' + lv.seeds + ' runs.' })]),
+      campaignRunRow(lv),
     ])));
     if (st >= 2) steps.append(mk(2, 'Diagnose', h('div.stack', null, [
       h('details', { open: true }, [h('summary', { text: 'Watch one update of this sentence' }), replayView()]),
@@ -2088,6 +2146,10 @@
   }
   function enterLevel(lv, forceStart) {
     if (lv.custom) { cancelRun(); return; }
+    if (!forceStart && campaignRunLevel === lv.id && S.running) {
+      $('#seeds').value = String(lv.seeds); if (lv.steps) $('#budget').value = String(lv.steps);
+      return;
+    }
     if (S.world !== lv.world || JSON.stringify(S.knobs) !== JSON.stringify(lv.knobs || {})) setWorld(lv.world, lv.knobs || {});
     const step = S.lstep[lv.id] || 0;
     // a repair in progress keeps the player's words, unless they belong to another kind of learner (a reload, another level)

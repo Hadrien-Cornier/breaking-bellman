@@ -10,6 +10,7 @@ if (!pw) { console.error('Playwright not found. Run: npm i -D playwright && npx 
 const { chromium } = pw;
 const fs = await import('fs');
 const os = await import('os');
+const zlib = await import('zlib');
 // Portable Chromium selection: PW_CHROMIUM wins, then a playwright-installed browser,
 // then common system installs (GitHub Actions ubuntu runners ship Google Chrome, macOS ships it in /Applications).
 const candidates = [process.env.PW_CHROMIUM];
@@ -26,7 +27,19 @@ const errors = [];
 const fails = [];
 const check = (cond, msg) => { if (!cond) fails.push(msg); console.log((cond ? 'ok   ' : 'FAIL ') + msg); };
 const runDone = (page) => page.waitForFunction(() => !document.querySelector('#run-btn').disabled && document.querySelector('#run-result').textContent.length > 0, null, { timeout: 240000 });
+const fastRoot = new URL('../../fast/', import.meta.url);
+const fastVersion = fs.readdirSync(fastRoot, { withFileTypes: true }).find((e) => e.isDirectory()).name;
+async function preloadFastRecord(page, key) {
+  const file = new URL(fastVersion + '/records/' + key + '.json.gz', fastRoot);
+  const encoded = zlib.gunzipSync(fs.readFileSync(file)).toString();
+  return page.evaluate(async (text) => {
+    const record = RLA.exact.parse(text);
+    return RLFAST.createLocal(BB_FAST).save(record.config, record.results);
+  }, encoded);
+}
+const onlySession = process.env.BB_SMOKE_SESSION;
 async function session(w, h, name, fn) {
+  if (onlySession && onlySession !== name) return;
   const page = await browser.newPage({ viewport: { width: w, height: h } });
   page.on('console', (m) => { if (m.type() === 'error') errors.push(name + ': ' + m.text()); });
   page.on('pageerror', (e) => errors.push(name + ' pageerror: ' + e.message));
@@ -52,6 +65,7 @@ await session(375, 812, 'phone', async (page) => {
   await page.locator('.mc .opt').nth(1).click();
   await page.getByText('Run the starting sentence').click();
   await runDone(page);
+  check(await page.locator('#mode-pane .step', { hasText: 'Diagnose' }).count() === 1, 'a successful campaign run advances to Diagnose');
   console.log('L1 run:', await page.locator('#run-result').innerText());
   await page.locator('#mode-pane .replay button', { hasText: /Watch one update|Start again/ }).click();
   await page.waitForSelector('#mode-pane .rp-stage', { timeout: 60000 });
@@ -297,6 +311,71 @@ await session(375, 812, 'phone-frontier', async (page) => {
   await page.locator('#mode-pane .node', { hasText: 'Steer a frozen policy' }).click();
   await page.waitForTimeout(500);
   check(/mud/.test(await page.locator('#mode-pane').innerText()), 'mud level shows its intro');
+  await page.locator('#mode-pane .mc').first().locator('.opt').nth(0).click();
+  const best8MemoryKey = '159d9a9f429635030e1829838a9580a322297ce1936e218e539d9156fbd01ee9';
+  check(await preloadFastRecord(page, best8MemoryKey), 'the exact best-of-8 memory result is available to the browser regression');
+  await setWord(page, '#rule', 'pick', 'the best of 8 samples, by the critic');
+  await page.click('#run-btn');
+  await runDone(page);
+  const storedBest8 = {
+    source: await page.locator('#run-source').innerText(),
+    result: await page.locator('#run-result').innerText(),
+    charts: await page.locator('#charts canvas').count(),
+  };
+  console.log('best-of-8 memory fixture:', storedBest8);
+  const showsHundredPercent = (text) => /100\??%/.test(text);
+  check(/Saved in this browser/.test(storedBest8.source) && showsHundredPercent(storedBest8.result) &&
+    storedBest8.charts >= 4, 'best-of-8 with the memory action reuses its exact 100% result');
+  await setWord(page, '#rule', 'next', "the policy's next action");
+  await page.click('#run-btn');
+  await page.waitForFunction(() => /Live simulation: training/.test(document.querySelector('#run-source').textContent));
+  const pending = await page.evaluate(() => ({
+    result: document.querySelector('#run-result').textContent,
+    charts: document.querySelector('#charts').textContent,
+    autopsy: document.querySelector('#symptoms').textContent,
+    caption: document.querySelector('#stage-caption').textContent,
+    chartChildren: document.querySelector('#charts').children.length,
+  }));
+  check(/New run in progress/.test(pending.result) && /Preparing this run/.test(pending.charts) &&
+    /New run in progress/.test(pending.autopsy) && /New run in progress/.test(pending.caption) &&
+    pending.chartChildren === 1 && !showsHundredPercent(Object.values(pending).join(' ')),
+  'a Fast miss replaces the prior 100% result with an explicit pending state');
+  await page.screenshot({ path: out + '/phone-mud-pending.png', fullPage: true });
+  await setWord(page, '#rule', 'next', 'the action taken next in memory');
+  check(/Settings changed/.test(await page.locator('#run-source').innerText()), 'changing the running sentence cancels the Live fallback');
+  await page.evaluate(() => {
+    window.__workerPosts = 0;
+    window.Worker = class {
+      constructor() { this.timers = []; }
+      postMessage() {
+        window.__workerPosts++;
+        this.timers.push(setTimeout(() => {
+          if (this.onerror) this.onerror({ message: 'forced startup failure' });
+        }, 800));
+      }
+      terminate() { for (const timer of this.timers) clearTimeout(timer); }
+    };
+  });
+  await page.selectOption('#run-mode', 'live');
+  const frontierRun = page.locator('[data-campaign-run="pick"]');
+  await frontierRun.click();
+  check(await frontierRun.isDisabled(), 'mud level disables its campaign run button as training starts');
+  check(/Running the starting sentence/.test(await frontierRun.innerText()) &&
+    /Training started/.test(await frontierRun.locator('..').innerText()), 'mud level reports startup beside the initiating button');
+  const posts = await page.evaluate(() => window.__workerPosts);
+  await page.getByRole('tab', { name: 'Campaign' }).click();
+  check(await frontierRun.isDisabled() && /Running the starting sentence/.test(await frontierRun.innerText()),
+    'campaign run feedback survives a mode-panel rebuild');
+  await frontierRun.evaluate((button) => button.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  await page.waitForTimeout(50);
+  check(await page.evaluate(() => window.__workerPosts) === posts, 'repeated campaign clicks cannot start another run');
+  await page.waitForFunction(() => {
+    const button = document.querySelector('[data-campaign-run="pick"]');
+    const status = document.querySelector('[data-campaign-run-status="pick"]');
+    return button && !button.disabled && /Run the starting sentence/.test(button.textContent) && /did not finish/.test(status.textContent);
+  });
+  check(!await page.locator('#run-btn').isDisabled() && /forced startup failure/.test(await page.locator('#run-source').innerText()),
+    'a failed startup restores both campaign and Lab controls');
   await page.screenshot({ path: out + '/phone-mud.png', fullPage: true });
   await page.locator('#mode-pane .node', { hasText: 'Keep the controller' }).click();
   await page.waitForTimeout(500);
