@@ -564,3 +564,12 @@ ul.preset-diff li { margin: 2px 0; }
 @media (max-width: 520px) {
   #messages-lesson .vpo-table table { font-size: .72rem; }
 }
+
+/* Action-head lesson. Scoped so the chunk text and passes stay in the column. */
+#heads-lesson, #heads-rules, #heads-readout, #heads-lesson .heads-readout { min-width: 0; }
+#heads-lesson .opt, #heads-lesson .btn { min-height: 44px; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+#heads-lesson .opt { width: 100%; text-align: left; }
+#heads-lesson a, #heads-lesson p, #heads-rules dd, #heads-lesson .heads-chunk { overflow-wrap: anywhere; }
+#heads-lesson .heads-controls { display: flex; flex-wrap: wrap; gap: 8px; max-width: 100%; }
+#heads-lesson .heads-controls .btn { flex: 1 1 16rem; }
+#heads-lesson .heads-chunk { font-family: var(--font-mono); font-size: 0.75rem; overflow-wrap: anywhere; }

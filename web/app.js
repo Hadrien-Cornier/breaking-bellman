@@ -1059,6 +1059,7 @@
     if (id === 'skills') return window.BBSKILLS_LEVEL;
     if (id === 'hierarchy') return window.BBHIERARCHY;
     if (id === 'messages') return window.BBMESSAGES_LEVEL;
+    if (id === 'heads') return window.BBHEADS_LEVEL;
     return null;
   }
   const vpoActive = () => S.mode === 'campaign' && S.level === 'vpo';
@@ -1073,7 +1074,8 @@
   const rareActive = () => S.mode === 'campaign' && S.level === 'rare';
   const hierarchyActive = () => S.mode === 'campaign' && S.level === 'hierarchy';
   const messagesActive = () => S.mode === 'campaign' && S.level === 'messages';
-  const customActive = () => skillsActive() || hierarchyActive() || thawActive() || rewardfitActive() || elboActive() || vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || rareActive() || messagesActive();
+  const headsActive = () => S.mode === 'campaign' && S.level === 'heads';
+  const customActive = () => headsActive() || skillsActive() || hierarchyActive() || thawActive() || rewardfitActive() || elboActive() || vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive() || rareActive() || messagesActive();
   const customApi = () => customLessonApi(S.level);
   async function run() {
     if (customActive()) return customApi().run();
@@ -3000,6 +3002,7 @@
           : thawActive() ? [{ label: 'One-joint return', tex: 'J = sum_t -(angle_t - 1)^2' }]
           : rareActive() ? [{ label: 'Backed-up target', tex: 'y = r_{env} + 1/\\sqrt{n(s\')} + \\gamma \\max_{a\'} \\hat{Q}(s\', a\')' }, { label: 'Environment reward', tex: 'r_{env} \\in \\{0, 1\\}' }]
           : messagesActive() ? [{ label: 'Conditioned action', tex: '\\pi_t(a|s) = p(a|s) \\beta_t(s,a) / \\beta_t(s)' }]
+          : headsActive() ? [{ label: 'Jerk ratio', tex: 'R = J(\\hat{a}) / J(a) when J(a) > 0' }]
           : texLines(Object.assign({}, S.parts, parts || {}), world || S.world).map(([label, tex]) => ({ label, tex })),
       state: () => labState(),
       levels: () => C.levels.map((l) => { const i = levelInfo(l); return { n: i.n, id: i.id, title: i.title, world: i.world, done: i.done, step: i.step }; }),
@@ -3191,6 +3194,7 @@
     if (window.BBSKILLS_LEVEL && !skillsActive()) window.BBSKILLS_LEVEL.cancel();
     if (window.BBHIERARCHY && !hierarchyActive()) window.BBHIERARCHY.cancel();
     if (window.BBMESSAGES_LEVEL && !messagesActive()) window.BBMESSAGES_LEVEL.cancel();
+    if (window.BBHEADS_LEVEL && !headsActive()) window.BBHEADS_LEVEL.cancel();
     $('#lab').hidden = customActive(); $('#vpo-lab').hidden = !customActive();
     if (S.mode !== 'review') S.reviewLab = null;
     MODES[S.mode](pane);
