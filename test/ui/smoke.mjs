@@ -72,6 +72,7 @@ async function openLevelMap(page) {
 await session(375, 812, 'phone', async (page) => {
   await page.screenshot({ path: out + '/phone-start.png' });
   // Level 1 is the goal-conditioned lesson. This session still plays the slot machines.
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Ten slot machines' }).click();
   await page.locator('.mc .opt').nth(1).click();
   await page.getByText('Run the starting sentence').click();
@@ -404,6 +405,7 @@ await session(375, 812, 'phone-frontier', async (page) => {
 });
 // comment fixes of 15 Oct: the combination table, the episode animation, the discovery map
 await session(375, 812, 'comments', async (page) => {
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Ten slot machines' }).click();
   await page.locator('#grid-card summary').click();
   check(await page.locator('#grid-lab .chip.gw.on').count() === 4, 'slots: the four bandit words are picked by default');
@@ -451,6 +453,7 @@ await session(375, 812, 'expert', async (page) => {
   await page.locator('#expert-card').screenshot({ path: out + '/expert-cliff-min.png' });
 });
 await session(390, 844, 'pendulum', async (page) => {
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Actions that are numbers' }).click();
   await page.evaluate(() => {
     const joint = BB.scenes.joint;
