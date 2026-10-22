@@ -37,6 +37,7 @@ function harness() {
     fastClient: { save:async()=>true,lookup: async () => ({ record: { results: ctx.__results || [] } }) },
   });
   ctx.window.BB_FAST = { versions: { engine: 'test' }, base: 'fast/test' };
+  vm.runInContext(read('web/aggregate.js'), ctx);
   vm.runInContext(app.slice(app.indexOf('  const fmt = (x) => {'), app.indexOf('\n  };', app.indexOf('  const fmt = (x) => {')) + 5), ctx);
   vm.runInContext(app.slice(app.indexOf('  // ---------------------------------------------------------------- the sentence: words, recognizer'),
     app.indexOf('  // ---------------------------------------------------------------- sentence component')), ctx);
