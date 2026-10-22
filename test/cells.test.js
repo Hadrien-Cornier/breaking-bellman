@@ -18,7 +18,7 @@ function harness(found = []) {
     level: 'cells', world: 'cartpole', knobs: {} };
   Object.assign(ctx, { C, S, h, MODES: {}, fam: (p) => p.family || 'value',
     save() {}, render() {}, enterLevel() {}, setWorld() {}, mcBlock() {}, replayView() {}, mainSentence() {},
-    downloadSave() {}, loadSave() {}, copyBrief() {},
+    downloadSave() {}, loadSave() {}, copyBrief() {}, campaignRunRow: () => h('div'),
     setStep: (l, n) => { S.lstep[l.id] = n; },
     recognize: (p) => C.recipes.find((r) => (!r.family || r.family === 'value') && r.world !== 'bandit'
       && Object.entries(r.keys).every(([k, v]) => Array.isArray(v) ? v.includes(p[k]) : v === p[k])),
