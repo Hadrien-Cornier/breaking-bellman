@@ -1006,8 +1006,10 @@
   const supermimicActive = () => S.mode === 'campaign' && S.level === 'supermimic';
   const goalsActive = () => S.mode === 'campaign' && S.level === 'goals';
   const preferActive = () => S.mode === 'campaign' && S.level === 'prefer';
-  const customActive = () => vpoActive() || supermimicActive() || goalsActive() || preferActive();
-  const customApi = () => preferActive() ? BBPREFER : goalsActive() ? window.BBGOALS_LEVEL : supermimicActive() ? BBSUPERMIMIC : BBVPO;
+  const replanActive = () => S.mode === 'campaign' && S.level === 'replan';
+  const hindsightActive = () => S.mode === 'campaign' && S.level === 'hindsight';
+  const customActive = () => vpoActive() || supermimicActive() || goalsActive() || preferActive() || replanActive() || hindsightActive();
+  const customApi = () => preferActive() ? BBPREFER : hindsightActive() ? BBHINDSIGHT : replanActive() ? BBREPLAN : goalsActive() ? window.BBGOALS_LEVEL : supermimicActive() ? BBSUPERMIMIC : BBVPO;
   async function run() {
     if (customActive()) return customApi().run();
     if (S.running) return null;
@@ -2006,10 +2008,12 @@
       }, [h('span.small', { text: 'Level ' + (i + 1) + ' · ' + C.worldNames[l.world] + (S.done.includes(l.id) ? ' · done' : l === next ? ' · next' : '') }), h('b', { text: l.title })]);
     };
     const tree = h('div.stack', null, C.phases.map((ph) => h('div', null, [
-      h('div.eyebrow', { text: 'Phase ' + ph.n + ': ' + ph.title }),
-      h('div.tree', { role: 'list' }, C.levels.filter((l) => (l.phase || 1) === ph.n).map(node)),
+      h('div.phase', { text: 'Phase ' + ph.n + ': ' + ph.title }),
+      h('div.tree', { role: 'list' }, C.levels.filter((l) => (l.phase == null ? 1 : l.phase) === ph.n).map(node)),
     ])));
-    pane.append(h('div.card', null, [
+    const wideMap = window.matchMedia ? window.matchMedia('(min-width: 960px)') : { matches: true };
+    const mapCard = h('details.card.map-card', { open: wideMap.matches }, [
+      h('summary', { text: 'All levels' }),
       h('p', { text: 'Predict, run, then inspect the learner. Most levels ask you to repair a failure by changing words in its update rule. The comparison lessons measure several objectives or training routes. Play in any order: nothing is locked.' }),
       tree,
       h('div.row.savebar', null, [
@@ -2018,24 +2022,37 @@
         h('button.btn.ghost.tiny', { type: 'button', onclick: loadSave }, 'Load save file'),
         h('button.btn.ghost.tiny', { type: 'button', onclick: copyBrief, title: 'Copies a short Markdown brief: where you are, the words you can change, and how an AI can drive this page.' }, 'Copy for your AI'),
       ]),
-    ]));
+    ]);
     if (lv.custom) {
-      const api = lv.id === 'prefer' ? BBPREFER : lv.id === 'goals' ? window.BBGOALS_LEVEL : lv.id === 'supermimic' ? BBSUPERMIMIC : BBVPO;
-      api.mount(pane, $('#vpo-lab'), { h, done: () => S.done.includes(lv.id), complete: () => {
-        if (!S.done.includes(lv.id)) S.done.push(lv.id); S.lstep[lv.id] = 5; save(); updateScore();
-      }, known: id => S.found.includes(id) || S.given.includes(id), prior: (id) => S.answers[id] || null, record: recordAnswer, openNext: () => {
-        const i = C.levels.findIndex((item) => item.id === lv.id);
-        const nx = C.levels[i + 1];
-        if (!nx) return null;
-        S.level = nx.id; save(); enterLevel(nx); render();
-        return nx.id;
-      }, reveal: id => {
-        if (!S.given.includes(id)) {
-          const alreadyKnown = S.found.includes(id);
-          S.given.push(id); save(); updateScore();
-          if (!alreadyKnown) queueCelebration(id);
-        }
-      } });
+      const api = lv.id === 'prefer' ? BBPREFER : lv.id === 'hindsight' ? BBHINDSIGHT : lv.id === 'replan' ? BBREPLAN : lv.id === 'goals' ? window.BBGOALS_LEVEL : lv.id === 'supermimic' ? BBSUPERMIMIC : lv.id === 'vpo' ? BBVPO : null;
+      if (!api || !api.mount) {
+        pane.append(h('div.card', null, [h('h2', { text: lv.title }), h('p', { text: 'This lesson is not mounted.' })]));
+        pane.append(mapCard);
+        return;
+      }
+      const iNext = C.levels.indexOf(lv);
+      api.mount(pane, $('#vpo-lab'), { h, done: () => S.done.includes(lv.id), step: () => S.lstep[lv.id] || 0,
+        mark: (n) => { if ((S.lstep[lv.id] || 0) < n) { S.lstep[lv.id] = n; save(); updateScore(); } },
+        markStep: (n) => { if ((S.lstep[lv.id] || 0) < n) { S.lstep[lv.id] = n; save(); updateScore(); } },
+        answer: (id) => S.answers[id] || null,
+        record: (id, choice, correct) => recordAnswer(id, choice, correct),
+        recordAnswer: (id, choice, correct) => recordAnswer(id, choice, correct),
+        openLevel: (id) => { const nx = C.levels.find((l) => l.id === id); if (!nx) return; S.level = nx.id; save(); enterLevel(nx); render(); window.scrollTo({ top: 0 }); },
+        next: () => { const nx = C.levels[iNext + 1]; return nx ? { id: nx.id, title: nx.title, world: nx.world } : null; },
+        openNext: () => { const nx = C.levels[iNext + 1]; if (!nx) return null; S.level = nx.id; save(); enterLevel(nx); render(); window.scrollTo({ top: 0 }); return nx.id; },
+        complete: () => {
+          if (!S.done.includes(lv.id)) S.done.push(lv.id); S.lstep[lv.id] = 5; save(); updateScore();
+        },
+        known: (id) => S.found.includes(id) || S.given.includes(id),
+        prior: (id) => S.answers[id] || null,
+        reveal: (id) => {
+          if (!S.given.includes(id)) {
+            const alreadyKnown = S.found.includes(id);
+            S.given.push(id); save(); updateScore();
+            if (!alreadyKnown) queueCelebration(id);
+          }
+        } });
+      pane.append(mapCard);
       return;
     }
     const st = S.lstep[lv.id] || 0;
@@ -2095,6 +2112,7 @@
       requestAnimationFrame(() => { const box = card.querySelector('#level-discoveries'); if (box) box.scrollIntoView({ block: 'start' }); });
     }
     pane.append(card);
+    pane.append(mapCard);
     // A direct child of the layout, in front of the columns, so the two tables can sit
     // side by side. No new campaign step and no new save field.
     if (lv.id === 'cliff' && st >= 2 && window.BBBACKUP) {
@@ -2790,7 +2808,7 @@
           return out;
         } },
       { name: 'set_world', description: 'Change the world and its knobs (knobs not given keep their defaults).', inputSchema: { type: 'object', properties: { world: { type: 'string', enum: Object.keys(C.worldNames) }, knobs: { type: 'object' } }, required: ['world'] },
-        execute: ({ world, knobs }) => { if (world === 'vpo' || world === 'supermimic' || world === 'goals' || world === 'prefer') return window.bellman.level(world); if (customActive()) S.mode = 'workbench'; setWorld(world, knobs || {}); note('world → ' + world + ' ' + JSON.stringify(knobs || {})); return { world: S.world, knobs: S.knobs }; } },
+        execute: ({ world, knobs }) => { if (world === 'vpo' || world === 'supermimic' || world === 'goals' || world === 'prefer' || world === 'replan' || world === 'hindsight') return window.bellman.level(world); if (customActive()) S.mode = 'workbench'; setWorld(world, knobs || {}); note('world → ' + world + ' ' + JSON.stringify(knobs || {})); return { world: S.world, knobs: S.knobs }; } },
       { name: 'run_experiment', description: 'Train the current sentence on the current world for real (seconds) and return the autopsy. seeds applies to CartPole only (1, 3 or 5); the other worlds use many runs.', inputSchema: { type: 'object', properties: { seeds: { type: 'integer', minimum: 1, maximum: 5 } } },
         execute: async ({ seeds }) => { if (customActive()) return customApi().run(); const so = C.seedOptions[S.world]; if (seeds && S.world === 'cartpole') $('#seeds').value = String(so.reduce((b, n) => (Math.abs(n - seeds) < Math.abs(b - seeds) ? n : b), so[0])); note('running ' + $('#seeds').value + ' runs…'); const a = await run(); if (!a) throw new Error('run failed'); note('done'); return { symptoms: a.symptoms, summary: a.summary }; } },
     ];
@@ -2822,9 +2840,11 @@
     ].filter((x) => x !== null);
   }
   const wordLines = () => preferActive() ? ['Two fixed replies. Fit Bradley-Terry scores from the preference rows, then maximize expected score with and without a KL penalty to the reference. Use the level controls and bellman.run().']
+    : hindsightActive() ? ['Hindsight: same four environment steps, then extra Q updates on goals recomputed from the final cell. Use the level controls and bellman.run().']
     : vpoActive() ? ['VPO: mean over eight preferences of the best score in a three-route set. GRPO: fixed mean reward for each route. Use the level controls and bellman.run().']
     : supermimicActive() ? ['SuperMimic-inspired: compare PPO in physics, PPO in one fitted model, and backpropagation through that same model. Use the level controls and bellman.run().']
       : goalsActive() ? ['Goal-conditioned counts: p(action | state, room) = count(action, state, room) / count(state, room). A hidden count drops the room. Use the level controls and bellman.run().']
+      : replanActive() ? ['Replan: score every 4-action sequence on the known mean model. Open-loop drives the winner. Replan drives only the first action and plans again from the observed cell. Use the level controls.']
       : C.families[fam(S.parts)].keys.map((k) => '- `' + k + '` (' + W[k].q + '): ' + W[k].options.map((o) => '`' + o[0] + '` = ' + plainText(o[1])).join('; ') + '. Now: `' + S.parts[k] + '`.');
   function aiBrief() {
     return [
@@ -2909,9 +2929,11 @@
       help: () => aiBrief(),
       page: () => pageMarkdown(),
       math: (parts, world) => preferActive() ? [{ label: 'KL-regularized score', tex: 'J(\\pi) = E_{a \\sim \\pi}[r(a)] - \\beta \\, KL(\\pi \\| \\pi_{ref})' }]
+        : hindsightActive() ? [{ label: 'Goal-conditioned backup', tex: 'Q(s,a,g) = r(s,a,g) + gamma * max Q(s\',a\',g) when not terminal' }]
         : vpoActive() ? [{ label: 'VPO set reward', tex: 'R(S) = mean_w max_y dot(w,r(y))' }]
         : supermimicActive() ? [{ label: 'Short-horizon objective', tex: 'J_H = sum_{t=0}^{H-1} gamma^t r_t + gamma^H V(s_H)' }]
           : goalsActive() ? [{ label: 'Action count', tex: 'p(a|s,g) = n(a,s,g) / n(s,g)' }]
+          : replanActive() ? [{ label: 'Mean-model return', tex: 'J(a_0:H-1) = sum_t r(s_t, a_t) under the mean model' }]
           : texLines(Object.assign({}, S.parts, parts || {}), world || S.world).map(([label, tex]) => ({ label, tex })),
       state: () => labState(),
       levels: () => C.levels.map((l) => { const i = levelInfo(l); return { n: i.n, id: i.id, title: i.title, world: i.world, done: i.done, step: i.step }; }),
@@ -3095,6 +3117,8 @@
     if (!supermimicActive()) BBSUPERMIMIC.cancel();
     if (window.BBGOALS_LEVEL && !goalsActive()) window.BBGOALS_LEVEL.cancel();
     if (!preferActive() && window.BBPREFER) BBPREFER.cancel();
+    if (window.BBREPLAN && !replanActive()) BBREPLAN.cancel();
+    if (!hindsightActive() && window.BBHINDSIGHT) BBHINDSIGHT.cancel();
     $('#lab').hidden = customActive(); $('#vpo-lab').hidden = !customActive();
     if (S.mode !== 'review') S.reviewLab = null;
     MODES[S.mode](pane);

@@ -63,9 +63,16 @@ async function setWord(page, scope, key, label) {
   await page.locator(scope + ' .chooser .choice', { hasText: label }).first().click();
 }
 
+// On a narrow viewport the phase map starts closed. Open it before tapping a level.
+async function openLevelMap(page) {
+  const map = page.locator('details.map-card');
+  if (await map.count()) await map.evaluate((el) => { el.open = true; });
+}
+
 await session(375, 812, 'phone', async (page) => {
   await page.screenshot({ path: out + '/phone-start.png' });
   // Level 1 is the goal-conditioned lesson. This session still plays the slot machines.
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Ten slot machines' }).click();
   await page.locator('.mc .opt').nth(1).click();
   await page.getByText('Run the starting sentence').click();
@@ -215,10 +222,10 @@ await session(1280, 900, 'desktop', async (page) => {
 await session(1280, 900, 'phases', async (page) => {
   await page.getByRole('tab', { name: 'Campaign' }).click();
   // every level is open, in any order; the save bar and the agent hooks are there
-  check(await page.locator('#mode-pane .node').count() === 21 && !(await page.locator('#mode-pane .node[disabled]').count()), 'all 21 levels are open');
+  check(await page.locator('#mode-pane .node').count() === 23 && !(await page.locator('#mode-pane .node[disabled]').count()), 'all 23 levels are open');
   check(await page.locator('#mode-pane .savebar button', { hasText: 'Download save file' }).count() === 1, 'the level map offers a save file');
   const brief = await page.evaluate(() => window.bellman.help());
-  check(/Level \d+ of 21/.test(brief) && /bellman\.run\(\)/.test(brief), 'window.bellman gives a brief for an AI helper');
+  check(/Level \d+ of 23/.test(brief) && /bellman\.run\(\)/.test(brief), 'window.bellman gives a brief for an AI helper');
   const wr = await page.evaluate(() => {
     // Level 1 is a custom lesson, so the sentence API is checked from the workbench, then Campaign is restored.
     document.querySelector('[data-mode="workbench"]').click();
@@ -230,6 +237,7 @@ await session(1280, 900, 'phases', async (page) => {
     return { ae, ar: ar || null, t, bad: bad || null };
   });
   check(wr.ae === true && wr.ar === null && wr.t === false && JSON.stringify(wr.bad) === '{"eps":"sometimes","nope":1}', 'bellman.words takes true or "false" and returns bad words as rejected');
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Learn the policy itself' }).click();
   await page.locator('#mode-pane .mc').first().locator('.opt').nth(1).click();
   await page.getByText('Run the starting sentence').click();
@@ -296,6 +304,7 @@ await session(1280, 900, 'phases', async (page) => {
 await session(1280, 900, 'twoways', async (page) => {
   // phase 5 end to end: the 10-command Gaussian copy fails, the flow copy reaches the goal (level hyper: lr 0.003, batch 128)
   await page.getByRole('tab', { name: 'Campaign' }).click();
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Two good ways' }).click();
   await page.locator('#mode-pane .mc').first().locator('.opt').nth(0).click();
   let t0 = Date.now();
@@ -316,6 +325,7 @@ await session(1280, 900, 'twoways', async (page) => {
 });
 await session(375, 812, 'phone-frontier', async (page) => {
   await page.getByRole('tab', { name: 'Campaign' }).click();
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Steer a frozen policy' }).click();
   await page.waitForTimeout(500);
   check(/mud/.test(await page.locator('#mode-pane').innerText()), 'mud level shows its intro');
@@ -385,6 +395,7 @@ await session(375, 812, 'phone-frontier', async (page) => {
   check(!await page.locator('#run-btn').isDisabled() && /forced startup failure/.test(await page.locator('#run-source').innerText()),
     'a failed startup restores both campaign and Lab controls');
   await page.screenshot({ path: out + '/phone-mud.png', fullPage: true });
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Keep the controller' }).click();
   await page.waitForTimeout(500);
   check(/kitting/.test(await page.locator('#mode-pane').innerText()), 'residual level shows its intro');
@@ -394,6 +405,7 @@ await session(375, 812, 'phone-frontier', async (page) => {
 });
 // comment fixes of 15 Oct: the combination table, the episode animation, the discovery map
 await session(375, 812, 'comments', async (page) => {
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Ten slot machines' }).click();
   await page.locator('#grid-card summary').click();
   check(await page.locator('#grid-lab .chip.gw.on').count() === 4, 'slots: the four bandit words are picked by default');
@@ -441,6 +453,7 @@ await session(375, 812, 'expert', async (page) => {
   await page.locator('#expert-card').screenshot({ path: out + '/expert-cliff-min.png' });
 });
 await session(390, 844, 'pendulum', async (page) => {
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Actions that are numbers' }).click();
   await page.evaluate(() => {
     const joint = BB.scenes.joint;
@@ -459,6 +472,8 @@ await session(390, 844, 'pendulum', async (page) => {
   await page.click('#run-btn');
   await runDone(page);
   await page.locator('#stage').scrollIntoViewIfNeeded();
+  // The stage is on screen during the run, so idle frames record the hanging angle before the replay exists.
+  await page.evaluate(() => { window.pendulumAngles = []; });
   await page.locator('#stage').click(); // restart the real animation clock
   await page.waitForTimeout(2200);
   const motion = await page.evaluate(() => ({
@@ -472,7 +487,7 @@ await session(390, 844, 'pendulum', async (page) => {
   check(/replay from hanging still/.test(await page.locator('#stage-caption').innerText()), 'caption identifies the separate replay');
   await page.locator('#stage').screenshot({ path: out + '/phone-pendulum.png' });
 });
-// Rules are visible before the first move, across every selection and at phone/desktop widths.
+// Rules stay on the page at phone and desktop widths, after the world and Run.
 await session(390, 844, 'rules', async (page) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   for (const width of [390, 1280]) {
@@ -486,8 +501,8 @@ await session(390, 844, 'rules', async (page) => {
           if (!text.includes(label)) failures.push(name + ': missing ' + label);
         }
         if (objective && !text.includes(objective)) failures.push(name + ': wrong challenge');
-        if (!(panel.compareDocumentPosition(document.querySelector('#stage')) & Node.DOCUMENT_POSITION_FOLLOWING)) failures.push(name + ': rules follow manual play');
-        if (!(panel.compareDocumentPosition(document.querySelector('#run-btn')) & Node.DOCUMENT_POSITION_FOLLOWING)) failures.push(name + ': rules follow Run');
+        if (!(panel.compareDocumentPosition(document.querySelector('#stage')) & Node.DOCUMENT_POSITION_PRECEDING)) failures.push(name + ': world stays ahead of the rules');
+        if (!(panel.compareDocumentPosition(document.querySelector('#run-btn')) & Node.DOCUMENT_POSITION_PRECEDING)) failures.push(name + ': Run stays ahead of the rules');
         const inline = document.querySelector('#challenge-rules');
         if (inline && inline.innerText !== text) failures.push(name + ': stale inline rules');
         if (document.documentElement.scrollWidth > innerWidth) failures.push(name + ': overflow');
@@ -517,7 +532,7 @@ await session(390, 844, 'rules', async (page) => {
       }
       return failures;
     });
-    check(!missing.length, 'all 21 levels, 11 missions, knob updates and family/world selections have pre-play rules at ' + width + 'px: ' + missing.join('; '));
+    check(!missing.length, 'all 23 levels, 11 missions, knob updates and family/world selections have pre-play rules at ' + width + 'px: ' + missing.join('; '));
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => bellman.level('continuous'));
@@ -556,9 +571,14 @@ async function backupPage(w, h) {
     found: ['egreedy'], given: ['mc'], seen: [], missions: [], saved: [], made: {},
     reviews: {}, unlockAll: false, discoveries: {}, wondered: {},
   };
-  // Hold lives in localStorage. A file reload in CI Chrome drops sessionStorage, and the
-  // init script would otherwise put the cliff lesson back before Diagnose.
+  // The seed belongs on the first navigation only. A reload that does not see
+  // bb-backup-hold must not write the seed: that write puts the cliff lesson back
+  // before Diagnose, and the round picture never mounts. The hold remains for a
+  // navigation that is not reported as a reload.
   await page.addInitScript((st) => {
+    let nav = '';
+    try { nav = (performance.getEntriesByType('navigation')[0] || {}).type || ''; } catch (e) { nav = ''; }
+    if (nav === 'reload') return;
     if (localStorage.getItem('bb-backup-hold') === '1') return;
     localStorage.setItem('breaking-bellman-v1', JSON.stringify(st));
   }, save);
@@ -626,9 +646,31 @@ check(/0\.95\^1/.test(targets) && /0\.95\^8/.test(targets) && /0\.95\^3/.test(ta
 const progress = await backupPage1280.evaluate(() => JSON.parse(localStorage.getItem('breaking-bellman-v1')));
 check(progress.done.join() === 'slots' && progress.lstep.cliff === 2 && progress.lstep.slots === 5 && progress.answers['cliff-p'].choice === 1 && progress.found.join() === 'egreedy', 'backup: using the picture does not rewrite the save');
 await backupPage1280.reload();
-await backupPage1280.waitForSelector('#rb-round-value');
-check(await backupPage1280.locator('#rb-round-value').innerText() === '0', 'backup: a reload returns the picture to round 0 and leaves progress');
-check((await backupPage1280.evaluate(() => JSON.parse(localStorage.getItem('breaking-bellman-v1')).lstep.cliff)) === 2, 'backup: reload keeps cliff at the diagnose step');
+try {
+  await backupPage1280.waitForSelector('#reward-backup', { timeout: 15000 });
+} catch (e) {
+  const info = await backupPage1280.evaluate(() => {
+    let nav = '';
+    try { nav = (performance.getEntriesByType('navigation')[0] || {}).type || ''; } catch (err) { nav = 'nav-err'; }
+    let progress = {};
+    try { progress = JSON.parse(localStorage.getItem('breaking-bellman-v1') || '{}'); } catch (err) { progress = { parse: String(err) }; }
+    return {
+      nav,
+      hold: localStorage.getItem('bb-backup-hold'),
+      level: progress.level,
+      lstep: progress.lstep,
+      pic: !!document.getElementById('reward-backup'),
+      welcome: !!document.querySelector('dialog.intro'),
+    };
+  }).catch(() => ({ evaluate: 'failed' }));
+  throw new Error('reward-backup missing after the second reload ' + JSON.stringify(info));
+}
+const afterReload = await backupPage1280.evaluate(() => ({
+  round: document.getElementById('rb-round-value').textContent,
+  cliff: JSON.parse(localStorage.getItem('breaking-bellman-v1')).lstep.cliff,
+}));
+check(afterReload.round === '0', 'backup: a reload returns the picture to round 0 and leaves progress');
+check(afterReload.cliff === 2, 'backup: reload keeps cliff at the diagnose step');
 check(snap.scroll <= 1280, 'backup: 1280 has no horizontal page scroll (' + snap.scroll + ')');
 await backupPage1280.screenshot({ path: out + '/reward-backup-1280.png' });
 await backupPage1280.setViewportSize({ width: 390, height: 844 });
