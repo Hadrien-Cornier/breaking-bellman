@@ -1,5 +1,5 @@
 // Breaking Bellman content, phases 2 to 5: policy gradients, continuous control, offline learning, the robotics frontier.
-// It extends window.CONTENT (content.js). Every number quoted here comes from a run logged in docs/EXPERIMENTS.md (Simulation).
+// It extends window.CONTENT (content.js). Every number quoted here comes from a run logged in EXPERIMENTS.md (Simulation).
 (function (C) {
   // ---- words of the policy-gradient sentence (family 'pg'). options: [value, chip text, one-line meaning]
   const pgWords = {

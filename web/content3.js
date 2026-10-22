@@ -1,5 +1,5 @@
 // Breaking Bellman content, phases 2 to 5: recipes, failures, cards, family trees, levels, missions.
-// It extends window.CONTENT after content2.js. Every number quoted here comes from a run logged in docs/EXPERIMENTS.md (Simulation).
+// It extends window.CONTENT after content2.js. Every number quoted here comes from a run logged in EXPERIMENTS.md (Simulation).
 (function (C) {
   const pg = (o) => C.cfg(Object.assign({ family: 'pg' }, o));
   const ac = (o) => C.cfg(Object.assign({ family: 'ac' }, o));

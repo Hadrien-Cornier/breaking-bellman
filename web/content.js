@@ -1,5 +1,5 @@
 // Breaking Bellman content, version 2: the update rule is a sentence of plain words you can change.
-// Every number quoted here comes from a run logged in docs/EXPERIMENTS.md (Simulation).
+// Every number quoted here comes from a run logged in EXPERIMENTS.md (Simulation).
 window.CONTENT = (function () {
   // ---- the words of the sentence. options: [value, chip text, one-line meaning]
   const words = {
