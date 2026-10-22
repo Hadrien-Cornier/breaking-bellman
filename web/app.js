@@ -42,7 +42,8 @@
   }
   function save() {
     try {
-      localStorage.setItem(LS, JSON.stringify({ found: S.found, given: S.given, seen: S.seen, done: S.done, answers: S.answers, missions: S.missions,
+      // A newer version may have saved fields this build does not know yet.
+      localStorage.setItem(LS, JSON.stringify({ ...saved, found: S.found, given: S.given, seen: S.seen, done: S.done, answers: S.answers, missions: S.missions,
         saved: S.saved, mode: S.mode, level: S.level, lstep: S.lstep, made: S.made, reviews: S.reviews, unlockAll: S.unlockAll,
         discoveries: S.discoveries, wondered: S.wondered, intro: S.intro }));
     } catch (e) { /* storage blocked */ }

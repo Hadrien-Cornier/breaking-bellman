@@ -9,6 +9,7 @@ const [manifestPath,campaign,proof,url='http://localhost:8764/']=process.argv.sl
 fs.mkdirSync(proof,{recursive:true});
 const manifest=JSON.parse(fs.readFileSync(manifestPath)),seen=new Set();
 const entries=manifest.entries.filter(e=>!seen.has(e.config.world)&&seen.add(e.config.world));
+const runTimeout=Number(process.env.BB_UI_RUN_TIMEOUT_MS)||240000;
 function cli(...args){return execFileSync('chrome-devtools-axi',args,{encoding:'utf8',timeout:240000,maxBuffer:2**22,env:{...process.env,CHROME_DEVTOOLS_AXI_SESSION:'bb-fast-mode154'}});}
 function evaluate(js){const text=cli('eval',js),m=text.match(/^result: (.+)$/m);if(!m)throw Error(text);const result=JSON.parse(m[1]);return typeof result==='string'?JSON.parse(result):result;}
 function evaluateLong(js){
@@ -18,7 +19,7 @@ function evaluateLong(js){
     const state=evaluate('() => window.__longCheck');
     if(state.error)throw Error(state.error);
     if(!state.pending)return state.value;
-    if(Date.now()-started>240000)throw Error('browser validation exceeded 240 seconds');
+    if(Date.now()-started>runTimeout)throw Error('browser validation exceeded '+runTimeout/1000+' seconds');
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,500);
   }
 }

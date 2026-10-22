@@ -1,0 +1,43 @@
+{
+  "app": "breaking-bellman",
+  "version": 1,
+  "exported": "2026-10-22T15:20:00.000Z",
+  "source": "origin/main 53a5a83 progress shape, captured for the cliff restore. Level skew and the density answer exist only on that newer tree.",
+  "progress": {
+    "intro": 1,
+    "mode": "campaign",
+    "level": "skew",
+    "done": ["slots", "cliff", "careful", "goals", "thaw", "rare", "skills", "hierarchy", "messages", "metarl", "ensemble"],
+    "lstep": {
+      "slots": 5,
+      "cliff": 2,
+      "careful": 4,
+      "goals": 3,
+      "thaw": 4,
+      "rare": 5,
+      "skills": 5,
+      "hierarchy": 4,
+      "messages": 4,
+      "metarl": 4,
+      "ensemble": 5,
+      "skew": 2
+    },
+    "answers": {
+      "slots-p": { "choice": 1, "correct": false, "ts": "2026-10-21T02:00:00.000Z" },
+      "cliff-p": { "choice": 0, "correct": true, "ts": "2026-10-21T02:10:00.000Z" },
+      "skew-p": { "choice": 1, "correct": true, "ts": "2026-10-22T14:40:00.000Z" },
+      "ensemble-p": { "choice": 0, "correct": true, "ts": "2026-10-22T14:10:00.000Z" }
+    },
+    "found": ["egreedy", "expsarsa"],
+    "given": [],
+    "seen": [],
+    "missions": [],
+    "saved": [],
+    "made": {},
+    "reviews": {},
+    "unlockAll": false,
+    "discoveries": {},
+    "recapDismissed": ["egreedy", "expsarsa"],
+    "wondered": {}
+  }
+}

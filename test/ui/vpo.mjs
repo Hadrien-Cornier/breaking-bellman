@@ -79,7 +79,8 @@ fs.writeFileSync(path.join(proof,'cancellation.json'),JSON.stringify(cancellatio
 const navigation=evaluate(`async () => {
   bellman.world('vpo');const custom=bellman.state().world==='vpo';
   const wordResult=bellman.words({eps:true});
-  bellman.level('slots');document.querySelector('#run-mode').value='fast';
+  // The default greedy run is not published in the restored baseline; epsilon-greedy is.
+  bellman.level('slots');bellman.words({eps:true});document.querySelector('#run-mode').value='fast';
   const result=await bellman.run();
   return {custom,wordResult,lab:!document.querySelector('#lab').hidden&&document.querySelector('#vpo-lab').hidden,source:document.querySelector('#run-source').innerText,summary:result.summary};
 }`);
