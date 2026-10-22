@@ -14,6 +14,7 @@
     awr: [5, 18], td3bc: [17, 31], iql: [25, 42], cql: [5, 24], modeavg: [6, 26], flow: [28, 42],
     act: [6, 25], bestofn: [7, 23], qplan: [5, 17], expo: [35, 53], criticfirst: [6, 18],
     residual: [41, 52], recap: [2, 19], pi05: [2, 21], pi07: [5, 18], rewardhack: [20, 39], pbrs: [5, 18],
+    btref: [8, 21],
   };
 
   const GAP = {
@@ -72,6 +73,7 @@
     criticfirst: 'A correction that starts at zero matches the controller. A randomly initialized critic does not. Let the critic learn the controller before the policy climbs it.',
     supermimic: 'Fit one model from simulator transitions, then train on short imagined rollouts. Judge the result in the real simulator, because the model can be wrong.',
     rewardhack: 'The learner maximizes the number you wrote. A bonus for facing the stick can be worth more than picking the stick up.',
+    btref: 'Fit a score from pairwise preferences, then maximize it with a penalty for leaving a reference policy. A positive penalty tilts that reference. It does not stop a large score from putting almost all of the probability on one reply.',
   };
 
   function plain(html) {

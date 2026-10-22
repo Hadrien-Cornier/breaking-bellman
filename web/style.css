@@ -477,3 +477,14 @@ ul.preset-diff li { margin: 2px 0; }
 
 .review-context p, .review-inspect p { margin: 0; overflow-wrap: anywhere; }
 .review-context, .review-inspect { min-width: 0; }
+
+/* Preference lesson. Scoped so the global polish pass can restyle tokens without owning this copy. */
+#prefer-lesson, #prefer-lab, #prefer-rules { min-width: 0; }
+#prefer-lesson .opt { width: 100%; }
+#prefer-lesson .row, #prefer-lesson .field { max-width: 100%; }
+#prefer-lesson select { max-width: 100%; }
+#prefer-lesson .prefer-note, #prefer-rules dd { overflow-wrap: anywhere; }
+#prefer-lesson .prefer-check { margin: 0; padding-left: 1.1rem; }
+#prefer-meter { display: grid; gap: 6px; }
+#prefer-lesson .prefer-track { height: 14px; background: var(--sunk); border-radius: 4px; overflow: hidden; }
+#prefer-lesson .prefer-fill { height: 100%; background: var(--accent); }
