@@ -2510,7 +2510,7 @@
         h('p.small', { text: 'When you found it: ' + [d.where, d.world, d.result].filter(Boolean).join('. ') + '.' }),
         d.sentence ? h('p.small', { text: 'Sentence: ' + d.sentence }) : null,
       ]) : null,
-      peekFor(id),
+      dialog ? null : peekFor(id),
       c.evidence ? h('details.card-evidence', null, [h('summary', { text: 'Evidence from the source' }), h('div', { html: c.evidence })]) : null,
       dialog ? null : h('button.btn.ghost', { type: 'button', onclick: () => openUnlock([id], true) }, 'Open the unlock note'),
     ]);
