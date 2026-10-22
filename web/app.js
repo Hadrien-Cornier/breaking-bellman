@@ -2008,7 +2008,7 @@
     };
     const tree = h('div.stack', null, C.phases.map((ph) => h('div', null, [
       h('div.phase', { text: 'Phase ' + ph.n + ': ' + ph.title }),
-      h('div.tree', { role: 'list' }, C.levels.filter((l) => (l.phase || 1) === ph.n).map(node)),
+      h('div.tree', { role: 'list' }, C.levels.filter((l) => (l.phase == null ? 1 : l.phase) === ph.n).map(node)),
     ])));
     const wideMap = window.matchMedia ? window.matchMedia('(min-width: 960px)') : { matches: true };
     const mapCard = h('details.card.map-card', { open: wideMap.matches }, [
