@@ -1006,8 +1006,9 @@
   const supermimicActive = () => S.mode === 'campaign' && S.level === 'supermimic';
   const goalsActive = () => S.mode === 'campaign' && S.level === 'goals';
   const replanActive = () => S.mode === 'campaign' && S.level === 'replan';
-  const customActive = () => vpoActive() || supermimicActive() || goalsActive() || replanActive();
-  const customApi = () => replanActive() ? BBREPLAN : goalsActive() ? window.BBGOALS_LEVEL : supermimicActive() ? BBSUPERMIMIC : BBVPO;
+  const hindsightActive = () => S.mode === 'campaign' && S.level === 'hindsight';
+  const customActive = () => vpoActive() || supermimicActive() || goalsActive() || replanActive() || hindsightActive();
+  const customApi = () => hindsightActive() ? BBHINDSIGHT : replanActive() ? BBREPLAN : goalsActive() ? window.BBGOALS_LEVEL : supermimicActive() ? BBSUPERMIMIC : BBVPO;
   async function run() {
     if (customActive()) return customApi().run();
     if (S.running) return null;
@@ -2020,11 +2021,21 @@
       ]),
     ]));
     if (lv.custom) {
-      const api = lv.id === 'replan' ? BBREPLAN : lv.id === 'goals' ? window.BBGOALS_LEVEL : lv.id === 'supermimic' ? BBSUPERMIMIC : BBVPO;
+      const api = lv.id === 'hindsight' ? BBHINDSIGHT : lv.id === 'replan' ? BBREPLAN : lv.id === 'goals' ? window.BBGOALS_LEVEL : lv.id === 'supermimic' ? BBSUPERMIMIC : lv.id === 'vpo' ? BBVPO : null;
+      if (!api || !api.mount) {
+        pane.append(h('div.card', null, [h('h2', { text: lv.title }), h('p', { text: 'This lesson is not mounted.' })]));
+        return;
+      }
+      const iNext = C.levels.indexOf(lv);
       api.mount(pane, $('#vpo-lab'), { h, done: () => S.done.includes(lv.id), step: () => S.lstep[lv.id] || 0,
         mark: (n) => { if ((S.lstep[lv.id] || 0) < n) { S.lstep[lv.id] = n; save(); updateScore(); } },
-        answer: (id) => S.answers[id] || null, record: (id, choice, correct) => recordAnswer(id, choice, correct),
+        markStep: (n) => { if ((S.lstep[lv.id] || 0) < n) { S.lstep[lv.id] = n; save(); updateScore(); } },
+        answer: (id) => S.answers[id] || null,
+        record: (id, choice, correct) => recordAnswer(id, choice, correct),
+        recordAnswer: (id, choice, correct) => recordAnswer(id, choice, correct),
         openLevel: (id) => { const nx = C.levels.find((l) => l.id === id); if (!nx) return; S.level = nx.id; save(); enterLevel(nx); render(); window.scrollTo({ top: 0 }); },
+        next: () => { const nx = C.levels[iNext + 1]; return nx ? { id: nx.id, title: nx.title, world: nx.world } : null; },
+        openNext: () => { const nx = C.levels[iNext + 1]; if (!nx) return null; S.level = nx.id; save(); enterLevel(nx); render(); window.scrollTo({ top: 0 }); return nx.id; },
         complete: () => {
         if (!S.done.includes(lv.id)) S.done.push(lv.id); S.lstep[lv.id] = 5; save(); updateScore();
       }, known: id => S.found.includes(id) || S.given.includes(id), reveal: id => {
@@ -2788,7 +2799,7 @@
           return out;
         } },
       { name: 'set_world', description: 'Change the world and its knobs (knobs not given keep their defaults).', inputSchema: { type: 'object', properties: { world: { type: 'string', enum: Object.keys(C.worldNames) }, knobs: { type: 'object' } }, required: ['world'] },
-        execute: ({ world, knobs }) => { if (world === 'vpo' || world === 'supermimic' || world === 'goals' || world === 'replan') return window.bellman.level(world); if (customActive()) S.mode = 'workbench'; setWorld(world, knobs || {}); note('world → ' + world + ' ' + JSON.stringify(knobs || {})); return { world: S.world, knobs: S.knobs }; } },
+        execute: ({ world, knobs }) => { if (world === 'vpo' || world === 'supermimic' || world === 'goals' || world === 'replan' || world === 'hindsight') return window.bellman.level(world); if (customActive()) S.mode = 'workbench'; setWorld(world, knobs || {}); note('world → ' + world + ' ' + JSON.stringify(knobs || {})); return { world: S.world, knobs: S.knobs }; } },
       { name: 'run_experiment', description: 'Train the current sentence on the current world for real (seconds) and return the autopsy. seeds applies to CartPole only (1, 3 or 5); the other worlds use many runs.', inputSchema: { type: 'object', properties: { seeds: { type: 'integer', minimum: 1, maximum: 5 } } },
         execute: async ({ seeds }) => { if (customActive()) return customApi().run(); const so = C.seedOptions[S.world]; if (seeds && S.world === 'cartpole') $('#seeds').value = String(so.reduce((b, n) => (Math.abs(n - seeds) < Math.abs(b - seeds) ? n : b), so[0])); note('running ' + $('#seeds').value + ' runs…'); const a = await run(); if (!a) throw new Error('run failed'); note('done'); return { symptoms: a.symptoms, summary: a.summary }; } },
     ];
@@ -2819,7 +2830,8 @@
       lab.lastRun ? '- Last run (' + lab.lastRun.seeds + ' runs, ' + lab.lastRun.steps + ' steps): ' + (lab.lastRun.symptoms.join(' ') || 'no symptoms') : '- No run yet in this world.',
     ].filter((x) => x !== null);
   }
-  const wordLines = () => vpoActive() ? ['VPO: mean over eight preferences of the best score in a three-route set. GRPO: fixed mean reward for each route. Use the level controls and bellman.run().']
+  const wordLines = () => hindsightActive() ? ['Hindsight: same four environment steps, then extra Q updates on goals recomputed from the final cell. Use the level controls and bellman.run().']
+    : vpoActive() ? ['VPO: mean over eight preferences of the best score in a three-route set. GRPO: fixed mean reward for each route. Use the level controls and bellman.run().']
     : supermimicActive() ? ['SuperMimic-inspired: compare PPO in physics, PPO in one fitted model, and backpropagation through that same model. Use the level controls and bellman.run().']
       : goalsActive() ? ['Goal-conditioned counts: p(action | state, room) = count(action, state, room) / count(state, room). A hidden count drops the room. Use the level controls and bellman.run().']
       : replanActive() ? ['Replan: score every 4-action sequence on the known mean model. Open-loop drives the winner. Replan drives only the first action and plans again from the observed cell. Use the level controls.']
@@ -2906,7 +2918,8 @@
     window.bellman = {
       help: () => aiBrief(),
       page: () => pageMarkdown(),
-      math: (parts, world) => vpoActive() ? [{ label: 'VPO set reward', tex: 'R(S) = mean_w max_y dot(w,r(y))' }]
+      math: (parts, world) => hindsightActive() ? [{ label: 'Goal-conditioned backup', tex: 'Q(s,a,g) = r(s,a,g) + gamma * max Q(s\',a\',g) when not terminal' }]
+        : vpoActive() ? [{ label: 'VPO set reward', tex: 'R(S) = mean_w max_y dot(w,r(y))' }]
         : supermimicActive() ? [{ label: 'Short-horizon objective', tex: 'J_H = sum_{t=0}^{H-1} gamma^t r_t + gamma^H V(s_H)' }]
           : goalsActive() ? [{ label: 'Action count', tex: 'p(a|s,g) = n(a,s,g) / n(s,g)' }]
           : replanActive() ? [{ label: 'Mean-model return', tex: 'J(a_0:H-1) = sum_t r(s_t, a_t) under the mean model' }]
@@ -3093,6 +3106,7 @@
     if (!supermimicActive()) BBSUPERMIMIC.cancel();
     if (window.BBGOALS_LEVEL && !goalsActive()) window.BBGOALS_LEVEL.cancel();
     if (window.BBREPLAN && !replanActive()) BBREPLAN.cancel();
+    if (!hindsightActive() && window.BBHINDSIGHT) BBHINDSIGHT.cancel();
     $('#lab').hidden = customActive(); $('#vpo-lab').hidden = !customActive();
     if (S.mode !== 'review') S.reviewLab = null;
     MODES[S.mode](pane);
