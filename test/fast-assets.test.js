@@ -2,7 +2,6 @@
 const { test } = require('node:test'), assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), z = require('node:zlib'), vm = require('node:vm');
 const { exact, hash, source, content } = require('../scripts/fast-source.js');
-require('../web/aggregate.js');
 const { create } = require('../web/fast.js');
 
 // Use the same first-match recognizer as the game, with the real content scripts.
@@ -11,7 +10,7 @@ const recognizer = app.slice(app.indexOf('  function keysMatch('), app.indexOf('
 assert(recognizer.includes('function recognize('), 'game recognizer must be present');
 const C = content(), recognize = vm.runInNewContext(recognizer + '\nrecognize;', { C });
 
-test('published corpus retains named policies as seed aggregate curves', async t => {
+test('published corpus retains named policies with intact full ordered results', async t => {
   const root = path.resolve(__dirname, '../fast');
   for (const version of fs.readdirSync(root)) {
     const dir = path.join(root, version), indexPath = path.join(dir, 'index.json');
@@ -64,15 +63,14 @@ test('published corpus retains named policies as seed aggregate curves', async t
         assert.equal(packed.length, ref.bytes); assert.equal(hash(packed), ref.sha256);
         raw = z.gunzipSync(packed).toString(); record = exact.parse(raw);
       }
-      assert.equal(record.schema, 'bb-seed-aggregate-v1'); assert.equal(record.key, key);
-      assert.deepEqual(Object.keys(record).sort(), ['config', 'key', 'schema', 'view']);
+      assert.equal(record.schema, 'bb-full-results-v1'); assert.equal(record.key, key);
+      assert.deepEqual(Object.keys(record).sort(), ['config', 'key', 'results', 'schema']);
       assert.equal(exact.stringify(record.config), exact.stringify(config));
-      assert.equal(globalThis.RLAGG.validAggregateRecord(record, config, key), true);
-      assert.equal(record.view.seedCount, config.seeds.length);
-      assert.equal(record.view.playback.seed, config.seeds[0]);
+      assert.deepEqual(record.results.map(r => r.seed), config.seeds);
+      // Includes all typed arrays, nonfinite values, policies, traces and curves.
       assert.equal(hash(exact.stringify(record)), hash(raw), key + ': lossless round trip');
-      seeds += record.view.seedCount;
+      seeds += record.results.length;
     }
-    t.diagnostic(version + ': ' + keys.length + ' aggregate records, ' + seeds + ' ordered seeds; current consumer validation=' + current);
+    t.diagnostic(version + ': ' + keys.length + ' full records, ' + seeds + ' ordered seeds; current consumer validation=' + current);
   }
 });

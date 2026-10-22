@@ -62,7 +62,7 @@
     redraw = () => {
       if (!body.isConnected) return;
       const select = (id, label, values, value, change) => h('label.field', { for:id }, [h('span.small', { text:label }), h('select', { id, disabled:state.busy, onchange:e=>{change(+e.target.value);redraw();} }, values.map(([v,text])=>h('option', { value:v, selected:v===value, text })))]);
-      body.replaceChildren(h('div.eyebrow', { text:'Level ' + (C.levels.findIndex((l) => l.id === 'vpo') + 1) + ' · Two treasures' }), h('h2', { text:lesson.title }), h('p', { text:lesson.intro }),
+      body.replaceChildren(h('div.eyebrow', { text:'Level 18 · Two treasures' }), h('h2', { text:lesson.title }), h('p', { text:lesson.intro }),
         h('h3', { text:'1. Change what earns credit' }),
         h('p', { text:'GRPO: score each route with the mean of its four rewards, then compare it with 11 other tries. VPO (Vector Policy Optimization): draw eight preference directions, score the best of three alternatives for each direction, then average. Compare four sets and give each whole set its group-relative credit.' }),
         h('p', { text:'The sentence changes from “reward this answer” to “reward this set of alternatives”. A preference direction is four nonnegative weights that sum to one. Gold-heavy and diamond-heavy directions can favor different routes.' }),

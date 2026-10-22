@@ -12,7 +12,6 @@ function harness({saved=true}={}){
     range:(a,b)=>Array.from({length:b-a+1},(_,i)=>a+i),runSeeds:async(cfg,seeds,update)=>{calls.push({live:true,cfg,seeds});update(results.map(r=>({...r,t:30})));return results;},
     renderCharts:()=>paints.push('charts'),renderStage:()=>paints.push(S.results.length?'stage':'pending'),renderAutopsy:()=>RLA.autopsy(S.results),renderExpert(){},renderWonder(){},
     recognize:()=>null,discover(){},headline:()=>'',h:(tag,attrs)=>({tag,...attrs}),metricCtx:()=>({}),save(){},refreshSentences(){},drawCompare(){},stopAll(){},toast(){} });
-  vm.runInContext(fs.readFileSync(require.resolve('../web/aggregate.js'),'utf8'), context);
   const src=fs.readFileSync(require.resolve('../web/app.js'),'utf8');vm.runInContext(src.slice(src.indexOf('  function hyperNow()'),src.indexOf('  // ---------------------------------------------------------------- discovery celebration')),context);
   return {context,S,$,paints,calls,release,results};
 }

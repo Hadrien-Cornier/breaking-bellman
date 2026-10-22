@@ -374,35 +374,8 @@
       p.innerHTML = '<b>' + label + ' </b>' + html;
       wrap.append(p);
     };
-    if (card.ideaLine) {
-      const idea = document.createElement('p');
-      const ib = document.createElement('b');
-      ib.textContent = 'Idea: ';
-      idea.append(ib, document.createTextNode(card.ideaLine));
-      wrap.append(idea);
-    }
     if (card.fixes) line('What it fixes:', card.fixes);
     if (card.stillWrong) line('Where it still fails:', card.stillWrong);
-    if (card.practice) {
-      const pr = document.createElement('p');
-      const pb = document.createElement('b');
-      pb.textContent = 'In practice: ';
-      pr.append(pb, document.createTextNode(card.practice));
-      wrap.append(pr);
-    }
-    if (card.pullQuote) {
-      const q = document.createElement('p');
-      const qb = document.createElement('b');
-      qb.textContent = 'Quote: ';
-      q.append(qb, document.createTextNode('"' + card.pullQuote + '"'));
-      if (card.pullCite) q.append(document.createTextNode(' ' + card.pullCite + '.'));
-      wrap.append(q);
-    } else if (card.quoteGap) {
-      const g = document.createElement('p');
-      g.className = 'algo-prov algo-unverified';
-      g.textContent = card.quoteGap;
-      wrap.append(g);
-    }
     if (card.paper) line('Source \u00b7 who \u00b7 where:', card.paper);
     const game = a.gameNote || info.blurb;
     if (game) line('Game adaptation:', game);
