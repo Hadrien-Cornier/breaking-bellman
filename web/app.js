@@ -1055,8 +1055,10 @@
     if (id === 'hindsight') return window.BBHINDSIGHT;
     if (id === 'elbo') return window.BBELBO_LEVEL;
     if (id === 'rewardfit') return window.BBREWARDFIT;
+    if (id === 'rare') return window.BBRARE;
     if (id === 'thaw') return window.BBTHAW;
     if (id === 'skills') return window.BBSKILLS_LEVEL;
+    if (id === 'hierarchy') return window.BBHIERARCHY;
     return null;
   }
   const vpoActive = () => S.mode === 'campaign' && S.level === 'vpo';
@@ -1069,7 +1071,9 @@
   const rewardfitActive = () => S.mode === 'campaign' && S.level === 'rewardfit';
   const thawActive = () => S.mode === 'campaign' && S.level === 'thaw';
   const skillsActive = () => S.mode === 'campaign' && S.level === 'skills';
-  const customActive = () => skillsActive() || thawActive() || rewardfitActive() || elboActive() || vpoActive() || supermimicActive() || goalsActive() || preferActive() || replanActive() || hindsightActive();
+  const rareActive = () => S.mode === 'campaign' && S.level === 'rare';
+  const hierarchyActive = () => S.mode === 'campaign' && S.level === 'hierarchy';
+  const customActive = () => skillsActive() || hierarchyActive() || thawActive() || rewardfitActive() || elboActive() || vpoActive() || supermimicActive() || goalsActive() || preferActive() || replanActive() || hindsightActive() || rareActive();
   const customApi = () => customLessonApi(S.level);
   async function run() {
     if (customActive()) return customApi().run();
@@ -2862,7 +2866,7 @@
           return out;
         } },
       { name: 'set_world', description: 'Change the world and its knobs (knobs not given keep their defaults).', inputSchema: { type: 'object', properties: { world: { type: 'string', enum: Object.keys(C.worldNames) }, knobs: { type: 'object' } }, required: ['world'] },
-        execute: ({ world, knobs }) => { if (world === 'vpo' || world === 'supermimic' || world === 'goals' || world === 'prefer' || world === 'replan' || world === 'hindsight' || world === 'elbo' || world === 'rewardfit' || world === 'thaw' || world === 'skills') return window.bellman.level(world); if (customActive()) S.mode = 'workbench'; setWorld(world, knobs || {}); note('world → ' + world + ' ' + JSON.stringify(knobs || {})); return { world: S.world, knobs: S.knobs }; } },
+        execute: ({ world, knobs }) => { if (world === 'vpo' || world === 'supermimic' || world === 'goals' || world === 'prefer' || world === 'replan' || world === 'hindsight' || world === 'elbo' || world === 'rewardfit' || world === 'thaw' || world === 'skills' || world === 'rare' || world === 'hierarchy') return window.bellman.level(world); if (customActive()) S.mode = 'workbench'; setWorld(world, knobs || {}); note('world → ' + world + ' ' + JSON.stringify(knobs || {})); return { world: S.world, knobs: S.knobs }; } },
       { name: 'run_experiment', description: 'Train the current sentence on the current world for real (seconds) and return the autopsy. seeds applies to CartPole only (1, 3 or 5); the other worlds use many runs.', inputSchema: { type: 'object', properties: { seeds: { type: 'integer', minimum: 1, maximum: 5 } } },
         execute: async ({ seeds }) => { if (customActive()) return customApi().run(); const so = C.seedOptions[S.world]; if (seeds && S.world === 'cartpole') $('#seeds').value = String(so.reduce((b, n) => (Math.abs(n - seeds) < Math.abs(b - seeds) ? n : b), so[0])); note('running ' + $('#seeds').value + ' runs…'); const a = await run(); if (!a) throw new Error('run failed'); note('done'); return { symptoms: a.symptoms, summary: a.summary }; } },
     ];
@@ -2895,6 +2899,7 @@
   }
   const wordLines = () => preferActive() ? ['Two fixed replies. Fit Bradley-Terry scores from the preference rows, then maximize expected score with and without a KL penalty to the reference. Use the level controls and bellman.run().']
     : skillsActive() ? ['Skill reward: q(skill|room) is a smoothed visit count. Reward is log q(skill|room) - log p(skill), with p(skill) = 1/2. The softmax gradient reads that reward. Use the level controls and bellman.run().']
+    : hierarchyActive() ? ['Hierarchy: one goal-conditioned table trains on the door, then a given sequence calls it. Flat training uses S plus H and not those transitions. Use the level controls and bellman.run().']
     : hindsightActive() ? ['Hindsight: same four environment steps, then extra Q updates on goals recomputed from the final cell. Use the level controls and bellman.run().']
     : vpoActive() ? ['VPO: mean over eight preferences of the best score in a three-route set. GRPO: fixed mean reward for each route. Use the level controls and bellman.run().']
     : supermimicActive() ? ['SuperMimic-inspired: compare PPO in physics, PPO in one fitted model, and backpropagation through that same model. Use the level controls and bellman.run().']
@@ -2903,6 +2908,7 @@
       : replanActive() ? ['Replan: score every 4-action sequence on the known mean model. Open-loop drives the winner. Replan drives only the first action and plans again from the observed cell. Use the level controls.']
       : rewardfitActive() ? ['Reward fit: features are closeness, hole, lane, and step. The soft policy is proportional to exp(Q). The planner reads weights only. Use the level controls and bellman.run().']
       : thawActive() ? ['Thaw: a linear policy fit on a frozen light-arm dataset, then a short finite-difference update on the heavy arm, compared with the same budget from zeros. Use the level controls and bellman.run().']
+      : rareActive() ? ['Visit bonus: an untried action is worth 1/(1 - gamma) until it is taken. The repair adds 1/sqrt(n(s\')) inside the Q target, on top of the environment reward, which stays 0 or 1. Use the level controls and bellman.run().']
       : C.families[fam(S.parts)].keys.map((k) => '- `' + k + '` (' + W[k].q + '): ' + W[k].options.map((o) => '`' + o[0] + '` = ' + plainText(o[1])).join('; ') + '. Now: `' + S.parts[k] + '`.');
   function aiBrief() {
     return [
@@ -2988,6 +2994,7 @@
       page: () => pageMarkdown(),
       math: (parts, world) => preferActive() ? [{ label: 'KL-regularized score', tex: 'J(\\pi) = E_{a \\sim \\pi}[r(a)] - \\beta \\, KL(\\pi \\| \\pi_{ref})' }]
         : skillsActive() ? [{ label: 'Discriminator reward', tex: 'r(skill, room) = log q(skill|room) - log p(skill)' }]
+        : hierarchyActive() ? [{ label: 'Low-level backup', tex: 'Q(o,a) = r + gamma * max Q(o\',a\') when the transition is not terminal' }]
         : hindsightActive() ? [{ label: 'Goal-conditioned backup', tex: 'Q(s,a,g) = r(s,a,g) + gamma * max Q(s\',a\',g) when not terminal' }]
         : vpoActive() ? [{ label: 'VPO set reward', tex: 'R(S) = mean_w max_y dot(w,r(y))' }]
         : supermimicActive() ? [{ label: 'Short-horizon objective', tex: 'J_H = sum_{t=0}^{H-1} gamma^t r_t + gamma^H V(s_H)' }]
@@ -2996,6 +3003,7 @@
           : replanActive() ? [{ label: 'Mean-model return', tex: 'J(a_0:H-1) = sum_t r(s_t, a_t) under the mean model' }]
           : rewardfitActive() ? [{ label: 'Soft-optimal action likelihood', tex: '\\log \\pi_w(a|s) = Q_w(s,a) - \\log \\sum_a \\exp Q_w(s,a)' }]
           : thawActive() ? [{ label: 'One-joint return', tex: 'J = sum_t -(angle_t - 1)^2' }]
+          : rareActive() ? [{ label: 'Backed-up target', tex: 'y = r_{env} + 1/\\sqrt{n(s\')} + \\gamma \\max_{a\'} \\hat{Q}(s\', a\')' }, { label: 'Environment reward', tex: 'r_{env} \\in \\{0, 1\\}' }]
           : texLines(Object.assign({}, S.parts, parts || {}), world || S.world).map(([label, tex]) => ({ label, tex })),
       state: () => labState(),
       levels: () => C.levels.map((l) => { const i = levelInfo(l); return { n: i.n, id: i.id, title: i.title, world: i.world, done: i.done, step: i.step }; }),
@@ -3182,12 +3190,15 @@
     if (window.BBREPLAN && !replanActive()) BBREPLAN.cancel();
     if (!hindsightActive() && window.BBHINDSIGHT) BBHINDSIGHT.cancel();
     if (window.BBELBO_LEVEL && !elboActive()) window.BBELBO_LEVEL.cancel();
+    if (window.BBRARE && !rareActive()) BBRARE.cancel();
     if (!rewardfitActive() && window.BBREWARDFIT) BBREWARDFIT.cancel();
     if (window.BBTHAW && !thawActive()) window.BBTHAW.cancel();
     if (window.BBSKILLS_LEVEL && !skillsActive()) window.BBSKILLS_LEVEL.cancel();
+    if (window.BBHIERARCHY && !hierarchyActive()) window.BBHIERARCHY.cancel();
     $('#lab').hidden = customActive(); $('#vpo-lab').hidden = !customActive();
     if (S.mode !== 'review') S.reviewLab = null;
     MODES[S.mode](pane);
+    if (!customActive()) $('#vpo-lab').replaceChildren();
     refreshSentences();
     if (!customActive()) renderRules();
     updateScore();

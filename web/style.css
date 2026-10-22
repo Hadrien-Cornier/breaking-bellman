@@ -485,6 +485,20 @@ ul.preset-diff li { margin: 2px 0; }
   #reward-backup .lanes { grid-template-columns: 1fr 1fr; }
 }
 
+/* The hallway count-bonus lesson reuses the custom lesson column, steps, and tables. */
+#rare-lesson, #rare-rules, #rare-rewards { min-width: 0; }
+#rare-rewards table { width: max-content; min-width: 100%; }
+#rare-rewards th, #rare-rewards td { overflow-wrap: normal; white-space: nowrap; }
+#rare-lesson .opt, #rare-lesson .btn { width: 100%; min-height: 44px; }
+#rare-lesson .cells { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
+#rare-lesson .cell { position: relative; min-width: 0; min-height: 4.6rem; overflow: hidden; padding: 6px 2px; display: grid; align-content: end; gap: 2px; text-align: center; background: var(--sunk); border: 1px solid var(--line); border-radius: 4px; color: var(--ink); }
+#rare-lesson .cell.lit { box-shadow: inset 0 0 0 1px var(--accent); }
+#rare-lesson .cell .bar { position: absolute; left: 0; right: 0; bottom: 0; background: color-mix(in srgb, var(--accent) 35%, transparent); pointer-events: none; }
+#rare-lesson .cell span { position: relative; z-index: 1; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 0.62rem; line-height: 1.2; }
+#rare-lesson .cell .name { font-family: var(--font-body); font-size: 0.68rem; }
+#rare-lesson ul { margin: 0; padding-left: 1.1rem; }
+#rare-lesson li { margin: 0.35rem 0; }
+
 /* The SuperMimic-inspired lesson reuses the custom lesson column and table styles. */
 #supermimic-lesson, #supermimic-rollout, #supermimic-gradients, #supermimic-exploit { min-width: 0; }
 #supermimic-lesson .opt { width: 100%; }
