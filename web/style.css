@@ -528,3 +528,14 @@ ul.preset-diff li { margin: 2px 0; }
 @media (max-width: 520px) {
   #replan-lesson .vpo-table table { font-size: .72rem; }
 }
+
+/* Reward-fitting lesson. Scoped so the grid and tables stay inside the column. */
+#rewardfit-lesson, #rewardfit-lab, #rewardfit-rules { min-width: 0; }
+#rewardfit-lesson .opt, #rewardfit-lesson .btn { min-height: 44px; }
+#rewardfit-lesson .opt { width: 100%; }
+#rewardfit-lesson svg, #rewardfit-lab svg { display: block; width: 100%; height: auto; max-width: 520px; }
+#rewardfit-lesson ul { margin: 0; padding-left: 1.2rem; }
+#rewardfit-lesson li { margin: 0.35rem 0; }
+@media (min-width: 960px) {
+  #rewardfit-inline-map, #rewardfit-south-map { display: none; }
+}
