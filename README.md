@@ -31,7 +31,7 @@ By default a run reuses a published result, then a result saved in this browser,
 
 You can play with no AI assistant. Settings can hold your own key, and the key stays in the browser. **Copy page** turns what is on screen into Markdown for any chat.
 
-The worlds are toys. Measurements, failed runs included, are in [`EXPERIMENTS.md`](EXPERIMENTS.md). [`ENGINE.md`](ENGINE.md) describes the pieces, so you can add a world. A [short post](https://hadrien-cornier.github.io/robotics/breaking-bellman/) walks through the idea.
+The worlds are toys. Measurements, failed runs included, are in [`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md). [`docs/ENGINE.md`](docs/ENGINE.md) describes the pieces, so you can add a world. A [short post](https://hadrien-cornier.github.io/robotics/breaking-bellman/) walks through the idea.
 
 ## Credits
 
