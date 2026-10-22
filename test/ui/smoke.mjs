@@ -63,6 +63,12 @@ async function setWord(page, scope, key, label) {
   await page.locator(scope + ' .chooser .choice', { hasText: label }).first().click();
 }
 
+// On a narrow viewport the phase map starts closed. Open it before tapping a level.
+async function openLevelMap(page) {
+  const map = page.locator('details.map-card');
+  if (await map.count()) await map.evaluate((el) => { el.open = true; });
+}
+
 await session(375, 812, 'phone', async (page) => {
   await page.screenshot({ path: out + '/phone-start.png' });
   // Level 1 is the goal-conditioned lesson. This session still plays the slot machines.
@@ -230,6 +236,7 @@ await session(1280, 900, 'phases', async (page) => {
     return { ae, ar: ar || null, t, bad: bad || null };
   });
   check(wr.ae === true && wr.ar === null && wr.t === false && JSON.stringify(wr.bad) === '{"eps":"sometimes","nope":1}', 'bellman.words takes true or "false" and returns bad words as rejected');
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Learn the policy itself' }).click();
   await page.locator('#mode-pane .mc').first().locator('.opt').nth(1).click();
   await page.getByText('Run the starting sentence').click();
@@ -296,6 +303,7 @@ await session(1280, 900, 'phases', async (page) => {
 await session(1280, 900, 'twoways', async (page) => {
   // phase 5 end to end: the 10-command Gaussian copy fails, the flow copy reaches the goal (level hyper: lr 0.003, batch 128)
   await page.getByRole('tab', { name: 'Campaign' }).click();
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Two good ways' }).click();
   await page.locator('#mode-pane .mc').first().locator('.opt').nth(0).click();
   let t0 = Date.now();
@@ -316,6 +324,7 @@ await session(1280, 900, 'twoways', async (page) => {
 });
 await session(375, 812, 'phone-frontier', async (page) => {
   await page.getByRole('tab', { name: 'Campaign' }).click();
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Steer a frozen policy' }).click();
   await page.waitForTimeout(500);
   check(/mud/.test(await page.locator('#mode-pane').innerText()), 'mud level shows its intro');
@@ -385,6 +394,7 @@ await session(375, 812, 'phone-frontier', async (page) => {
   check(!await page.locator('#run-btn').isDisabled() && /forced startup failure/.test(await page.locator('#run-source').innerText()),
     'a failed startup restores both campaign and Lab controls');
   await page.screenshot({ path: out + '/phone-mud.png', fullPage: true });
+  await openLevelMap(page);
   await page.locator('#mode-pane .node', { hasText: 'Keep the controller' }).click();
   await page.waitForTimeout(500);
   check(/kitting/.test(await page.locator('#mode-pane').innerText()), 'residual level shows its intro');
