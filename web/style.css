@@ -463,3 +463,69 @@ ul.preset-diff li { margin: 2px 0; }
   #supermimic-lesson .vpo-table table { font-size: .74rem; }
   #supermimic-gradients .vpo-table th:first-child, #supermimic-gradients .vpo-table td:first-child { width: 31%; }
 }
+
+/* D1 campaign path and the compact navigation above every lesson. */
+.campaign-strip { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.campaign-strip span { flex: 1; min-width: 160px; font-size: .85rem; }
+.campaign-strip button, .campaign-map button, .map-brief button { min-height: 44px; min-width: 44px; touch-action: manipulation; }
+.layout.mapping { grid-template-columns: minmax(0, 1fr); }
+.layout.mapping > [hidden] { display: none; }
+.campaign-map { width: min(100%, 820px); margin: auto; }
+.map-heading { display: grid; gap: 12px; justify-items: center; text-align: center; padding: 12px 0 22px; }
+.map-zoom { display: flex; gap: 4px; border: 1px solid var(--line); border-radius: 30px; padding: 4px; }
+.map-zoom .btn { border-radius: 25px; }
+.map-zoom [aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.map-path { position: relative; isolation: isolate; }
+.map-world { position: relative; padding: 28px 12px 32px; margin-bottom: 24px; background: color-mix(in srgb, var(--world-color) 7%, var(--bg)); border-top: 2px solid color-mix(in srgb, var(--world-color) 45%, var(--line)); border-radius: 45% 20% 14px 14px / 24px 16px 14px 14px; }
+.map-world-title { text-align: center; padding: 10px 0 55px; }
+.map-world-title h2 { scroll-margin-top: 150px; }
+.map-row { display: flex; justify-content: center; gap: clamp(8px, 4vw, 60px); padding: 0 0 72px; }
+.map-row:last-child { padding-bottom: 8px; }
+.map-node { position: relative; width: 150px; min-width: 0; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; }
+.map-node > b { font: 700 .95rem/1.2 var(--font-display); text-wrap: balance; }
+.map-node > small { font-size: .75rem; }
+.map-coin { position: relative; z-index: 2; width: 68px; height: 64px; flex: 0 0 64px; border: 3px solid var(--world-color); border-radius: 50%; background: var(--surface); color: var(--world-color); font-size: 1.6rem; box-shadow: 0 6px 0 color-mix(in srgb, var(--world-color) 45%, var(--sunk)); }
+.map-coin:active { transform: translateY(3px); }
+.map-node.cleared .map-coin { background: var(--world-color); color: var(--bg); }
+.map-node.locked .map-coin { background: var(--sunk); color: var(--muted); border-color: var(--muted); box-shadow: 0 6px 0 var(--line); }
+.map-node.next .map-coin { outline: 3px solid var(--world-color); outline-offset: 6px; }
+.map-node.next > small { color: var(--accent); font-weight: 700; }
+.map-rover { position: absolute; width: 60px; height: 60px; top: -12px; left: calc(50% - 100px); pointer-events: none; }
+.map-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
+.map-node .chip { font-size: .72rem; padding: 3px 6px; }
+.map-failure { border-style: dashed; }
+.map-edge-label { background: var(--bg); padding: 2px 4px; border-radius: 4px; }
+.map-edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+.map-edges path { fill: none; stroke: var(--muted); stroke-width: 3; stroke-dasharray: 3 9; }
+.map-edges path.ready { stroke: var(--accent); stroke-width: 4; stroke-dasharray: none; }
+.map-edges text { font: 600 11px var(--font-mono); fill: var(--muted); paint-order: stroke; stroke: var(--bg); stroke-width: 4px; }
+.map-node > b, .map-node > small, .map-chips, .map-failure { position: relative; z-index: 2; }
+.map-medal { display: flex; gap: 24px; align-items: center; text-align: left; border: 0; background: transparent; padding: 12px; width: min(100%, 460px); margin: auto; border-radius: 20px; }
+.map-medal b { display: block; font: 700 1.3rem var(--font-display); }
+.map-medal small { display: block; margin-top: 6px; }
+.map-disc { flex: 0 0 100px; height: 100px; display: grid; place-items: center; border: 6px solid var(--line); border-radius: 50%; background: var(--world-color); color: var(--bg); font: 700 2.4rem var(--font-display); box-shadow: 0 7px 0 var(--line); outline: 3px solid var(--world-color); }
+.map-world:nth-child(even) .map-medal { transform: translateX(20px); }
+.map-world:nth-child(odd) .map-medal { transform: translateX(-20px); }
+.map-playdock { position: sticky; bottom: 0; z-index: 3; display: flex; justify-content: center; padding: 18px 4px; background: linear-gradient(transparent, var(--bg) 45%); }
+.campaign-map .savebar { justify-content: center; padding: 14px 0; }
+.map-brief { position: fixed; inset: 0 0 0 auto; margin: 0; width: min(480px, 100%); max-width: 100%; height: 100dvh; max-height: 100dvh; padding: 22px; border: 1px solid var(--line); border-radius: 20px 0 0 20px; background: var(--surface); color: var(--ink); overflow-y: auto; }
+.map-brief::backdrop { background: rgb(0 0 0 / .5); }
+.map-brief-head { display: flex; align-items: start; gap: 12px; justify-content: space-between; margin-bottom: 20px; }
+.map-brief-body { display: grid; gap: 14px; }
+.map-brief .map-chips { justify-content: start; }
+.map-state { font-weight: 700; }
+.map-relations, .map-actions { display: grid; gap: 8px; }
+.map-relation { display: grid; text-align: left; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+.map-lock { display: grid; gap: 6px; border: 1px dashed var(--muted); border-radius: 12px; padding: 14px; }
+@media (max-width: 600px) {
+  .map-world { padding-inline: 4px; }
+  .map-row { gap: 8px; }
+  .map-node { width: 104px; }
+  .map-node > b { font-size: .82rem; }
+  .map-node .chip { font-size: .67rem; }
+  .map-rover { left: calc(50% - 96px); }
+  .map-world:nth-child(n) .map-medal { transform: none; gap: 18px; padding: 8px; }
+  .map-disc { flex-basis: 80px; height: 80px; }
+  .map-brief { inset: auto 0 0; width: 100%; height: auto; max-height: 85dvh; border-radius: 20px 20px 0 0; padding: 20px 16px max(20px, env(safe-area-inset-bottom)); }
+}
+.map-disc { border-color: transparent; background: linear-gradient(var(--world-color), var(--world-color)) padding-box, conic-gradient(var(--accent) var(--progress), var(--line) 0) border-box; }

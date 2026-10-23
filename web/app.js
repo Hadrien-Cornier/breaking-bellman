@@ -1935,6 +1935,29 @@
 
   const MODES = {};
 
+  let mapOpen = !C.levels.some(l => l.id === S.level);
+  if (mapOpen) S.mode = 'campaign';
+  const campaignMap = BBCAMPAIGN.create({ h, C, S, choose: chooseLevel, show: showMap,
+    saveActions: () => h('div.row.savebar', null, [
+      h('span.small', { text: 'Progress saves in this browser.' }),
+      h('button.btn.ghost', { type: 'button', onclick: downloadSave }, 'Download save file'),
+      h('button.btn.ghost', { type: 'button', onclick: loadSave }, 'Load save file'),
+      h('button.btn.ghost', { type: 'button', onclick: copyBrief }, 'Copy for your AI'),
+    ]) });
+  function chooseLevel(id) {
+    const lv = C.levels.find(l => l.id === id);
+    if (!lv) return;
+    mapOpen = false; S.mode = 'campaign'; S.level = id; save(); enterLevel(lv); render();
+    const button = document.querySelector('#campaign-strip button');
+    if (button) button.focus({ preventScroll: true });
+    window.scrollTo({ top: 0 });
+  }
+  function showMap() {
+    cancelRun(); S.mode = 'campaign'; mapOpen = true; save(); render();
+    document.querySelector('#campaign-map h1').focus({ preventScroll: true });
+    window.scrollTo({ top: 0 });
+  }
+
   // --- Campaign: a failure, a diagnosis, a repair in words, an explanation, the published sentence
   const setStep = (lv, n) => { if ((S.lstep[lv.id] || 0) < n) { S.lstep[lv.id] = n; save(); render(); } };
   function setCampaignRunView(lv, state) {
@@ -1973,31 +1996,9 @@
     ]);
   }
   MODES.campaign = function (pane) {
-    const lv = C.levels.find((l) => l.id === S.level) || C.levels[0];
+    if (mapOpen) { campaignMap.mount(pane); return; }
+    const lv = C.levels.find((l) => l.id === S.level);
     S.focus = lv.focus;
-    // every level is open: play in any order; the first one not done yet is marked as the suggested next
-    const next = C.levels.find((l) => !S.done.includes(l.id));
-    const node = (l) => {
-      const i = C.levels.indexOf(l);
-      return h('button.node' + (S.done.includes(l.id) ? '.done' : '') + (l === next ? '.next' : ''), {
-        type: 'button', 'aria-current': l.id === lv.id ? 'true' : 'false',
-        onclick: () => { S.level = l.id; save(); enterLevel(l); render(); },
-      }, [h('span.small', { text: 'Level ' + (i + 1) + ' · ' + C.worldNames[l.world] + (S.done.includes(l.id) ? ' · done' : l === next ? ' · next' : '') }), h('b', { text: l.title })]);
-    };
-    const tree = h('div.stack', null, C.phases.map((ph) => h('div', null, [
-      h('div.eyebrow', { text: 'Phase ' + ph.n + ': ' + ph.title }),
-      h('div.tree', { role: 'list' }, C.levels.filter((l) => (l.phase || 1) === ph.n).map(node)),
-    ])));
-    pane.append(h('div.card', null, [
-      h('p', { text: 'Predict, run, then inspect the learner. Most levels ask you to repair a failure by changing words in its update rule. The comparison lessons measure several objectives or training routes. Play in any order: nothing is locked.' }),
-      tree,
-      h('div.row.savebar', null, [
-        h('span.small', { text: 'Progress saves in this browser.' }),
-        h('button.btn.ghost.tiny', { type: 'button', onclick: downloadSave }, 'Download save file'),
-        h('button.btn.ghost.tiny', { type: 'button', onclick: loadSave }, 'Load save file'),
-        h('button.btn.ghost.tiny', { type: 'button', onclick: copyBrief, title: 'Copies a short Markdown brief: where you are, the words you can change, and how an AI can drive this page.' }, 'Copy for your AI'),
-      ]),
-    ]));
     if (lv.custom) {
       const api = lv.id === 'supermimic' ? BBSUPERMIMIC : BBVPO;
       api.mount(pane, $('#vpo-lab'), { h, done: () => S.done.includes(lv.id), complete: () => {
@@ -2059,7 +2060,7 @@
     // side by side. No new campaign step and no new save field.
     if (lv.id === 'cliff' && st >= 2 && window.BBBACKUP) {
       const layout = document.querySelector('main.layout');
-      layout.insertBefore(window.BBBACKUP.mount(h), layout.firstChild);
+      layout.insertBefore(window.BBBACKUP.mount(h), document.querySelector('#campaign-strip').nextSibling);
     }
   };
   // the reward controls of a level whose repair is the reward
@@ -2149,7 +2150,7 @@
   function nextLevelButton(lv) {
     const i = C.levels.indexOf(lv), nx = C.levels[i + 1];
     if (!nx) return h('p.small', { text: 'This is the last level of this phase. Try the Review tab: rebuild what you found from memory.' });
-    return h('button.btn', { type: 'button', onclick: () => { S.level = nx.id; save(); enterLevel(nx); render(); window.scrollTo({ top: 0 }); } }, 'Next level: ' + nx.title);
+    return h('button.btn', { type: 'button', onclick: () => { chooseLevel(nx.id); } }, 'Next level: ' + nx.title);
   }
   function enterLevel(lv, forceStart) {
     if (lv.custom) { cancelRun(); return; }
@@ -2753,7 +2754,7 @@
       level: (which) => {
         const l = C.levels.find((x, i) => x.id === which || i + 1 === which);
         if (!l) throw new Error('No level ' + which + '. See bellman.levels().');
-        S.mode = 'campaign'; S.level = l.id; save(); enterLevel(l); render();
+        chooseLevel(l.id);
         return levelInfo(l);
       },
       words: (ws) => (ws ? tool('set_words')(ws) : { words: S.parts, name: nameOf(S.parts, S.world) }),
@@ -2920,6 +2921,8 @@
 
   // ---------------------------------------------------------------- top level
   function render() {
+    const oldStrip = document.getElementById('campaign-strip');
+    if (oldStrip) oldStrip.remove();
     const oldBackup = document.getElementById('reward-backup');
     if (oldBackup) oldBackup.remove();
     $$('#tabs button').forEach((b) => b.setAttribute('aria-selected', b.dataset.mode === S.mode ? 'true' : 'false'));
@@ -2928,7 +2931,10 @@
     S.afterRun = null; S.onPartsChange = null;
     if (!vpoActive()) BBVPO.cancel();
     if (!supermimicActive()) BBSUPERMIMIC.cancel();
-    $('#lab').hidden = customActive(); $('#vpo-lab').hidden = !customActive();
+    const mapping = S.mode === 'campaign' && mapOpen;
+    document.querySelector('main.layout').classList.toggle('mapping', mapping);
+    $('#lab').hidden = mapping || customActive(); $('#vpo-lab').hidden = mapping || !customActive();
+    if (S.mode === 'campaign' && !mapping) document.querySelector('main.layout').prepend(campaignMap.strip());
     MODES[S.mode](pane);
     refreshSentences();
     if (!customActive()) renderRules();
@@ -2936,7 +2942,7 @@
   }
   $$('#tabs button').forEach((b) => b.addEventListener('click', () => {
     S.mode = b.dataset.mode; save();
-    if (S.mode === 'campaign') enterLevel(C.levels.find((l) => l.id === S.level) || C.levels[0]);
+    if (S.mode === 'campaign' && !mapOpen) enterLevel(C.levels.find((l) => l.id === S.level));
     render();
   }));
   // The header uses the same Rover+ as the simulations, without an animation clock.
@@ -2945,9 +2951,7 @@
   BB.scenes.robot(logoContext, 24, 44, 39, { noShadow: true });
   $('#campaign-logo').addEventListener('click', (event) => {
     event.preventDefault();
-    $('#tabs [data-mode="campaign"]').click();
-    const map = $('#mode-pane .node');
-    if (map) { map.focus({ preventScroll: true }); map.scrollIntoView({ block: 'center' }); }
+    showMap();
   });
   $('#run-btn').addEventListener('click', () => run());
   $('#copy-page-btn').addEventListener('click', copyPage);
@@ -2971,7 +2975,7 @@
   document.addEventListener('change', () => { if (activeRun && runIdentity() !== activeRun.identity) cancelRun(); });
 
   budgetOptions();
-  if (S.mode === 'campaign') enterLevel(C.levels.find((l) => l.id === S.level) || C.levels[0]);
+  if (S.mode === 'campaign' && !mapOpen) enterLevel(C.levels.find((l) => l.id === S.level));
   else setWorld(S.world);
   renderStage(); drawCompare();
   render();
@@ -2990,5 +2994,5 @@
     };
     window.ALGO_HELP.installAuto(document.body);
   }
-  if (!S.intro) showIntro();
+  if (!S.intro && !mapOpen) showIntro();
 })();
