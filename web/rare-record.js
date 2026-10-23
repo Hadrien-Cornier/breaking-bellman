@@ -33,6 +33,7 @@
       record.terminal[policy.name] = 'step-budget';
       record.metrics[policy.name] = {
         samples: runs.length,
+        meanCrossings: runs.reduce((sum, r) => sum + r.crossings, 0) / runs.length,
         meanOpenings: runs.reduce((sum, r) => sum + r.openings, 0) / runs.length,
         observedExplorations: runs.reduce((sum, r) => sum + r.trace.filter(e => e.explored).length, 0),
         expectedExplorations: config.steps * config.eps * runs.length,

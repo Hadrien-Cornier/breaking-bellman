@@ -19,6 +19,7 @@ test('rare record replays every measured transition and count without changing t
         assert.deepEqual(run, engine.run({ ...settings, seed: run.seed, place: policy.place, reward: policy.reward || 'env' }));
         evaluationSteps += run.greedyActions.length;
       }
+      assert.equal(record.metrics[policy.name].meanCrossings, runs.reduce((sum, r) => sum + r.crossings, 0) / runs.length);
       const run = runs[0], counts = Array(8).fill(0); counts[0] = 1;
       assert.deepEqual(records.frame(record, policy.name, 0).counts, counts);
       for (let i = 0; i < run.steps; i++) {
