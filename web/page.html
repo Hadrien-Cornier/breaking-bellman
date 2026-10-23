@@ -25,7 +25,7 @@
 <main class="layout">
   <section class="pane" id="mode-pane" aria-live="polite"></section>
   <aside class="pane lab" id="lab" aria-label="Lab">
-    <section class="card game-rules" id="game-rules" aria-label="Game rules"></section>
+
     <div class="card">
       <div class="row" style="justify-content: space-between">
         <div class="eyebrow" id="lab-world">World</div>
@@ -43,9 +43,7 @@
       <p class="small" id="run-stale" role="status" hidden>Settings changed. This replay and its results are from the previous settings. Run again to measure the change.</p>
       <p class="small" id="stage-caption">Run a recipe to see the trained policy act.</p>
     </div>
-    <div class="card">
-      <div class="eyebrow">The update rule: tap a word to change it</div>
-      <div id="rule"></div>
+    <div class="card" id="run-settings">
       <div class="row">
         <button class="btn" id="run-btn">Run</button>
         <label class="small" for="seeds">Seeds</label>
@@ -58,28 +56,37 @@
       <p class="small muted" id="run-source" aria-live="polite">Live simulation: trains in this page.</p>
       <div class="progress"><i id="prog"></i></div>
       <p class="small" id="run-result" aria-live="polite"></p>
-      <div class="stack" id="compare"></div>
     </div>
-    <details class="card-details" id="grid-card">
-      <summary>Try every combination</summary>
-      <div id="grid-lab"></div>
-    </details>
-    <div class="card wonder" id="wonder" hidden></div>
-    <div class="card" id="charts"></div>
-    <details class="card-details" id="expert-card" hidden>
-      <summary>An expert reads this run</summary>
-      <div class="stack" id="expert"></div>
-    </details>
-    <div class="card">
-      <div class="eyebrow">Autopsy</div>
-      <div class="symptoms" id="symptoms"><p class="small">No run yet.</p></div>
-    </div>
-    <details class="card-details">
-      <summary>Watch one update</summary>
-      <div id="replay-lab"></div>
-    </details>
   </aside>
   <aside class="pane lab" id="vpo-lab" aria-label="Comparison lesson lab" hidden></aside>
+  <details class="notebook" id="notebook">
+    <summary>Notebook</summary>
+    <div class="notebook-tabs" role="tablist" aria-label="Notebook sections">
+      <button type="button" role="tab" id="notebook-tab-rule" data-notebook-tab="rule" aria-controls="notebook-rule" aria-selected="true">Rule</button>
+      <button type="button" role="tab" id="notebook-tab-curve" data-notebook-tab="curve" aria-controls="notebook-curve" aria-selected="false" tabindex="-1">Curve</button>
+      <button type="button" role="tab" id="notebook-tab-autopsy" data-notebook-tab="autopsy" aria-controls="notebook-autopsy" aria-selected="false" tabindex="-1">Autopsy</button>
+      <button type="button" role="tab" id="notebook-tab-notes" data-notebook-tab="notes" aria-controls="notebook-notes" aria-selected="false" tabindex="-1">Notes</button>
+    </div>
+    <section class="notebook-panel" role="tabpanel" tabindex="0" id="notebook-rule" data-notebook-panel="rule" aria-labelledby="notebook-tab-rule">
+      <section class="game-rules" id="game-rules" aria-label="Game rules"></section>
+      <div class="eyebrow">The update rule: tap a word to change it</div>
+      <div id="rule"></div>
+      <details class="card-details" id="grid-card"><summary>Try every combination</summary><div id="grid-lab"></div></details>
+    </section>
+    <section class="notebook-panel" role="tabpanel" tabindex="0" id="notebook-curve" data-notebook-panel="curve" aria-labelledby="notebook-tab-curve" hidden>
+      <div class="stack" id="compare"></div>
+      <div class="card wonder" id="wonder" hidden></div>
+      <div class="card measured-charts" id="charts"></div>
+    </section>
+    <section class="notebook-panel" role="tabpanel" tabindex="0" id="notebook-autopsy" data-notebook-panel="autopsy" aria-labelledby="notebook-tab-autopsy" hidden>
+      <div class="symptoms" id="symptoms"><p class="small">No run yet.</p></div>
+      <details class="card-details" id="expert-card" hidden><summary>An expert reads this run</summary><div class="stack" id="expert"></div></details>
+      <details class="card-details"><summary>Watch one update</summary><div id="replay-lab"></div></details>
+    </section>
+    <section class="notebook-panel" role="tabpanel" tabindex="0" id="notebook-notes" data-notebook-panel="notes" aria-labelledby="notebook-tab-notes" hidden>
+      <div class="stack" id="lesson-notes"></div>
+    </section>
+  </details>
 </main>
 <div class="toast" id="toast" hidden></div>
 

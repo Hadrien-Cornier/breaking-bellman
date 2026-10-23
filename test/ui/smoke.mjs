@@ -56,7 +56,14 @@ async function session(w, h, name, fn) {
   await page.close();
 }
 // tap a word chip in the mode pane, then the option with this label
+async function openNotebook(page, section) {
+  if (await page.locator('main.lesson-shell').count()) {
+    if (!await page.locator('#notebook').evaluate(e => e.open)) await page.locator('#notebook > summary').click();
+    await page.locator('#notebook-tab-' + section).click();
+  }
+}
 async function setWord(page, scope, key, label) {
+  if (scope === '#rule') await openNotebook(page, 'rule');
   await page.locator(scope + ' .w[data-key="' + key + '"]').first().click();
   await page.locator(scope + ' .chooser .choice', { hasText: label }).first().click();
 }
@@ -68,11 +75,12 @@ await session(375, 812, 'phone', async (page) => {
   await runDone(page);
   check(await page.locator('#mode-pane .step', { hasText: 'Diagnose' }).count() === 1, 'a successful campaign run advances to Diagnose');
   console.log('L1 run:', await page.locator('#run-result').innerText());
-  await page.locator('#mode-pane .replay button', { hasText: /Watch one update|Start again/ }).click();
-  await page.waitForSelector('#mode-pane .rp-stage', { timeout: 60000 });
-  for (let i = 0; i < 4; i++) await page.locator('#mode-pane .replay button', { hasText: /^Next$/ }).click();
-  console.log('L1 replay, last stage:', (await page.locator('#mode-pane .rp-stage').innerText()).slice(0, 200));
-  await page.locator('#mode-pane .mc').nth(1).locator('.opt').nth(1).click();
+  await page.getByRole('button', { name: 'Watch one update of this sentence', exact: true }).click();
+  await page.locator('#replay-lab .replay button', { hasText: /Watch one update|Start again/ }).click();
+  await page.waitForSelector('#replay-lab .rp-stage', { timeout: 60000 });
+  for (let i = 0; i < 4; i++) await page.locator('#replay-lab .replay button', { hasText: /^Next$/ }).click();
+  console.log('L1 replay, last stage:', (await page.locator('#replay-lab .rp-stage').innerText()).slice(0, 200));
+  await page.locator('#mode-pane .mc').first().locator('.opt').nth(1).click();
   await setWord(page, '#mode-pane', 'eps', 'sometimes at random');
   const mjx = await page.locator('#mode-pane .math mjx-container').count();
   console.log('MathJax containers in the repair step:', mjx);
@@ -233,11 +241,12 @@ await session(1280, 900, 'phases', async (page) => {
   const r1 = await page.locator('#run-result').innerText();
   console.log('credit start run:', r1);
   check(/Does not work yet/.test(r1), 'the simplest policy gradient does not reach the goal');
-  await page.locator('#mode-pane .replay button', { hasText: /Watch one update|Start again/ }).click();
-  await page.waitForSelector('#mode-pane .rp-stage', { timeout: 60000 });
-  for (let i = 0; i < 3; i++) await page.locator('#mode-pane .replay button', { hasText: /^Next$/ }).click();
-  console.log('pg replay stage:', (await page.locator('#mode-pane .rp-stage').innerText()).slice(0, 160).replace(/\n/g, ' | '));
-  await page.locator('#mode-pane .mc').nth(1).locator('.opt').nth(0).click();
+  await page.getByRole('button', { name: 'Watch one update of this sentence', exact: true }).click();
+  await page.locator('#replay-lab .replay button', { hasText: /Watch one update|Start again/ }).click();
+  await page.waitForSelector('#replay-lab .rp-stage', { timeout: 60000 });
+  for (let i = 0; i < 3; i++) await page.locator('#replay-lab .replay button', { hasText: /^Next$/ }).click();
+  console.log('pg replay stage:', (await page.locator('#replay-lab .rp-stage').innerText()).slice(0, 160).replace(/\n/g, ' | '));
+  await page.locator('#mode-pane .mc').first().locator('.opt').nth(0).click();
   await setWord(page, '#mode-pane', 'credit', 'only the rewards after it');
   await setWord(page, '#mode-pane', 'scale', 'yes, by the standard deviation');
   await page.waitForTimeout(800);
@@ -302,7 +311,7 @@ await session(1280, 900, 'twoways', async (page) => {
   const r1 = await page.locator('#run-result').innerText();
   console.log('twoways start run in', ((Date.now() - t0) / 1000).toFixed(0), 's:', r1);
   check(/Does not work yet/.test(r1), 'the 10-command Gaussian copy does not pass');
-  await page.locator('#mode-pane .mc').nth(1).locator('.opt').nth(0).click();
+  await page.locator('#mode-pane .mc').first().locator('.opt').nth(0).click();
   await setWord(page, '#mode-pane', 'head', 'noise turned into an action');
   t0 = Date.now();
   await page.getByText('Run this sentence').click();
@@ -400,6 +409,7 @@ await session(375, 812, 'phone-frontier', async (page) => {
 });
 // comment fixes of 15 Oct: the combination table, the episode animation, the discovery map
 await session(375, 812, 'comments', async (page) => {
+  await openNotebook(page, 'rule');
   await page.locator('#grid-card summary').click();
   check(await page.locator('#grid-lab .chip.gw.on').count() === 4, 'slots: the four bandit words are picked by default');
   await page.locator('#grid-lab button', { hasText: /^Run all 16/ }).click();
@@ -408,7 +418,8 @@ await session(375, 812, 'comments', async (page) => {
   check(await page.locator('#grid-lab .gcell').count() === 16, 'the matrix has 16 cells');
   check(/depending on the other words/.test(await page.locator('#grid-lab').innerText()), 'the effects list finds an interaction');
   await page.locator('#grid-card').screenshot({ path: out + '/comments-grid.png' });
-  const det = page.locator('#lab details.card-details', { hasText: 'Watch one update' });
+  await openNotebook(page, 'autopsy');
+  const det = page.locator('#notebook details.card-details', { hasText: 'Watch one update' });
   await det.locator('summary').click();
   await det.locator('button', { hasText: /^Watch one update$/ }).click();
   await page.waitForSelector('#replay-lab .rp-canvas', { timeout: 60000 });
@@ -479,7 +490,7 @@ await session(390, 844, 'pendulum', async (page) => {
   check(/replay from hanging still/.test(await page.locator('#stage-caption').innerText()), 'caption identifies the separate replay');
   await page.locator('#stage').screenshot({ path: out + '/phone-pendulum.png' });
 });
-// Rules are visible before the first move, across every selection and at phone/desktop widths.
+// Rules remain available before the first move through Notebook Rule in the campaign.
 await session(390, 844, 'rules', async (page) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   for (const width of [390, 1280]) {
@@ -488,20 +499,22 @@ await session(390, 844, 'rules', async (page) => {
       const failures = [];
       const inspect = (name, objective) => {
         const panel = document.querySelector('#game-rules');
+        const campaign = document.querySelector('main').classList.contains('lesson-shell');
+        if (campaign) { document.querySelector('#notebook').open = true; document.querySelector('#notebook-tab-rule').click(); }
         const text = panel.innerText;
         for (const label of ['Goal', 'Reward each step', 'Equation', 'Episode ends', 'Score', 'Pass this challenge']) {
           if (!text.includes(label)) failures.push(name + ': missing ' + label);
         }
         if (objective && !text.includes(objective)) failures.push(name + ': wrong challenge');
-        if (!(panel.compareDocumentPosition(document.querySelector('#stage')) & Node.DOCUMENT_POSITION_FOLLOWING)) failures.push(name + ': rules follow manual play');
-        if (!(panel.compareDocumentPosition(document.querySelector('#run-btn')) & Node.DOCUMENT_POSITION_FOLLOWING)) failures.push(name + ': rules follow Run');
-        const inline = document.querySelector('#challenge-rules');
-        if (inline && inline.innerText !== text) failures.push(name + ': stale inline rules');
+        if (!campaign && !(panel.compareDocumentPosition(document.querySelector('#stage')) & Node.DOCUMENT_POSITION_FOLLOWING)) failures.push(name + ': rules follow manual play');
+        if (!campaign && !(panel.compareDocumentPosition(document.querySelector('#run-btn')) & Node.DOCUMENT_POSITION_FOLLOWING)) failures.push(name + ': rules follow Run');
+        if (campaign && (!panel.closest('#notebook-rule') || document.querySelector('#notebook-rule').hidden)) failures.push(name + ': Rule tab does not expose rules');
         if (document.documentElement.scrollWidth > innerWidth) failures.push(name + ': overflow');
       };
       for (const l of CONTENT.levels) {
         bellman.level(l.id);
         if (l.custom) {
+          document.querySelector('#custom-notebook').open = true; document.querySelector('#custom-notebook-tab-rule').click();
           const rules = document.querySelector('#' + l.id + '-rules');
           if (!rules || !rules.innerText.includes(l.goal.text)) failures.push(l.id + ': missing custom objective');
           if (!document.querySelector('#lab').hidden || document.querySelector('#vpo-lab').hidden) failures.push(l.id + ': wrong lab');
@@ -528,7 +541,8 @@ await session(390, 844, 'rules', async (page) => {
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => bellman.level('continuous'));
-  await page.locator('#challenge-rules').screenshot({ path: out + '/rules-pendulum-phone-dark.png' });
+  await openNotebook(page, 'rule');
+  await page.locator('#game-rules').screenshot({ path: out + '/rules-pendulum-phone-dark.png' });
   // Enter Fetch's reward-repair step to exercise its live controls without an expensive training run.
   await page.evaluate(() => {
     const key = 'breaking-bellman-v1', saved = JSON.parse(localStorage.getItem(key));
@@ -538,7 +552,8 @@ await session(390, 844, 'rules', async (page) => {
   await page.reload();
   await page.selectOption('#rk-shaping', '2');
   check(/0.97 × dAfterNonterminal/.test(await page.locator('#game-rules').innerText()), 'Fetch repair updates potential shaping equation before Run');
-  check(await page.locator('#game-rules').innerText() === await page.locator('#challenge-rules').innerText(), 'Fetch inline and Lab rules agree after editing reward');
+  await openNotebook(page, 'rule');
+  check(await page.locator('#game-rules').isVisible() && /0.97 × dAfterNonterminal/.test(await page.locator('#game-rules').innerText()), 'Notebook exposes Fetch live reward rules after editing');
   await page.locator('#mode-pane button', { hasText: 'Back to the starting reward' }).click();
   check(/0.05 × cos/.test(await page.locator('#game-rules').innerText()), 'Fetch reward reset restores facing bonus in rules');
   await page.evaluate(() => {
@@ -584,6 +599,7 @@ await backupPage1280.evaluate(() => {
   localStorage.setItem(key, JSON.stringify(saved));
 });
 await backupPage1280.reload();
+await openNotebook(backupPage1280, 'notes');
 await backupPage1280.waitForSelector('#reward-backup');
 const readBackup = () => backupPage1280.evaluate(() => {
   const text = (id) => document.getElementById(id).innerText;
@@ -622,6 +638,7 @@ check(/0\.95\^1/.test(targets) && /0\.95\^8/.test(targets) && /0\.95\^3/.test(ta
 const progress = await backupPage1280.evaluate(() => JSON.parse(localStorage.getItem('breaking-bellman-v1')));
 check(progress.done.join() === 'slots' && progress.lstep.cliff === 2 && progress.lstep.slots === 5 && progress.answers['cliff-p'].choice === 1 && progress.found.join() === 'egreedy', 'backup: using the picture does not rewrite the save');
 await backupPage1280.reload();
+await openNotebook(backupPage1280, 'notes');
 await backupPage1280.waitForSelector('#rb-round-value');
 check(await backupPage1280.locator('#rb-round-value').innerText() === '0', 'backup: a reload returns the picture to round 0 and leaves progress');
 check((await backupPage1280.evaluate(() => JSON.parse(localStorage.getItem('breaking-bellman-v1')).lstep.cliff)) === 2, 'backup: reload keeps cliff at the diagnose step');

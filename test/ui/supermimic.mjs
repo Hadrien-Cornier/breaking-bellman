@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process';
 const [proof, url = 'http://127.0.0.1:8766/'] = process.argv.slice(2);
 if (!proof) throw Error('Pass an external proof directory');
 fs.mkdirSync(proof, { recursive: true });
-const env = { ...process.env, CHROME_DEVTOOLS_AXI_SESSION: 'bb-supermimic178' };
+const env = { ...process.env, CHROME_DEVTOOLS_AXI_SESSION: process.env.CHROME_DEVTOOLS_AXI_SESSION || 'bb-supermimic178' };
 function cli(...args) {
   return execFileSync('chrome-devtools-axi', args, { encoding: 'utf8', env, timeout: 60000, maxBuffer: 2 ** 22 });
 }
@@ -84,7 +84,7 @@ for (const width of [1280, 390]) {
   check(interaction.feedback && !interaction.overflow, 'quiz feedback explains the distinction at ' + width);
   evaluate('() => {document.querySelector(".dc")?.click();ALGO_HELP.closeReminder();const source=document.querySelector("#supermimic-source-context");source.scrollIntoView({block:"start"});source.querySelector(".algo-name")?.click();return true;}');
   cli('screenshot', path.join(proof, 'source-' + width + '.png'));
-  evaluate('() => {document.querySelector("#supermimic-gradients").scrollIntoView({block:"start"});return true;}');
+  evaluate('() => {document.querySelector("#custom-notebook").open=true;document.querySelector("#custom-notebook-tab-curve").click();document.querySelector("#supermimic-gradients").scrollIntoView({block:"start"});return true;}');
   cli('screenshot', path.join(proof, 'measures-' + width + '.png'));
   results.push({ width, run, interaction });
   fs.writeFileSync(path.join(proof, 'ui-results.json'), JSON.stringify(results, null, 2));
