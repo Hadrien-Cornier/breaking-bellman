@@ -50,6 +50,8 @@ async function session(w, h, name, fn) {
   check(await page.locator('dialog.intro').isVisible(), name + ' first visit shows the welcome');
   await page.locator('dialog.intro button', { hasText: 'Start level 1' }).click();
   check(!(await page.locator('dialog.intro').count()), name + ' the welcome closes');
+  // Existing smoke scenarios exercise the original Slots entry by stable id.
+  await page.evaluate(() => bellman.level('slots'));
   await fn(page);
   const sw = await page.evaluate(() => document.documentElement.scrollWidth);
   check(sw <= w, name + ' no horizontal scroll (scrollWidth ' + sw + ', viewport ' + w + ')');
@@ -212,10 +214,11 @@ await session(1280, 900, 'phases', async (page) => {
   await page.getByRole('tab', { name: 'Campaign' }).click();
   await page.locator('#campaign-logo').click();
   // Every advisory node remains selectable; the save bar and agent hooks are there.
-  check(await page.locator('[data-map-level]').count() === 19 && !(await page.locator('[data-map-level][disabled]').count()), 'all 19 levels are open');
+  const levelCount = await page.evaluate(() => bellman.levels().length);
+  check(await page.locator('[data-map-level]').count() === levelCount && !(await page.locator('[data-map-level][disabled]').count()), 'all registered levels are open');
   check(await page.locator('#mode-pane .savebar button', { hasText: 'Download save file' }).count() === 1, 'the level map offers a save file');
   const brief = await page.evaluate(() => window.bellman.help());
-  check(/Level \d+ of 19/.test(brief) && /bellman\.run\(\)/.test(brief), 'window.bellman gives a brief for an AI helper');
+  check(new RegExp('Level \\d+ of ' + levelCount).test(brief) && /bellman\.run\(\)/.test(brief), 'window.bellman gives a brief for an AI helper');
   const wr = await page.evaluate(() => {
     const b = window.bellman, w0 = Object.assign({}, b.words().words);
     const a = b.words({ eps: true }), ae = a.words.eps, ar = a.rejected;
@@ -524,7 +527,7 @@ await session(390, 844, 'rules', async (page) => {
       }
       return failures;
     });
-    check(!missing.length, 'all 19 levels, 11 missions, knob updates and family/world selections have pre-play rules at ' + width + 'px: ' + missing.join('; '));
+    check(!missing.length, 'all registered levels, 11 missions, knob updates and family/world selections have pre-play rules at ' + width + 'px: ' + missing.join('; '));
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => bellman.level('continuous'));

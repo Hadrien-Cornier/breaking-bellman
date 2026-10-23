@@ -22,19 +22,19 @@ function content(beforeGraph) {
   return context.window.CONTENT;
 }
 const plain = value => JSON.parse(JSON.stringify(value));
-const ids = ['slots', 'cliff', 'careful', 'cells', 'explode', 'mirage', 'credit', 'bigsteps', 'passfail',
+const ids = ['goals', 'slots', 'cliff', 'careful', 'cells', 'explode', 'mirage', 'credit', 'bigsteps', 'passfail',
   'continuous', 'explore', 'offline', 'mixed', 'twoways', 'pick', 'residual', 'fetch', 'vpo', 'supermimic'];
 
-test('build attaches the six campaign worlds and approved metadata to exactly the 19 registered levels', () => {
+test('build attaches the six campaign worlds and approved metadata to the registered baseline and restored goals lesson', () => {
   const C = content();
   assert.deepEqual(plain(C.levels.map(l => l.id)), ids);
   assert.deepEqual(worlds.map(w => [w.id, w.name]), approved.worlds);
   assert.deepEqual(edges.map(e => [e.from, e.to, e.label]), approved.edges);
   assert.equal(edges.length, 30);
-  assert.equal(C.graph.activeEdges.length, 18);
+  assert.equal(C.graph.activeEdges.length, 20);
   for (const level of C.levels) {
     const projected = C.graph.levels.find(l => l.id === level.id);
-    assert.equal(level.campaignWorld, approved.levelWorlds[level.id], level.id);
+    assert.equal(level.campaignWorld, level.id === 'goals' ? 'w4' : approved.levelWorlds[level.id], level.id);
     assert.equal(projected.world, level.campaignWorld);
     assert.deepEqual(plain(projected.improves), plain(level.improves));
     assert.deepEqual(plain(level.improves), edges.filter(e => e.to === level.id).map(({ from, label }) => ({ from, label })));
@@ -44,7 +44,7 @@ test('build attaches the six campaign worlds and approved metadata to exactly th
 });
 
 test('dormant parents do not lock roots or require unknown saved ids', () => {
-  const { graph } = content();
+  const graph = create(content().levels.filter(l => l.id !== 'goals'));
   assert.deepEqual(plain(graph.parents('twoways')), []);
   assert.equal(graph.status('twoways', []), 'open');
   assert.deepEqual(plain(graph.parents('mixed')), ['offline']);
@@ -57,7 +57,7 @@ test('dormant parents do not lock roots or require unknown saved ids', () => {
 
 test('both endpoints must be registered; returning a parent or child wakes only its settled links', () => {
   const C = content(), before = plain(edges);
-  const withGoals = create([...C.levels, { id: 'goals', phase: 0 }]);
+  const withGoals = create(C.levels);
   assert.deepEqual(withGoals.parents('twoways'), ['goals']);
   assert.equal(withGoals.status('twoways', []), 'locked');
   assert.equal(withGoals.status('twoways', ['goals']), 'open');
@@ -83,9 +83,10 @@ test('every registered parent must be cleared, and advisory completion wins over
 
 test('next uses course order, skips locked levels, and disappears when all levels are cleared', () => {
   const { graph } = content();
-  assert.equal(graph.next([]), 'slots');
-  assert.equal(graph.next(['slots']), 'cliff');
-  assert.equal(graph.next(['slots', 'cliff']), 'careful');
+  assert.equal(graph.next([]), 'goals');
+  assert.equal(graph.next(['goals']), 'slots');
+  assert.equal(graph.next(['goals', 'slots']), 'cliff');
+  assert.equal(graph.next(['goals', 'slots', 'cliff']), 'careful');
   // Unknown saved ids do not compete for next.
   assert.equal(graph.next(['slots', 'goals', 'future']), 'cliff');
   const skipped = ids.filter(id => !['cells', 'explode', 'twoways', 'pick'].includes(id));
@@ -112,7 +113,7 @@ test('states are derived afresh from done without mutating progress or creating 
     }
   }
   const immutable = Object.freeze(snapshot);
-  assert.equal(graph.status('slots', immutable), 'next');
+  assert.equal(graph.status('goals', immutable), 'next');
   assert.equal(graph.status('cliff', immutable), 'locked');
   assert.deepEqual(immutable, ['future']);
   assert.deepEqual(plain(graph.levels.map(l => l.id)), ids);
