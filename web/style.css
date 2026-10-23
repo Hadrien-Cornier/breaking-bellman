@@ -537,3 +537,13 @@ ul.preset-diff li { margin: 2px 0; }
 #run-stale { border-left: 3px solid var(--accent); padding-left: 10px; }
 #run-btn, #run-mode, #budget, #seeds { min-height: 44px; min-width: 44px; }
 .w, #lab .btn, #mode-pane .btn { min-height: 44px; min-width: 44px; }
+
+/* Rare's measured hall stays readable without horizontal scrolling. */
+#rare-stage { display: block; width: 100%; height: auto; border-radius: 8px; }
+#rare-experiment, #rare-lesson { min-width: 0; }
+#rare-experiment select, #rare-experiment button, #rare-lesson button { min-height: 44px; min-width: 44px; max-width: 100%; }
+#rare-experiment .field { min-width: 0; max-width: 100%; }
+.rare-counts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.rare-count { display: grid; font-size: 12px; gap: 4px; }
+.rare-count meter { width: 100%; }
+@media (max-width: 500px) { .rare-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

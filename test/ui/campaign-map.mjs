@@ -99,7 +99,7 @@ try {
       await page.locator('[data-open-level]').click();
       check((await stored(page)).level === id, 'lesson reachable ' + id);
       check(await page.locator('#campaign-strip button').innerText() === `All ${expected.ids.length} levels`, 'strip above ' + id);
-      check(await page.locator(['vpo', 'supermimic'].includes(id) ? '#vpo-lab svg' : '#stage').first().isVisible(), 'scene retained ' + id);
+      check(await page.locator(id === 'rare' ? '#rare-stage' : ['vpo', 'supermimic'].includes(id) ? '#vpo-lab svg' : '#stage').first().isVisible(), 'scene retained ' + id);
     }
     await page.reload();
     const actual = await stored(page);

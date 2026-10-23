@@ -1,6 +1,7 @@
 // All registered lessons: full shared RunRecord replay contract; custom lessons retain their baseline.
 // npm run build && node test/ui/levels.mjs [proof directory] [URL]
 import assert from 'node:assert/strict';
+import { rareContract } from './rare.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -137,7 +138,7 @@ try {
         const errors = [];
         page.on('pageerror', e => errors.push(e.message));
         page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-        const record = { name, id, width, height, progress, errors, stage: ['vpo', 'supermimic'].includes(id) ? 'custom-baseline' : 'shared-replay', checks: [] };
+        const record = { name, id, width, height, progress, errors, stage: id === 'rare' ? 'rare-replay' : ['vpo', 'supermimic'].includes(id) ? 'custom-baseline' : 'shared-replay', checks: [] };
         const verify = (ok, text) => { record.checks.push({ text, passed: !!ok }); check(ok, name + ': ' + text); };
         try {
           await seed(page, progress === 'newer' ? fixture : null);
@@ -154,8 +155,8 @@ try {
           await page.locator('#tabs button').last().focus();
           await page.keyboard.press('Tab');
           verify(await page.locator('#campaign-strip button').evaluate(e => e === document.activeElement), 'Tab from header reaches map strip before lesson controls');
-          const custom = ['vpo', 'supermimic'].includes(id);
-          const scene = page.locator(custom ? '#vpo-lab svg' : '#stage').first();
+          const custom = ['vpo', 'supermimic', 'rare'].includes(id);
+          const scene = page.locator(id === 'rare' ? '#rare-stage' : custom ? '#vpo-lab svg' : '#stage').first();
           verify(await scene.isVisible(), 'baseline scene visible before Run');
           record.before = await scene.evaluate(e => ({ tag: e.tagName, width: e.getBoundingClientRect().width, height: e.getBoundingClientRect().height, label: e.getAttribute('aria-label') }));
           verify(record.before.width > 0 && record.before.height > 0, 'scene has nonzero dimensions');
@@ -163,8 +164,11 @@ try {
           await scene.screenshot({ path: path.join(out, name + '-scene-before.png') });
           if (!custom) verify(await page.evaluate(() => bellman.record() === null && document.querySelector('#stage').dataset.world === bellman.state().world), 'fresh level has its actual world and no previous record');
           const button = custom ? `#${id}-run` : '#run-btn';
-          await page.locator(button).click();
-          if (id === 'vpo') {
+          if (id !== 'rare') await page.locator(button).click();
+          if (id === 'rare') {
+            record.result = await rareContract(page, out, name);
+            verify(true, 'rare measured playback, accounting, stale/rerun, identity and level clearing');
+          } else if (id === 'vpo') {
             await page.waitForFunction(() => !document.querySelector('#vpo-run').disabled && document.querySelector('#vpo-source').textContent.includes('Live simulation completed'), null, { timeout: runTimeout });
             record.result = await page.locator('#vpo-source').innerText();
             verify(await page.locator('#vpo-lesson table').count() > 0, 'baseline measured results table exists');
