@@ -10,6 +10,11 @@ export async function skillsContract(page, out, name) {
       .every(e => e.dataset.run === r.id && e.dataset.stale === String(stale)) && !document.body.innerText.includes(r.id);
   }), 'scene, chart, result and evidence share hidden record identity and stale state');
   const first = await state(); assert.equal(first.record.level, 'skills'); await links();
+  if (await page.locator('#custom-notebook').count()) {
+    if (!await page.locator('#custom-notebook').evaluate(e => e.open)) await page.locator('#custom-notebook > summary').click();
+    await page.locator('#custom-notebook-tab-curve').click();
+  }
+  assert.ok(await page.locator('#skills-probabilities').isVisible(), 'measured probabilities are visible before reading replay updates');
   const original = JSON.stringify(first.record);
   fs.writeFileSync(path.join(out, name + '-record.json'), original);
   assert.equal(first.record.data.fresh.steps, 16);
