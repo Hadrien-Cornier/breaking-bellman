@@ -451,31 +451,45 @@ await session(390, 844, 'pendulum', async (page) => {
   await page.locator('[data-open-level]').click();
   await page.evaluate(() => {
     const joint = BB.scenes.joint;
+    window.pendulumAngles = []; window.pendulumTaskAngles = [];
     BB.scenes.joint = (ctx, w, h, d) => {
-      window.pendulumTrace = d.trace;
-      const rotate = ctx.rotate;
-      ctx.rotate = function (a) {
-        const t = this.getTransform();
-        if (Math.abs(t.e - w / 2) < 1 && Math.abs(t.f - h * 0.52) < 1) window.pendulumAngles.push(a);
-        return rotate.call(this, a);
-      };
-      return joint(ctx, w, h, d);
+      if (d.trace) window.pendulumTrace = d.trace;
+      const scene = joint(ctx, w, h, d);
+      // Each draw owns its probe. Mount's untrained task pose is not a measured replay state.
+      return { ...scene, frame(ts) {
+        const rotate = ctx.rotate;
+        ctx.rotate = function (a) {
+          const t = this.getTransform();
+          if (Math.abs(t.e - w / 2) < 1 && Math.abs(t.f - h * 0.52) < 1) {
+            (d.trace ? window.pendulumAngles : window.pendulumTaskAngles).push(a);
+          }
+          return rotate.call(this, a);
+        };
+        try { return scene.frame(ts); } finally { ctx.rotate = rotate; }
+      } };
     };
-    window.pendulumAngles = [];
   });
   await page.click('#run-btn');
   await runDone(page);
   await page.locator('#stage').scrollIntoViewIfNeeded();
-  await page.locator('#stage').click(); // restart the real animation clock
+  await page.locator('#scene-replay').click();
+  await page.locator('#scene-watch').click();
   await page.waitForTimeout(2200);
+  await page.locator('#scene-watch').click();
   const motion = await page.evaluate(() => ({
     count: pendulumAngles.length,
     span: Math.max(...pendulumAngles) - Math.min(...pendulumAngles),
     mismatch: Math.max(...pendulumAngles.map((a) => Math.min(...pendulumTrace.map((t) => Math.abs(a - t.s[0]))))),
     first: pendulumTrace[0].s[0],
+    taskCount: pendulumTaskAngles.length,
+    taskMismatch: Math.max(...pendulumTaskAngles.map(a => Math.abs(a - Math.PI))),
+    watching: bellman.replay().watching,
   }));
+  console.log('pendulum measured motion:', JSON.stringify(motion));
+  check(motion.taskCount > 0 && motion.taskMismatch < 1e-9, 'pendulum task pose is hanging still before the measured replay');
   check(motion.count > 10 && motion.span > 1, 'pendulum swings visibly in the phone canvas over time');
   check(motion.first > 3 && motion.mismatch < 1e-9, 'the rendered rod follows the hanging-start physics trace');
+  check(!motion.watching, 'pendulum Pause stops the recorded replay');
   check(/replay from hanging still/.test(await page.locator('#stage-caption').innerText()), 'caption identifies the separate replay');
   await page.locator('#stage').screenshot({ path: out + '/phone-pendulum.png' });
 });

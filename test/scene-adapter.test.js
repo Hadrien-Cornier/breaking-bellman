@@ -89,3 +89,23 @@ test('draw requires mount and mount paints the task before any run', () => {
   assert.deepEqual(paints, [[el, null, 0]]);
 });
 module.exports = { scenes, cases, draw };
+
+test('Watch preserves elapsed replay time across delayed browser frames and pauses offscreen', () => {
+  const source = fs.readFileSync(require.resolve('../web/app.js'), 'utf8');
+  const watch = source.slice(source.indexOf('  function watchScene()'), source.indexOf('  const sceneFonts ='));
+  const frames = [], record = {}, button = {}; let tick;
+  const context = vm.createContext({
+    watching: false, sceneTime: 0, stageSeen: true, replayAnimation: null,
+    runState: { record }, adapter: { length: () => 100, draw: (r, t) => { assert.equal(r, record); frames.push(t); } },
+    window: { matchMedia: () => ({ matches: false }) }, $: () => button,
+    requestAnimationFrame: fn => { tick = fn; return 1; }, scenePosition() {},
+  });
+  vm.runInContext('function pauseScene() { watching = false; }\n' + watch + '\nwatchScene();', context);
+  tick(100); tick(140); tick(300);
+  assert.deepEqual(frames, [1, 2, 6], 'a delayed callback catches up four measured replay frames');
+  context.stageSeen = false; tick(1000);
+  context.stageSeen = true; tick(1040);
+  assert.equal(frames.at(-1), 7, 'time offscreen does not skip the replay');
+  vm.runInContext('watchScene();', context); tick(1080);
+  assert.equal(frames.at(-1), 7, 'Pause prevents another draw');
+});

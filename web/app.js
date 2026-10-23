@@ -836,13 +836,19 @@
       sceneTime = n - 1; adapter.draw(runState.record, sceneTime); scenePosition(); return;
     }
     watching = true; $('#scene-watch').textContent = 'Pause';
-    let last = 0;
+    let last = null;
     const tick = ts => {
       if (!watching) return;
-      if (stageSeen && ts - last >= 40) {
-        last = ts; sceneTime = Math.min(n - 1, sceneTime + 1);
-        adapter.draw(runState.record, sceneTime); scenePosition();
-        if (sceneTime === n - 1) { pauseScene(); return; }
+      if (!stageSeen) last = ts;
+      else {
+        if (last === null) last = ts - 40;
+        const elapsed = Math.floor((ts - last) / 40);
+        if (elapsed > 0) {
+          last += elapsed * 40;
+          sceneTime = Math.min(n - 1, sceneTime + elapsed);
+          adapter.draw(runState.record, sceneTime); scenePosition();
+          if (sceneTime === n - 1) { pauseScene(); return; }
+        }
       }
       replayAnimation = requestAnimationFrame(tick);
     };

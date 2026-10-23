@@ -37,10 +37,11 @@ const fragment = process.argv.includes('--fragment');
 // starts it from a blob URL only when a math box opens. The fragment build skips it and loads MathJax from cdnjs.
 const MATHJAX = 'web/vendor/mathjax-tex-svg-3.2.2.min.js';
 const mathjax = !fragment && exists(MATHJAX) ? '\n<script type="text/plain" id="mathjax-src">' + noClose(read(MATHJAX)) + '</script>\n' : '';
+const favicon = '<link rel="icon" href="data:,">';
 const page = fragment ? body
   : '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n'
     + '<meta name="description" content="Breaking Bellman: learn reinforcement learning by breaking it. Real algorithms train in your browser and fail in front of you.">\n'
-    + '</head>\n<body>\n' + body + mathjax + '\n</body>\n</html>\n';
+    + favicon + '\n</head>\n<body>\n' + body.replace(favicon + '\n', '') + mathjax + '\n</body>\n</html>\n';
 const out = fragment ? 'dist/breaking-bellman.fragment.html' : 'dist/breaking-bellman.html';
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(root, out), page);

@@ -23,7 +23,10 @@
     if (r.data.fresh.steps !== (offline ? 0 : config.steps) || r.events.length !== r.ep.t.length ||
         !r.events.every((e, i) => e.t === r.ep.t[i] && e.steps === r.ep.len[i] && e.t <= config.steps) ||
         r.data.fresh.attempts !== r.events.length + (r.ep.len.reduce((sum, n) => sum + n, 0) < r.data.fresh.steps ? 1 : 0)) return false;
-    if (config.family === 'ac' && ['fixed', 'both'].includes(config.parts.source) && !r.dataset) return false;
+    // Worlds without a demonstrator intentionally return no dataset, even for fixed/both.
+    // Inspect the same world capability as the engine without consuming its RNG stream.
+    if (config.family === 'ac' && ['fixed', 'both'].includes(config.parts.source) && !r.dataset &&
+        typeof globalThis.RLA.worlds[config.world].make(config.knobs, globalThis.RLA.rng.make(seed)).expert === 'function') return false;
     if (r.dataset !== null && (!Number.isSafeInteger(r.dataset.steps) || r.dataset.steps < 0 ||
         !Number.isSafeInteger(r.dataset.episodes) || r.dataset.episodes < 0)) return false;
     if (r.bandit !== null) {
