@@ -61,8 +61,11 @@ async function replayContract(page, proof, verify) {
   verify(first.policy.length > 0 && first.seed.length > 0, 'method and replay seed have text labels independent of color');
   const exactBefore = await page.evaluate(() => RLA.exact.stringify(bellman.record()));
   fs.writeFileSync(path.join(out, proof.name + '-run.json.gz'), gzipSync(exactBefore));
+  if (!await page.locator('#notebook').evaluate(e => e.open)) await page.locator('#notebook > summary').click();
+  await page.locator('#notebook-tab-rule').click();
   const dimensions = await page.locator('#scene-controls button, #scene-seed, #run-btn, #seeds, #budget, #run-mode, #rule .w').evaluateAll(es => es.map(e => ({ id: e.id, w: e.getBoundingClientRect().width, h: e.getBoundingClientRect().height })));
   verify(dimensions.every(d => d.w >= 44 && d.h >= 44), 'Run, replay and result settings have 44px touch targets');
+  await page.locator('#notebook > summary').click();
   await page.locator('#scene-replay').click();
   const zero = await frame();
   await page.locator('#scene-step').click();
@@ -97,7 +100,10 @@ async function replayContract(page, proof, verify) {
   await page.waitForFunction(() => bellman.record() && !document.querySelector('#run-btn').disabled, null, { timeout: runTimeout });
   const fresh = await status(); proof.rerun = fresh;
   verify(fresh.id !== first.id && !fresh.state.stale && fresh.linked, 'rerun replaces stale measurements everywhere with the new settings');
-  proof.rendered = await page.locator('#lab').innerText();
+  await page.locator('#notebook > summary').click();
+  await page.locator('#notebook-tab-curve').click();
+  verify((await status()).linked, 'opening Curve redraws the same measured record with its stale state');
+  proof.rendered = await page.locator('#lab').innerText() + '\n' + await page.locator('#notebook').innerText();
 
 }
 try {
@@ -169,7 +175,9 @@ try {
             record.result = await page.locator('#vpo-source').innerText();
             verify(await page.locator('#vpo-lesson table').count() > 0, 'baseline measured results table exists');
           } else if (id === 'supermimic') {
-            await page.waitForSelector('#supermimic-gradients', { timeout: runTimeout });
+            await page.waitForSelector('#supermimic-gradients', { state: 'attached', timeout: runTimeout });
+            await page.locator('#custom-notebook > summary').click();
+            await page.locator('#custom-notebook-tab-curve').click();
             record.result = await page.locator('#supermimic-gradients').innerText();
             verify(await page.locator('#supermimic-rollout table').count() > 0, 'baseline rollout and gradient tables exist');
           } else {

@@ -31,6 +31,7 @@ try {
     page.on('pageerror', e => errors.push(e.message));
     page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
     const input = progress === 'newer' ? structuredClone(fixture) : { intro: 1, level: 'slots', done: [] };
+    if (progress === 'newer') input.level = 'unknown-future';
     input.future = { nested: [false, null, { stable: 'keep' }] };
     input.made = { ...input.made, 'unknown-future': { nested: { rule: 42 } } };
     await seed(page, input);
@@ -99,7 +100,7 @@ try {
       await page.locator('[data-open-level]').click();
       check((await stored(page)).level === id, 'lesson reachable ' + id);
       check(await page.locator('#campaign-strip button').innerText() === `All ${expected.ids.length} levels`, 'strip above ' + id);
-      check(await page.locator(['vpo', 'supermimic'].includes(id) ? '#vpo-lab svg' : '#stage').first().isVisible(), 'scene retained ' + id);
+      check(await page.locator(({"vpo": "#custom-stage", "supermimic": "#custom-stage", "thaw": "#thaw-scene", "rewardfit": "#rewardfit-scene", "goals": "#goals-scene", "rare": "#rare-stage", "elbo": "#elbo-scene", "messages": "#messages-scene", "hindsight": "#hindsight-scene", "hierarchy": "#hierarchy-scene", "skills": "#skills-stage", "skew": "#skew-stage", "metarl": "#metarl-scene", "ensemble": "#ensemble-stage", "replan": "#replan-stage"})[id] || '#stage').first().isVisible(), 'scene retained ' + id);
     }
     await page.reload();
     const actual = await stored(page);
