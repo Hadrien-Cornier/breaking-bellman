@@ -1,0 +1,13 @@
+.thaw-lab { min-width:0 }
+.thaw-arms { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px }
+.thaw-policy { min-width:0;border:1px solid var(--line);border-radius:10px;padding:8px }
+.thaw-policy[hidden] { display:none }
+.thaw-policy h3 { font-size:14px;margin:0 }
+.thaw-policy svg { display:block;width:100%;height:auto }
+.thaw-policy svg text,#thaw-chart svg text { fill:var(--ink);font-size:12px }
+.thaw-field { display:flex;flex-direction:column;gap:5px;min-width:0;max-width:100% }
+.thaw-lab select,.thaw-lab button,.thaw-lab input { min-height:44px;min-width:44px;max-width:100% }
+#thaw-scrub { flex:1;width:100px }
+#thaw-chart svg { width:100%;max-width:550px }
+#thaw-lesson .opt { min-height:44px }
+@media(max-width:600px) { .thaw-arms { grid-template-columns:1fr } .thaw-policy svg { max-height:210px } }
