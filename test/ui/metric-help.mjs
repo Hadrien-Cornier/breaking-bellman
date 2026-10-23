@@ -247,11 +247,13 @@ await session(390, 844, 'phone-campaign', async (page) => {
   await page.getByText('Run the starting sentence').click();
   await runDone(page);
   await page.waitForTimeout(400);
+  await page.locator('#notebook > summary').click();
+  await page.locator('#notebook-tab-autopsy').click();
+  await page.locator('#symptoms .metric-help-btn').first().click();
   const p = await page.evaluate(() => {
     const sym = document.querySelector('#symptoms');
     const btn = sym.querySelector('.metric-help-btn');
     if (!btn) return { ok: false };
-    btn.click();
     const pop = document.getElementById('metric-help-popover');
     const r = pop.getBoundingClientRect();
     return { ok: true, text: pop.textContent.slice(0, 90),
