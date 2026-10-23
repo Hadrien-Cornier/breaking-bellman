@@ -191,8 +191,13 @@
         else ctx.setStep(step + 1);
       }));
       if (step === 1 || (step >= 2 && !record)) kids.push(h('p', { text: 'Use Run the three policies in the scene. Nothing is measured until you run, even when returning to a completed lesson.' }));
+      if (step === 3 && record) kids.push(h('div.row', null, labels.map(([name, label]) => h('button.btn.secondary', { type: 'button', onclick: () => { selected = name; lab.querySelector('#thaw-policy').value = name; move(0); frameHost.scrollIntoView({ block: 'nearest' }); } }, 'Replay ' + label))));
       if (step >= 2 && record && ctx.shell) kids.push(h('button.btn.secondary', { type: 'button', onclick: () => ctx.shell.open('autopsy') }, 'Inspect this run'));
       if (step === 5) kids.push(h('p', { text: 'Fine-tune updates learned weights. From scratch updates zero starting weights. Compare the measured returns at both practice budgets. Equal fresh attempts do not mean equal earlier data or total work.' }));
+      if (step === 5) {
+        const next = C.levels[C.levels.indexOf(level) + 1];
+        if (next) kids.push(h('button.btn', { id: 'thaw-next', type: 'button', onclick: () => window.bellman.level(next.id) }, 'Next level: ' + next.title));
+      }
       body.replaceChildren(...kids); frame();
     };
     drawUI = redraw;

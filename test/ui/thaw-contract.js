@@ -9,6 +9,8 @@ module.exports = async function thawContract(page, proof, verify) {
   const surfaces = () => page.evaluate(() => [...document.querySelectorAll('#thaw-scene, #thaw-chart, #thaw-results, #thaw-evidence')].map(e => ({ id: e.id, run: e.dataset.run, stale: e.dataset.stale })));
   verify((await surfaces()).length === 4 && (await surfaces()).every(e => e.run === current.record.id), 'scene, chart, results and evidence use one record');
   const original = JSON.stringify(current.record);
+  const plotted = await page.locator('#thaw-chart path[data-policy]').evaluateAll(es => es.map(e => ({ name: e.dataset.policy, points: e.getAttribute('d').match(/[-+]?[0-9]*\.?[0-9]+(?:e[-+]?[0-9]+)?/gi).map(Number) })));
+  verify(plotted.length === 3 && plotted.every(p => p.points.length === 100 && current.record.series[p.name].every((s, i) => Math.abs((p.points[i * 2] - 32) / 5.3 - s.t) < 1e-10 && Math.abs((165 - p.points[i * 2 + 1]) / 80 - s.state.angle) < 1e-10)), 'all 50 plotted samples per named policy match the measured record');
   for (let t = 0; t <= 50; t++) {
     await page.locator('#thaw-scrub').fill(String(t));
     const samples = await page.locator('#thaw-scene svg').evaluateAll(es => es.map(e => ({ policy: e.dataset.policy, angle: Number(e.dataset.angle) })));

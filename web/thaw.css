@@ -6,7 +6,7 @@
 .thaw-policy svg { display:block;width:100%;height:auto }
 .thaw-policy svg text,#thaw-chart svg text { fill:var(--ink);font-size:12px }
 .thaw-field { display:flex;flex-direction:column;gap:5px;min-width:0;max-width:100% }
-.thaw-lab select,.thaw-lab button,.thaw-lab input { min-height:44px;min-width:44px;max-width:100% }
+.thaw-lab select,.thaw-lab button,.thaw-lab input,#thaw-lesson button { min-height:44px;min-width:44px;max-width:100% }
 #thaw-scrub { flex:1;width:100px }
 #thaw-chart svg { width:100%;max-width:550px }
 #thaw-lesson .opt { min-height:44px }
