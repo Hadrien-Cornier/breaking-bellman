@@ -22,7 +22,7 @@ function content(beforeGraph) {
   return context.window.CONTENT;
 }
 const plain = value => JSON.parse(JSON.stringify(value));
-const ids = ["slots", "cliff", "careful", "cells", "explode", "mirage", "credit", "bigsteps", "passfail", "continuous", "explore", "offline", "mixed", "thaw", "twoways", "pick", "residual", "fetch", "vpo", "supermimic"];
+const ids = ["slots", "cliff", "careful", "cells", "explode", "mirage", "credit", "bigsteps", "passfail", "continuous", "explore", "offline", "mixed", "thaw", "rewardfit", "twoways", "pick", "residual", "fetch", "vpo", "supermimic"];
 
 test('build attaches the six campaign worlds and approved metadata to the registered levels', () => {
   const C = content();
@@ -63,7 +63,7 @@ test('both endpoints must be registered; returning a parent or child wakes only 
   assert.equal(withGoals.status('twoways', ['goals']), 'open');
   assert.deepEqual(withGoals.missing('mixed', ['offline']), ['goals']);
   assert.equal(withGoals.status('mixed', ['offline', 'goals']), 'open');
-  assert.deepEqual(withGoals.parents('rewardfit'), []);
+  assert.deepEqual(withGoals.parents('rewardfit'), ['goals']);
   const withoutRare = create(C.levels.filter(l => !['rare', 'skills'].includes(l.id)));
   assert(!withoutRare.activeEdges.some(e => e.to === 'rare'));
   const withRare = create([...C.levels.filter(l => !['rare', 'skills'].includes(l.id)), { id: 'rare', phase: 11 }]);
