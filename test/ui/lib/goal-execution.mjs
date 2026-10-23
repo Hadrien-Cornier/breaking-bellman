@@ -5,7 +5,10 @@ export async function goalExecutionContract(page, id, out, name) {
   const q = suffix => page.locator('#' + id + '-' + suffix);
   const check = (value, message) => assert.ok(value, name + ': ' + message);
   const snapshot = () => q('scene').evaluate(e => e.toDataURL());
-  await page.evaluate(id => bellman.level(id), id);
+  // Re-enter through the real campaign lifecycle, including a persistent shell Notebook.
+  await page.evaluate(id => { bellman.level(id); bellman.level(id); }, id);
+  for (const suffix of ['scene', 'chart', 'result', 'evidence'])
+    check(await q(suffix).count() === 1, 'repeated entry owns exactly one ' + suffix);
   check(await q('scene').isVisible(), 'measured scene exists before prediction');
   check(await page.evaluate(() => bellman.record() === null), 'entry clears previous record');
   check(await page.evaluate(() => document.querySelector('main.layout').firstElementChild.id === 'campaign-strip'), 'map comes first');
@@ -21,7 +24,7 @@ export async function goalExecutionContract(page, id, out, name) {
   check((await page.evaluate(() => bellman.record()))?.id === record.id, 'responsive remount retains the current measured record');
   const linked = () => page.evaluate(id => {
     const r = bellman.record(), state = bellman.replay();
-    return ['scene', 'chart', 'result', 'evidence'].every(s => { const e = document.getElementById(id + '-' + s); return e.dataset.run === r.id && e.dataset.stale === String(state.stale); }) && !document.body.innerText.includes(r.id);
+    return ['scene', 'chart', 'result', 'evidence'].every(s => { const es = document.querySelectorAll('#' + id + '-' + s); return es.length === 1 && es[0].dataset.run === r.id && es[0].dataset.stale === String(state.stale); }) && !document.body.innerText.includes(r.id);
   }, id);
   check(await linked(), 'scene, event strip, result and evidence share an internal identity');
   const targets = await page.locator('#' + id + '-replay-lab button, #' + id + '-replay-lab select').evaluateAll(es => es.map(e => ({ width: e.getBoundingClientRect().width, height: e.getBoundingClientRect().height })));

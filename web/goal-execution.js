@@ -113,7 +113,9 @@
     const scene = h('section.card.stack', { id: id + '-replay-lab' }, [h('h2', { text: spec.sceneTitle }), canvas, caption,
       h('label', null, [spec.settingLabel + ' ', settings]), status, h('label', null, ['Measured replay ', selector]), controls]);
     lab.replaceChildren(scene);
-    (ctx.shell?.notebook('curve') || lab).append(chart, result, evidence);
+    // Curve survives custom lesson remounts; this view owns its measured surfaces.
+    if (ctx.shell) ctx.shell.notebook('curve').replaceChildren(chart, result, evidence);
+    else lab.append(chart, result, evidence);
     const events = r => policy === 'stored' ? r.stored : policy === 'prior' ? r.prior : r.events[policy];
     const stop = () => { clearInterval(timer); timer = null; watch.textContent = 'Watch'; };
     function render(el, r, t) {
