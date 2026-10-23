@@ -1,6 +1,7 @@
 // All registered lessons: full shared RunRecord replay contract; custom lessons retain their baseline.
 // npm run build && node test/ui/levels.mjs [proof directory] [URL]
 import assert from 'node:assert/strict';
+import { ensembleContract } from '../support/ensemble-ui.mjs';
 import { replayReplan } from '../helpers/replan-ui.mjs';
 import { metarlContract } from './metarl.mjs';
 import { skewReplay } from './helpers/skew.mjs';
@@ -255,6 +256,13 @@ try {
             verify(errors.length === 0, 'no console or page errors');
             record.passed = true; console.log('ok ' + name); continue;
           }
+          if (id === 'ensemble') {
+            record.stage = 'ensemble-replay';
+            record.ensemble = await ensembleContract(page, out, name, progress === 'newer', verify);
+            if (progress === 'newer') retained(await stored(page), fixture, ids, 'cliff');
+            verify(errors.length === 0, 'no console or page errors');
+            record.passed = true; console.log('ok ' + name); continue;
+          }
           const inference = ['elbo', 'messages'].includes(id);
           if (inference) {
             record.stage = 'inference-replay';
@@ -311,7 +319,7 @@ try {
             verify(await page.locator('#charts canvas').count() > 0, 'record charts appear');
             await replayContract(page, record, verify);
           }
-          if (custom) await customReplayContract(page, record, verify);
+          if (['vpo', 'supermimic'].includes(id)) await customReplayContract(page, record, verify);
           verify(record.result.length > 0, 'Run produces baseline results');
           verify(await scene.isVisible(), 'baseline scene remains visible after Run');
           verify(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'no overflow after Run');

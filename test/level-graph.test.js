@@ -12,7 +12,7 @@ function content(beforeGraph) {
   const files = JSON.parse(build.match(/const CONTENT_FILES = (\[[^;]+\]);/)[1].replaceAll("'", '"'));
   const context = vm.createContext({ window: {}, structuredClone });
   context.window = context;
-  for (const file of ['src/core/rng.js', 'src/agents/vpo.js', 'src/agents/supermimic.js']) {
+  for (const file of ['src/core/rng.js', 'src/agents/vpo.js', 'src/agents/supermimic.js', 'src/agents/hindsight.js', 'src/agents/hierarchy.js', 'src/agents/replan.js', 'web/replan-record.js']) {
     vm.runInContext(fs.readFileSync(require.resolve('../' + file), 'utf8'), context, { filename: file });
   }
   for (const file of files) {
@@ -22,8 +22,7 @@ function content(beforeGraph) {
   return context.window.CONTENT;
 }
 const plain = value => JSON.parse(JSON.stringify(value));
-const ids = ['goals', 'slots', 'cliff', 'careful', 'cells', 'explode', 'mirage', 'credit', 'bigsteps', 'passfail',
-  'continuous', 'explore', 'offline', 'mixed', 'thaw', 'rewardfit', 'twoways', 'pick', 'residual', 'fetch', 'vpo', 'supermimic'];
+const ids = ["goals", "slots", "cliff", "careful", "cells", "explode", "mirage", "credit", "bigsteps", "passfail", "continuous", "explore", "elbo", "messages", "offline", "mixed", "thaw", "rewardfit", "rare", "twoways", "pick", "residual", "fetch", "vpo", "skills", "skew", "hindsight", "metarl", "hierarchy", "supermimic", "ensemble", "replan"];
 
 test('build attaches the six campaign worlds and approved metadata to the registered levels', () => {
   const C = content();
@@ -31,10 +30,10 @@ test('build attaches the six campaign worlds and approved metadata to the regist
   assert.deepEqual(worlds.map(w => [w.id, w.name]), approved.worlds);
   assert.deepEqual(edges.map(e => [e.from, e.to, e.label]), approved.edges);
   assert.equal(edges.length, 30);
-  assert.equal(C.graph.activeEdges.length, 22);
+  assert.equal(C.graph.activeEdges.length, 30);
   for (const level of C.levels) {
     const projected = C.graph.levels.find(l => l.id === level.id);
-    assert.equal(level.campaignWorld, (['goals','thaw'].includes(level.id) ? 'w4' : approved.levelWorlds[level.id]), level.id);
+    assert.equal(level.campaignWorld, (['skew', 'metarl', 'ensemble'].includes(level.id) ? 'w6' : approved.levelWorlds[level.id]), level.id);
     assert.equal(projected.world, level.campaignWorld);
     assert.deepEqual(plain(projected.improves), plain(level.improves));
     assert.deepEqual(plain(level.improves), edges.filter(e => e.to === level.id).map(({ from, label }) => ({ from, label })));
@@ -65,7 +64,9 @@ test('both endpoints must be registered; returning a parent or child wakes only 
   assert.deepEqual(withGoals.missing('mixed', ['offline']), ['goals']);
   assert.equal(withGoals.status('mixed', ['offline', 'goals']), 'open');
   assert.deepEqual(withGoals.parents('rewardfit'), ['goals']);
-  const withRare = create([...C.levels, { id: 'rare', phase: 11 }]);
+  const withoutRare = create(C.levels.filter(l => !['rare', 'skills'].includes(l.id)));
+  assert(!withoutRare.activeEdges.some(e => e.to === 'rare'));
+  const withRare = create([...C.levels.filter(l => !['rare', 'skills'].includes(l.id)), { id: 'rare', phase: 11 }]);
   assert.deepEqual(withRare.parents('rare'), ['slots', 'cliff']);
   assert.equal(withRare.status('rare', ['slots']), 'locked');
   assert.equal(withRare.status('rare', ['slots', 'cliff']), 'open');

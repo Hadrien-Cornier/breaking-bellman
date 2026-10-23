@@ -100,7 +100,7 @@ try {
       await page.locator('[data-open-level]').click();
       check((await stored(page)).level === id, 'lesson reachable ' + id);
       check(await page.locator('#campaign-strip button').innerText() === `All ${expected.ids.length} levels`, 'strip above ' + id);
-      check(await page.locator(id === 'rewardfit' ? '#rewardfit-scene' : ['vpo', 'supermimic'].includes(id) ? '#vpo-lab svg' : '#stage').first().isVisible(), 'scene retained ' + id);
+      check(await page.locator(({"vpo": "#custom-stage", "supermimic": "#custom-stage", "thaw": "#thaw-scene", "rewardfit": "#rewardfit-scene", "goals": "#goals-scene", "rare": "#rare-stage", "elbo": "#elbo-scene", "messages": "#messages-scene", "hindsight": "#hindsight-scene", "hierarchy": "#hierarchy-scene", "skills": "#skills-stage", "skew": "#skew-stage", "metarl": "#metarl-scene", "ensemble": "#ensemble-stage", "replan": "#replan-stage"})[id] || '#stage').first().isVisible(), 'scene retained ' + id);
     }
     await page.reload();
     const actual = await stored(page);
