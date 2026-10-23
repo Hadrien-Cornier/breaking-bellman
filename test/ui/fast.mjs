@@ -10,7 +10,7 @@ fs.mkdirSync(proof,{recursive:true});
 const manifest=JSON.parse(fs.readFileSync(manifestPath)),seen=new Set();
 const entries=manifest.entries.filter(e=>!seen.has(e.config.world)&&seen.add(e.config.world));
 const runTimeout=Number(process.env.BB_UI_RUN_TIMEOUT_MS)||240000;
-function cli(...args){return execFileSync('chrome-devtools-axi',args,{encoding:'utf8',timeout:240000,maxBuffer:2**22,env:{...process.env,CHROME_DEVTOOLS_AXI_SESSION:'bb-fast-mode154'}});}
+function cli(...args){return execFileSync('chrome-devtools-axi',args,{encoding:'utf8',timeout:240000,maxBuffer:2**22,env:{...process.env,CHROME_DEVTOOLS_AXI_SESSION:process.env.CHROME_DEVTOOLS_AXI_SESSION||'bb-fast-mode154'}});}
 function evaluate(js){const text=cli('eval',js),m=text.match(/^result: (.+)$/m);if(!m)throw Error(text);const result=JSON.parse(m[1]);return typeof result==='string'?JSON.parse(result):result;}
 function evaluateLong(js){
   evaluate(`() => {window.__longCheck={pending:true}; (${js})().then(value=>window.__longCheck={value},error=>window.__longCheck={error:String(error)});return {started:true};}`);

@@ -11,15 +11,28 @@
   function completeResult(r, config, seed) {
     const has = (o, keys) => o && keys.every(k => Object.hasOwn(o, k));
     const lists = (o, keys) => has(o, keys) && keys.every(k => Array.isArray(o[k]));
-    if (!has(r, ['world','seed','steps','parts','knobs','ep','evals','diag','notes','trace','bandit','table','peeks','final']) ||
+    if (!has(r, ['world','seed','steps','parts','knobs','ep','evals','diag','notes','trace','bandit','table','peeks','final','dataset','data','events']) ||
         r.seed !== seed || r.world !== config.world || r.steps !== config.steps ||
         X.stringify(r.parts) !== X.stringify(config.parts) || X.stringify(r.knobs) !== X.stringify(config.knobs) ||
         !lists(r, ['evals','diag','notes','peeks']) || !lists(r.ep, ['t','ret','len','falls','left','success'])) return false;
+    const counts = c => c && ['steps', 'attempts'].every(k => Number.isSafeInteger(c[k]) && c[k] >= 0);
+    if (!['fresh', 'evaluation', 'replay'].every(k => counts(r.data[k])) || !Array.isArray(r.events) ||
+        !r.events.every((e, i) => Number.isSafeInteger(e.t) && e.t > (i ? r.events[i - 1].t : 0) && ['terminated', 'time-limit'].includes(e.terminal)) ||
+        !['terminated', 'time-limit', 'budget-complete'].includes(r.final.terminal)) return false;
+    const offline = config.family === 'ac' && config.parts.source === 'fixed';
+    if (r.data.fresh.steps !== (offline ? 0 : config.steps) || r.events.length !== r.ep.t.length ||
+        !r.events.every((e, i) => e.t === r.ep.t[i] && e.steps === r.ep.len[i] && e.t <= config.steps) ||
+        r.data.fresh.attempts !== r.events.length + (r.ep.len.reduce((sum, n) => sum + n, 0) < r.data.fresh.steps ? 1 : 0)) return false;
+    if (config.family === 'ac' && ['fixed', 'both'].includes(config.parts.source) && !r.dataset) return false;
+    if (r.dataset !== null && (!Number.isSafeInteger(r.dataset.steps) || r.dataset.steps < 0 ||
+        !Number.isSafeInteger(r.dataset.episodes) || r.dataset.episodes < 0)) return false;
     if (r.bandit !== null) {
       if (!has(r.final, ['means','q','best'])) return false;
       return ['reward','optimal','regret','arm'].every(k => ArrayBuffer.isView(r.bandit[k]) && r.bandit[k].length === config.steps);
     }
     if (!Array.isArray(r.trace) || !has(r, ['traceStart']) || !has(r.final, ['ret','disc','pred','success','dist'])) return false;
+    if (!Number.isSafeInteger(r.final.len) || r.final.len < r.trace.length ||
+        !r.trace.every(p => Array.isArray(p.obs) && typeof p.done === 'boolean' && typeof p.truncated === 'boolean')) return false;
     if (!r.evals.every(e => has(e, ['t','ret','disc','pred','maxQ','success','crashes','dist'])) ||
         !r.diag.every(d => has(d, ['t','loss','td','grad','eps','updates','kl','clipFrac','entropy','alpha','qData','qPolicy','std','zeroFrac']))) return false;
     const world = globalThis.RLA.worlds[config.world];
