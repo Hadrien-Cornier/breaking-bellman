@@ -32,6 +32,15 @@
         <span class="tag sim" title="Every curve comes from the game's simulation engine">Simulation</span>
       </div>
       <canvas class="stage" id="stage" width="640" height="280" aria-label="The world, replaying the last trained policy"></canvas>
+      <div class="row replay-controls" id="scene-controls" hidden>
+        <span class="small" id="scene-policy"></span>
+        <label class="small" for="scene-seed">Replay seed</label><select id="scene-seed"></select>
+        <button class="btn ghost" id="scene-watch" type="button">Watch</button>
+        <button class="btn ghost" id="scene-step" type="button">Step</button>
+        <button class="btn ghost" id="scene-replay" type="button">Replay</button>
+        <span class="small" id="scene-position"></span>
+      </div>
+      <p class="small" id="run-stale" role="status" hidden>Settings changed. This replay and its results are from the previous settings. Run again to measure the change.</p>
       <p class="small" id="stage-caption">Run a recipe to see the trained policy act.</p>
     </div>
     <div class="card">
