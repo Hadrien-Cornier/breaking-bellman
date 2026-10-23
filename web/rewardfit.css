@@ -1,0 +1,10 @@
+/* Reward fit: measured scene first, distinct from the teaching sketch. */
+.rewardfit-scene { width: 100%; max-width: 640px; height: auto; display: block; margin: auto; }
+.rewardfit-select { display: flex; flex-direction: column; gap: 5px; max-width: 100%; }
+.rewardfit-select select { max-width: 100%; }
+.rewardfit button, .rewardfit select, #rewardfit-lab button, #rewardfit-lab select, #rewardfit-chart button, #rewardfit-evidence summary { min-width: 44px; min-height: 44px; }
+.rewardfit-terms, .rewardfit-rewards { display: flex; flex-wrap: wrap; gap: 8px; }
+.rewardfit-sketch { margin: 20px 0 0; padding: 12px; border: 1px dashed var(--muted); border-radius: 8px; }
+.rewardfit-sketch svg { display: block; width: 100%; max-width: 440px; }
+.rewardfit-rewards [aria-current="true"] { outline: 2px solid var(--ink); outline-offset: 1px; }
+#rewardfit-chart[data-stale="true"], #rewardfit-results[data-stale="true"] { opacity: 0.7; }
