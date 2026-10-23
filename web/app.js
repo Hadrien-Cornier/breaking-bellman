@@ -2939,6 +2939,16 @@
     if (S.mode === 'campaign') enterLevel(C.levels.find((l) => l.id === S.level) || C.levels[0]);
     render();
   }));
+  // The header uses the same Rover+ as the simulations, without an animation clock.
+  const logoCanvas = $('#logo-robot'), logoContext = logoCanvas.getContext('2d');
+  logoContext.scale(2, 2);
+  BB.scenes.robot(logoContext, 24, 44, 39, { noShadow: true });
+  $('#campaign-logo').addEventListener('click', (event) => {
+    event.preventDefault();
+    $('#tabs [data-mode="campaign"]').click();
+    const map = $('#mode-pane .node');
+    if (map) { map.focus({ preventScroll: true }); map.scrollIntoView({ block: 'center' }); }
+  });
   $('#run-btn').addEventListener('click', () => run());
   $('#copy-page-btn').addEventListener('click', copyPage);
   // redraw on a real width change only: phones fire resize when the address bar hides, and a redraw restarts the replay

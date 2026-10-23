@@ -83,83 +83,101 @@
   // ---------------------------------------------------------------- the robot
   // Front view, feet at (x, y), about s tall. o: { mood: normal|happy|sad|wow|dizzy, blink, look (-1..1), bob,
   // reach: [x, y] for the right hand, wave, arms: 'out' (with tilt), scale, rot, alpha, antenna (color), noShadow }
-  function robot(ctx, x, y, s, o) {
-    o = o || {};
+  const circle = (ctx, x, y, r) => { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); };
+  const vgrad = (ctx, y0, y1, a, b) => { const g = ctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, a); g.addColorStop(1, b); return g; };
+  function begin(ctx, x, y, o) {
     const k = o.scale == null ? 1 : o.scale;
-    if (k <= 0.01) return;
-    ctx.save();
-    ctx.translate(x, y);
-    if (o.rot) ctx.rotate(o.rot);
-    ctx.scale(k, k);
+    if (k <= 0.01) return false;
+    ctx.save(); ctx.translate(x, y); if (o.rot) ctx.rotate(o.rot); ctx.scale(k, k);
     if (o.alpha != null) ctx.globalAlpha *= o.alpha;
-    const ln = '#25313a', lw = Math.max(1, s * 0.024), accent = '#ff8b3d', eye = '#6ff2ff';
-    if (!o.noShadow) { ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(0, 0, s * 0.33, s * 0.065, 0, 0, 7); ctx.fill(); }
-    // tracks
-    rr(ctx, -s * 0.27, -s * 0.14, s * 0.54, s * 0.13, s * 0.065); ctx.fillStyle = '#3b4851'; ctx.fill(); ctx.lineWidth = lw; ctx.strokeStyle = ln; ctx.stroke();
-    ctx.fillStyle = '#93a2ab';
-    for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(-s * 0.18 + i * s * 0.12, -s * 0.075, s * 0.028, 0, 7); ctx.fill(); }
-    const b = o.bob || 0;
-    ctx.translate(0, b);
-    const shell = (y0, y1) => { const g = ctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, '#f6f9fa'); g.addColorStop(1, '#bfcad0'); return g; };
-    // arms behind the body
-    const arm = (sx, sy, hx, hy) => {
-      ctx.lineCap = 'round';
-      ctx.strokeStyle = ln; ctx.lineWidth = s * 0.085; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(hx, hy); ctx.stroke();
-      ctx.strokeStyle = '#dfe6ea'; ctx.lineWidth = s * 0.05; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(hx, hy); ctx.stroke();
-      ctx.fillStyle = '#dfe6ea'; ctx.beginPath(); ctx.arc(hx, hy, s * 0.048, 0, 7); ctx.fill(); ctx.lineWidth = lw; ctx.strokeStyle = ln; ctx.stroke();
-      ctx.lineCap = 'butt';
-    };
-    const t = now();
-    const wave = o.wave ? Math.sin(t / 140) * 0.12 * s : 0;
-    const tilt = (o.tilt || 0) * s * 0.5;
-    if (o.arms === 'out') { arm(-s * 0.22, -s * 0.36, -s * 0.46, -s * 0.44 + tilt); arm(s * 0.22, -s * 0.36, s * 0.46, -s * 0.44 - tilt); }
-    else {
-      arm(-s * 0.22, -s * 0.36, -s * 0.36, o.wave ? -s * 0.62 + wave : -s * 0.2);
-      if (o.reach) arm(s * 0.22, -s * 0.36, (o.reach[0] - x) / k, (o.reach[1] - y) / k - b);
-      else arm(s * 0.22, -s * 0.36, s * 0.36, -s * 0.2);
-    }
-    // body
-    rr(ctx, -s * 0.24, -s * 0.45, s * 0.48, s * 0.33, s * 0.08); ctx.fillStyle = shell(-s * 0.45, -s * 0.12); ctx.fill(); ctx.lineWidth = lw; ctx.strokeStyle = ln; ctx.stroke();
-    ctx.fillStyle = o.antenna || accent; ctx.beginPath(); ctx.arc(0, -s * 0.29, s * 0.055, 0, 7); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.beginPath(); ctx.arc(-s * 0.018, -s * 0.305, s * 0.018, 0, 7); ctx.fill();
-    ctx.fillStyle = '#8796a0'; ctx.fillRect(-s * 0.05, -s * 0.5, s * 0.1, s * 0.06);
-    // head
-    rr(ctx, -s * 0.29, -s * 0.84, s * 0.58, s * 0.35, s * 0.11); ctx.fillStyle = shell(-s * 0.84, -s * 0.49); ctx.fill(); ctx.lineWidth = lw; ctx.strokeStyle = ln; ctx.stroke();
-    ctx.fillStyle = '#9fb0ba';
-    for (const sx of [-1, 1]) { ctx.beginPath(); ctx.arc(sx * s * 0.29, -s * 0.665, s * 0.04, 0, 7); ctx.fill(); }
-    rr(ctx, -s * 0.215, -s * 0.785, s * 0.43, s * 0.235, s * 0.08); ctx.fillStyle = '#142029'; ctx.fill();
-    // face
-    const lk = clamp(o.look || 0, -1, 1) * s * 0.03, ey = -s * 0.685, ex = s * 0.095, er = s * 0.045, mood = o.mood || 'normal';
-    ctx.strokeStyle = eye; ctx.fillStyle = eye; ctx.lineCap = 'round'; ctx.lineWidth = s * 0.03;
-    ctx.save(); ctx.shadowColor = eye; ctx.shadowBlur = s * 0.08;
+    return k;
+  }
+  function spiral(ctx, cx, cy, r) {
+    ctx.beginPath();
+    for (let a = 0; a <= Math.PI * 4; a += 0.25) { const q = r * a / (Math.PI * 4); const px = cx + Math.cos(a) * q, py = cy + Math.sin(a) * q; a ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+    ctx.stroke();
+  }
+  // big glossy eyes, a small mouth and LED cheeks on a dark face screen
+  function face(ctx, s, o, f) {
+    const mood = o.mood || 'normal', lk = clamp(o.look || 0, -1, 1) * s * 0.03;
+    const { ex, ey, er, my, eye } = f;
+    ctx.save();
+    ctx.strokeStyle = eye; ctx.fillStyle = eye; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.shadowColor = eye; ctx.shadowBlur = s * 0.06;
     for (const sx of [-1, 1]) {
       const cx = sx * ex + lk;
-      ctx.beginPath();
-      if (mood === 'happy') { ctx.arc(cx, ey + er * 0.5, er, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke(); }
-      else if (mood === 'dizzy') { ctx.moveTo(cx - er, ey - er); ctx.lineTo(cx + er, ey + er); ctx.moveTo(cx + er, ey - er); ctx.lineTo(cx - er, ey + er); ctx.stroke(); }
-      else if (mood === 'wow') { ctx.lineWidth = s * 0.022; ctx.arc(cx, ey, er * 1.25, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(cx, ey, er * 0.4, 0, 7); ctx.fill(); }
-      else if (o.blink) { ctx.moveTo(cx - er, ey); ctx.lineTo(cx + er, ey); ctx.stroke(); }
-      else if (mood === 'sad') { ctx.ellipse(cx, ey + er * 0.25, er * 0.85, er * 0.7, 0, 0, Math.PI); ctx.fill(); ctx.beginPath(); ctx.moveTo(cx - sx * er * 1.1, ey - er * 0.6); ctx.lineTo(cx + sx * er * 0.9, ey - er * 1.25); ctx.lineWidth = s * 0.02; ctx.stroke(); ctx.lineWidth = s * 0.03; }
-      else { ctx.ellipse(cx, ey, er * 0.82, er * 1.05, 0, 0, 7); ctx.fill(); }
+      ctx.lineWidth = s * 0.032;
+      if (mood === 'happy') { ctx.beginPath(); ctx.arc(cx, ey + er * 0.45, er * 0.95, Math.PI * 1.12, Math.PI * 1.88); ctx.stroke(); }
+      else if (mood === 'dizzy') { ctx.lineWidth = s * 0.02; spiral(ctx, cx, ey, er * 1.05); }
+      else if (mood === 'wow') { ctx.lineWidth = s * 0.024; circle(ctx, cx, ey, er * 1.2); ctx.stroke(); circle(ctx, cx, ey, er * 0.45); ctx.fill(); }
+      else if (o.blink) { ctx.beginPath(); ctx.arc(cx, ey - er * 0.35, er * 0.85, Math.PI * 0.18, Math.PI * 0.82); ctx.stroke(); }
+      else if (mood === 'sad') {
+        ctx.beginPath(); ctx.ellipse(cx, ey + er * 0.15, er * 0.8, er * 0.75, 0, 0, Math.PI); ctx.fill();
+        ctx.lineWidth = s * 0.02; ctx.beginPath(); ctx.moveTo(cx - sx * er * 1.0, ey - er * 0.55); ctx.lineTo(cx + sx * er * 0.7, ey - er * 1.15); ctx.stroke();
+      } else { ctx.beginPath(); ctx.ellipse(cx, ey, er * 0.86, er * 1.08, 0, 0, Math.PI * 2); ctx.fill(); }
     }
+    ctx.shadowBlur = 0;
     // mouth
-    const my = -s * 0.6;
-    ctx.lineWidth = s * 0.022; ctx.beginPath();
-    if (mood === 'happy') ctx.arc(lk, my - s * 0.025, s * 0.05, Math.PI * 0.15, Math.PI * 0.85);
-    else if (mood === 'sad' || mood === 'dizzy') ctx.arc(lk, my + s * 0.035, s * 0.045, Math.PI * 1.2, Math.PI * 1.8);
-    else if (mood === 'wow') ctx.ellipse(lk, my, s * 0.022, s * 0.03, 0, 0, 7);
-    else { ctx.moveTo(lk - s * 0.03, my); ctx.lineTo(lk + s * 0.03, my); }
-    ctx.stroke();
-    ctx.restore(); ctx.lineCap = 'butt';
-    if (!o.reach && mood === 'normal' && !o.blink) {
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      for (const sx of [-1, 1]) { ctx.beginPath(); ctx.arc(sx * ex + lk - er * 0.25, ey - er * 0.4, er * 0.25, 0, 7); ctx.fill(); }
+    ctx.lineWidth = s * 0.02;
+    ctx.beginPath();
+    if (mood === 'happy') { ctx.moveTo(lk - s * 0.05, my - s * 0.012); ctx.quadraticCurveTo(lk, my + s * 0.06, lk + s * 0.05, my - s * 0.012); ctx.closePath(); ctx.fill(); }
+    else if (mood === 'sad' || mood === 'dizzy') { ctx.arc(lk, my + s * 0.03, s * 0.032, Math.PI * 1.2, Math.PI * 1.8); ctx.stroke(); }
+    else if (mood === 'wow') { ctx.ellipse(lk, my, s * 0.02, s * 0.026, 0, 0, Math.PI * 2); ctx.stroke(); }
+    else { ctx.arc(lk, my - s * 0.018, s * 0.03, Math.PI * 0.2, Math.PI * 0.8); ctx.stroke(); }
+    // catchlights make the eyes read as eyes at 30 px
+    if (mood === 'normal' && !o.blink) {
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      for (const sx of [-1, 1]) { const cx = sx * ex + lk; circle(ctx, cx - er * 0.32, ey - er * 0.42, er * 0.3); ctx.fill(); circle(ctx, cx + er * 0.3, ey + er * 0.36, er * 0.13); ctx.fill(); }
     }
-    // antenna
-    ctx.strokeStyle = ln; ctx.lineWidth = lw * 1.2; ctx.beginPath(); ctx.moveTo(0, -s * 0.84); ctx.lineTo(0, -s * 0.93); ctx.stroke();
-    ctx.fillStyle = o.antenna || accent; ctx.beginPath(); ctx.arc(0, -s * 0.95, s * 0.038, 0, 7); ctx.fill(); ctx.lineWidth = lw; ctx.stroke();
+    // cheeks
+    if (mood !== 'sad') {
+      ctx.fillStyle = mood === 'happy' ? 'rgba(255,120,165,0.7)' : 'rgba(255,120,165,0.42)';
+      for (const sx of [-1, 1]) { ctx.beginPath(); ctx.ellipse(sx * f.cx + lk, f.cy, s * 0.036, s * 0.019, 0, 0, Math.PI * 2); ctx.fill(); }
+    }
     ctx.restore();
   }
+  // arm and hand placement shared by the three: default, wave (left hand up), reach (right hand to a point), arms out with tilt
+  function hands(s, o, x, y, k, b, sh, rest, out) {
+    const t = now(), wave = o.wave ? Math.sin(t / 140) * 0.12 * s : 0, tilt = (o.tilt || 0) * s * 0.5;
+    if (o.arms === 'out') return [[-sh[0], sh[1], -out[0], out[1] + tilt], [sh[0], sh[1], out[0], out[1] - tilt]];
+    const left = [-sh[0], sh[1], -rest[0], o.wave ? -s * 0.56 + wave : rest[1]];
+    const right = o.reach ? [sh[0], sh[1], (o.reach[0] - x) / k, (o.reach[1] - y) / k - b] : [sh[0], sh[1], rest[0], rest[1]];
+    return [left, right];
+  }
+
+  function robot(ctx, x, y, s, o) {
+    o = o || {}; const k = begin(ctx, x, y, o); if (!k) return;
+    const ink = '#24303a', lw = Math.max(1, s * 0.022), accent = o.antenna || '#ff8b3d', eye = '#72f1ff';
+    if (!o.noShadow) { ctx.fillStyle = 'rgba(0,0,0,0.26)'; ctx.beginPath(); ctx.ellipse(0, s * 0.01, s * 0.3, s * 0.055, 0, 0, 7); ctx.fill(); }
+    rr(ctx, -s * 0.23, -s * 0.125, s * 0.46, s * 0.12, s * 0.06); ctx.fillStyle = '#3d4a54'; ctx.fill(); ctx.lineWidth = lw; ctx.strokeStyle = ink; ctx.stroke();
+    ctx.fillStyle = '#a7b5bd'; for (const i of [-1, 0, 1]) { circle(ctx, i * s * 0.13, -s * 0.065, s * 0.032); ctx.fill(); }
+    const b = o.bob || 0; ctx.translate(0, b);
+    const arm = ([sx, sy, hx, hy]) => {
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = ink; ctx.lineWidth = s * 0.075; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(hx, hy); ctx.stroke();
+      ctx.strokeStyle = '#e4eaee'; ctx.lineWidth = s * 0.045; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(hx, hy); ctx.stroke();
+      circle(ctx, hx, hy, s * 0.05); ctx.fillStyle = '#e4eaee'; ctx.fill(); ctx.lineWidth = lw; ctx.strokeStyle = ink; ctx.stroke(); ctx.lineCap = 'butt';
+    };
+    hands(s, o, x, y, k, b, [s * 0.16, -s * 0.27], [s * 0.29, -s * 0.16], [s * 0.42, -s * 0.4]).forEach(arm);
+    rr(ctx, -s * 0.18, -s * 0.34, s * 0.36, s * 0.23, s * 0.09); ctx.fillStyle = vgrad(ctx, -s * 0.34, -s * 0.11, '#fafcfc', '#c4d0d6'); ctx.fill(); ctx.lineWidth = lw; ctx.strokeStyle = ink; ctx.stroke();
+    circle(ctx, 0, -s * 0.225, s * 0.048); ctx.fillStyle = accent; ctx.fill();
+    circle(ctx, -s * 0.016, -s * 0.24, s * 0.016); ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.fill();
+    rr(ctx, -s * 0.045, -s * 0.385, s * 0.09, s * 0.05, s * 0.02); ctx.fillStyle = '#8d9ca6'; ctx.fill();
+    rr(ctx, -s * 0.32, -s * 0.86, s * 0.64, s * 0.48, s * 0.19); ctx.fillStyle = vgrad(ctx, -s * 0.86, -s * 0.38, '#fbfdfd', '#c3cfd5'); ctx.fill(); ctx.lineWidth = lw; ctx.strokeStyle = ink; ctx.stroke();
+    for (const sx of [-1, 1]) {
+      circle(ctx, sx * s * 0.325, -s * 0.62, s * 0.055); ctx.fillStyle = '#a9b8c1'; ctx.fill(); ctx.lineWidth = lw; ctx.strokeStyle = ink; ctx.stroke();
+      circle(ctx, sx * s * 0.325, -s * 0.62, s * 0.022); ctx.fillStyle = '#4fc0a8'; ctx.fill();
+    }
+    rr(ctx, -s * 0.25, -s * 0.8, s * 0.5, s * 0.35, s * 0.14); ctx.fillStyle = '#13202a'; ctx.fill();
+    rr(ctx, -s * 0.22, -s * 0.78, s * 0.44, s * 0.1, s * 0.08); ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fill();
+    face(ctx, s, o, { ex: s * 0.105, ey: -s * 0.635, er: s * 0.062, my: -s * 0.52, eye, cx: s * 0.18, cy: -s * 0.552 });
+    ctx.strokeStyle = ink; ctx.lineWidth = lw * 1.2; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, -s * 0.86); ctx.quadraticCurveTo(0, -s * 0.93, s * 0.03, -s * 0.96); ctx.stroke();
+    circle(ctx, s * 0.035, -s * 0.982, s * 0.045); ctx.fillStyle = accent; ctx.fill(); ctx.lineWidth = lw; ctx.stroke();
+    circle(ctx, s * 0.022, -s * 0.995, s * 0.014); ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fill();
+    ctx.restore();
+  }
+
   SC.robot = robot;
   const blinkAt = (t) => t % 3400 < 130;
 

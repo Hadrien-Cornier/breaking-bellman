@@ -41,9 +41,9 @@ small, .small { font-size: 0.82rem; color: var(--muted); }
 a { color: var(--accent); }
 
 .top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--bg); padding-block: 12px 8px; border-bottom: 1px solid var(--line); margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding-inline: max(16px, env(safe-area-inset-left, 0px)); }
-.top-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; justify-content: space-between; }
-.brand { display: flex; align-items: baseline; gap: 10px; }
-.brand .sym { font-family: var(--font-mono); font-weight: 700; font-size: 0.8rem; border: 1.5px solid var(--ink); padding: 0 5px; border-radius: 4px; }
+.top-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: space-between; }
+.brand { display: grid; place-items: center; width: 48px; height: 48px; flex: 0 0 48px; border-radius: 8px; }
+.brand canvas { display: block; width: 48px; height: 48px; }
 .score { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .tabs { display: flex; gap: 4px; margin-top: 10px; overflow-x: auto; scrollbar-width: none; }
 .tabs button { border: 1px solid var(--line); background: var(--surface); padding: 6px 12px; border-radius: 999px; white-space: nowrap; font-size: 0.9rem; }
