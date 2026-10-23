@@ -1,6 +1,7 @@
 // All registered lessons: full shared RunRecord replay contract; custom lessons retain their baseline.
 // npm run build && node test/ui/levels.mjs [proof directory] [URL]
 import assert from 'node:assert/strict';
+import { skewReplay } from './helpers/skew.mjs';
 import { skillsContract } from './lib/skills-contract.mjs';
 import { goalExecutionContract } from './lib/goal-execution.mjs';
 import { inferenceContract } from '../inference-ui.mjs';
@@ -186,6 +187,7 @@ try {
     const context = await browser.newContext({ viewport: { width, height }, hasTouch: width === 390 });
     const page = await context.newPage();
     const augmented = structuredClone(fixture);
+    augmented.level = 'unknown-future';
     augmented.made.skew = { parts: { family: 'future' }, recipe: 'future-recipe' };
     augmented.future = { nested: [null, false, 0, { flag: true }] };
     await seed(page, augmented);
@@ -251,8 +253,8 @@ try {
             verify(errors.length === 0, 'no console or page errors');
             record.passed = true; console.log('ok ' + name); continue;
           }
-          const custom = ['skills', 'rare', 'vpo', 'supermimic', 'thaw', 'rewardfit', 'goals'].includes(id);
-          const scene = page.locator(id === 'skills' ? '#skills-stage' : id === 'rare' ? '#rare-stage' : id === 'goals' ? '#goals-scene' : id === 'rewardfit' ? '#rewardfit-scene' : id === 'thaw' ? '#thaw-scene' : custom ? '#custom-stage' : '#stage').first();
+          const custom = ['skew', 'skills', 'rare', 'vpo', 'supermimic', 'thaw', 'rewardfit', 'goals'].includes(id);
+          const scene = page.locator(id === 'skew' ? '#skew-stage' : id === 'skills' ? '#skills-stage' : id === 'rare' ? '#rare-stage' : id === 'goals' ? '#goals-scene' : id === 'rewardfit' ? '#rewardfit-scene' : id === 'thaw' ? '#thaw-scene' : custom ? '#custom-stage' : '#stage').first();
           verify(await scene.isVisible(), 'baseline scene visible before Run');
           record.before = await scene.evaluate(e => ({ tag: e.tagName, width: e.getBoundingClientRect().width, height: e.getBoundingClientRect().height, label: e.getAttribute('aria-label') }));
           verify(record.before.width > 0 && record.before.height > 0, 'scene has nonzero dimensions');
@@ -261,7 +263,12 @@ try {
           if (!custom) verify(await page.evaluate(() => bellman.record() === null && document.querySelector('#stage').dataset.world === bellman.state().world), 'fresh level has its actual world and no previous record');
           const button = custom ? `#${id}-run` : '#run-btn';
           if (id !== 'rare') await page.locator(button).click();
-          if (id === 'skills') {
+          if (id === 'skew') {
+            await skewReplay(page, out, name, verify);
+            record.stage = 'skew-replay';
+            record.result = await page.locator('#skew-results').innerText();
+            verify(await page.evaluate(() => !!(document.querySelector('#skew-stage').compareDocumentPosition(document.querySelector('#skew-lesson')) & Node.DOCUMENT_POSITION_FOLLOWING)), 'Skew measured scene precedes prediction in DOM');
+          } else if (id === 'skills') {
             record.skills = await skillsContract(page, out, name);
             record.result = await page.locator('#skills-result').innerText();
           } else if (id === 'rare') {
