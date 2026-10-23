@@ -568,6 +568,8 @@ ul.preset-diff li { margin: 2px 0; }
 }
 /* Other modes retain their complete lab controls and diagnostics. */
 .supporting-lab > :is(summary, .notebook-tabs) { display: none; }
+/* The full-width supporting Notebook follows this row; the lab must not cover it on scroll. */
+.layout:not(.lesson-shell) > .lab { position: static; max-height: none; overflow: visible; }
 .supporting-lab > .notebook-panel[hidden] { display: grid !important; }
 .supporting-lab { display: grid; gap: 16px; }
 @media (max-width: 600px) { .lesson-shell .stage { aspect-ratio: 16 / 9; } }
