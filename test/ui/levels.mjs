@@ -1,6 +1,7 @@
 // All registered lessons: full shared RunRecord replay contract; custom lessons retain their baseline.
 // npm run build && node test/ui/levels.mjs [proof directory] [URL]
 import assert from 'node:assert/strict';
+import { metarlContract } from './metarl.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -154,6 +155,13 @@ try {
           await page.locator('#tabs button').last().focus();
           await page.keyboard.press('Tab');
           verify(await page.locator('#campaign-strip button').evaluate(e => e === document.activeElement), 'Tab from header reaches map strip before lesson controls');
+          if (id === 'metarl') {
+            record.stage = 'custom-replay';
+            record.teaching = await metarlContract(page, out, name, verify);
+            if (progress === 'newer') retained(await stored(page), fixture, ids, id);
+            verify(errors.length === 0, 'no console or page errors');
+            record.passed = true; console.log('ok ' + name); continue;
+          }
           const custom = ['vpo', 'supermimic'].includes(id);
           const scene = page.locator(custom ? '#vpo-lab svg' : '#stage').first();
           verify(await scene.isVisible(), 'baseline scene visible before Run');
