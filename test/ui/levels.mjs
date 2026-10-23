@@ -1,6 +1,7 @@
 // All registered lessons: full shared RunRecord replay contract; custom lessons retain their baseline.
 // npm run build && node test/ui/levels.mjs [proof directory] [URL]
 import assert from 'node:assert/strict';
+import { replayReplan } from '../helpers/replan-ui.mjs';
 import { metarlContract } from './metarl.mjs';
 import { skewReplay } from './helpers/skew.mjs';
 import { skillsContract } from './lib/skills-contract.mjs';
@@ -261,8 +262,8 @@ try {
             verify(errors.length === 0, 'no console or page errors');
             record.passed = true; console.log('ok ' + name); continue;
           }
-          const custom = ['ensemble', 'metarl', 'skew', 'skills', 'rare', 'vpo', 'supermimic', 'thaw', 'rewardfit', 'goals'].includes(id);
-          const scene = page.locator(id === 'ensemble' ? '#ensemble-scene' : id === 'metarl' ? '#metarl-stage' : id === 'skew' ? '#skew-stage' : id === 'skills' ? '#skills-stage' : id === 'rare' ? '#rare-stage' : id === 'goals' ? '#goals-scene' : id === 'rewardfit' ? '#rewardfit-scene' : id === 'thaw' ? '#thaw-scene' : custom ? '#custom-stage' : '#stage').first();
+          const custom = ['replan', 'ensemble', 'metarl', 'skew', 'skills', 'rare', 'vpo', 'supermimic', 'thaw', 'rewardfit', 'goals'].includes(id);
+          const scene = page.locator(id === 'replan' ? '#replan-stage' : id === 'ensemble' ? '#ensemble-scene' : id === 'metarl' ? '#metarl-stage' : id === 'skew' ? '#skew-stage' : id === 'skills' ? '#skills-stage' : id === 'rare' ? '#rare-stage' : id === 'goals' ? '#goals-scene' : id === 'rewardfit' ? '#rewardfit-scene' : id === 'thaw' ? '#thaw-scene' : custom ? '#custom-stage' : '#stage').first();
           verify(await scene.isVisible(), 'baseline scene visible before Run');
           record.before = await scene.evaluate(e => ({ tag: e.tagName, width: e.getBoundingClientRect().width, height: e.getBoundingClientRect().height, label: e.getAttribute('aria-label') }));
           verify(record.before.width > 0 && record.before.height > 0, 'scene has nonzero dimensions');
@@ -271,7 +272,10 @@ try {
           if (!custom) verify(await page.evaluate(() => bellman.record() === null && document.querySelector('#stage').dataset.world === bellman.state().world), 'fresh level has its actual world and no previous record');
           const button = custom ? `#${id}-run` : '#run-btn';
           if (id !== 'rare') await page.locator(button).click();
-          if (id === 'skew') {
+          if (id === 'replan') {
+            record.measured = await replayReplan(page);
+            record.result = await page.locator('#replan-metrics').innerText();
+          } else if (id === 'skew') {
             await skewReplay(page, out, name, verify);
             record.stage = 'skew-replay';
             record.result = await page.locator('#skew-results').innerText();
