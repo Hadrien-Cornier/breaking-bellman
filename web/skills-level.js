@@ -115,7 +115,14 @@
     const scene = h('section.card.stack', { id: 'skills-scene', 'data-world': 'skills', 'aria-label': 'Measured room visits and policy updates' });
     const body = h('section.card.stack', { id: 'skills-lesson' });
     const evidence = h('section.card.stack', { id: 'skills-evidence' });
-    pane.append(scene, body); lab.replaceChildren(evidence);
+    const shell = hooks.shell;
+    if (shell) {
+      lab.replaceChildren(scene);
+      pane.append(body);
+      shell.notebook('autopsy').replaceChildren(evidence);
+    } else {
+      pane.append(scene, body); lab.replaceChildren(evidence);
+    }
     let pred = hooks.answer?.('skills-p')?.choice ?? null;
     let diag = hooks.answer?.('skills-d')?.choice ?? null;
     let explain = hooks.answer?.('skills-x')?.choice ?? null;
@@ -134,6 +141,13 @@
       return node;
     };
     const sketch = () => {
+      if (shell) return shell.conceptSketch({
+        label: 'Visits inform a reward; updates change a policy.',
+        nodes: [{ id: 'visits', label: 'Visit counts', x: 50, y: 60 },
+          { id: 'reward', label: 'Reward', x: 160, y: 60 },
+          { id: 'policy', label: 'Action probabilities', x: 270, y: 60 }],
+        edges: [{ from: 'visits', to: 'reward' }, { from: 'reward', to: 'policy' }],
+      });
       const box = h('figure.concept');
       box.innerHTML = '<svg viewBox="0 0 360 70" role="img" aria-label="Visits inform the reward, which changes action probabilities"><g fill="none" stroke="currentColor" stroke-width="2"><path d="M5 10h85v45H5z M130 10h85v45h-85z M255 10h100v45H255z M92 32h35m-8-6 8 6-8 6 M217 32h35m-8-6 8 6-8 6"/></g><g fill="currentColor" font-size="13" text-anchor="middle"><text x="47" y="37">Visit counts</text><text x="172" y="37">Reward</text><text x="305" y="30">Action</text><text x="305" y="46">probabilities</text></g></svg><figcaption>Concept sketch: visits inform a reward; updates change a policy.</figcaption>';
       return box;
@@ -228,7 +242,25 @@
         const next = hooks.next?.();
         if (hooks.done?.() && next) kids.push(h('button.btn', { type: 'button', id: 'skills-next', onclick: () => hooks.openNext?.() }, 'Next level: ' + next.title));
       }
-      body.replaceChildren(...kids);
+      if (shell) {
+        // Completed teaching stays mounted in Notes with its stable question ids.
+        // Only the current question occupies the shell's active teaching card.
+        const intro = kids.splice(0, 5);
+        shell.notebook('rule').replaceChildren(...intro);
+        const prediction = kids.splice(0, 2);
+        const diagnosis = record ? kids.splice(0, 3) : [];
+        const explanation = kids;
+        const notes = shell.notebook('notes');
+        notes.replaceChildren();
+        if (pred !== 0) body.replaceChildren(...prediction);
+        else {
+          notes.append(...prediction);
+          if (!record) body.replaceChildren(h('h3', { text: 'Sample visits, then update policies' }),
+            h('p', { text: 'Use Run in the scene to collect the trials, then Watch or Step through their measured visits and policy updates.' }));
+          else if (diag !== 1) body.replaceChildren(...diagnosis);
+          else { notes.append(...diagnosis); body.replaceChildren(...explanation); }
+        }
+      } else body.replaceChildren(...kids);
       const result = linked(h('section', { id: 'skills-result' }));
       const details = h('details', null, [h('summary', { text: 'Evidence and assumptions' }),
         h('p', { text: 'Two skills, two rooms, one action per trial. Each trial resets at Start. Visits are sampled from the exploration probabilities, not from the updated policies. There is no external task reward. All methods reuse the same batch. Updates optimize exact expected reward from zero logits, with step size 1 and no action-entropy term.' }),
@@ -242,9 +274,14 @@
           h('thead', null, h('tr', null, ['Method', 'Red', 'Blue'].map(text => h('th', { scope: 'col', text })))),
           h('tbody', null, record.policies.map(p => h('tr', null, [h('th', { scope: 'row', text: p.label }), ...S.SKILLS.map(skill => h('td', { text: num(record.metrics[p.name].policies[skill].pi.west) }))])))]));
         result.append(h('p.small', { text: 'Terminal: ' + record.terminal[method] + '.' }));
-        evidence.append(chart(record), result);
+        if (shell) shell.notebook('curve').replaceChildren(chart(record));
+        else evidence.append(chart(record));
+        evidence.append(result);
         details.append(h('p.small', { text: 'Measured counts: Red West ' + record.sample.counts.red.west + ', East ' + record.sample.counts.red.east + '; Blue West ' + record.sample.counts.blue.west + ', East ' + record.sample.counts.blue.east + '.' }));
-      } else evidence.append(h('p.small', { text: 'Run to collect visits and compare the reward methods.' }));
+      } else {
+        if (shell) shell.notebook('curve').replaceChildren(h('p.small', { text: 'Run to collect visits and compare the reward methods.' }));
+        evidence.append(h('p.small', { text: 'Run to collect visits and compare the reward methods.' }));
+      }
       evidence.append(linked(details));
       paint = () => {
         if (!scene.isConnected) return;
