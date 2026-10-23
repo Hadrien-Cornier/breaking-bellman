@@ -2122,6 +2122,22 @@
         text: busy ? 'Training started. This button unlocks when the run finishes.' : 'Real training in your browser, ' + lv.seeds + ' runs.' }),
     ]);
   }
+  function arrangeLessonSteps(lv, steps) {
+    const history = $('#lesson-notes');
+    history.replaceChildren();
+    for (const previous of [...steps.children].slice(0, -1)) {
+      const title = previous.querySelector('h3').textContent;
+      previous.querySelectorAll('.btn').forEach(button => button.classList.add('ghost'));
+      history.append(h('details', null, [h('summary', { text: previous.querySelector('.num').textContent + ': ' + title }), previous]));
+    }
+    steps.lastElementChild.classList.add('active');
+    history.append(shell.conceptSketch({ label: 'Predict before you run, then diagnose.',
+      nodes: [{ id: 'predict', label: 'Predict', x: 45, y: 60 }, { id: 'run', label: 'Run', x: 160, y: 60 }, { id: 'diagnose', label: 'Diagnose', x: 275, y: 60 }],
+      edges: [{ from: 'predict', to: 'run' }, { from: 'run', to: 'diagnose' }] }));
+    if (lv.id === 'cliff' && (S.lstep[lv.id] || 0) >= 2 && window.BBBACKUP) {
+      history.append(window.BBBACKUP.mount(h));
+    }
+  }
   MODES.campaign = function (pane) {
     if (mapOpen) { campaignMap.mount(pane); return; }
     const lv = C.levels.find((l) => l.id === S.level);
@@ -2181,24 +2197,9 @@
     }
     if (st >= 4 && lv.explain) steps.append(mk(4, 'Explain why it works', mcBlock(lv.explain, () => setStep(lv, 5))));
     if (st >= 5) steps.append(mk(5, 'Your sentence and the published one', consolidation(lv)));
-    const history = $('#lesson-notes');
-    history.replaceChildren();
-    for (const previous of [...steps.children].slice(0, -1)) {
-      const title = previous.querySelector('h3').textContent;
-      previous.querySelectorAll('.btn').forEach(button => button.classList.add('ghost'));
-      history.append(h('details', null, [h('summary', { text: previous.querySelector('.num').textContent + ': ' + title }), previous]));
-    }
-    steps.lastElementChild.classList.add('active');
-    history.append(shell.conceptSketch({ label: 'Predict before you run, then diagnose.',
-      nodes: [{ id: 'predict', label: 'Predict', x: 45, y: 60 }, { id: 'run', label: 'Run', x: 160, y: 60 }, { id: 'diagnose', label: 'Diagnose', x: 275, y: 60 }],
-      edges: [{ from: 'predict', to: 'run' }, { from: 'run', to: 'diagnose' }] }));
+    arrangeLessonSteps(lv, steps);
     card.append(steps);
     pane.append(card);
-    // A direct child of the layout, in front of the columns, so the two tables can sit
-    // side by side. No new campaign step and no new save field.
-    if (lv.id === 'cliff' && st >= 2 && window.BBBACKUP) {
-      history.append(window.BBBACKUP.mount(h));
-    }
   };
   // the reward controls of a level whose repair is the reward
   function rewardPanel(lv) {

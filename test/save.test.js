@@ -11,6 +11,7 @@ function boot(raw, blocked = false) {
   let value = raw;
   const context = vm.createContext({
     C: { cfg: () => ({}), levels: [{ id: 'slots' }] },
+    RLA: { runRecord: require('../web/run-record.js') },
     localStorage: {
       getItem(key) { assert.equal(key, 'breaking-bellman-v1'); if (blocked) throw Error('blocked'); return value; },
       setItem(key, next) { assert.equal(key, 'breaking-bellman-v1'); if (blocked) throw Error('blocked'); value = next; },
