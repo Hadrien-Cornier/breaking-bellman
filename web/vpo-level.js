@@ -8,7 +8,8 @@
     goal: { text: 'Run both learners, inspect sampled preferences and explain why more candidates do not guarantee a VPO win.' } });
   const state = { seed: 101, generations: 240, k: 3, result: null, busy: false, selected: 0, draw: 1, inspected: false, edits: null, answer: '' };
   const f = x => x.toFixed(3), vector = x => '[' + x.map(f).join(', ') + ']';
-  let currentRun = null, redraw = null;
+  let currentRun = null, redraw = null, replay = null, record = null;
+  V.reset = () => { V.cancel(); state.result = null; record = null; };
   V.cancel = () => {
     const ticket = currentRun; currentRun = null;
     if (ticket) { if (ticket.worker) ticket.worker.terminate(); if (ticket.resolve) ticket.resolve(null); }
@@ -21,6 +22,7 @@
   V.run = async () => {
     if (state.busy) return null;
     const ticket = { worker: null, resolve: null }; currentRun = ticket;
+    if (replay) replay.clear(); record = null;
     state.busy = true; state.error = null; state.result = null; state.inspected = false; state.edits = null; state.answer = ''; if (redraw) redraw();
     try {
       const result = await new Promise((resolve, reject) => {
@@ -33,8 +35,10 @@
         worker.postMessage({ seed: state.seed, generations: state.generations });
       });
       if (currentRun !== ticket) return null;
-      state.result = result;
-      return result;
+      const measured = await BB.customRecord.create('vpo', result, window.BB_VPO_VERSION);
+      if (currentRun !== ticket) return null;
+      record = measured; state.result = record.results;
+      return state.result;
     } finally { if (currentRun === ticket) { V.cancel(); if (redraw) redraw(); } }
   };
   function table(h, headings, rows) {
@@ -54,22 +58,25 @@
     element('polyline', { points:route.path.map(([x,y]) => (x*50+25)+','+(y*50+25)).join(' '), fill:'none', stroke:'var(--accent)', 'stroke-width':5, 'stroke-opacity':0.65 });
     const end = route.path[route.path.length-1]; element('circle', { cx:end[0]*50+25, cy:end[1]*50+25, r:8, fill:'var(--accent)' });
     return h('div', null, [svg, h('p.small', { text: route.name + ': reward ' + vector(route.reward) + '. ' + (route.path.length-1) + ' moves. ' + (route.exit ? 'Exit reached.' : 'No exit, so every reward is zero.') }),
-      h('p.small', { text:'S start · E exit · G gold · D diamond · L walkable lava. The line replays the selected route.' })]);
+      h('p.small', { text:'S start · E exit · G gold · D diamond · L walkable lava. The line previews a prewritten route; it is not a learned navigation policy.' })]);
   }
-  V.mount = (pane, lab, { h, complete, done }) => {
+  V.mount = (pane, lab, { h, complete, done, replay: sharedReplay, shell }) => {
+    replay = sharedReplay;
     const lesson = C.levels.find(l => l.id === 'vpo');
     const body = h('div.card.stack', { id:'vpo-lesson' }); pane.append(body);
     redraw = () => {
       if (!body.isConnected) return;
-      const select = (id, label, values, value, change) => h('label.field', { for:id }, [h('span.small', { text:label }), h('select', { id, disabled:state.busy, onchange:e=>{change(+e.target.value);redraw();} }, values.map(([v,text])=>h('option', { value:v, selected:v===value, text })))]);
+      window.ALGO_HELP?.closeReminder();
+      const select = (id, label, values, value, change) => h('label.field', { for:id }, [h('span.small', { text:label }), h('select', { id, style:'min-height:44px;min-width:44px;max-width:100%', disabled:state.busy, onchange:e=>{change(+e.target.value);redraw();} }, values.map(([v,text])=>h('option', { value:v, selected:v===value, text })))]);
+      body.dataset.customResult = '';
       body.replaceChildren(h('div.eyebrow', { text:'Level 18 · Two treasures' }), h('h2', { text:lesson.title }), h('p', { text:lesson.intro }),
         h('h3', { text:'1. Change what earns credit' }),
         h('p', { text:'GRPO: score each route with the mean of its four rewards, then compare it with 11 other tries. VPO (Vector Policy Optimization): draw eight preference directions, score the best of three alternatives for each direction, then average. Compare four sets and give each whole set its group-relative credit.' }),
         h('p', { text:'The sentence changes from “reward this answer” to “reward this set of alternatives”. A preference direction is four nonnegative weights that sum to one. Gold-heavy and diamond-heavy directions can favor different routes.' }),
         h('p.small', { text:'Both learners start with the same uniform policy and sample 12 routes per generation. Later VPO choices see which reward categories earlier alternatives covered. Repeats are allowed. Neither policy sees the sampled weights. This toy trains probabilities over a finite route menu, not individual navigation actions or a language model.' }),
-        h('div.row', null, [select('vpo-seed','Run seed',[[101,'101'],[202,'202'],[303,'303'],[404,'404'],[505,'505']],state.seed,v=>{state.seed=v;state.result=null;}),
-          select('vpo-generations','Training generations',[[120,'120'],[240,'240'],[480,'480']],state.generations,v=>{state.generations=v;state.result=null;}),
-          h('button.btn', { id:'vpo-run', type:'button', disabled:state.busy, onclick:()=>V.run().catch(e=>{state.error=e.message;redraw();}) }, state.busy?'Training both learners…':'Train GRPO and VPO')]),
+        h('div.row', null, [select('vpo-seed','Run seed',[[101,'101'],[202,'202'],[303,'303'],[404,'404'],[505,'505']],state.seed,v=>{state.seed=v;}),
+          select('vpo-generations','Training generations',[[120,'120'],[240,'240'],[480,'480']],state.generations,v=>{state.generations=v;}),
+          h('button.btn', { id:'vpo-run', type:'button', disabled:state.busy, onclick:()=>V.run().catch(e=>{state.error=e.message;redraw();}) }, state.busy?'Training both learners…':'Run GRPO and VPO')]),
         h('p.small', { id:'vpo-source', role:'status', text:state.error || (state.result ? 'Live simulation completed in this page. Seed '+state.result.seed+'. '+state.result.arms[0].candidates+' sampled training routes and '+state.result.arms[0].updates+' optimizer passes per learner. '+state.result.milliseconds+' ms.' : 'Live simulation. Fast stored results belong to the other lessons. No winner is required here.') }),
         h('a', { href:'#vpo-lab', text:'Jump to route map and rules' }),
         h('h3', { text:'2. Inspect alternatives and preferences' }),
@@ -97,7 +104,7 @@
       } else body.append(h('p.small', { text:'Train both learners to inspect their actual sampled routes and updates.' }));
       body.append(h('h3', { text:'3. Read the measured comparison' }), reference(h),
         h('p', { text:'Which conclusion follows? More alternatives can help search, but a vector objective alone does not guarantee an advantage. Your game run may tie or favor either learner.' }),
-        h('label.field', { for:'vpo-answer' }, [h('span.small', { text:'Explain the result' }), h('select', { id:'vpo-answer', onchange:e=>{state.answer=e.target.value;redraw();} }, [
+        h('label.field', { for:'vpo-answer' }, [h('span.small', { text:'Explain the result' }), h('select', { id:'vpo-answer', style:'min-height:44px;min-width:44px;max-width:100%', onchange:e=>{state.answer=e.target.value;redraw();} }, [
           ['','Choose a conclusion'],
           ['win','VPO must win: its set objective makes 30 candidates beat fixed-score GRPO'],
           ['none','Neither method improved: a missed effect-size gate makes the measurements uninformative'],
@@ -110,10 +117,17 @@
             : 'The measured result supports a search benefit for both learners. It does not establish that the vector set objective caused VPO to outperform GRPO.' }) : null,
         h('button.btn', { id:'vpo-complete', type:'button', disabled:!state.result||!state.inspected||state.answer!=='evidence', onclick:()=>{complete();redraw();} }, done()?'Lesson complete':'I compared both learners and inspected preferences'),
         h('p.small', { text:'To finish, train both learners, sample preference directions and explain the evidence. Completing this lesson does not require VPO to win.' }));
-      lab.replaceChildren(h('section.card.game-rules', { id:'vpo-rules' }, [h('h3', { text:'Game rules · Two treasures' }),
+      replay.park();
+      const scene = BB.customScenes.panel(h, 'vpo');
+      lab.replaceChildren(scene, h('section.card.game-rules', { id:'vpo-rules' }, [h('h3', { text:'Game rules · Two treasures' }),
         h('p', { text:'Goal: offer useful treasure routes. Reward each step: no incremental payment; score the completed route. Equation: r = [exit, gold/3, diamonds/3, 1 - distinct lava/2], or [0,0,0,0] without exit. Episode ends: exit or 14 moves. Score: fixed mean of the four components. Pass this challenge: '+lesson.goal.text })]),
-        h('section.card', null, [h('h3', { text:'Inspect a route' }),map(h), select('vpo-route','Route menu',V.routes.map((r,i)=>[i,r.name]),state.selected,v=>state.selected=v),
+        h('section.card', null, [h('h3', { text:'Predefined route menu, separate from learned selection' }),map(h), select('vpo-route','Route menu',V.routes.map((r,i)=>[i,r.name]),state.selected,v=>state.selected=v),
           h('p.small', { text:'Ten prewritten routes, including failures. The learner chooses among them. This small menu can saturate; ties here do not reproduce the harder held-out experiment.' })]));
+      if (shell) {
+        shell.notebook('rule').replaceChildren(lab.querySelector('#vpo-rules'), ...[...lab.children].filter(x => x !== scene));
+        shell.notebook('notes').replaceChildren(body.querySelector('#vpo-reference'));
+      }
+      replay.mount(scene, record, { seed: state.seed, generations: state.generations });
     };
     redraw();
   };

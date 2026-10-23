@@ -775,6 +775,24 @@
     BB.scenes.atTime(ms, () => sc.frame(ms));
   }
   let adapter = null, sceneTime = 0, scenePolicy = 0, watching = false, replayAnimation = null;
+  // Original comparison lessons share the same replay clock and stable controls.
+  const replayControls = $('#scene-controls'), replayNotice = $('#run-stale');
+  const replayHome = replayControls.parentElement;
+  let customScene = null;
+  const comparisonReplay = {
+    park() { replayHome.append(replayControls, replayNotice); },
+    mount(host, record, settings) {
+      comparisonReplay.park();
+      host.querySelector('[data-replay-controls]').append(replayControls, replayNotice);
+      customScene = { host, settings };
+      if (record && runState.record !== record) { pauseScene(); runState.accept(record); sceneTime = 0; scenePolicy = 0; }
+      if (record) runState.change(record.level, settings);
+      $('label[for="scene-seed"]').textContent = 'Method';
+      $('#scene-seed').replaceChildren(...(record ? record.policies.map((p, i) => h('option', { value: i, text: p.label, selected: i === scenePolicy })) : []));
+      renderStage(); linkRun();
+    },
+    clear() { customScene = null; dropRun(); },
+  };
   function pauseScene() {
     watching = false; cancelAnimationFrame(replayAnimation); cancelAnimationFrame(anim);
     $('#scene-watch').textContent = 'Watch';
@@ -783,6 +801,7 @@
     const n = adapter && runState.record ? adapter.length(runState.record) : 0;
     $('#scene-position').textContent = n ? 'Replay frame ' + (sceneTime + 1) + ' of ' + n : '';
     $('#stage').dataset.frame = String(sceneTime);
+    if (customScene) customScene.host.dataset.frame = String(sceneTime);
   }
   function makeSceneAdapter() {
     const world = S.world, policy = scenePolicy;
@@ -815,6 +834,16 @@
   }
   function renderStage() {
     markRunStale(); pauseScene();
+    if (customActive() && customScene) {
+      adapter = BB.customScenes.create(S.world, scenePolicy, customScene.host);
+      adapter.mount(customScene.host);
+      if (runState.record) {
+        sceneTime = Math.min(sceneTime, adapter.length(runState.record) - 1);
+        adapter.draw(runState.record, sceneTime);
+        $('#scene-policy').textContent = runState.record.policies[scenePolicy].label;
+      }
+      linkRun(); scenePosition(); return;
+    }
     if (!RLA.worlds[S.world]) return;
     renderRules();
     adapter = makeSceneAdapter(); adapter.mount($('#stage'));
@@ -839,7 +868,7 @@
     let last = 0;
     const tick = ts => {
       if (!watching) return;
-      if (stageSeen && ts - last >= 40) {
+      if ((customScene ? customScene.host.getBoundingClientRect().bottom > 0 && customScene.host.getBoundingClientRect().top < innerHeight : stageSeen) && ts - last >= (customScene ? 100 : 40)) {
         last = ts; sceneTime = Math.min(n - 1, sceneTime + 1);
         adapter.draw(runState.record, sceneTime); scenePosition();
         if (sceneTime === n - 1) { pauseScene(); return; }
@@ -1054,7 +1083,7 @@
   }
   function linkRun() {
     const record = runState.record;
-    for (const el of $$('#stage, #charts, #charts canvas, #run-result, #symptoms, #expert, #wonder, #run-source')) {
+    for (const el of $$('#stage, #charts, #charts canvas, #run-result, #symptoms, #expert, #wonder, #run-source, [data-custom-scene], [data-custom-scene] canvas, [data-caption], [data-readout], [data-accounting], [data-custom-result]')) {
       if (record) { if (!el.dataset.interactive) el.dataset.run = record.id; el.dataset.stale = String(runState.stale); }
       else { delete el.dataset.run; delete el.dataset.stale; }
     }
@@ -1062,6 +1091,11 @@
     $('#scene-controls').hidden = !record;
   }
   function markRunStale() {
+    if (customActive() && customScene && runState.record) {
+      runState.change(S.level, customScene.settings);
+      if (runState.stale) pauseScene();
+      linkRun(); return;
+    }
     if (!runState.record || !RLA.worlds[S.world]) return;
     runState.change(S.mode === 'campaign' ? S.level : S.mode, recordConfig());
     if (runState.stale) { pauseScene(); $('#run-btn').disabled = false; }
@@ -2115,7 +2149,7 @@
     S.focus = lv.focus;
     if (lv.custom) {
       const api = lv.id === 'supermimic' ? BBSUPERMIMIC : BBVPO;
-      api.mount(pane, $('#vpo-lab'), { h, done: () => S.done.includes(lv.id), complete: () => {
+      api.mount(pane, $('#vpo-lab'), { h, replay: comparisonReplay, done: () => S.done.includes(lv.id), complete: () => {
         if (!S.done.includes(lv.id)) S.done.push(lv.id); S.lstep[lv.id] = 5; save(); updateScore();
       }, known: id => S.found.includes(id) || S.given.includes(id), reveal: id => {
         if (!S.given.includes(id)) {
@@ -2269,7 +2303,10 @@
   let enteredLevel = null;
   function enterLevel(lv, forceStart) {
     if (enteredLevel !== lv.id) {
-      cancelRun(); dropRun(); S.pinA = null; enteredLevel = lv.id;
+      cancelRun(); comparisonReplay.park(); customScene = null; dropRun();
+      BBVPO.reset?.(); BBSUPERMIMIC.reset?.();
+      $('label[for="scene-seed"]').textContent = 'Replay seed';
+      S.pinA = null; enteredLevel = lv.id;
       S.world = lv.world; S.knobs = Object.assign({}, lv.knobs || {});
       if (!lv.custom) { budgetOptions(); renderStage(); }
     }
@@ -3051,6 +3088,8 @@
     if (oldBackup) oldBackup.remove();
     $$('#tabs button').forEach((b) => b.setAttribute('aria-selected', b.dataset.mode === S.mode ? 'true' : 'false'));
     mounts = mounts.filter((m) => m.permanent);
+    comparisonReplay.park();
+    if (!customActive() || mapOpen) { customScene = null; pauseScene(); }
     const pane = $('#mode-pane'); pane.replaceChildren();
     S.afterRun = null; S.onPartsChange = null;
     if (!vpoActive()) BBVPO.cancel();
@@ -3093,7 +3132,7 @@
   window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', () => pauseScene());
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
     renderStage();
-    if (runState.record) renderCharts(null, true);
+    if (runState.record && !customActive()) renderCharts(null, true);
   });
   $('#copy-page-btn').addEventListener('click', copyPage);
   // redraw on a real width change only: phones fire resize when the address bar hides, and a redraw restarts the replay

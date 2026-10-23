@@ -104,20 +104,24 @@
     const r = reference(t);
     return [r.q + random.uniform(-0.45, 0.45), r.v + random.uniform(-0.6, 0.6)];
   }
-  function evaluate(theta, step, seed = 9001, episodes = 12, horizon = 100) {
+  function evaluate(theta, step, seed = 9001, episodes = 12, horizon = 100, record = false) {
     const random = rngApi.make(seed);
     let total = 0, outside = 0, actions = 0;
+    const trace = [];
     for (let ep = 0; ep < episodes; ep++) {
       let t = random.int(300), state = startState(random, t), sum = 0;
+      if (record) trace.push({ t: trace.length, episode: ep, step: 0, clock: t, obs: state.slice(), reference: reference(t), action: null, reward: 0, kind: 'reset' });
       for (let k = 0; k < horizon; k++, t++) {
         const action = actionOf(theta, state, t);
         if (Math.abs(action) > 0.35) outside++;
         actions++;
-        state = step(state, action); sum += reward(state, action, t + 1);
+        const before = state.slice();
+        state = step(state, action); const r = reward(state, action, t + 1); sum += r;
+        if (record) trace.push({ t: trace.length, episode: ep, step: k + 1, clock: t + 1, before, obs: state.slice(), reference: reference(t + 1), action, reward: r, kind: 'transition', terminal: k === horizon - 1 ? 'evaluation horizon' : null });
       }
       total += sum / horizon;
     }
-    return { score: total / episodes, outsideSupport: outside / actions };
+    return { score: total / episodes, outsideSupport: outside / actions, steps: actions, attempts: episodes, ...(record ? { trace } : {}) };
   }
   function fitCritic(theta, step, random, episodes = 12, horizon = 55) {
     const xs = [], ys = [];
@@ -266,13 +270,16 @@
     return { steps, physicsMs, modelMs, physicsStepsPerSecond: 1000 * steps / physicsMs, modelStepsPerSecond: 1000 * steps / modelMs, checksum };
   }
   function summarize(name, train, model, seed) {
-    const physics = evaluate(train.theta, trueStep, seed + 7000), surrogate = evaluate(train.theta, model.step, seed + 7000);
+    const physics = evaluate(train.theta, trueStep, seed + 7000, 12, 100, true), surrogate = evaluate(train.theta, model.step, seed + 7000);
     return {
       name, optimizer: train.gradient, trainingSteps: train.sampledSteps, updates: train.updates, trainMs: train.trainMs,
       initialPhysicsScore: train.initial, physicsScore: physics.score, surrogateScore: surrogate.score,
       surrogateMinusPhysics: surrogate.score - physics.score, outsideSupport: surrogate.outsideSupport,
       trueGainPer1000Steps: 1000 * (physics.score - train.initial) / train.sampledSteps,
-      modelId: model.id, curve: train.curves,
+      modelId: model.id, curve: train.curves, evaluation: physics,
+      accounting: { training: { steps: train.sampledSteps, attempts: train.updates * (train.gradient.startsWith('likelihood') ? 12 : 23) },
+        diagnostics: { steps: (train.curves.length + 1) * 800, attempts: (train.curves.length + 1) * 8 },
+        evaluation: { steps: physics.steps, attempts: physics.attempts }, surrogate: { steps: surrogate.steps, attempts: surrogate.attempts } },
     };
   }
   function compare(seed = 178, scale = 1) {
