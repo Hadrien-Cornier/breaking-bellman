@@ -179,10 +179,10 @@
       }, [h('span', { text }), state.answer === value ? h('span.why', { role: 'status', text: feedback[value] }) : null]))),
     ]);
   }
-  M.mount = (pane, lab, { h, complete, done, known, reveal }) => {
+  M.mount = (pane, lab, { h, complete, done, known, reveal, shell }) => {
     sourceKnown = known || (() => false);
     revealSource = reveal || (() => {});
-    const lesson = C.levels.find(l => l.id === 'supermimic'), body = h('div.card.stack', { id: 'supermimic-lesson' });
+    const lesson = C.levels.find(l => l.id === 'supermimic'), body = h('div.card.stack.teaching-card', { id: 'supermimic-lesson' });
     pane.append(body);
     redraw = () => {
       if (!body.isConnected) return;
@@ -225,6 +225,29 @@
             h('div.rules-row', null, [h('dt', { text: 'Pass this challenge' }), h('dd', { text: lesson.goal.text })]),
           ]),
         ]));
+      if (shell) {
+        body.classList.add('teaching-card');
+        shell.notebook('rule').replaceChildren(lab.querySelector('#supermimic-rules'));
+        shell.notebook('notes').replaceChildren(shortHorizon(h));
+        if (state.result) {
+          shell.notebook('curve').replaceChildren(body.querySelector('#supermimic-rollout'), body.querySelector('#supermimic-gradients'));
+          body.querySelector('#supermimic-horizon')?.remove();
+          const runButton = body.querySelector('#supermimic-run'); runButton.classList.add('ghost');
+          shell.notebook('rule').append(runButton.parentElement);
+          const exploit = body.querySelector('#supermimic-exploit');
+          if (state.inspected) shell.notebook('autopsy').replaceChildren(exploit);
+          else {
+            shell.notebook('autopsy').replaceChildren(h('p', { text: state.result.exploit.cause }));
+            exploit.querySelector('button').classList.remove('ghost');
+            const quiz = exploit.nextElementSibling;
+            if (quiz) shell.notebook('notes').append(quiz);
+            const finish = body.querySelector('#supermimic-complete'); shell.notebook('notes').append(finish);
+          }
+        } else {
+          shell.notebook('curve').replaceChildren(h('p.small', { text: 'Run the comparison to train and evaluate all three policies.' }));
+          shell.notebook('autopsy').replaceChildren(h('p.small', { text: 'Run the comparison to train and evaluate all three policies.' }));
+        }
+      }
     };
     redraw();
   };
