@@ -52,7 +52,8 @@ test('dormant parents do not lock roots or require unknown saved ids', () => {
   assert.equal(graph.status('mixed', ['offline']), 'open');
   assert.equal(graph.status('goals', ['goals']), null);
   assert.equal(graph.status('unknown', []), null);
-  assert(!graph.activeEdges.some(e => e.from === 'goals' || e.to === 'rare'));
+  assert(!graph.activeEdges.some(e => e.from === 'goals'));
+  assert.deepEqual(plain(graph.parents('rare')), ['slots', 'cliff']);
 });
 
 test('both endpoints must be registered; returning a parent or child wakes only its settled links', () => {
