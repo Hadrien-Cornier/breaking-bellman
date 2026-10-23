@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process';
 const [proof,url='http://127.0.0.1:8766/']=process.argv.slice(2);
 if(!proof)throw Error('Pass an external proof directory');
 fs.mkdirSync(proof,{recursive:true});
-const env={...process.env,CHROME_DEVTOOLS_AXI_SESSION:'bb-vpo-level156'};
+const env={...process.env,CHROME_DEVTOOLS_AXI_SESSION:process.env.CHROME_DEVTOOLS_AXI_SESSION||'bb-vpo-level156'};
 function cli(...args){return execFileSync('chrome-devtools-axi',args,{encoding:'utf8',env,timeout:60000,maxBuffer:2**22});}
 function evaluate(js){const t=cli('eval',js),m=t.match(/^result: (.+)$/m);if(!m)throw Error(t);const r=JSON.parse(m[1]);return typeof r==='string'?JSON.parse(r):r;}
 function check(ok,text){if(!ok)throw Error(text);console.log('ok '+text);}
