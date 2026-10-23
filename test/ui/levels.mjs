@@ -264,8 +264,8 @@ try {
             verify(errors.length === 0, 'no console or page errors');
             record.passed = true; console.log('ok ' + name); continue;
           }
-          const custom = ['metarl', 'skew', 'skills', 'rare', 'vpo', 'supermimic', 'thaw', 'rewardfit', 'goals'].includes(id);
-          const scene = page.locator(id === 'metarl' ? '#metarl-stage' : id === 'skew' ? '#skew-stage' : id === 'skills' ? '#skills-stage' : id === 'rare' ? '#rare-stage' : id === 'goals' ? '#goals-scene' : id === 'rewardfit' ? '#rewardfit-scene' : id === 'thaw' ? '#thaw-scene' : custom ? '#custom-stage' : '#stage').first();
+          const custom = ['ensemble', 'metarl', 'skew', 'skills', 'rare', 'vpo', 'supermimic', 'thaw', 'rewardfit', 'goals'].includes(id);
+          const scene = page.locator(id === 'ensemble' ? '#ensemble-scene' : id === 'metarl' ? '#metarl-stage' : id === 'skew' ? '#skew-stage' : id === 'skills' ? '#skills-stage' : id === 'rare' ? '#rare-stage' : id === 'goals' ? '#goals-scene' : id === 'rewardfit' ? '#rewardfit-scene' : id === 'thaw' ? '#thaw-scene' : custom ? '#custom-stage' : '#stage').first();
           verify(await scene.isVisible(), 'baseline scene visible before Run');
           record.before = await scene.evaluate(e => ({ tag: e.tagName, width: e.getBoundingClientRect().width, height: e.getBoundingClientRect().height, label: e.getAttribute('aria-label') }));
           verify(record.before.width > 0 && record.before.height > 0, 'scene has nonzero dimensions');
