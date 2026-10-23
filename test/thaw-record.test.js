@@ -5,7 +5,7 @@ const T = require('../src/agents/thaw.js');
 const { create } = require('../web/thaw-record.js');
 const fast = require('../scripts/fast-source.js');
 const fs = require('node:fs');
-const cp = require('node:child_process');
+const { createHash } = require('node:crypto');
 for (const inertia of [1, 2]) for (const updates of [5, 20]) test(`all Thaw samples match engine and dynamics at inertia ${inertia}, ${updates} updates`, async () => {
   const r = await create({ inertia, updates });
   assert.deepEqual(r.policies.map(p => p.label), ['Frozen', 'Fine-tune', 'From scratch']);
@@ -53,5 +53,8 @@ test('settings change measurements and identity; long-budget final error differs
 });
 test('returning Thaw does not alter shared Fast semantic inputs', () => {
   const inputs = [...fast.engineFiles, 'web/content.js', 'web/content2.js', 'web/content3.js', 'web/fetch-level.js', 'web/rules.js', 'src/sim/exact.js'];
-  for (const path of inputs) assert.equal(fs.readFileSync(path, 'utf8'), cp.execFileSync('git', ['show', '6253255:' + path], { encoding: 'utf8' }), path);
+  // Pinned to exact slice5 base 6253255963cb6ad211822587921acdc84599db6e.
+  // Hash file names and complete bytes so shallow CI needs no historical Git objects.
+  const bytes = JSON.stringify(inputs.map(path => [path, fs.readFileSync(path, 'utf8')]));
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), '70a1bd78e53dd5eef92f448cb35bd6d07b1bb18fbfa3ab54bc9a6726363fa741');
 });
