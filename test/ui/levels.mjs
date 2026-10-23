@@ -1,6 +1,7 @@
 // All registered lessons: full shared RunRecord replay contract; custom lessons retain their baseline.
 // npm run build && node test/ui/levels.mjs [proof directory] [URL]
 import assert from 'node:assert/strict';
+import { goalExecutionContract } from './lib/goal-execution.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -154,6 +155,15 @@ try {
           await page.locator('#tabs button').last().focus();
           await page.keyboard.press('Tab');
           verify(await page.locator('#campaign-strip button').evaluate(e => e === document.activeElement), 'Tab from header reaches map strip before lesson controls');
+          if (['hindsight', 'hierarchy'].includes(id)) {
+            record.stage = 'goal-execution-replay';
+            record.proof = await goalExecutionContract(page, id, out, name);
+            await page.reload();
+            verify((await stored(page)).level === id, 'chosen stable id persists on reload');
+            if (progress === 'newer') retained(await stored(page), fixture, ids, id);
+            verify(errors.length === 0, 'no console or page errors');
+            record.passed = true; console.log('ok ' + name); continue;
+          }
           const custom = ['vpo', 'supermimic'].includes(id);
           const scene = page.locator(custom ? '#vpo-lab svg' : '#stage').first();
           verify(await scene.isVisible(), 'baseline scene visible before Run');

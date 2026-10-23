@@ -1103,8 +1103,9 @@
   }
   const vpoActive = () => S.mode === 'campaign' && S.level === 'vpo';
   const supermimicActive = () => S.mode === 'campaign' && S.level === 'supermimic';
-  const customActive = () => vpoActive() || supermimicActive();
-  const customApi = () => supermimicActive() ? BBSUPERMIMIC : BBVPO;
+  const goalExecutionActive = () => S.mode === 'campaign' && ['hindsight', 'hierarchy'].includes(S.level);
+  const customActive = () => vpoActive() || supermimicActive() || goalExecutionActive();
+  const customApi = () => S.level === 'hindsight' ? BBHINDSIGHT : S.level === 'hierarchy' ? BBHIERARCHY : supermimicActive() ? BBSUPERMIMIC : BBVPO;
   async function run() {
     if (customActive()) return customApi().run();
     if (S.running) return null;
@@ -2114,8 +2115,12 @@
     const lv = C.levels.find((l) => l.id === S.level);
     S.focus = lv.focus;
     if (lv.custom) {
-      const api = lv.id === 'supermimic' ? BBSUPERMIMIC : BBVPO;
-      api.mount(pane, $('#vpo-lab'), { h, done: () => S.done.includes(lv.id), complete: () => {
+      const api = customApi();
+      api.mount(pane, $('#vpo-lab'), { h,
+        step: () => S.lstep[lv.id] || 0, markStep: n => { S.lstep[lv.id] = Math.max(S.lstep[lv.id] || 0, n); save(); },
+        answer: id => S.answers[id], recordAnswer: (id, choice, correct) => { S.answers[id] = { choice, correct }; save(); },
+        next: () => C.levels[C.levels.indexOf(lv) + 1], openNext: () => { const next = C.levels[C.levels.indexOf(lv) + 1]; if (next) chooseLevel(next.id); },
+        done: () => S.done.includes(lv.id), complete: () => {
         if (!S.done.includes(lv.id)) S.done.push(lv.id); S.lstep[lv.id] = 5; save(); updateScore();
       }, known: id => S.found.includes(id) || S.given.includes(id), reveal: id => {
         if (!S.given.includes(id)) {
@@ -2269,6 +2274,8 @@
   let enteredLevel = null;
   function enterLevel(lv, forceStart) {
     if (enteredLevel !== lv.id) {
+      if (enteredLevel === 'hindsight') BBHINDSIGHT.cancel();
+      if (enteredLevel === 'hierarchy') BBHIERARCHY.cancel();
       cancelRun(); dropRun(); S.pinA = null; enteredLevel = lv.id;
       S.world = lv.world; S.knobs = Object.assign({}, lv.knobs || {});
       if (!lv.custom) { budgetOptions(); renderStage(); }
@@ -2871,8 +2878,8 @@
         : supermimicActive() ? [{ label: 'Short-horizon objective', tex: 'J_H = sum_{t=0}^{H-1} gamma^t r_t + gamma^H V(s_H)' }]
           : texLines(Object.assign({}, S.parts, parts || {}), world || S.world).map(([label, tex]) => ({ label, tex })),
       state: () => labState(),
-      record: () => runState.record,
-      replay: () => ({ time: sceneTime, watching, stale: runState.stale, world: adapter && adapter.world,
+      record: () => goalExecutionActive() ? customApi().record() : runState.record,
+      replay: () => goalExecutionActive() ? customApi().replay() : ({ time: sceneTime, watching, stale: runState.stale, world: adapter && adapter.world,
         length: adapter && runState.record ? adapter.length(runState.record) : 0 }),
       levels: () => C.levels.map((l) => { const i = levelInfo(l); return { n: i.n, id: i.id, title: i.title, world: i.world, done: i.done, step: i.step }; }),
       level: (which) => {
@@ -3053,6 +3060,8 @@
     mounts = mounts.filter((m) => m.permanent);
     const pane = $('#mode-pane'); pane.replaceChildren();
     S.afterRun = null; S.onPartsChange = null;
+    if (!goalExecutionActive() || S.level !== 'hindsight') BBHINDSIGHT.cancel();
+    if (!goalExecutionActive() || S.level !== 'hierarchy') BBHIERARCHY.cancel();
     if (!vpoActive()) BBVPO.cancel();
     if (!supermimicActive()) BBSUPERMIMIC.cancel();
     const mapping = S.mode === 'campaign' && mapOpen;
