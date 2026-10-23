@@ -1,0 +1,212 @@
+{
+  "source": "bb-redesign206/proto/shared.js: settled SH.WORLDS, SH.EDGES and SH.LEVELS",
+  "worlds": [
+    [
+      "w1",
+      "Trial and error"
+    ],
+    [
+      "w2",
+      "Push the policy"
+    ],
+    [
+      "w3",
+      "Smooth moves"
+    ],
+    [
+      "w4",
+      "Learn from data"
+    ],
+    [
+      "w5",
+      "Robot frontier"
+    ],
+    [
+      "w6",
+      "Plans and goals"
+    ]
+  ],
+  "edges": [
+    [
+      "slots",
+      "cliff",
+      "many steps"
+    ],
+    [
+      "cliff",
+      "careful",
+      "falls"
+    ],
+    [
+      "cliff",
+      "cells",
+      "too many cells"
+    ],
+    [
+      "cells",
+      "explode",
+      "triad"
+    ],
+    [
+      "cliff",
+      "mirage",
+      "max bias"
+    ],
+    [
+      "slots",
+      "rare",
+      "bonus for few tries"
+    ],
+    [
+      "cliff",
+      "rare",
+      "sparse reward"
+    ],
+    [
+      "cliff",
+      "credit",
+      "learn the policy"
+    ],
+    [
+      "credit",
+      "bigsteps",
+      "big steps"
+    ],
+    [
+      "bigsteps",
+      "passfail",
+      "end reward"
+    ],
+    [
+      "credit",
+      "fetch",
+      "shape the reward"
+    ],
+    [
+      "explode",
+      "continuous",
+      "continuous actions"
+    ],
+    [
+      "mirage",
+      "continuous",
+      "the min of two"
+    ],
+    [
+      "continuous",
+      "explore",
+      "stops exploring"
+    ],
+    [
+      "explore",
+      "elbo",
+      "soft optimality"
+    ],
+    [
+      "elbo",
+      "messages",
+      "infer the plan"
+    ],
+    [
+      "continuous",
+      "offline",
+      "extrapolation"
+    ],
+    [
+      "goals",
+      "mixed",
+      "bad demos"
+    ],
+    [
+      "offline",
+      "mixed",
+      "unseen actions"
+    ],
+    [
+      "mixed",
+      "thaw",
+      "a few fresh steps"
+    ],
+    [
+      "goals",
+      "rewardfit",
+      "no reward given"
+    ],
+    [
+      "goals",
+      "twoways",
+      "two ways"
+    ],
+    [
+      "twoways",
+      "pick",
+      "no reward"
+    ],
+    [
+      "explore",
+      "residual",
+      "from scratch"
+    ],
+    [
+      "fetch",
+      "vpo",
+      "many rewards"
+    ],
+    [
+      "bigsteps",
+      "supermimic",
+      "learn the physics"
+    ],
+    [
+      "supermimic",
+      "replan",
+      "model errors add up"
+    ],
+    [
+      "goals",
+      "hindsight",
+      "missed goals"
+    ],
+    [
+      "hindsight",
+      "hierarchy",
+      "long goals"
+    ],
+    [
+      "rare",
+      "skills",
+      "reward without a task"
+    ]
+  ],
+  "levelWorlds": {
+    "slots": "w1",
+    "cliff": "w1",
+    "careful": "w1",
+    "mirage": "w1",
+    "cells": "w1",
+    "rare": "w1",
+    "explode": "w1",
+    "credit": "w2",
+    "bigsteps": "w2",
+    "fetch": "w2",
+    "passfail": "w2",
+    "continuous": "w3",
+    "explore": "w3",
+    "elbo": "w3",
+    "messages": "w3",
+    "goals": "w4",
+    "offline": "w4",
+    "mixed": "w4",
+    "rewardfit": "w4",
+    "thaw": "w4",
+    "residual": "w5",
+    "twoways": "w5",
+    "pick": "w5",
+    "supermimic": "w6",
+    "vpo": "w6",
+    "hindsight": "w6",
+    "skills": "w6",
+    "replan": "w6",
+    "hierarchy": "w6"
+  }
+}
