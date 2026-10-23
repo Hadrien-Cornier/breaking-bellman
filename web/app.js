@@ -1103,8 +1103,9 @@
   }
   const vpoActive = () => S.mode === 'campaign' && S.level === 'vpo';
   const supermimicActive = () => S.mode === 'campaign' && S.level === 'supermimic';
-  const customActive = () => vpoActive() || supermimicActive();
-  const customApi = () => supermimicActive() ? BBSUPERMIMIC : BBVPO;
+  const skillsActive = () => S.mode === 'campaign' && S.level === 'skills';
+  const customActive = () => vpoActive() || supermimicActive() || skillsActive();
+  const customApi = () => skillsActive() ? BBSKILLS_LEVEL : supermimicActive() ? BBSUPERMIMIC : BBVPO;
   async function run() {
     if (customActive()) return customApi().run();
     if (S.running) return null;
@@ -2114,8 +2115,15 @@
     const lv = C.levels.find((l) => l.id === S.level);
     S.focus = lv.focus;
     if (lv.custom) {
-      const api = lv.id === 'supermimic' ? BBSUPERMIMIC : BBVPO;
-      api.mount(pane, $('#vpo-lab'), { h, done: () => S.done.includes(lv.id), complete: () => {
+      const api = customApi();
+      api.mount(pane, $('#vpo-lab'), { h,
+        answer: id => S.answers[id],
+        recordAnswer: (id, choice, correct) => { if (!S.answers[id]) S.answers[id] = { choice, correct }; save(); },
+        step: () => S.lstep[lv.id] || 0,
+        markStep: n => { S.lstep[lv.id] = Math.max(S.lstep[lv.id] || 0, n); save(); },
+        next: () => C.levels[C.levels.indexOf(lv) + 1],
+        openNext: () => { const next = C.levels[C.levels.indexOf(lv) + 1]; if (next) chooseLevel(next.id); },
+        done: () => S.done.includes(lv.id), complete: () => {
         if (!S.done.includes(lv.id)) S.done.push(lv.id); S.lstep[lv.id] = 5; save(); updateScore();
       }, known: id => S.found.includes(id) || S.given.includes(id), reveal: id => {
         if (!S.given.includes(id)) {
@@ -2269,7 +2277,7 @@
   let enteredLevel = null;
   function enterLevel(lv, forceStart) {
     if (enteredLevel !== lv.id) {
-      cancelRun(); dropRun(); S.pinA = null; enteredLevel = lv.id;
+      cancelRun(); dropRun(); BBSKILLS_LEVEL.clear(); S.pinA = null; enteredLevel = lv.id;
       S.world = lv.world; S.knobs = Object.assign({}, lv.knobs || {});
       if (!lv.custom) { budgetOptions(); renderStage(); }
     }
@@ -2871,8 +2879,8 @@
         : supermimicActive() ? [{ label: 'Short-horizon objective', tex: 'J_H = sum_{t=0}^{H-1} gamma^t r_t + gamma^H V(s_H)' }]
           : texLines(Object.assign({}, S.parts, parts || {}), world || S.world).map(([label, tex]) => ({ label, tex })),
       state: () => labState(),
-      record: () => runState.record,
-      replay: () => ({ time: sceneTime, watching, stale: runState.stale, world: adapter && adapter.world,
+      record: () => skillsActive() ? BBSKILLS_LEVEL.record() : runState.record,
+      replay: () => skillsActive() ? BBSKILLS_LEVEL.replay() : ({ time: sceneTime, watching, stale: runState.stale, world: adapter && adapter.world,
         length: adapter && runState.record ? adapter.length(runState.record) : 0 }),
       levels: () => C.levels.map((l) => { const i = levelInfo(l); return { n: i.n, id: i.id, title: i.title, world: i.world, done: i.done, step: i.step }; }),
       level: (which) => {
@@ -3056,6 +3064,7 @@
     if (!vpoActive()) BBVPO.cancel();
     if (!supermimicActive()) BBSUPERMIMIC.cancel();
     const mapping = S.mode === 'campaign' && mapOpen;
+    if (!skillsActive() || mapping) BBSKILLS_LEVEL.cancel();
     if (!mapping && !customActive() && !RLA.worlds[S.world]) setWorld(C.families[fam(S.parts)].worlds[0]);
     document.querySelector('main.layout').classList.toggle('mapping', mapping);
     $('#lab').hidden = mapping || customActive(); $('#vpo-lab').hidden = mapping || !customActive();
