@@ -1103,8 +1103,9 @@
   }
   const vpoActive = () => S.mode === 'campaign' && S.level === 'vpo';
   const supermimicActive = () => S.mode === 'campaign' && S.level === 'supermimic';
-  const customActive = () => vpoActive() || supermimicActive();
-  const customApi = () => supermimicActive() ? BBSUPERMIMIC : BBVPO;
+  const ensembleActive = () => S.mode === 'campaign' && S.level === 'ensemble';
+  const customActive = () => vpoActive() || supermimicActive() || ensembleActive();
+  const customApi = () => ensembleActive() ? BBENSEMBLE_LEVEL : supermimicActive() ? BBSUPERMIMIC : BBVPO;
   async function run() {
     if (customActive()) return customApi().run();
     if (S.running) return null;
@@ -2114,8 +2115,8 @@
     const lv = C.levels.find((l) => l.id === S.level);
     S.focus = lv.focus;
     if (lv.custom) {
-      const api = lv.id === 'supermimic' ? BBSUPERMIMIC : BBVPO;
-      api.mount(pane, $('#vpo-lab'), { h, done: () => S.done.includes(lv.id), complete: () => {
+      const api = lv.id === 'ensemble' ? BBENSEMBLE_LEVEL : lv.id === 'supermimic' ? BBSUPERMIMIC : BBVPO;
+      api.mount(pane, $('#vpo-lab'), { h, step: () => S.lstep[lv.id] || 0, mark: n => { S.lstep[lv.id] = n; save(); }, answer: id => S.answers[id], record: recordAnswer, done: () => S.done.includes(lv.id), complete: () => {
         if (!S.done.includes(lv.id)) S.done.push(lv.id); S.lstep[lv.id] = 5; save(); updateScore();
       }, known: id => S.found.includes(id) || S.given.includes(id), reveal: id => {
         if (!S.given.includes(id)) {
@@ -2871,8 +2872,8 @@
         : supermimicActive() ? [{ label: 'Short-horizon objective', tex: 'J_H = sum_{t=0}^{H-1} gamma^t r_t + gamma^H V(s_H)' }]
           : texLines(Object.assign({}, S.parts, parts || {}), world || S.world).map(([label, tex]) => ({ label, tex })),
       state: () => labState(),
-      record: () => runState.record,
-      replay: () => ({ time: sceneTime, watching, stale: runState.stale, world: adapter && adapter.world,
+      record: () => ensembleActive() ? BBENSEMBLE_LEVEL.record() : runState.record,
+      replay: () => ensembleActive() ? BBENSEMBLE_LEVEL.replay() : ({ time: sceneTime, watching, stale: runState.stale, world: adapter && adapter.world,
         length: adapter && runState.record ? adapter.length(runState.record) : 0 }),
       levels: () => C.levels.map((l) => { const i = levelInfo(l); return { n: i.n, id: i.id, title: i.title, world: i.world, done: i.done, step: i.step }; }),
       level: (which) => {
@@ -3053,6 +3054,7 @@
     mounts = mounts.filter((m) => m.permanent);
     const pane = $('#mode-pane'); pane.replaceChildren();
     S.afterRun = null; S.onPartsChange = null;
+    if (!ensembleActive()) BBENSEMBLE_LEVEL.cancel();
     if (!vpoActive()) BBVPO.cancel();
     if (!supermimicActive()) BBSUPERMIMIC.cancel();
     const mapping = S.mode === 'campaign' && mapOpen;
