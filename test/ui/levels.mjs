@@ -126,6 +126,9 @@ async function customReplayContract(page, proof, verify) {
   const linked = () => page.evaluate(() => [...document.querySelectorAll('[data-custom-scene], [data-custom-scene] canvas, [data-caption], [data-readout], [data-custom-result]')].every(e => e.dataset.run === bellman.record().id && e.dataset.stale === String(bellman.replay().stale)));
   verify(await linked(), 'custom scene, reward chart and results share one record');
   verify(!await page.evaluate(() => document.body.innerText.includes(bellman.record().id)), 'internal record id is not visible');
+  if (!await page.locator('#custom-notebook').evaluate(e => e.open)) await page.locator('#custom-notebook > summary').click();
+  await page.locator('#custom-notebook-tab-rule').click();
+  verify(await page.locator(proof.id === 'vpo' ? '#vpo-generations' : '#supermimic-budget').isVisible(), 'custom settings are visible in Notebook Rule');
   const dimensions = await page.locator('#scene-controls button, #scene-seed, #vpo-run, #supermimic-run, #vpo-generations, #supermimic-budget').evaluateAll(es => es.map(e => ({ id: e.id, w: e.getBoundingClientRect().width, h: e.getBoundingClientRect().height })));
   verify(dimensions.every(d => d.w >= 44 && d.h >= 44), 'custom Run, replay and settings have 44px targets');
   const methods = await page.locator('#scene-seed option').evaluateAll(es => es.map(e => e.value));
@@ -286,6 +289,9 @@ try {
           } else if (id === 'skew') {
             await skewReplay(page, out, name, verify);
             record.stage = 'skew-replay';
+            if (!await page.locator('#custom-notebook').evaluate(e => e.open)) await page.locator('#custom-notebook > summary').click();
+            await page.locator('#custom-notebook-tab-curve').click();
+            verify(await page.locator('#skew-results').isVisible(), 'Skew measured comparison is visible in Notebook Curve');
             record.result = await page.locator('#skew-results').innerText();
             verify(await page.evaluate(() => !!(document.querySelector('#skew-stage').compareDocumentPosition(document.querySelector('#skew-lesson')) & Node.DOCUMENT_POSITION_FOLLOWING)), 'Skew measured scene precedes prediction in DOM');
           } else if (id === 'skills') {
@@ -301,6 +307,10 @@ try {
             await rewardfitContract(page, record, verify, out);
           } else if (id === 'vpo') {
             await page.waitForFunction(() => !document.querySelector('#vpo-run').disabled && document.querySelector('#vpo-source').textContent.includes('Live simulation completed'), null, { timeout: runTimeout });
+            if (!await page.locator('#custom-notebook').evaluate(e => e.open)) await page.locator('#custom-notebook > summary').click();
+            await page.locator('#custom-notebook-tab-notes').click();
+            await page.locator('#custom-notebook-notes details').filter({ has: page.locator('#vpo-source') }).locator('summary').click();
+            verify(await page.locator('#vpo-source').isVisible(), 'VPO measured run status is visible in Notebook Notes');
             record.result = await page.locator('#vpo-source').innerText();
             verify(await page.locator('#vpo-lesson table').count() > 0, 'baseline measured results table exists');
           } else if (id === 'thaw') {
