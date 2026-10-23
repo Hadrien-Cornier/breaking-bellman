@@ -127,7 +127,7 @@
     state.step = hooks.progress?.() || 0;
     state.picked = {};
     for (const q of [level.predict, level.diagnose, level.explain]) { const saved = hooks.answerFor?.(q.id); if (saved) state.picked[q.id] = saved.choice; }
-    const body = h('div.stack.rewardfit', { id: 'rewardfit-lesson' }); pane.append(body);
+    const body = h('div.stack.rewardfit.teaching-card', { id: 'rewardfit-lesson' }); pane.append(body);
     redraw = () => {
       if (!body.isConnected) return;
       const record = state.record, current = record && !state.stale;

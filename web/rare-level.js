@@ -33,7 +33,7 @@
     stop(); dispose();
     const { h, shell } = ctx;
     const scene = h('section.card.stack', { id: 'rare-experiment', 'aria-label': 'Sparse hallway experiment' });
-    const card = h('section.card.stack', { id: 'rare-lesson' });
+    const card = h('section.card.stack.teaching-card', { id: 'rare-lesson' });
     pane.append(card); lab.replaceChildren(scene);
     const sections = {};
     for (const name of ['rule', 'curve', 'autopsy', 'notes']) {

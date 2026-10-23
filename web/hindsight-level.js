@@ -89,7 +89,7 @@
     state.pred = api.answer?.('hindsight-p')?.choice ?? null;
     state.diag = api.answer?.('hindsight-d')?.choice ?? null;
     state.explain = api.answer?.('hindsight-x')?.choice ?? null;
-    const h = api.h, body = h('div.card.stack', { id: 'hindsight-lesson' }); pane.append(body);
+    const h = api.h, body = h('div.card.stack.teaching-card', { id: 'hindsight-lesson' }); pane.append(body);
     let sweeps = playback?.setting || '2';
     const advance = n => api.markStep?.(n);
     H.run = () => {

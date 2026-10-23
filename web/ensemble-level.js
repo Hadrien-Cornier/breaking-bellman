@@ -164,7 +164,7 @@
         const prev = hooks.answer(q.id); if (prev) state.picks[q.id] = prev.choice;
       });
       const h = hooks.h;
-      const body = h('div.card.stack', { id: 'ensemble-lesson' });
+      const body = h('div.card.stack.teaching-card', { id: 'ensemble-lesson' });
       pane.append(body);
       const scene = h('section.card.stack', { id: 'ensemble-scene', 'aria-label': 'Measured aisle experiment' });
       lab.replaceChildren(scene);

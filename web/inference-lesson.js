@@ -182,7 +182,7 @@
       const qIndex = stage < 1 ? 0 : stage < 3 ? 1 : 2;
       const question = spec.questions[qIndex];
       const showQuestion = stage === 0 || stage === 2 || stage >= 4;
-      const card = h('section.card.stack', { id: id + '-lesson' }, [
+      const card = h('section.card.stack.teaching-card', { id: id + '-lesson' }, [
         h('div.eyebrow', { text: 'Inference experiment · ' + (Math.min(stage, 4) + 1) + ' / 5' }),
         h('h2', { text: spec.level.title }), h('p', { text: spec.level.intro }),
         h('h3', { text: ['Predict', 'Run the comparison', 'Diagnose', 'Change and run again', 'Explain'][Math.min(stage, 4)] }),

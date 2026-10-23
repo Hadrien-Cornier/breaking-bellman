@@ -147,7 +147,7 @@
       if (prev) state.picks[q.id] = prev.choice;
     }
     const h = hooks.h, lesson = C.levels.find(l => l.id === 'replan');
-    const body = h('div.card.stack', { id: 'replan-lesson' }); pane.append(body);
+    const body = h('div.card.stack.teaching-card', { id: 'replan-lesson' }); pane.append(body);
     const sceneHost = h('section.card.stack', { id: 'replan-scene', 'aria-label': 'Noisy corridor measured scene' });
     lab.replaceChildren(sceneHost);
     const notebook = section => hooks.shell ? hooks.shell.notebook(section) : null;

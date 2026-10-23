@@ -115,7 +115,7 @@
     state.explain = api.answer?.('hierarchy-x')?.choice ?? null;
     state.sawFailure = (api.step?.() || 0) >= 4;
     let variant = playback?.setting || 'lesson';
-    const h = api.h, body = h('div.card.stack', { id: 'hierarchy-lesson' }); pane.append(body);
+    const h = api.h, body = h('div.card.stack.teaching-card', { id: 'hierarchy-lesson' }); pane.append(body);
     const advance = n => api.markStep?.(n);
     const variants = { lesson: {}, pit: { dynamics: 'pit' }, absolute: { representation: 'absolute' }, far: { subgoals: [H.DOOR, H.FAR] }, short: { budget: 4 }, long: { budget: 24 }, extra: { pretrain: 6 } };
     H.run = () => {

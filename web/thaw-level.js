@@ -107,7 +107,7 @@
   M.mount = (pane, lab, ctx) => {
     pause(); const h = ctx.h;
     if (selected === null) selected = matchMedia('(max-width: 600px)').matches ? 'frozen' : 'all';
-    const body = h('div.card.stack', { id: 'thaw-lesson' }); pane.append(body);
+    const body = h('div.card.stack.teaching-card', { id: 'thaw-lesson' }); pane.append(body);
     const notebooks = {};
     const notebook = section => ctx.shell ? ctx.shell.notebook(section) : (notebooks[section] || (notebooks[section] = h('section.card', { 'data-thaw-notebook': section })));
     const stepOf = ctx.step || (() => 0);

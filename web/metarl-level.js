@@ -147,7 +147,7 @@
       adapter.mount(scene); M.adapter = adapter;
     }
     createAdapter();
-    const body = h('section.card.stack', { id: 'metarl-lesson' }); pane.append(body);
+    const body = h('section.card.stack.teaching-card', { id: 'metarl-lesson' }); pane.append(body);
     const rule = h('div.stack', null, [
       h('h3', { text: 'Rules · Probe doors' }),
       h('p', { text: lesson.intro }),

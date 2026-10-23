@@ -45,7 +45,7 @@
   }
   function mount(pane, lab, ctx) {
     const { h, complete, done, shell } = ctx;
-    const body = h('section.card.stack', { id: 'goals-lesson' }); pane.append(body);
+    const body = h('section.card.stack.teaching-card', { id: 'goals-lesson' }); pane.append(body);
     lab.replaceChildren();
     const stage = h('section.card.stack', { id: 'goals-stage', 'aria-label': 'Measured hallway comparison' });
     const controls = h('div.stack', { id: 'goals-settings' });

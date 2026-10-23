@@ -113,7 +113,7 @@
       document.head.append(css);
     }
     const scene = h('section.card.stack', { id: 'skills-scene', 'data-world': 'skills', 'aria-label': 'Measured room visits and policy updates' });
-    const body = h('section.card.stack', { id: 'skills-lesson' });
+    const body = h('section.card.stack.teaching-card', { id: 'skills-lesson' });
     const evidence = h('section.card.stack', { id: 'skills-evidence' });
     const shell = hooks.shell;
     if (shell) {

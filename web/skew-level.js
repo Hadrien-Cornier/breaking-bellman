@@ -148,7 +148,7 @@
     for (const [key, id] of [['pred', 'skew-p'], ['diag', 'skew-d'], ['explain', 'skew-x']]) {
       const saved = api.answer?.(id); if (state[key] == null && saved) state[key] = saved.choice;
     }
-    const h = api.h, body = h('section.card.stack', { id: 'skew-lesson' });
+    const h = api.h, body = h('section.card.stack.teaching-card', { id: 'skew-lesson' });
     pane.append(body);
     const scene = h('section.card.stack', { id: 'skew-lab' }); lab.replaceChildren(scene);
     const chart = h('section', { id: 'skew-curve' }), results = h('section', { id: 'skew-results' }), evidence = h('section', { id: 'skew-evidence' });

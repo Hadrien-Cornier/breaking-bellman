@@ -26,7 +26,7 @@ try {
       const name = `${width}-${colorScheme}-${progress}-${id}`;
       await page.evaluate(id => bellman.level(id), id);
       const notebook = custom ? '#custom-notebook' : '#notebook';
-      const scene = custom ? '#vpo-lab svg' : '#stage';
+      const scene = ({"vpo": "#custom-stage", "supermimic": "#custom-stage", "thaw": "#thaw-scene", "rewardfit": "#rewardfit-scene", "goals": "#goals-scene", "rare": "#rare-stage", "elbo": "#elbo-scene", "messages": "#messages-scene", "hindsight": "#hindsight-scene", "hierarchy": "#hierarchy-scene", "skills": "#skills-stage", "skew": "#skew-stage", "metarl": "#metarl-scene", "ensemble": "#ensemble-stage", "replan": "#replan-stage"})[id] || '#stage';
       check(await page.locator(scene).first().isVisible(), name + ': scene before prediction');
       check(await page.locator('#mode-pane > .teaching-card').count() === 1, name + ': one teaching card');
       if (!custom) check(await page.locator('#mode-pane .steps > .step').count() === 1, name + ': one current step');
