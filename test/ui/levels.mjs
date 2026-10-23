@@ -1,6 +1,7 @@
 // All registered lessons: full shared RunRecord replay contract; custom lessons retain their baseline.
 // npm run build && node test/ui/levels.mjs [proof directory] [URL]
 import assert from 'node:assert/strict';
+import { replayReplan } from '../helpers/replan-ui.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -137,7 +138,7 @@ try {
         const errors = [];
         page.on('pageerror', e => errors.push(e.message));
         page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-        const record = { name, id, width, height, progress, errors, stage: ['vpo', 'supermimic'].includes(id) ? 'custom-baseline' : 'shared-replay', checks: [] };
+        const record = { name, id, width, height, progress, errors, stage: id === 'replan' ? 'custom-replay' : ['vpo', 'supermimic'].includes(id) ? 'custom-baseline' : 'shared-replay', checks: [] };
         const verify = (ok, text) => { record.checks.push({ text, passed: !!ok }); check(ok, name + ': ' + text); };
         try {
           await seed(page, progress === 'newer' ? fixture : null);
@@ -154,7 +155,7 @@ try {
           await page.locator('#tabs button').last().focus();
           await page.keyboard.press('Tab');
           verify(await page.locator('#campaign-strip button').evaluate(e => e === document.activeElement), 'Tab from header reaches map strip before lesson controls');
-          const custom = ['vpo', 'supermimic'].includes(id);
+          const custom = ['vpo', 'supermimic', 'replan'].includes(id);
           const scene = page.locator(custom ? '#vpo-lab svg' : '#stage').first();
           verify(await scene.isVisible(), 'baseline scene visible before Run');
           record.before = await scene.evaluate(e => ({ tag: e.tagName, width: e.getBoundingClientRect().width, height: e.getBoundingClientRect().height, label: e.getAttribute('aria-label') }));
@@ -168,6 +169,9 @@ try {
             await page.waitForFunction(() => !document.querySelector('#vpo-run').disabled && document.querySelector('#vpo-source').textContent.includes('Live simulation completed'), null, { timeout: runTimeout });
             record.result = await page.locator('#vpo-source').innerText();
             verify(await page.locator('#vpo-lesson table').count() > 0, 'baseline measured results table exists');
+          } else if (id === 'replan') {
+            record.measured = await replayReplan(page);
+            record.result = await page.locator('#replan-metrics').innerText();
           } else if (id === 'supermimic') {
             await page.waitForSelector('#supermimic-gradients', { timeout: runTimeout });
             record.result = await page.locator('#supermimic-gradients').innerText();

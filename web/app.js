@@ -1103,8 +1103,9 @@
   }
   const vpoActive = () => S.mode === 'campaign' && S.level === 'vpo';
   const supermimicActive = () => S.mode === 'campaign' && S.level === 'supermimic';
-  const customActive = () => vpoActive() || supermimicActive();
-  const customApi = () => supermimicActive() ? BBSUPERMIMIC : BBVPO;
+  const replanActive = () => S.mode === 'campaign' && S.level === 'replan';
+  const customActive = () => vpoActive() || supermimicActive() || replanActive();
+  const customApi = () => replanActive() ? BBREPLAN : supermimicActive() ? BBSUPERMIMIC : BBVPO;
   async function run() {
     if (customActive()) return customApi().run();
     if (S.running) return null;
@@ -2114,8 +2115,10 @@
     const lv = C.levels.find((l) => l.id === S.level);
     S.focus = lv.focus;
     if (lv.custom) {
-      const api = lv.id === 'supermimic' ? BBSUPERMIMIC : BBVPO;
-      api.mount(pane, $('#vpo-lab'), { h, done: () => S.done.includes(lv.id), complete: () => {
+      const api = customApi();
+      api.mount(pane, $('#vpo-lab'), { h, step: () => S.lstep[lv.id] || 0, mark: n => { S.lstep[lv.id] = n; save(); },
+        answer: id => S.answers[id], record: (id, choice, correct) => recordAnswer(id, choice, correct),
+        openLevel: id => window.bellman.level(id), done: () => S.done.includes(lv.id), complete: () => {
         if (!S.done.includes(lv.id)) S.done.push(lv.id); S.lstep[lv.id] = 5; save(); updateScore();
       }, known: id => S.found.includes(id) || S.given.includes(id), reveal: id => {
         if (!S.given.includes(id)) {
@@ -3055,6 +3058,7 @@
     S.afterRun = null; S.onPartsChange = null;
     if (!vpoActive()) BBVPO.cancel();
     if (!supermimicActive()) BBSUPERMIMIC.cancel();
+    if (!replanActive()) BBREPLAN.unmount();
     const mapping = S.mode === 'campaign' && mapOpen;
     if (!mapping && !customActive() && !RLA.worlds[S.world]) setWorld(C.families[fam(S.parts)].worlds[0]);
     document.querySelector('main.layout').classList.toggle('mapping', mapping);
