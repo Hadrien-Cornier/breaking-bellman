@@ -74,6 +74,7 @@
     intro: saved.intro || 0,               // 1 after the first-visit welcome
     discoveries: saved.discoveries || {},  // card id -> what the discovery looked like (time, world, sentence, result, level answers)
   };
+  const runState = RLA.runRecord.state();
   function MODES_OK(m) { return ['campaign', 'workbench', 'saboteur', 'codex', 'chat'].includes(m); }
 
   // ---------------------------------------------------------------- bring your own AI key (optional)
@@ -260,7 +261,7 @@
     mounts.push(m); drawSentence(m);
     return m.el;
   }
-  function refreshSentences() { for (const m of mounts) drawSentence(m); }
+  function refreshSentences() { if (!RLA.worlds[S.world]) return; for (const m of mounts) drawSentence(m); }
   function drawSentence(m) {
     const o = m.opts, p = o.getParts(), world = o.world(), focus = o.focus ? o.focus() : [];
     const idle = idleWords(p, world);
@@ -312,7 +313,7 @@
     ]);
   }
   function setMainPart(key, v) { S.parts[key] = v; onPartsChanged(); }
-  function onPartsChanged() { cancelRun(); refreshSentences(); drawCompare(); drawGrid(); if (S.onPartsChange) S.onPartsChange(); }
+  function onPartsChanged() { cancelRun(); markRunStale(); refreshSentences(); drawCompare(); drawGrid(); if (S.onPartsChange) S.onPartsChange(); }
   const mainSentence = (extra) => mountSentence(Object.assign({ getParts: () => S.parts, setPart: setMainPart, world: () => S.world, preset: true }, extra || {}));
 
   // ---------------------------------------------------------------- unlocked-technique preset loader (scope 175)
@@ -622,13 +623,15 @@
   function chartBox(id, title, legend) {
     return h('div.chart-wrap', null, [
       h('div.chart-title', null, [h('b', { text: title }), h('span.legend', null, legend.map(([c, t, dash]) => h('span', null, [h('i' + (dash ? '.dash' : ''), { style: (dash ? 'border-top:2px dashed ' : 'background:') + c }), t])))]),
-      h('canvas.chart', { id, 'aria-label': title }),
+      h('canvas.chart', { id, 'aria-label': title, 'data-run': runState.record && runState.record.id }),
     ]);
   }
-  function renderCharts(partials, done) {
+  function renderCharts(partials, done, record = runState.record) {
+    if (done && record) partials = record.results.map(r => ({ evals: r.evals, diag: r.diag }));
     const box = $('#charts'); const steps = (S.lastCfg && S.lastCfg.steps) || 1;
     const ink = css('--ink'), acc = css('--accent'), val = css('--f-value'), pol = css('--f-policy'), muted = css('--muted');
-    const A = S.pinA && S.pinA.world === S.world ? S.pinA : null;
+    const prior = record && record.comparison;
+    const A = S.pinA && prior ? { steps: prior.settings.steps, curves: curvesOf(prior.results, prior.world) } : null;
     const aLeg = A ? [[muted, 'A (pinned)', true]] : [];
     const aSer = (c, label) => (c ? [{ xs: c.xs, ys: c.ys, color: muted, width: 2, dash: [6, 4], label: label || 'A (pinned)' }] : []);
     if (S.world === 'bandit' || S.world === 'mirage') {
@@ -741,7 +744,8 @@
       const rect = cv.getBoundingClientRect();
       const [fx, fy] = world.fieldAt(e.clientX - rect.left, e.clientY - rect.top, w, H);
       if (fx < -1 || fx > 1 || fy < -1 || fy > 1) return;
-      cancelAnimationFrame(anim);
+      pauseScene(); delete cv.dataset.run; cv.dataset.interactive = 'true';
+      cap.textContent = 'Live throw. This is a new interaction, separate from the recorded test. Replay returns to that test.';
       const g = world.getState();
       world.setState([g[0], g[1], g[2], g[3], g[4], 0, 0]);
       let o = world.throwStick(fx, fy), n = 0, last = 0, end = null;
@@ -751,7 +755,7 @@
           last = ts; const r = world.step(act(o)); o = r.obs; n++;
           if (r.done) end = 'Got it in ' + n + ' steps!'; else if (n >= limit) end = 'No stick after ' + n + ' steps.';
           world.render(ctx, w, H, colors, { text: (pol ? 'trained dog' : 'untrained dog, random moves') + '  step ' + n + (end ? '  ' + end : '') });
-          if (end) cap.textContent = end + (pol ? ' This is run 1\'s greedy policy (it always takes its most likely action).' : ' Train the dog first: press Run.') + ' Click again to throw again.';
+          if (end) cap.textContent = end + (pol ? ' This is seed ' + r0.seed + '\'s greedy policy (it always takes its most likely action).' : ' Train the dog first: press Run.') + ' Click again to throw again.' + (r0 ? ' Replay returns to the recorded test.' : '');
         }
         if (!end) anim = requestAnimationFrame(tick);
       };
@@ -759,74 +763,147 @@
     };
     cv.style.cursor = 'crosshair';
   }
-  // an illustrated scene (web/scenes.js) keeps its own clock; a click on the stage skips ahead, or replays at the end
-  // (its clock starts when the stage is on screen; off screen it draws nothing; when only idle details move, 10 frames a second)
+  // Watch advances a deterministic replay clock only while the stage is on screen.
   let stageSeen = !window.IntersectionObserver;
   if (window.IntersectionObserver) new IntersectionObserver((es) => { stageSeen = es[es.length - 1].intersectionRatio >= 0.4; }, { threshold: [0, 0.4, 1] }).observe($('#stage'));
+  let stageFrame = null;
   function playScene(cv, sc) {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { sc.frame(Infinity); return; }
-    let last = 0;
-    const tick = (ts) => { if (stageSeen && (sc.busy() || ts - last > 100)) { last = ts; sc.frame(ts); } anim = requestAnimationFrame(tick); };
-    anim = requestAnimationFrame(tick);
-    cv.onclick = () => sc.click(); cv.style.cursor = 'pointer';
+    stageFrame.length = Math.max(1, Math.ceil((sc.duration || 0) / 40));
+    if (stageFrame.measure) return;
+    const ms = stageFrame.t * 40;
+    BB.scenes.atTime(0, () => sc.frame(0));
+    BB.scenes.atTime(ms, () => sc.frame(ms));
   }
+  let adapter = null, sceneTime = 0, scenePolicy = 0, watching = false, replayAnimation = null;
+  function pauseScene() {
+    watching = false; cancelAnimationFrame(replayAnimation); cancelAnimationFrame(anim);
+    $('#scene-watch').textContent = 'Watch';
+  }
+  function scenePosition() {
+    const n = adapter && runState.record ? adapter.length(runState.record) : 0;
+    $('#scene-position').textContent = n ? 'Replay frame ' + (sceneTime + 1) + ' of ' + n : '';
+    $('#stage').dataset.frame = String(sceneTime);
+  }
+  function makeSceneAdapter() {
+    const world = S.world, policy = scenePolicy;
+    return BB.sceneAdapter.create({ world, settings: ['parts', 'knobs', 'hyper', 'steps', 'seeds'],
+      render: (el, record, t) => {
+        const previous = stageFrame;
+        stageFrame = { t: t || 0, measure: t === null, length: 0 };
+        try {
+          BB.scenes.atTime((t || 0) * 40, () => drawStage(record, t || 0, policy, t === null));
+          if (t !== null) {
+            delete el.dataset.interactive;
+            if (record) {
+              el.dataset.run = record.id;
+              $('#stage-caption').textContent = $('#stage-caption').textContent.replace(/Run 1|Seed 1/g, 'Seed ' + record.results[policy].seed);
+              if (world !== 'fetch') {
+                el.style.cursor = 'pointer';
+                el.onclick = () => {
+                  pauseScene();
+                  const last = adapter.length(record) - 1;
+                  sceneTime = sceneTime >= last ? 0 : last;
+                  adapter.draw(record, sceneTime); scenePosition();
+                };
+              }
+            } else delete el.dataset.run;
+            el.dataset.world = world;
+          }
+          return stageFrame.length;
+        } finally { stageFrame = previous; }
+      } });
+  }
+  function renderStage() {
+    markRunStale(); pauseScene();
+    if (!RLA.worlds[S.world]) return;
+    renderRules();
+    adapter = makeSceneAdapter(); adapter.mount($('#stage'));
+    const record = runState.record;
+    if (record) {
+      sceneTime = Math.min(sceneTime, Math.max(0, adapter.length(record) - 1));
+      adapter.draw(record, sceneTime);
+    }
+    $('#scene-controls').hidden = !record;
+    scenePosition();
+  }
+  function watchScene() {
+    if (watching) { pauseScene(); return; }
+    if (!runState.record || !adapter) return;
+    const n = adapter.length(runState.record);
+    if (sceneTime >= n - 1) sceneTime = 0;
+    // Reduced motion uses explicit steps; Watch reveals the last recorded frame without autoplay.
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      sceneTime = n - 1; adapter.draw(runState.record, sceneTime); scenePosition(); return;
+    }
+    watching = true; $('#scene-watch').textContent = 'Pause';
+    let last = 0;
+    const tick = ts => {
+      if (!watching) return;
+      if (stageSeen && ts - last >= 40) {
+        last = ts; sceneTime = Math.min(n - 1, sceneTime + 1);
+        adapter.draw(runState.record, sceneTime); scenePosition();
+        if (sceneTime === n - 1) { pauseScene(); return; }
+      }
+      replayAnimation = requestAnimationFrame(tick);
+    };
+    replayAnimation = requestAnimationFrame(tick);
+  }
+
   const sceneFonts = () => ({ display: css('--font-display'), mono: css('--font-mono'), body: css('--font-body') });
   const isDark = () => { const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(css('--bg')); return !!m && (parseInt(m[1], 16) + parseInt(m[2], 16) + parseInt(m[3], 16)) / 3 < 100; };
-  function renderStage() {
-    $('#stage').onclick = null; $('#stage').style.cursor = '';
-    cancelAnimationFrame(anim);
-    const cv = $('#stage'); const { ctx, w, h: H } = setupCanvas(cv);
+  function drawStage(record, t, policy = 0, measure = false) {
+    const viewWorld = record ? record.world : S.world;
+    if (!RLA.worlds[viewWorld]) return 0;
+    const viewKnobs = record ? record.settings.knobs : S.knobs;
+    if (!measure) { $('#stage').onclick = null; $('#stage').style.cursor = ''; }
+    const cv = $('#stage'); const { ctx, w, h: H } = measure
+      ? { ctx: cv.getContext('2d'), w: cv.getBoundingClientRect().width, h: cv.getBoundingClientRect().height } : setupCanvas(cv);
     const colors = { fg: css('--ink'), accent: css('--accent'), muted: css('--muted'), bad: css('--bad'), bg: css('--sunk') };
-    renderRules();
-    const knobs = Object.assign(RLA.knobDefaults(S.world), S.knobs);
-    const world = RLA.worlds[S.world].make(knobs, RLA.rng.make(5));
+    const knobs = Object.assign(RLA.knobDefaults(viewWorld), viewKnobs);
+    const world = RLA.worlds[viewWorld].make(knobs, RLA.rng.make(5));
     world.reset();
-    $('#lab-world').textContent = C.worldNames[S.world];
-    const r0 = S.results[0];
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    $('#lab-world').textContent = C.worldNames[viewWorld];
+    const r0 = record && record.results[policy];
     // replay a trace of states: set each state, draw, add the overlay
     const playTrace = (tr, label, overlayAt) => {
-      let i = 0, last = 0;
-      const draw = (k) => { const st = tr[k]; if (st && st.s) world.setState(st.s); world.render(ctx, w, H, colors, overlayAt ? overlayAt(k) : null); };
-      if (reduced) { draw(tr.length - 1); return; }
-      const tick = (ts) => {
-        if (ts - last > 40) { last = ts; const k = i % (tr.length + 15); draw(Math.min(k, tr.length - 1)); i++; }
-        anim = requestAnimationFrame(tick);
-      };
-      anim = requestAnimationFrame(tick);
+      stageFrame.length = tr.length;
+      if (measure) return;
+      const k = Math.min(tr.length - 1, t), st = tr[k];
+      if (st && st.s) world.setState(st.s);
+      world.render(ctx, w, H, colors, overlayAt ? overlayAt(k) : null);
     };
-    const fonts = sceneFonts(), dark = isDark();
-    if (['pendulum', 'reach', 'goalgrid'].includes(S.world)) {
-      const replay = S.world === 'pendulum' && r0 && r0.replay;
+    const fonts = sceneFonts(), dark = isDark(), label = r0 ? 'Seed ' + r0.seed : null;
+    if (['pendulum', 'reach', 'goalgrid'].includes(viewWorld)) {
+      const replay = viewWorld === 'pendulum' && r0 && r0.replay;
       const trace = replay ? replay.trace : r0 && r0.trace;
       const tr = trace && trace.length ? trace : null;
-      const sc = S.world === 'pendulum' ? BB.scenes.joint(ctx, w, H, { trace: tr, mass: knobs.mass, fonts, dark })
+      const sc = viewWorld === 'pendulum' ? BB.scenes.joint(ctx, w, H, { trace: tr, mass: knobs.mass, fonts, dark, label })
         // reach.js: two links of 0.5 m
-        : S.world === 'reach' ? BB.scenes.arm(ctx, w, H, { trace: tr, state: world.getState(), L1: 0.5, L2: 0.5, fonts, dark })
-        : BB.scenes.lab(ctx, w, H, { N: knobs.size, wall: knobs.wall > 0, trace: tr, start: tr ? r0.traceStart : world.getState(), fonts, dark });
+        : viewWorld === 'reach' ? BB.scenes.arm(ctx, w, H, { trace: tr, state: world.getState(), L1: 0.5, L2: 0.5, fonts, dark, label })
+        : BB.scenes.lab(ctx, w, H, { N: knobs.size, wall: knobs.wall > 0, trace: tr, start: tr ? r0.traceStart : world.getState(), fonts, dark, label });
       playScene(cv, sc);
-      if (!tr) { $('#stage-caption').textContent = RLA.worlds[S.world].info.title + '. The trained policy plays here after a run.'; return; }
+      if (!tr) { $('#stage-caption').textContent = RLA.worlds[viewWorld].info.title + '. The trained policy plays here after a run.'; return; }
       const f = r0.final || {};
       $('#stage-caption').textContent = replay
         ? 'Run 1 after training, replay from hanging still. Replay score ' + fmt(replay.ret) + ' (0 is perfect). The test score uses random starts. Simulation.'
-        : 'Run 1 after training, one test episode. ' + (S.world === 'pendulum' ? 'Score ' + fmt(f.ret) + ' (0 is perfect).' : S.world === 'reach' ? 'Final distance ' + fmt(f.dist) + ' m.' : (f.success ? 'It reached the goal.' : 'It did not reach the goal.')) + ' Simulation.';
+        : 'Run 1 after training, one test episode. ' + (viewWorld === 'pendulum' ? 'Score ' + fmt(f.ret) + ' (0 is perfect).' : viewWorld === 'reach' ? 'Final distance ' + fmt(f.dist) + ' m.' : (f.success ? 'It reached the goal.' : 'It did not reach the goal.')) + ' Simulation.';
       return;
     }
-    if (S.world === 'fetch') { renderFetch(cv, ctx, w, H, colors, knobs, world, r0, playTrace); return; }
-    if (S.world === 'fork') {
+    if (viewWorld === 'fetch') { if (measure) { stageFrame.length = r0 && r0.trace ? r0.trace.length : 0; return; } renderFetch(cv, ctx, w, H, colors, knobs, world, r0, playTrace); return; }
+    if (viewWorld === 'fork') {
       const f = r0 && r0.final;
       // fork.js: the goal is a disc of radius 0.08 at (0, 0.8)
-      playScene(cv, BB.scenes.table(ctx, w, H, { paths: f && f.paths, obstacle: knobs.obstacle, goal: [0, 0.8], goalR: 0.08, mud: knobs.mud > 0, fonts, dark }));
+      playScene(cv, BB.scenes.table(ctx, w, H, { paths: f && f.paths, obstacle: knobs.obstacle, goal: [0, 0.8], goalR: 0.08, mud: knobs.mud > 0, fonts, dark, label }));
       $('#stage-caption').textContent = f && f.paths ? 'Run 1 after training: ' + f.paths.length + (f.paths.every((q) => q[0][0] === f.paths[0][0][0] && q[0][1] === f.paths[0][0][1]) ? ' test paths from the home pose. ' : ' test paths from different starts. ') + Math.round(100 * f.successRate) + '% reached the goal, ' + fmt(f.crashRate) + ' obstacle hits per test. Simulation.' : 'Fork in the road: go around the obstacle, on either side, to the goal at the top.';
       return;
     }
-    if (S.world === 'cartpole') {
+    if (viewWorld === 'cartpole') {
       const tr = r0 && r0.trace;
       // cartpole.js: the cart stays within 2.4 m, the pole within 12 degrees
-      playScene(cv, BB.scenes.balance(ctx, w, H, { trace: tr, xMax: 2.4, thMax: (12 * Math.PI) / 180, pole: knobs.poleScale, fonts, dark }));
+      playScene(cv, BB.scenes.balance(ctx, w, H, { trace: tr, xMax: 2.4, thMax: (12 * Math.PI) / 180, pole: knobs.poleScale, fonts, dark, label }));
       if (!tr) { $('#stage-caption').textContent = 'CartPole: a robot on a rail keeps a broom upright by moving left and right. The trained policy plays here after a run.'; return; }
       $('#stage-caption').textContent = 'Seed 1 after training: its greedy policy (no random moves) for ' + tr.length + ' steps of 0.02 s, until the broom fell or the test ended. Simulation.';
-    } else if (S.world === 'cliff') {
+    } else if (viewWorld === 'cliff') {
       // a canyon: a few of run 1's training episodes, then its test run with arrows for its favorite move per cell
       let arrows = null;
       if (r0 && r0.table) {
@@ -838,19 +915,19 @@
         }
       }
       playScene(cv, BB.scenes.canyon(ctx, w, H, { cols: knobs.width, peeks: r0 && r0.peeks, epLen: r0 && r0.ep && r0.ep.len, epFalls: r0 && r0.ep && r0.ep.falls,
-        test: r0 && r0.trace, arrows, cliffPenalty: knobs.cliffPenalty, sparse: !!knobs.sparseReward, fonts, dark }));
+        test: r0 && r0.trace, arrows, cliffPenalty: knobs.cliffPenalty, sparse: !!knobs.sparseReward, fonts, dark, label }));
       $('#stage-caption').textContent = r0 ? 'Run 1, replayed: a few training episodes, then a test run with no random moves.' + (arrows ? ' Arrows: the move with the best estimate in each cell (a dot: never tried).' : '') + ' Simulation.'
         : 'Cliff walking: get from START to the flag. Each step costs 1. A fall costs ' + Math.abs(knobs.cliffPenalty) + ' and sends the robot back to START.';
-    } else if (S.world === 'mirage') {
+    } else if (viewWorld === 'mirage') {
       // the hallway is state A; the machines behind the left door are state B
       const f = r0 && r0.final, signedMean = (knobs.mean < 0 ? '−' : '') + Math.abs(knobs.mean).toFixed(2);
-      playScene(cv, BB.scenes.doors(ctx, w, H, { left: r0 && r0.ep && r0.ep.left, ret: r0 && r0.ep && r0.ep.ret, qA: f && f.qA, mean: knobs.mean, nB: knobs.machines, fonts, dark }));
+      playScene(cv, BB.scenes.doors(ctx, w, H, { left: r0 && r0.ep && r0.ep.left, ret: r0 && r0.ep && r0.ep.ret, qA: f && f.qA, mean: knobs.mean, nB: knobs.machines, fonts, dark, label }));
       $('#stage-caption').textContent = f ? 'Run 1, replayed: one door per training episode. Right ends with 0. Left leads to the machines, which pay ' + signedMean + ' on average. At the end, the signs show the truth and what the robot believes. Simulation.'
         : 'The mirage. The right door ends the episode with 0. The left door leads to machines that pay ' + signedMean + ' on average, with noise.';
     } else {
       // a casino: the robot replays run 1's training pulls, then the screens show the truth and its beliefs
       const f = r0 && r0.final, b = r0 && r0.bandit;
-      const sc = BB.scenes.casino(ctx, w, H, { means: f ? f.means : null, q: f ? f.q : null, arms: b && b.arm, rewards: b && b.reward, n: world.means.length, fonts });
+      const sc = BB.scenes.casino(ctx, w, H, { means: f ? f.means : null, q: f ? f.q : null, arms: b && b.arm, rewards: b && b.reward, n: world.means.length, fonts, label });
       playScene(cv, sc);
       $('#stage-caption').textContent = f ? 'Run 1, replayed: its ' + b.arm.length.toLocaleString('en-US') + ' training pulls. At the end, gold is each machine\'s true average payout and blue is what the robot believes. The crown marks the best machine. Simulation.'
         : 'Ten slot machines. Each one pays a hidden average plus noise.';
@@ -880,10 +957,10 @@
       family: fam(S.parts),
     };
   }
-  function renderAutopsy() {
+  function renderAutopsy(record = runState.record) {
     const box = $('#symptoms'); box.replaceChildren();
     if (!S.results.length) { box.append(h('p.small', { text: 'No run yet.' })); return null; }
-    const a = RLA.autopsy(S.results);
+    const a = RLA.autopsy(record ? record.results : S.results);
     if (!a.symptoms.length) box.append(h('p.small', { text: 'No symptom found.' }));
     for (const s of a.symptoms) box.append(h('div.sym.' + s.level, null, [h('span.dot'), h('div', null, [h('b', { text: s.label }), h('p', { text: s.evidence })])]));
     for (const n of S.results[0].notes || []) box.append(h('p.small', { text: 'Note: ' + n }));
@@ -971,6 +1048,35 @@
     return RLA.exact.stringify({ mode: S.mode, level: S.level, world: S.world, parts: S.parts, knobs: S.knobs,
       hyper: hyperNow(), steps: +$('#budget').value, seeds: +$('#seeds').value, runMode: $('#run-mode').value });
   }
+  function recordConfig() {
+    return RLA.exact.resolve({ world: S.world, knobs: S.knobs, parts: S.parts, hyper: hyperNow(), steps: +$('#budget').value },
+      range(1, +$('#seeds').value).map(i => i * 101), window.BB_FAST.versions, C);
+  }
+  function linkRun() {
+    const record = runState.record;
+    for (const el of $$('#stage, #charts, #charts canvas, #run-result, #symptoms, #expert, #wonder, #run-source')) {
+      if (record) { if (!el.dataset.interactive) el.dataset.run = record.id; el.dataset.stale = String(runState.stale); }
+      else { delete el.dataset.run; delete el.dataset.stale; }
+    }
+    $('#run-stale').hidden = !runState.stale;
+    $('#scene-controls').hidden = !record;
+  }
+  function markRunStale() {
+    if (!runState.record || !RLA.worlds[S.world]) return;
+    runState.change(S.mode === 'campaign' ? S.level : S.mode, recordConfig());
+    if (runState.stale) { pauseScene(); $('#run-btn').disabled = false; }
+    linkRun();
+  }
+  function dropRun() {
+    pauseScene(); runState.clear(); S.results = []; S.lastCfg = null; S.lastA = null;
+    sceneTime = 0; scenePolicy = 0; adapter = null; linkRun();
+    const cv = $('#stage'); cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
+    delete cv.dataset.world; delete cv.dataset.frame; delete cv.dataset.interactive; cv.onclick = null;
+    $('#scene-policy').textContent = ''; $('#scene-seed').replaceChildren(); $('#run-source').textContent = '';
+    $('#run-result').textContent = ''; $('#expert-card').hidden = true; $('#wonder').hidden = true;
+    $('#charts').replaceChildren(h('p.small', { text: 'Curves appear here while a run trains.' }));
+    $('#symptoms').replaceChildren(h('p.small', { text: 'No run yet.' }));
+  }
   function showRunPending() {
     $('#run-result').textContent = 'New run in progress…';
     $('#charts').replaceChildren(h('p.small', { role: 'status', text: 'Preparing this run. Curves appear when training reports progress.' }));
@@ -1007,7 +1113,7 @@
     const cfg = { world: S.world, knobs: Object.assign({}, S.knobs), parts: Object.assign({}, S.parts), hyper: hyperNow(), steps };
     const ticket = { controller: new AbortController(), identity: runIdentity() }; activeRun = ticket;
     const current = () => activeRun === ticket && !ticket.controller.signal.aborted && runIdentity() === ticket.identity;
-    S.lastCfg = cfg;
+    dropRun(); S.lastCfg = cfg;
     $('#expert-card').hidden = true; $('#wonder').hidden = true;
     const seeds = range(1, nSeeds).map((i) => i * 101);
     S.results = [];
@@ -1041,7 +1147,13 @@
       $('#run-source').textContent = S.stored
         ? (S.source === 'local' ? 'Saved in this browser. Simulation. Ordered seeds: ' : 'Stored simulation. Ordered seeds: ') + seeds.join(', ') + '. Budget: ' + steps + ' steps per seed. Version: ' + window.BB_FAST.base.split('/').pop() + '. Recorded replay seed: ' + seeds[0] + '. Live reruns can vary numerically across browsers.'
         : 'Live simulation: trained in this page. Replay seed: ' + seeds[0] + '.' + (savedLocally ? ' Saved in this browser for next time.' : '');
-      S.results = results;
+      const record = await RLA.runRecord.create({ level: S.mode === 'campaign' ? S.level : S.mode, config, results,
+        source: S.source, label: nameOf(cfg.parts, cfg.world), name: (recognize(cfg.parts, cfg.world) || {}).id || 'current',
+        comparison: S.pinA && S.pinA.world === cfg.world ? S.pinA.record : null });
+      if (!current()) return null;
+      runState.accept(record); S.results = record.results;
+      $('#scene-policy').textContent = record.policies[0].label;
+      $('#scene-seed').replaceChildren(...record.results.map((r, i) => h('option', { value: i, text: String(r.seed) })));
       renderCharts(results.map((r) => ({ evals: r.evals, diag: r.diag })), true);
       renderStage();
       const a = renderAutopsy();
@@ -1057,6 +1169,7 @@
       $('#run-result').replaceChildren(h('b', { text: works ? 'Works on ' + C.worldNames[cfg.world] + ': ' : 'Does not work yet: ' }), headline(a, cfg.world) + '.');
     if (window.RLHELP) window.RLHELP.enhance($('#run-result'), metricCtx());
       save(); refreshSentences(); drawCompare();
+      linkRun();
       if (S.afterRun) S.afterRun(a);
       completed = true;
       return a;
@@ -1146,6 +1259,7 @@
     const lv = S.mode === 'campaign' ? C.levels.find((l) => l.id === S.level) : null;
     const qs = lv ? [['predict', lv.predict], ['diagnose', lv.diagnose], ['explain', lv.explain]].filter((x) => x[1] && x[1].id) : [];
     return {
+      run: runState.record && runState.record.id,
       ts: new Date().toISOString(), world: C.worldNames[cfg.world], family: C.families[fam(cfg.parts)].name,
       sentence: sentenceText(cfg.parts, cfg.world), result: headline(a, cfg.world) + ' (' + cfg.steps + ' steps, ' + S.results.length + ' seeds)',
       where: lv ? 'Campaign level "' + lv.title + '"' : S.mode === 'workbench' ? 'Workbench' : S.mode,
@@ -1232,7 +1346,7 @@
   // ---------------------------------------------------------------- contrasting cases: pin run A, compare with the next run
   function pinA() {
     if (!S.results.length) return;
-    S.pinA = { world: S.world, parts: Object.assign({}, S.lastCfg.parts), knobs: Object.assign({}, S.lastCfg.knobs), steps: S.lastCfg.steps,
+    S.pinA = { record: runState.record, world: S.world, parts: Object.assign({}, S.lastCfg.parts), knobs: Object.assign({}, S.lastCfg.knobs), steps: S.lastCfg.steps,
       curves: curvesOf(S.results, S.world), head: headline(S.lastA, S.world), name: nameOf(S.lastCfg.parts, S.world), summary: S.lastA ? S.lastA.summary : null };
     drawCompare(); $('#charts').replaceChildren(); renderCharts(S.results.map((r) => ({ evals: r.evals, diag: r.diag })), true);
     toast('Pinned as A. Change one word, run, and compare.');
@@ -1249,7 +1363,7 @@
     const diff = wordDiff(A.parts, S.parts, S.world);
     const sameWorld = A.world === S.world;
     box.append(
-      h('p.small', { html: '<b>A</b> (dashed in the charts): ' + A.name + ' on ' + C.worldNames[A.world] + ': ' + A.head + '.' }),
+      h('p.small', { html: '<b>A</b> (dashed after the next run): ' + A.name + ' on ' + C.worldNames[A.world] + ': ' + A.head + '.' }),
       h('p.small', null, [h('b', { text: 'Now: ' }), diff.length ? 'the sentence differs from A in ' + diff.length + ' word' + (diff.length > 1 ? 's' : '') + ': ' + diffText(diff) + '.' : 'the same words as A.',
         sameWorld ? '' : ' A ran on another world, so the charts do not show it.']),
       h('div.row', null, [pinBtn,
@@ -1926,7 +2040,7 @@
   // ---------------------------------------------------------------- world and sentence setters
   function setWorld(w, knobs) {
     cancelRun();
-    S.world = w; S.knobs = Object.assign({}, knobs || {}); S.results = []; S.lastA = null;
+    dropRun(); S.world = w; S.knobs = Object.assign({}, knobs || {});
     budgetOptions(); renderStage(); renderAutopsy(); refreshSentences(); drawCompare(); drawGrid();
     $('#run-result').textContent = '';
     $('#charts').replaceChildren(h('p.small', { text: 'Curves appear here while a run trains.' }));
@@ -2152,7 +2266,13 @@
     if (!nx) return h('p.small', { text: 'This is the last level of this phase. Try the Review tab: rebuild what you found from memory.' });
     return h('button.btn', { type: 'button', onclick: () => { chooseLevel(nx.id); } }, 'Next level: ' + nx.title);
   }
+  let enteredLevel = null;
   function enterLevel(lv, forceStart) {
+    if (enteredLevel !== lv.id) {
+      cancelRun(); dropRun(); S.pinA = null; enteredLevel = lv.id;
+      S.world = lv.world; S.knobs = Object.assign({}, lv.knobs || {});
+      if (!lv.custom) { budgetOptions(); renderStage(); }
+    }
     if (lv.custom) { cancelRun(); return; }
     if (!forceStart && campaignRunLevel === lv.id && S.running) {
       $('#seeds').value = String(lv.seeds); if (lv.steps) $('#budget').value = String(lv.steps);
@@ -2164,6 +2284,7 @@
     if (forceStart || step < 3 || (!S.made[lv.id] && fam(S.parts) !== fam(lv.start))) setParts(lv.start);
     else if (S.made[lv.id]) { setParts(S.made[lv.id].parts); if (lv.repairKnobs && S.made[lv.id].knobs) { S.knobs = Object.assign({}, S.made[lv.id].knobs); renderStage(); } }
     $('#seeds').value = String(lv.seeds); if (lv.steps) $('#budget').value = String(lv.steps);
+    markRunStale();
   }
 
   // --- Workbench: any sentence, any world
@@ -2750,6 +2871,9 @@
         : supermimicActive() ? [{ label: 'Short-horizon objective', tex: 'J_H = sum_{t=0}^{H-1} gamma^t r_t + gamma^H V(s_H)' }]
           : texLines(Object.assign({}, S.parts, parts || {}), world || S.world).map(([label, tex]) => ({ label, tex })),
       state: () => labState(),
+      record: () => runState.record,
+      replay: () => ({ time: sceneTime, watching, stale: runState.stale, world: adapter && adapter.world,
+        length: adapter && runState.record ? adapter.length(runState.record) : 0 }),
       levels: () => C.levels.map((l) => { const i = levelInfo(l); return { n: i.n, id: i.id, title: i.title, world: i.world, done: i.done, step: i.step }; }),
       level: (which) => {
         const l = C.levels.find((x, i) => x.id === which || i + 1 === which);
@@ -2932,6 +3056,7 @@
     if (!vpoActive()) BBVPO.cancel();
     if (!supermimicActive()) BBSUPERMIMIC.cancel();
     const mapping = S.mode === 'campaign' && mapOpen;
+    if (!mapping && !customActive() && !RLA.worlds[S.world]) setWorld(C.families[fam(S.parts)].worlds[0]);
     document.querySelector('main.layout').classList.toggle('mapping', mapping);
     $('#lab').hidden = mapping || customActive(); $('#vpo-lab').hidden = mapping || !customActive();
     if (S.mode === 'campaign' && !mapping) document.querySelector('main.layout').prepend(campaignMap.strip());
@@ -2954,6 +3079,22 @@
     showMap();
   });
   $('#run-btn').addEventListener('click', () => run());
+  $('#scene-watch').addEventListener('click', watchScene);
+  $('#scene-step').addEventListener('click', () => {
+    pauseScene(); if (!runState.record) return;
+    sceneTime = Math.min(adapter.length(runState.record) - 1, sceneTime + 1);
+    adapter.draw(runState.record, sceneTime); scenePosition();
+  });
+  $('#scene-replay').addEventListener('click', () => {
+    pauseScene(); sceneTime = 0;
+    if (runState.record) { adapter.draw(runState.record, sceneTime); scenePosition(); }
+  });
+  $('#scene-seed').addEventListener('change', e => { scenePolicy = +e.target.value; sceneTime = 0; renderStage(); });
+  window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', () => pauseScene());
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    renderStage();
+    if (runState.record) renderCharts(null, true);
+  });
   $('#copy-page-btn').addEventListener('click', copyPage);
   // redraw on a real width change only: phones fire resize when the address bar hides, and a redraw restarts the replay
   let stageW = 0;
@@ -2972,7 +3113,7 @@
   $('#grid-card').addEventListener('toggle', () => { if ($('#grid-card').open) drawGrid(); });
   $('#run-mode').value = 'fast'; // A fresh-Live override lasts only for this page visit.
   for (const sel of ['#seeds', '#budget', '#run-mode']) $(sel).addEventListener('change', () => { cancelRun(); if (!G.running) drawGrid(); });
-  document.addEventListener('change', () => { if (activeRun && runIdentity() !== activeRun.identity) cancelRun(); });
+  document.addEventListener('change', () => { markRunStale(); if (activeRun && runIdentity() !== activeRun.identity) cancelRun(); });
 
   budgetOptions();
   if (S.mode === 'campaign' && !mapOpen) enterLevel(C.levels.find((l) => l.id === S.level));

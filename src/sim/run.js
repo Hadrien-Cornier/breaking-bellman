@@ -33,22 +33,24 @@
     else if (learner.value) pred = learner.value(obs);
     let ret = 0, disc = 0, g = 1, t = 0, maxQ = 0, success = 0, crashes = 0, dist = NaN;
     const trace = wantTrace ? [] : null;
+    let terminal;
     for (;;) {
       if (learner.q && t % 10 === 0) { const q = learner.q(obs); for (const v of q) maxQ = Math.max(maxQ, Math.abs(v)); }
       const a = learner.act(obs, false);
       const r = ew.step(a);
       if (trace && trace.length < 600) {
         const st = r.info && (r.info.state || r.info.pos) ? Array.from(r.info.state || r.info.pos) : (ew.getState ? Array.from(ew.getState()) : null);
-        trace.push({ a: typeof a === 'number' ? a : Array.from(a), s: st, r: r.reward, f: r.info && r.info.fell ? 1 : 0 });
+        trace.push({ a: typeof a === 'number' ? a : Array.from(a), s: st, r: r.reward, f: r.info && r.info.fell ? 1 : 0,
+          obs: Array.from(obs), done: !!r.done, truncated: !!r.truncated });
       }
       if (t < limit) ret += r.reward;
       disc += g * r.reward; g *= ew.spec.gamma;
       if (r.info) { if (r.info.success) success = 1; if (r.info.crash) crashes++; if (r.info.dist !== undefined && t < limit) dist = r.info.dist; }
       t++;
       obs = r.obs;
-      if (r.done || r.truncated) break;
+      if (r.done || r.truncated) { terminal = r.done ? 'terminated' : 'time-limit'; break; }
     }
-    return { ret, disc, pred, maxQ, len: t, trace, success, crashes, dist, start: ew.prompt ? ew.prompt() : null, path: ew.trail ? ew.trail() : null };
+    return { ret, disc, pred, maxQ, len: t, terminal, trace, success, crashes, dist, start: ew.prompt ? ew.prompt() : null, path: ew.trail ? ew.trail() : null };
   }
 
   function run(cfg) {
@@ -66,6 +68,15 @@
       ep: { t: [], ret: [], len: [], falls: [], left: [], success: [] },
       evals: [], diag: [], notes: learner.notes.slice(), trace: null, bandit: null,
       table: null,
+      // Count actual interactions where they occur. Offline updates are not fresh tries.
+      dataset: learner.datasetInfo ? learner.datasetInfo() : null,
+      data: { fresh: { steps: 0, attempts: 0 }, evaluation: { steps: 0, attempts: 0 }, replay: { steps: 0, attempts: 0 } },
+      events: [],
+    };
+    const test = (...args) => {
+      const e = evaluate(...args);
+      res.data.evaluation.steps += e.len; res.data.evaluation.attempts++;
+      return e;
     };
     const isBandit = world.spec.maxSteps === 1;
     if (isBandit) res.bandit = { reward: new Float32Array(steps), optimal: new Uint8Array(steps), regret: new Float32Array(steps), arm: new Uint8Array(steps) };
@@ -80,7 +91,7 @@
     function doEval(t) {
       let sr = 0, sd = 0, sp = 0, mq = 0, ss = 0, sc = 0, sdist = 0, nd = 0;
       for (let k = 0; k < evalN; k++) {
-        const e = evaluate(learner, W, knobs, evalRng, world.spec.maxSteps, false);
+        const e = test(learner, W, knobs, evalRng, world.spec.maxSteps, false);
         sr += e.ret; sd += e.disc; sp += e.pred; mq = Math.max(mq, e.maxQ); ss += e.success; sc += e.crashes;
         if (!Number.isNaN(e.dist)) { sdist += e.dist; nd++; }
       }
@@ -91,7 +102,6 @@
 
     if (learner.offline) {
       // Learning from a fixed dataset: no new tries. One "step" is one gradient update; the tests are the only episodes.
-      res.dataset = learner.datasetInfo ? learner.datasetInfo() : null;
       for (let t = 1; t <= steps; t++) {
         learner.train();
         if (t >= nextEval) { nextEval += evalEvery; doEval(t); }
@@ -112,6 +122,8 @@
       for (let t = 1; t <= steps; t++) {
         const a = learner.act(obs, true);
         const r = world.step(a);
+        res.data.fresh.steps++;
+        if (epLen === 0) res.data.fresh.attempts++;
         learner.observe({ obs, a, r: r.reward, obs2: r.obs, done: r.done, truncated: r.truncated });
         epRet += r.reward; epLen++;
         if (r.info && r.info.pos && !isBandit) {
@@ -133,6 +145,8 @@
           epCount++;
           if (peek) { peek.done = !!r.done; if (PEEK_AT.has(epCount)) res.peeks.push(peek); lastPeek = peek; peek = null; }
           res.ep.t.push(t); res.ep.ret.push(epRet); res.ep.len.push(epLen); res.ep.falls.push(falls); res.ep.success.push(epSuccess);
+          res.events.push({ t, kind: 'episode', reward: epRet, steps: epLen, left: epLeft,
+            terminal: r.done ? 'terminated' : 'time-limit' });
           if (epLeft !== null) res.ep.left.push(epLeft);
           epRet = 0; epLen = 0; falls = 0; epLeft = null; epSuccess = 0;
           obs = newEpisode();
@@ -144,9 +158,10 @@
     }
     if (lastPeek && !res.peeks.includes(lastPeek)) res.peeks.push(lastPeek);
     if (!isBandit) {
-      const e = evaluate(learner, W, knobs, evalRng, world.spec.maxSteps, true);
+      const e = test(learner, W, knobs, evalRng, world.spec.maxSteps, true);
       res.trace = e.trace; res.traceStart = e.start;
-      res.final = { ret: e.ret, disc: e.disc, pred: e.pred, success: e.success, dist: e.dist };
+      res.final = { ret: e.ret, disc: e.disc, pred: e.pred, success: e.success, dist: e.dist,
+        terminal: e.terminal, len: e.len };
       if (W.playable && learner.policyNet) res.policy = learner.policyNet();
       if (W.evalEpisodes > 1 || learner.offline) {
         // a wider final test: many starts, and their paths for the picture
@@ -154,7 +169,7 @@
         const m = Math.max(20, cfg.finalEpisodes || 0); let sr = 0, ss = 0, sc = 0, sdist = 0, nd = 0, nl = 0, np = 0; res.final.paths = [];
         const testRng = (k) => RLA.rng.make((cfg.seed || 1) * 31 + 5 + 7919 * (k + 1));
         for (let k = 0; k < m; k++) {
-          const f = evaluate(learner, W, knobs, testRng(k), world.spec.maxSteps, false);
+          const f = test(learner, W, knobs, testRng(k), world.spec.maxSteps, false);
           sr += f.ret; ss += f.success; sc += f.crashes; if (!Number.isNaN(f.dist)) { sdist += f.dist; nd++; }
           if (f.path) { np++; if (f.path.some((q) => q[0] < -0.3)) nl++; } // went around on the left (fork)
           if (f.path && res.final.paths.length < 12) res.final.paths.push(f.path);
@@ -164,7 +179,7 @@
           // the classical controller alone on the same test starts
           const baseL = { act: (o) => W.base(o, knobs.gain), diagnostics: () => ({}) };
           let br = 0, bd = 0;
-          for (let k = 0; k < m; k++) { const f = evaluate(baseL, W, knobs, testRng(k), world.spec.maxSteps, false); br += f.ret; bd += f.dist; }
+          for (let k = 0; k < m; k++) { const f = test(baseL, W, knobs, testRng(k), world.spec.maxSteps, false); br += f.ret; bd += f.dist; }
           Object.assign(res.final, { baseRet: br / m, baseDist: bd / m });
         }
       }
@@ -173,10 +188,11 @@
         // Show the swing-up task, even when the random test starts almost upright.
         // Keep this demonstration separate from every scored evaluation and its RNG.
         const replay = evaluate(learner, W, knobs, RLA.rng.make((cfg.seed || 1) * 104729 + 11), world.spec.maxSteps, true, [Math.PI, 0]);
-        res.replay = { trace: replay.trace, start: replay.start, ret: replay.ret };
+        res.replay = { trace: replay.trace, start: replay.start, ret: replay.ret, terminal: replay.terminal, len: replay.len };
+        res.data.replay = { steps: replay.len, attempts: 1 };
       }
     } else {
-      res.final = { means: Array.from(world.means), q: learner.q(world.reset()), best: world.bestArm() };
+      res.final = { means: Array.from(world.means), q: learner.q(world.reset()), best: world.bestArm(), terminal: 'budget-complete' };
     }
     if (learner.table && learner.table() && world.spec.nStates <= 256) res.table = Array.from(learner.table());
     return res;
