@@ -1,0 +1,16 @@
+/* Scoped experiment styles; campaign layout and Notebook remain shell-owned. */
+.inference-lab { min-width: 0; }
+.inference-settings { display: flex; flex-wrap: wrap; gap: 12px; }
+.inference-setting { display: flex; flex: 1 1 180px; flex-direction: column; gap: 5px; min-width: 0; }
+.inference-setting select { min-height: 44px; min-width: 44px; width: 100%; max-width: 100%; }
+.inference-scene svg, .inference-scene canvas, [id$="-chart"] > svg { display: block; width: 100%; height: auto; }
+.inference-scene > svg { max-height: 180px; }
+.inference-policy { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-top: 12px; }
+.inference-policy h3 { margin: 0 0 8px; }
+.inference-probability { display: grid; grid-template-columns: 45px 1fr 62px; gap: 8px; align-items: center; }
+.inference-probability progress { width: 100%; min-width: 0; accent-color: var(--accent); }
+.inference-table { max-width: 100%; overflow-x: auto; font-size: .82rem; }
+.inference-table table { border-collapse: collapse; width: 100%; }
+.inference-table th, .inference-table td { padding: 6px; text-align: left; border-bottom: 1px solid var(--line); }
+.inference-lab button, #elbo-lesson button, #messages-lesson button { min-width: 44px; min-height: 44px; }
+#elbo-stale, #messages-stale { border-left: 3px solid var(--accent); padding-left: 10px; }

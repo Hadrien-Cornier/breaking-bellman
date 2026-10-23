@@ -10,7 +10,7 @@ const approved = require('./fixtures/level-graph.json');
 function content(beforeGraph) {
   const build = fs.readFileSync(require.resolve('../build.mjs'), 'utf8');
   const files = JSON.parse(build.match(/const CONTENT_FILES = (\[[^;]+\]);/)[1].replaceAll("'", '"'));
-  const context = vm.createContext({ window: {} });
+  const context = vm.createContext({ window: {}, structuredClone });
   context.window = context;
   for (const file of ['src/core/rng.js', 'src/agents/vpo.js', 'src/agents/supermimic.js']) {
     vm.runInContext(fs.readFileSync(require.resolve('../' + file), 'utf8'), context, { filename: file });
@@ -23,18 +23,18 @@ function content(beforeGraph) {
 }
 const plain = value => JSON.parse(JSON.stringify(value));
 const ids = ['slots', 'cliff', 'careful', 'cells', 'explode', 'mirage', 'credit', 'bigsteps', 'passfail',
-  'continuous', 'explore', 'offline', 'mixed', 'twoways', 'pick', 'residual', 'fetch', 'vpo', 'supermimic'];
+  'continuous', 'explore', 'elbo', 'messages', 'offline', 'mixed', 'twoways', 'pick', 'residual', 'fetch', 'vpo', 'supermimic'];
 
-test('build attaches the six campaign worlds and approved metadata to exactly the 19 registered levels', () => {
+test('build attaches the six campaign worlds and approved metadata to the registered levels including the two inference lessons', () => {
   const C = content();
   assert.deepEqual(plain(C.levels.map(l => l.id)), ids);
   assert.deepEqual(worlds.map(w => [w.id, w.name]), approved.worlds);
   assert.deepEqual(edges.map(e => [e.from, e.to, e.label]), approved.edges);
   assert.equal(edges.length, 30);
-  assert.equal(C.graph.activeEdges.length, 18);
+  assert.equal(C.graph.activeEdges.length, 20);
   for (const level of C.levels) {
     const projected = C.graph.levels.find(l => l.id === level.id);
-    assert.equal(level.campaignWorld, approved.levelWorlds[level.id], level.id);
+    assert.equal(level.campaignWorld, (['elbo', 'messages'].includes(level.id) ? 'w3' : approved.levelWorlds[level.id]), level.id);
     assert.equal(projected.world, level.campaignWorld);
     assert.deepEqual(plain(projected.improves), plain(level.improves));
     assert.deepEqual(plain(level.improves), edges.filter(e => e.to === level.id).map(({ from, label }) => ({ from, label })));
