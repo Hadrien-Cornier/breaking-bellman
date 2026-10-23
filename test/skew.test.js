@@ -251,13 +251,10 @@ test('skew registers its own mount before supermimic', () => {
   assert.equal(context.window.CONTENT.levels.find((l) => l.id === 'skew').world, 'skew');
   assert.equal(context.window.CONTENT.worldNames.skew, 'Three rooms');
   const app = fs.readFileSync('web/app.js', 'utf8');
-  const apiAt = app.indexOf('function customLessonApi');
-  const api = app.slice(apiAt, app.indexOf('return null;', apiAt));
-  assert.ok(api.includes("id === 'skew'"));
-  assert.ok(api.includes('window.BBSKEW'));
-  assert.ok(api.includes("id === 'vpo'"));
-  assert.match(app, /const api = customLessonApi\(lv\.id\)/);
-  assert.match(fs.readFileSync('build.mjs', 'utf8'), /src\/agents\/skew\.js', 'web\/skew-level\.js'/);
+  const dispatch = require('./support/custom-dispatch.cjs');
+  dispatch(app, 'skew', 'BBSKEW');
+  dispatch(app, 'vpo', 'BBVPO');
+  assert.match(fs.readFileSync('build.mjs', 'utf8'), /src\/agents\/skew\.js', 'web\/skew-record\.js', 'web\/skew-level\.js'/);
 });
 
 test('skew takes its own phase after the skills phase and keeps the skills heading', () => {

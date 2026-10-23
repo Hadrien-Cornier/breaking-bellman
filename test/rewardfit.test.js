@@ -121,8 +121,7 @@ test('rewardfit is its own mounted lesson after the offline levels', () => {
   assert.equal(C.phases[phaseAt + 1].n, 5);
   assert.equal(context.window.BBREWARDFIT.plan(context.window.BBREWARDFIT.PROXY_WEIGHTS).some((p) => p.x === 2 && p.y === 1), true);
   const app = fs.readFileSync('web/app.js', 'utf8');
-  assert.match(app, /id === 'rewardfit'/);
-  assert.match(app, /lv.id === 'rewardfit' \? BBREWARDFIT/);
+  require('./support/custom-dispatch.cjs')(app, 'rewardfit', 'BBREWARDFIT');
   assert.match(C.cards.maxentirl.paper, /log pi\(a\|s\)/);
   assert.match(C.cards.maxentirl.paper, /does not compute that partition/);
   assert.doesNotMatch(C.cards.maxentirl.paper, /maximum-entropy objective of Ziebart/);
