@@ -26,9 +26,10 @@ const browser = await chromium.launch({ executablePath: exe || undefined });
 const errors = [];
 const fails = [];
 const check = (cond, msg) => { if (!cond) fails.push(msg); console.log((cond ? 'ok   ' : 'FAIL ') + msg); };
-const runDone = (page) => page.waitForFunction(() => !document.querySelector('#run-btn').disabled && document.querySelector('#run-result').textContent.length > 0, null, { timeout: 240000 });
+const runDone = (page) => page.waitForFunction(() => !document.querySelector('#run-btn').disabled && document.querySelector('#run-result').textContent.length > 0, null, { timeout: Number(process.env.BB_UI_RUN_TIMEOUT_MS) || 3600000 });
 const fastRoot = new URL('../../fast/', import.meta.url);
-const fastVersion = fs.readdirSync(fastRoot, { withFileTypes: true }).find((e) => e.isDirectory()).name;
+const { exact, hash, source, content } = require('../../scripts/fast-source.js');
+const fastVersion = hash(exact.stringify(source().versions));
 async function preloadFastRecord(page, key) {
   const file = new URL(fastVersion + '/records/' + key + '.json.gz', fastRoot);
   const encoded = zlib.gunzipSync(fs.readFileSync(file)).toString();
@@ -319,9 +320,13 @@ await session(375, 812, 'phone-frontier', async (page) => {
   await page.waitForTimeout(500);
   check(/mud/.test(await page.locator('#mode-pane').innerText()), 'mud level shows its intro');
   await page.locator('#mode-pane .mc').first().locator('.opt').nth(0).click();
-  const best8MemoryKey = '159d9a9f429635030e1829838a9580a322297ce1936e218e539d9156fbd01ee9';
-  check(await preloadFastRecord(page, best8MemoryKey), 'the exact best-of-8 memory result is available to the browser regression');
   await setWord(page, '#rule', 'pick', 'the best of 8 samples, by the critic');
+  const requested = await page.evaluate(() => ({ ...bellman.state(), steps: +document.querySelector('#budget').value,
+    seeds: Array.from({ length: +document.querySelector('#seeds').value }, (_, i) => 101 * (i + 1)) }));
+  const C = content(), lv = C.levels.find(l => l.title === requested.level);
+  const best8MemoryKey = hash(exact.stringify(exact.resolve({ world: requested.world, knobs: requested.knobs,
+    parts: requested.words, hyper: { ...C.hyperOf(requested.words, requested.world), ...lv.hyper }, steps: requested.steps }, requested.seeds, source().versions, C)));
+  check(await preloadFastRecord(page, best8MemoryKey), 'the exact best-of-8 memory result is available to the browser regression');
   await page.click('#run-btn');
   await runDone(page);
   const storedBest8 = {

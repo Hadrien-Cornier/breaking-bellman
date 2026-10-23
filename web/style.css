@@ -529,3 +529,11 @@ ul.preset-diff li { margin: 2px 0; }
   .map-brief { inset: auto 0 0; width: 100%; height: auto; max-height: 85dvh; border-radius: 20px 20px 0 0; padding: 20px 16px max(20px, env(safe-area-inset-bottom)); }
 }
 .map-disc { border-color: transparent; background: linear-gradient(var(--world-color), var(--world-color)) padding-box, conic-gradient(var(--accent) var(--progress), var(--line) 0) border-box; }
+
+/* Shared measured replay controls keep keyboard and touch actions available. */
+.replay-controls { flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.replay-controls button, .replay-controls select { min-height: 44px; min-width: 44px; }
+.replay-controls select { max-width: 100%; }
+#run-stale { border-left: 3px solid var(--accent); padding-left: 10px; }
+#run-btn, #run-mode, #budget, #seeds { min-height: 44px; min-width: 44px; }
+.w, #lab .btn, #mode-pane .btn { min-height: 44px; min-width: 44px; }
