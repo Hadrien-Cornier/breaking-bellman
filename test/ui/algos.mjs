@@ -240,9 +240,14 @@ await session(1280, 900, 'offline', {}, async (page) => {
   check(/Peng et al/.test(awr.text), 'the AWR panel gives the source');
   await page.keyboard.press('Escape');
 
-  // No spoilers: an unlearned name shows the reminder but no method panel.
+  await page.screenshot({ path: out + '/offline-preset.png' });
+  // No spoilers: the Methods map exposes the unlearned SAC name. The old
+  // all-phase list is now a compact strip, so it no longer supplies that trigger.
+  await page.locator('#campaign-logo').click();
+  await page.locator('[data-zoom="methods"]').click();
+  await page.waitForSelector('[data-node="explore"] .algo-name');
   const gate = await page.evaluate(() => {
-    const btn = Array.from(document.querySelectorAll('.algo-name')).find((b) => /Soft actor|SAC/.test(b.textContent));
+    const btn = document.querySelector('[data-node="explore"] .algo-name');
     if (!btn) return { found: false };
     btn.click();
     return new Promise((res) => setTimeout(() => {
@@ -251,7 +256,7 @@ await session(1280, 900, 'offline', {}, async (page) => {
     }, 150));
   });
   check(gate.found && gate.open && !gate.hasPanel, 'an unlearned name shows the reminder but no method panel (no spoiler)');
-  await page.screenshot({ path: out + '/offline-preset.png' });
+  await page.screenshot({ path: out + '/unlearned-map-method.png' });
 });
 
 // ---- phone: tap access and the popover fits the small screen ----

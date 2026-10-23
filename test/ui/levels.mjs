@@ -1,4 +1,4 @@
-// Slice 1 baseline matrix: no replay contract until the level's migration slice.
+// All registered lessons, with slice 4 map precedence: no replay contract until the level's migration slice.
 // npm run build && node test/ui/levels.mjs [proof directory] [URL]
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -60,7 +60,8 @@ try {
     retained(await stored(page), augmented, ids);
     await page.screenshot({ path: path.join(out, `unknown-level-${width}.png`), fullPage: true });
     // Select through the real map button, not a direct state assignment.
-    await page.locator('#mode-pane .node').first().click();
+    await page.locator('[data-map-level]').first().click();
+    await page.locator('[data-open-level]').click();
     retained(await stored(page), augmented, ids, ids[0]);
     await page.reload();
     retained(await stored(page), augmented, ids, ids[0]);
@@ -84,6 +85,16 @@ try {
           if (await page.locator('dialog.intro').count()) await page.locator('dialog.intro button', { hasText: 'Start level 1' }).click();
           // Public API selects by stable id; it uses the same save/enter/render path as the map.
           await page.evaluate(id => bellman.level(id), id);
+          const precedence = await page.evaluate(() => {
+            const strip = document.querySelector('#campaign-strip'), layout = document.querySelector('main.layout');
+            const first = layout.querySelector('button, a[href], input, select, summary, [tabindex="0"]');
+            return { firstChild: layout.firstElementChild === strip, firstControl: strip.contains(first), count: strip.textContent.includes('All ' + bellman.levels().length + ' levels') };
+          });
+          verify(precedence.firstChild && precedence.count, 'All N levels strip precedes all lesson content in DOM');
+          verify(precedence.firstControl, 'map strip is first in lesson keyboard order');
+          await page.locator('#tabs button').last().focus();
+          await page.keyboard.press('Tab');
+          verify(await page.locator('#campaign-strip button').evaluate(e => e === document.activeElement), 'Tab from header reaches map strip before lesson controls');
           const custom = ['vpo', 'supermimic'].includes(id);
           const scene = page.locator(custom ? '#vpo-lab svg' : '#stage').first();
           verify(await scene.isVisible(), 'baseline scene visible before Run');

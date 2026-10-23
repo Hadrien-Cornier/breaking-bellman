@@ -209,8 +209,9 @@ await session(1280, 900, 'desktop', async (page) => {
 // phases 2 to 5: a policy-gradient level end to end, actor-critic runs and replays, the family trees
 await session(1280, 900, 'phases', async (page) => {
   await page.getByRole('tab', { name: 'Campaign' }).click();
-  // every level is open, in any order; the save bar and the agent hooks are there
-  check(await page.locator('#mode-pane .node').count() === 19 && !(await page.locator('#mode-pane .node[disabled]').count()), 'all 19 levels are open');
+  await page.locator('#campaign-logo').click();
+  // Every advisory node remains selectable; the save bar and agent hooks are there.
+  check(await page.locator('[data-map-level]').count() === 19 && !(await page.locator('[data-map-level][disabled]').count()), 'all 19 levels are open');
   check(await page.locator('#mode-pane .savebar button', { hasText: 'Download save file' }).count() === 1, 'the level map offers a save file');
   const brief = await page.evaluate(() => window.bellman.help());
   check(/Level \d+ of 19/.test(brief) && /bellman\.run\(\)/.test(brief), 'window.bellman gives a brief for an AI helper');
@@ -222,7 +223,9 @@ await session(1280, 900, 'phases', async (page) => {
     return { ae, ar: ar || null, t, bad: bad || null };
   });
   check(wr.ae === true && wr.ar === null && wr.t === false && JSON.stringify(wr.bad) === '{"eps":"sometimes","nope":1}', 'bellman.words takes true or "false" and returns bad words as rejected');
-  await page.locator('#mode-pane .node', { hasText: 'Learn the policy itself' }).click();
+  await page.locator('#campaign-logo').click();
+  await page.locator('[data-map-level][aria-label^="Learn the policy itself"]').click();
+  await page.locator('[data-open-level]').click();
   await page.locator('#mode-pane .mc').first().locator('.opt').nth(1).click();
   await page.getByText('Run the starting sentence').click();
   await runDone(page);
@@ -288,7 +291,9 @@ await session(1280, 900, 'phases', async (page) => {
 await session(1280, 900, 'twoways', async (page) => {
   // phase 5 end to end: the 10-command Gaussian copy fails, the flow copy reaches the goal (level hyper: lr 0.003, batch 128)
   await page.getByRole('tab', { name: 'Campaign' }).click();
-  await page.locator('#mode-pane .node', { hasText: 'Two good ways' }).click();
+  await page.locator('#campaign-logo').click();
+  await page.locator('[data-map-level][aria-label^="Two good ways"]').click();
+  await page.locator('[data-open-level]').click();
   await page.locator('#mode-pane .mc').first().locator('.opt').nth(0).click();
   let t0 = Date.now();
   await page.getByText('Run the starting sentence').click();
@@ -308,7 +313,9 @@ await session(1280, 900, 'twoways', async (page) => {
 });
 await session(375, 812, 'phone-frontier', async (page) => {
   await page.getByRole('tab', { name: 'Campaign' }).click();
-  await page.locator('#mode-pane .node', { hasText: 'Steer a frozen policy' }).click();
+  await page.locator('#campaign-logo').click();
+  await page.locator('[data-map-level][aria-label^="Steer a frozen policy"]').click();
+  await page.locator('[data-open-level]').click();
   await page.waitForTimeout(500);
   check(/mud/.test(await page.locator('#mode-pane').innerText()), 'mud level shows its intro');
   await page.locator('#mode-pane .mc').first().locator('.opt').nth(0).click();
@@ -377,7 +384,9 @@ await session(375, 812, 'phone-frontier', async (page) => {
   check(!await page.locator('#run-btn').isDisabled() && /forced startup failure/.test(await page.locator('#run-source').innerText()),
     'a failed startup restores both campaign and Lab controls');
   await page.screenshot({ path: out + '/phone-mud.png', fullPage: true });
-  await page.locator('#mode-pane .node', { hasText: 'Keep the controller' }).click();
+  await page.locator('#campaign-logo').click();
+  await page.locator('[data-map-level][aria-label^="Keep the controller"]').click();
+  await page.locator('[data-open-level]').click();
   await page.waitForTimeout(500);
   check(/kitting/.test(await page.locator('#mode-pane').innerText()), 'residual level shows its intro');
   await page.locator('#mode-pane .mc').first().locator('.opt').nth(1).click();
@@ -432,7 +441,9 @@ await session(375, 812, 'expert', async (page) => {
   await page.locator('#expert-card').screenshot({ path: out + '/expert-cliff-min.png' });
 });
 await session(390, 844, 'pendulum', async (page) => {
-  await page.getByRole('button', { name: /Level 10 ·/ }).click();
+  await page.locator('#campaign-logo').click();
+  await page.locator('[data-map-level="continuous"]').click();
+  await page.locator('[data-open-level]').click();
   await page.evaluate(() => {
     const joint = BB.scenes.joint;
     BB.scenes.joint = (ctx, w, h, d) => {
