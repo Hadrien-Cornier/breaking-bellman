@@ -16,6 +16,7 @@ function boot(raw, blocked = false) {
       setItem(key, next) { assert.equal(key, 'breaking-bellman-v1'); if (blocked) throw Error('blocked'); value = next; },
     },
   });
+  vm.runInContext(fs.readFileSync(require.resolve('../web/run-record.js'), 'utf8'), context);
   vm.runInContext(storage + '\nglobalThis.state = S; globalThis.persist = save;', context);
   return { state: context.state, save: context.persist, raw: () => value, read: () => JSON.parse(value) };
 }
