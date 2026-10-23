@@ -10,7 +10,7 @@ const approved = require('./fixtures/level-graph.json');
 function content(beforeGraph) {
   const build = fs.readFileSync(require.resolve('../build.mjs'), 'utf8');
   const files = JSON.parse(build.match(/const CONTENT_FILES = (\[[^;]+\]);/)[1].replaceAll("'", '"'));
-  const context = vm.createContext({ window: {} });
+  const context = vm.createContext({ window: {}, structuredClone });
   context.window = context;
   for (const file of ['src/core/rng.js', 'src/agents/vpo.js', 'src/agents/supermimic.js']) {
     vm.runInContext(fs.readFileSync(require.resolve('../' + file), 'utf8'), context, { filename: file });
