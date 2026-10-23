@@ -1146,13 +1146,14 @@
   const goalExecutionActive = () => S.mode === 'campaign' && ['hindsight', 'hierarchy'].includes(S.level);
   const inferenceActive = () => S.mode === 'campaign' && ['elbo', 'messages'].includes(S.level);
   const rareActive = () => S.mode === 'campaign' && S.level === 'rare';
+  const skillsActive = () => S.mode === 'campaign' && S.level === 'skills';
   const vpoActive = () => S.mode === 'campaign' && S.level === 'vpo';
   const supermimicActive = () => S.mode === 'campaign' && S.level === 'supermimic';
   const goalsActive = () => S.mode === 'campaign' && S.level === 'goals';
   const rewardfitActive = () => S.mode === 'campaign' && S.level === 'rewardfit';
   const thawActive = () => S.mode === 'campaign' && S.level === 'thaw';
-  const customActive = () => goalExecutionActive() || inferenceActive() || rareActive() || vpoActive() || supermimicActive() || thawActive() || rewardfitActive() || goalsActive();
-  const customApi = () => S.level === 'hindsight' ? BBHINDSIGHT : S.level === 'hierarchy' ? BBHIERARCHY : S.level === 'elbo' ? BBELBO_LEVEL : S.level === 'messages' ? BBMESSAGES_LEVEL : rareActive() ? BBRARELESSON : goalsActive() ? BBGOALS_LEVEL : rewardfitActive() ? BBREWARDFIT : thawActive() ? BBTHAW : supermimicActive() ? BBSUPERMIMIC : BBVPO;
+  const customActive = () => skillsActive() || goalExecutionActive() || inferenceActive() || rareActive() || vpoActive() || supermimicActive() || thawActive() || rewardfitActive() || goalsActive();
+  const customApi = () => skillsActive() ? BBSKILLS_LEVEL : S.level === 'hindsight' ? BBHINDSIGHT : S.level === 'hierarchy' ? BBHIERARCHY : S.level === 'elbo' ? BBELBO_LEVEL : S.level === 'messages' ? BBMESSAGES_LEVEL : rareActive() ? BBRARELESSON : goalsActive() ? BBGOALS_LEVEL : rewardfitActive() ? BBREWARDFIT : thawActive() ? BBTHAW : supermimicActive() ? BBSUPERMIMIC : BBVPO;
   async function run() {
     if (customActive()) return customApi().run();
     if (S.running) return null;
@@ -2344,7 +2345,7 @@
       if (enteredLevel === 'hindsight') BBHINDSIGHT.cancel();
       if (enteredLevel === 'hierarchy') BBHIERARCHY.cancel();
       cancelRun(); comparisonReplay.park(); customScene = null; dropRun(); BBTHAW.clear();
-      BBVPO.reset?.(); BBSUPERMIMIC.reset?.(); BBGOALS_LEVEL.reset(); BBRARELESSON.cancel();
+      BBVPO.reset?.(); BBSUPERMIMIC.reset?.(); BBSKILLS_LEVEL.clear(); BBGOALS_LEVEL.reset(); BBRARELESSON.cancel();
       $('label[for="scene-seed"]').textContent = 'Replay seed';
       S.pinA = null; enteredLevel = lv.id;
       S.world = lv.world; S.knobs = Object.assign({}, lv.knobs || {});
@@ -2952,8 +2953,8 @@
         : supermimicActive() ? [{ label: 'Short-horizon objective', tex: 'J_H = sum_{t=0}^{H-1} gamma^t r_t + gamma^H V(s_H)' }]
           : texLines(Object.assign({}, S.parts, parts || {}), world || S.world).map(([label, tex]) => ({ label, tex })),
       state: () => labState(),
-      record: () => goalExecutionActive() ? customApi().record() : inferenceActive() ? customApi().record() : rareActive() ? BBRARELESSON.record() : goalsActive() ? BBGOALS_LEVEL.record() : rewardfitActive() ? BBREWARDFIT.record() : thawActive() ? BBTHAW.record() : runState.record,
-      replay: () => goalExecutionActive() ? customApi().replay() : inferenceActive() ? customApi().replay() : rareActive() ? BBRARELESSON.replay() : goalsActive() ? BBGOALS_LEVEL.replay() : rewardfitActive() ? BBREWARDFIT.replay() : thawActive() ? BBTHAW.replay() : ({ time: sceneTime, watching, stale: runState.stale, world: adapter && adapter.world,
+      record: () => skillsActive() ? BBSKILLS_LEVEL.record() : goalExecutionActive() ? customApi().record() : inferenceActive() ? customApi().record() : rareActive() ? BBRARELESSON.record() : goalsActive() ? BBGOALS_LEVEL.record() : rewardfitActive() ? BBREWARDFIT.record() : thawActive() ? BBTHAW.record() : runState.record,
+      replay: () => skillsActive() ? BBSKILLS_LEVEL.replay() : goalExecutionActive() ? customApi().replay() : inferenceActive() ? customApi().replay() : rareActive() ? BBRARELESSON.replay() : goalsActive() ? BBGOALS_LEVEL.replay() : rewardfitActive() ? BBREWARDFIT.replay() : thawActive() ? BBTHAW.replay() : ({ time: sceneTime, watching, stale: runState.stale, world: adapter && adapter.world,
         length: adapter && runState.record ? adapter.length(runState.record) : 0 }),
       levels: () => C.levels.map((l) => { const i = levelInfo(l); return { n: i.n, id: i.id, title: i.title, world: i.world, done: i.done, step: i.step }; }),
       level: (which) => {
@@ -3138,6 +3139,7 @@
     S.afterRun = null; S.onPartsChange = null;
     if (!goalExecutionActive() || S.level !== 'hindsight') BBHINDSIGHT.cancel();
     if (!goalExecutionActive() || S.level !== 'hierarchy') BBHIERARCHY.cancel();
+    if (!skillsActive() || mapOpen) BBSKILLS_LEVEL.cancel();
     if (!goalsActive() || mapOpen) BBGOALS_LEVEL.cancel();
     if (!rareActive() || mapOpen) BBRARELESSON.cancel();
     if (!vpoActive()) BBVPO.cancel();
