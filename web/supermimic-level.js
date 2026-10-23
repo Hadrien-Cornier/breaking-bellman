@@ -37,7 +37,8 @@
   M.sharedSource = SHARED_SOURCE;
   let sourceKnown = () => false, revealSource = () => {};
   M.discoveryFor = () => Object.assign({}, SHARED_SOURCE.discovery, { discovered: sourceKnown('supermimic') });
-  let currentRun = null, redraw = null;
+  let currentRun = null, redraw = null, replay = null, record = null;
+  M.reset = () => { M.cancel(); state.result = null; record = null; };
   const f = (x, n = 3) => Number(x).toFixed(n);
   const count = x => x >= 1e6 ? f(x / 1e6, 2) + 'M' : x >= 1e3 ? f(x / 1e3, 1) + 'k' : String(x);
   M.cancel = () => {
@@ -61,6 +62,7 @@
   M.run = async () => {
     if (state.busy) return null;
     const ticket = { worker: null, resolve: null };
+    if (replay) replay.clear(); record = null;
     currentRun = ticket; state.busy = true; state.error = null; state.result = null; state.answer = ''; state.inspected = false;
     if (redraw) redraw();
     try {
@@ -75,7 +77,9 @@
         worker.postMessage({ seed: state.seed, scale: state.scale });
       });
       if (currentRun !== ticket) return null;
-      state.result = result;
+      const measured = await BB.customRecord.create('supermimic', result, window.BB_SUPERMIMIC_VERSION);
+      if (currentRun !== ticket) return null;
+      record = measured; state.result = record.results;
       revealSource('supermimic');
       return result;
     } catch (error) {
@@ -103,22 +107,6 @@
     return h('div.row', { id: 'supermimic-source-context' }, [
       h('span.small', { text: 'Verified paper source and toy adaptation:' }),
       A.makeTrigger('supermimic', 'SuperMimic source and context'),
-    ]);
-  }
-  function pendulum(h, result) {
-    const best = result ? result.methods.reduce((a, b) => b.physicsScore > a.physicsScore ? b : a) : null;
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('viewBox', '0 0 360 250'); svg.setAttribute('role', 'img');
-    svg.setAttribute('aria-label', 'A one-joint pendulum tracks a moving target angle in true physics.');
-    svg.innerHTML = '<line x1="180" y1="30" x2="180" y2="190" stroke="var(--line)" stroke-width="2" stroke-dasharray="5 5"/>' +
-      '<path d="M180 30 L292 142" stroke="var(--accent)" stroke-width="10" stroke-linecap="round"/>' +
-      '<circle cx="180" cy="30" r="13" fill="var(--ink)"/><circle cx="292" cy="142" r="15" fill="var(--accent)"/>' +
-      '<path d="M180 74 A44 44 0 0 1 211 61" fill="none" stroke="var(--muted)" stroke-width="3"/>' +
-      '<text x="217" y="62" fill="var(--muted)" font-size="13">reference moves</text>';
-    return h('section.card', null, [
-      h('h3', { text: 'The tracking task' }), svg,
-      h('p', { text: 'Every method sees the same sine-wave reference, torque limit ±2, tracking reward, 100-step test, and evaluation seeds.' }),
-      h('p.small', { text: best ? 'Current best true-physics score: ' + best.name + ', ' + f(best.physicsScore) + '. This is one seeded toy result, not a guaranteed ranking.' : 'Run the comparison to train and evaluate all three policies.' }),
     ]);
   }
   function rolloutSection(h, r) {
@@ -179,26 +167,29 @@
       }, [h('span', { text }), state.answer === value ? h('span.why', { role: 'status', text: feedback[value] }) : null]))),
     ]);
   }
-  M.mount = (pane, lab, { h, complete, done, known, reveal, shell }) => {
+  M.mount = (pane, lab, { h, complete, done, known, reveal, replay: sharedReplay, shell }) => {
+    replay = sharedReplay;
     sourceKnown = known || (() => false);
     revealSource = reveal || (() => {});
     const lesson = C.levels.find(l => l.id === 'supermimic'), body = h('div.card.stack', { id: 'supermimic-lesson' });
     pane.append(body);
     redraw = () => {
       if (!body.isConnected) return;
+      window.ALGO_HELP?.closeReminder();
       const select = (id, label, values, value, change) => h('label.field', { for: id }, [
         h('span.small', { text: label }),
-        h('select', { id, disabled: state.busy, onchange: e => { change(+e.target.value); redraw(); } },
+        h('select', { id, style:'min-height:44px;min-width:44px;max-width:100%', disabled: state.busy, onchange: e => { change(+e.target.value); redraw(); } },
           values.map(([v, text]) => h('option', { value: v, selected: v === value, text }))),
       ]);
+      body.dataset.customResult = '';
       body.replaceChildren(
         h('div.eyebrow', { text: 'Level ' + C.levels.length + ' · SuperMimic-inspired' }),
         h('h2', { text: lesson.title }), h('p', { text: lesson.intro }), sourceContext(h),
         h('p', { text: 'The learned model is fitted once from 2,400 true-physics transitions. Both model-based learners receive that exact model object. PPO in physics never trains on model rollouts.' }),
         h('div.row', null, [
-          select('supermimic-seed', 'Seed', [[178, '178'], [279, '279'], [380, '380']], state.seed, v => { state.seed = v; state.result = null; }),
-          select('supermimic-budget', 'Browser budget', [[0.4, 'Compact'], [1, 'Full']], state.scale, v => { state.scale = v; state.result = null; }),
-          h('button.btn', { id: 'supermimic-run', type: 'button', disabled: state.busy, onclick: () => M.run().catch(() => redraw()) }, state.busy ? 'Training three policies…' : 'Fit model and train all three'),
+          select('supermimic-seed', 'Seed', [[178, '178'], [279, '279'], [380, '380']], state.seed, v => { state.seed = v; }),
+          select('supermimic-budget', 'Browser budget', [[0.4, 'Compact'], [1, 'Full']], state.scale, v => { state.scale = v; }),
+          h('button.btn', { id: 'supermimic-run', type: 'button', disabled: state.busy, onclick: () => M.run().catch(() => redraw()) }, state.busy ? 'Training three policies…' : 'Run all three methods'),
         ]),
         h('p.small', { id: 'supermimic-status', role: 'status', text: state.error || (state.result
           ? 'Live seeded run complete. Model fit: ' + state.result.model.fitTransitions + ' physics transitions, ' + state.result.model.fitMs + ' ms. Policy training costs are reported separately.'
@@ -214,7 +205,9 @@
           }, done() ? 'Lesson complete' : 'Finish lesson'),
           h('p.small', { text: 'To finish, inspect the surrogate gap and choose the supported conclusion.' }));
       }
-      lab.replaceChildren(pendulum(h, state.result),
+      replay.park();
+      const scene = BB.customScenes.panel(h, 'supermimic');
+      lab.replaceChildren(scene,
         h('section.card.game-rules', { id: 'supermimic-rules' }, [
           h('h3', { text: 'Game rules · Tracking pendulum' }),
           h('dl', null, [
@@ -248,6 +241,7 @@
           shell.notebook('autopsy').replaceChildren(h('p.small', { text: 'Run the comparison to train and evaluate all three policies.' }));
         }
       }
+      replay.mount(scene, record, { seed: state.seed, scale: state.scale });
     };
     redraw();
   };
