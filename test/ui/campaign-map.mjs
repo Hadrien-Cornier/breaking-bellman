@@ -31,6 +31,7 @@ try {
     page.on('pageerror', e => errors.push(e.message));
     page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
     const input = progress === 'newer' ? structuredClone(fixture) : { intro: 1, level: 'slots', done: [] };
+    if (progress === 'newer') input.level = 'unknown-future';
     input.future = { nested: [false, null, { stable: 'keep' }] };
     input.made = { ...input.made, 'unknown-future': { nested: { rule: 42 } } };
     await seed(page, input);

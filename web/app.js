@@ -1103,8 +1103,14 @@
   }
   const vpoActive = () => S.mode === 'campaign' && S.level === 'vpo';
   const supermimicActive = () => S.mode === 'campaign' && S.level === 'supermimic';
-  const customActive = () => vpoActive() || supermimicActive();
-  const customApi = () => supermimicActive() ? BBSUPERMIMIC : BBVPO;
+  function customLessonApi(id) {
+    if (id === 'skew') return window.BBSKEW;
+    if (id === 'supermimic') return window.BBSUPERMIMIC;
+    if (id === 'vpo') return window.BBVPO;
+    return null;
+  }
+  const customActive = () => S.mode === 'campaign' && !!customLessonApi(S.level);
+  const customApi = () => customLessonApi(S.level);
   async function run() {
     if (customActive()) return customApi().run();
     if (S.running) return null;
@@ -2114,8 +2120,13 @@
     const lv = C.levels.find((l) => l.id === S.level);
     S.focus = lv.focus;
     if (lv.custom) {
-      const api = lv.id === 'supermimic' ? BBSUPERMIMIC : BBVPO;
-      api.mount(pane, $('#vpo-lab'), { h, done: () => S.done.includes(lv.id), complete: () => {
+      const api = customLessonApi(lv.id);
+      api.mount(pane, $('#vpo-lab'), { h,
+        answer: id => S.answers[id], recordAnswer, step: () => S.lstep[lv.id] || 0,
+        markStep: n => { S.lstep[lv.id] = Math.max(S.lstep[lv.id] || 0, n); save(); },
+        next: () => C.levels[C.levels.indexOf(lv) + 1],
+        openNext: () => { const next = C.levels[C.levels.indexOf(lv) + 1]; if (next) chooseLevel(next.id); },
+        done: () => S.done.includes(lv.id), complete: () => {
         if (!S.done.includes(lv.id)) S.done.push(lv.id); S.lstep[lv.id] = 5; save(); updateScore();
       }, known: id => S.found.includes(id) || S.given.includes(id), reveal: id => {
         if (!S.given.includes(id)) {
@@ -2871,8 +2882,8 @@
         : supermimicActive() ? [{ label: 'Short-horizon objective', tex: 'J_H = sum_{t=0}^{H-1} gamma^t r_t + gamma^H V(s_H)' }]
           : texLines(Object.assign({}, S.parts, parts || {}), world || S.world).map(([label, tex]) => ({ label, tex })),
       state: () => labState(),
-      record: () => runState.record,
-      replay: () => ({ time: sceneTime, watching, stale: runState.stale, world: adapter && adapter.world,
+      record: () => customActive() ? customApi().record?.() || null : runState.record,
+      replay: () => customActive() ? customApi().replay?.() || { time: 0, length: 0, watching: false, stale: false, world: null } : ({ time: sceneTime, watching, stale: runState.stale, world: adapter && adapter.world,
         length: adapter && runState.record ? adapter.length(runState.record) : 0 }),
       levels: () => C.levels.map((l) => { const i = levelInfo(l); return { n: i.n, id: i.id, title: i.title, world: i.world, done: i.done, step: i.step }; }),
       level: (which) => {
@@ -3053,6 +3064,7 @@
     mounts = mounts.filter((m) => m.permanent);
     const pane = $('#mode-pane'); pane.replaceChildren();
     S.afterRun = null; S.onPartsChange = null;
+    if (!(S.mode === 'campaign' && !mapOpen && S.level === 'skew')) window.BBSKEW.cancel();
     if (!vpoActive()) BBVPO.cancel();
     if (!supermimicActive()) BBSUPERMIMIC.cancel();
     const mapping = S.mode === 'campaign' && mapOpen;
