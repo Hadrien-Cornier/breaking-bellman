@@ -4,7 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { goalExecutionContract } from './lib/goal-execution.mjs';
+import { goalExecutionContract, goalExecutionLessonFlow } from './lib/goal-execution.mjs';
 const require = createRequire(import.meta.url), { chromium } = require('playwright-core');
 const [out = path.join(os.tmpdir(), 'bb-goal-execution'), url = new URL('../../dist/breaking-bellman.html', import.meta.url).href] = process.argv.slice(2);
 fs.mkdirSync(out, { recursive: true });
@@ -30,6 +30,7 @@ try {
         assert.deepEqual(saved.answers, fixture.answers);
         for (const unknown of fixture.done.filter(id => !['hindsight', 'hierarchy'].includes(id))) assert.ok(saved.done.includes(unknown));
       }
+      await goalExecutionLessonFlow(page, id, out, name);
       assert.deepEqual(errors, []);
       results.push({ name, passed: true, proof }); console.log('ok ' + name);
     } catch (error) {

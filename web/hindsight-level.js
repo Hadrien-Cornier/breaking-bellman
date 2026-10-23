@@ -119,7 +119,7 @@
           h('p', { text: 'Use Run above to build the tuples and compare all five replay rules. Then select Stored failed episodes or a named method and use Watch or Step.' }));
       } else if (stale) children.push(h('p', { text: 'The sweep count changed. Run again before interpreting the values.' }));
       else if (state.diag == null || step < 3) {
-        children.push(h('h3', { text: '3. Diagnose' }), choice(h, DIAGNOSE, state.diag, i => { state.diag = i; api.recordAnswer?.(DIAGNOSE.id, i, !!DIAGNOSE.options[i].correct); advance(3); redraw(); }));
+        children.push(h('h3', { text: '3. Diagnose' }), choice(h, DIAGNOSE, state.diag, i => { state.diag = i; api.recordAnswer?.(DIAGNOSE.id, i, !!DIAGNOSE.options[i].correct); redraw(); }), h('button.btn', { id: 'hindsight-continue', type: 'button', disabled: state.diag == null, onclick: () => { advance(3); redraw(); } }, 'Continue'));
       } else {
         children.push(h('h3', { text: '4. Change and explain' }), h('p', { text: 'Compare one and two sweeps with the setting above. Select each named method to replay its actual greedy checks for West, East and Far. A stopped tie takes no action. Two sweeps carry the reached-goal values back to Start.' }),
           r.settings.sweeps === 2 ? choice(h, explain, state.explain, i => { state.explain = i; api.recordAnswer?.(explain.id, i, !!explain.options[i].correct); redraw(); }) : h('p', { text: 'Run Two sweeps to see values reach Start, then explain that result.' }),

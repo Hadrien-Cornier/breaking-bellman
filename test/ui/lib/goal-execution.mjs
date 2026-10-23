@@ -81,3 +81,54 @@ export async function goalExecutionContract(page, id, out, name) {
   check(await page.evaluate(() => bellman.record() === null), 'return needs a fresh run');
   return { initial: record.id, changed: fresh.id, surfaces };
 }
+
+// Retain every question and feedback surface while exercising the completion path.
+export async function goalExecutionLessonFlow(page, id, out, name) {
+  const surfaces = [];
+  const capture = async label => {
+    surfaces.push({ label, text: await page.locator('#' + id + '-lesson').innerText() });
+    await page.screenshot({ path: path.join(out, name + '-' + label + '.png'), fullPage: true });
+  };
+  const choices = async suffix => {
+    const question = page.locator('#' + id + '-' + suffix);
+    const keys = await question.locator('button').evaluateAll(es => es.map(e => e.dataset.key));
+    for (const key of keys) {
+      await question.locator('[data-key="' + key + '"]').click();
+      await capture(suffix + '-' + key);
+    }
+  };
+  // Reset only this isolated browser case so every initial option can be inspected.
+  await page.evaluate(() => localStorage.setItem('breaking-bellman-v1', JSON.stringify({ intro: 1, level: 'cliff' })));
+  await page.reload();
+  await page.evaluate(id => bellman.level(id), id);
+  await capture('prediction');
+  await choices('p');
+  await page.locator('#' + id + '-run').click();
+  await choices('d');
+  await page.locator('#' + id + '-continue').click();
+  if (id === 'hindsight') {
+    await page.locator('#hindsight-setting').selectOption('1');
+    await page.locator('#hindsight-run').click();
+    assert.equal((await page.evaluate(() => bellman.record())).metrics.hindsight.solved, 0);
+    await page.locator('#hindsight-setting').selectOption('2');
+    await page.locator('#hindsight-run').click();
+  } else {
+    for (const variant of ['pit', 'absolute', 'far', 'short', 'extra', 'long']) {
+      await page.locator('#hierarchy-setting').selectOption(variant);
+      assert.ok((await page.evaluate(() => bellman.replay())).stale);
+      await page.locator('#hierarchy-run').click();
+      const record = await page.evaluate(() => bellman.record());
+      assert.equal(record.settings.variant, variant);
+      if (['pit', 'absolute', 'far', 'short'].includes(variant)) assert.equal(record.report.execution.reachedPrize, false);
+      if (variant === 'extra') assert.ok(record.data.prior.steps > 0);
+      if (variant === 'long') assert.equal(record.report.flat.greedy.reached, true);
+      await capture('setup-' + variant);
+    }
+  }
+  await choices('x');
+  await page.locator('#' + id + '-x [data-key="' + (id === 'hindsight' ? 'compute' : 'option') + '"]').click();
+  await page.locator('#' + id + '-complete').click();
+  assert.ok(await page.evaluate(id => JSON.parse(localStorage.getItem('breaking-bellman-v1')).done.includes(id), id));
+  await capture('complete');
+  fs.writeFileSync(path.join(out, name + '-all-feedback.json'), JSON.stringify(surfaces, null, 2));
+}
