@@ -8,6 +8,7 @@ import { gzipSync } from 'node:zlib';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PW_CORE || 'playwright-core');
+const thawContract = require('./thaw-contract.js');
 const fixture = JSON.parse(fs.readFileSync(new URL('../fixtures/newer-main-save.json', import.meta.url))).progress;
 const [out = path.join(os.tmpdir(), 'bb-levels'), url = new URL('../../dist/breaking-bellman.html', import.meta.url).href] = process.argv.slice(2);
 fs.mkdirSync(out, { recursive: true });
@@ -143,7 +144,7 @@ try {
         const errors = [];
         page.on('pageerror', e => errors.push(e.message));
         page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-        const record = { name, id, width, height, progress, errors, stage: ['vpo', 'supermimic'].includes(id) ? 'custom-baseline' : 'shared-replay', checks: [] };
+        const record = { name, id, width, height, progress, errors, stage: id === 'thaw' ? 'thaw-replay' : ['vpo', 'supermimic'].includes(id) ? 'custom-baseline' : 'shared-replay', checks: [] };
         const verify = (ok, text) => { record.checks.push({ text, passed: !!ok }); check(ok, name + ': ' + text); };
         try {
           await seed(page, progress === 'newer' ? fixture : null);
@@ -160,8 +161,8 @@ try {
           await page.locator('#tabs button').last().focus();
           await page.keyboard.press('Tab');
           verify(await page.locator('#campaign-strip button').evaluate(e => e === document.activeElement), 'Tab from header reaches map strip before lesson controls');
-          const custom = ['vpo', 'supermimic'].includes(id);
-          const scene = page.locator(custom ? '#vpo-lab svg' : '#stage').first();
+          const custom = ['vpo', 'supermimic', 'thaw'].includes(id);
+          const scene = page.locator(id === 'thaw' ? '#thaw-scene' : custom ? '#vpo-lab svg' : '#stage').first();
           verify(await scene.isVisible(), 'baseline scene visible before Run');
           record.before = await scene.evaluate(e => ({ tag: e.tagName, width: e.getBoundingClientRect().width, height: e.getBoundingClientRect().height, label: e.getAttribute('aria-label') }));
           verify(record.before.width > 0 && record.before.height > 0, 'scene has nonzero dimensions');
@@ -174,6 +175,9 @@ try {
             await page.waitForFunction(() => !document.querySelector('#vpo-run').disabled && document.querySelector('#vpo-source').textContent.includes('Live simulation completed'), null, { timeout: runTimeout });
             record.result = await page.locator('#vpo-source').innerText();
             verify(await page.locator('#vpo-lesson table').count() > 0, 'baseline measured results table exists');
+          } else if (id === 'thaw') {
+            await page.waitForFunction(() => bellman.record()?.level === 'thaw');
+            await thawContract(page, record, verify);
           } else if (id === 'supermimic') {
             await page.waitForSelector('#supermimic-gradients', { state: 'attached', timeout: runTimeout });
             await page.locator('#custom-notebook > summary').click();
@@ -202,6 +206,12 @@ try {
           await page.screenshot({ path: path.join(out, name + '-result-dark.png'), fullPage: true });
           await page.emulateMedia({ colorScheme: 'light' });
           if (progress === 'newer') retained(await stored(page), fixture, ids, id);
+          if (id === 'thaw') {
+            await page.evaluate(() => bellman.level('cliff'));
+            verify(await page.evaluate(() => bellman.record() === null && bellman.state().world === 'cliff'), 'leaving Thaw clears its world and record');
+            await page.evaluate(() => bellman.level('thaw'));
+            verify(await page.evaluate(() => bellman.record() === null && bellman.replay().time === 0), 'returning to Thaw does not reuse a scored test');
+          }
           if (!custom) {
             const sibling = await page.evaluate(id => bellman.levels().find(l => l.id !== id && l.world === bellman.record().world)?.id, id);
             if (sibling) {
