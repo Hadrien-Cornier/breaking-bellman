@@ -1143,6 +1143,7 @@
     $('#run-source').textContent = 'Settings changed. Run this sentence to measure it.';
     showRunStopped('Run canceled after the settings changed.');
   }
+  const goalExecutionActive = () => S.mode === 'campaign' && ['hindsight', 'hierarchy'].includes(S.level);
   const inferenceActive = () => S.mode === 'campaign' && ['elbo', 'messages'].includes(S.level);
   const rareActive = () => S.mode === 'campaign' && S.level === 'rare';
   const vpoActive = () => S.mode === 'campaign' && S.level === 'vpo';
@@ -1150,8 +1151,8 @@
   const goalsActive = () => S.mode === 'campaign' && S.level === 'goals';
   const rewardfitActive = () => S.mode === 'campaign' && S.level === 'rewardfit';
   const thawActive = () => S.mode === 'campaign' && S.level === 'thaw';
-  const customActive = () => inferenceActive() || rareActive() || vpoActive() || supermimicActive() || thawActive() || rewardfitActive() || goalsActive();
-  const customApi = () => S.level === 'elbo' ? BBELBO_LEVEL : S.level === 'messages' ? BBMESSAGES_LEVEL : rareActive() ? BBRARELESSON : goalsActive() ? BBGOALS_LEVEL : rewardfitActive() ? BBREWARDFIT : thawActive() ? BBTHAW : supermimicActive() ? BBSUPERMIMIC : BBVPO;
+  const customActive = () => goalExecutionActive() || inferenceActive() || rareActive() || vpoActive() || supermimicActive() || thawActive() || rewardfitActive() || goalsActive();
+  const customApi = () => S.level === 'hindsight' ? BBHINDSIGHT : S.level === 'hierarchy' ? BBHIERARCHY : S.level === 'elbo' ? BBELBO_LEVEL : S.level === 'messages' ? BBMESSAGES_LEVEL : rareActive() ? BBRARELESSON : goalsActive() ? BBGOALS_LEVEL : rewardfitActive() ? BBREWARDFIT : thawActive() ? BBTHAW : supermimicActive() ? BBSUPERMIMIC : BBVPO;
   async function run() {
     if (customActive()) return customApi().run();
     if (S.running) return null;
@@ -2191,7 +2192,7 @@
     S.focus = lv.focus;
     if (lv.custom) {
       const api = customApi();
-      api.mount(pane, $('#vpo-lab'), { h, mark: n => { S.lstep[lv.id] = n; save(); }, answer: id => S.answers[id], record: (id, choice, correct) => { S.answers[id] = { ...(S.answers[id] || {}), choice, correct }; save(); }, replay: comparisonReplay, shell: customShell, progress: () => S.lstep[lv.id] || 0, setProgress: n => { S.lstep[lv.id] = n; save(); }, answerFor: id => S.answers[id], recordAnswer, openLevel: chooseLevel, mc: mcBlock, step: () => S.lstep[lv.id] || 0, setStep: n => setStep(lv, n), refresh: render, done: () => S.done.includes(lv.id), complete: () => {
+      api.mount(pane, $('#vpo-lab'), { h, markStep: n => { S.lstep[lv.id] = Math.max(S.lstep[lv.id] || 0, n); save(); }, next: () => C.levels[C.levels.indexOf(lv) + 1], openNext: () => { const next = C.levels[C.levels.indexOf(lv) + 1]; if (next) chooseLevel(next.id); }, mark: n => { S.lstep[lv.id] = n; save(); }, answer: id => S.answers[id], record: (id, choice, correct) => { S.answers[id] = { ...(S.answers[id] || {}), choice, correct }; save(); }, replay: comparisonReplay, shell: customShell, progress: () => S.lstep[lv.id] || 0, setProgress: n => { S.lstep[lv.id] = n; save(); }, answerFor: id => S.answers[id], recordAnswer, openLevel: chooseLevel, mc: mcBlock, step: () => S.lstep[lv.id] || 0, setStep: n => setStep(lv, n), refresh: render, done: () => S.done.includes(lv.id), complete: () => {
         if (!S.done.includes(lv.id)) S.done.push(lv.id); S.lstep[lv.id] = 5; save(); updateScore();
       }, known: id => S.found.includes(id) || S.given.includes(id), reveal: id => {
         if (!S.given.includes(id)) {
@@ -2340,6 +2341,8 @@
   let enteredLevel = null;
   function enterLevel(lv, forceStart) {
     if (enteredLevel !== lv.id) {
+      if (enteredLevel === 'hindsight') BBHINDSIGHT.cancel();
+      if (enteredLevel === 'hierarchy') BBHIERARCHY.cancel();
       cancelRun(); comparisonReplay.park(); customScene = null; dropRun(); BBTHAW.clear();
       BBVPO.reset?.(); BBSUPERMIMIC.reset?.(); BBGOALS_LEVEL.reset(); BBRARELESSON.cancel();
       $('label[for="scene-seed"]').textContent = 'Replay seed';
@@ -2949,8 +2952,8 @@
         : supermimicActive() ? [{ label: 'Short-horizon objective', tex: 'J_H = sum_{t=0}^{H-1} gamma^t r_t + gamma^H V(s_H)' }]
           : texLines(Object.assign({}, S.parts, parts || {}), world || S.world).map(([label, tex]) => ({ label, tex })),
       state: () => labState(),
-      record: () => inferenceActive() ? customApi().record() : rareActive() ? BBRARELESSON.record() : goalsActive() ? BBGOALS_LEVEL.record() : rewardfitActive() ? BBREWARDFIT.record() : thawActive() ? BBTHAW.record() : runState.record,
-      replay: () => inferenceActive() ? customApi().replay() : rareActive() ? BBRARELESSON.replay() : goalsActive() ? BBGOALS_LEVEL.replay() : rewardfitActive() ? BBREWARDFIT.replay() : thawActive() ? BBTHAW.replay() : ({ time: sceneTime, watching, stale: runState.stale, world: adapter && adapter.world,
+      record: () => goalExecutionActive() ? customApi().record() : inferenceActive() ? customApi().record() : rareActive() ? BBRARELESSON.record() : goalsActive() ? BBGOALS_LEVEL.record() : rewardfitActive() ? BBREWARDFIT.record() : thawActive() ? BBTHAW.record() : runState.record,
+      replay: () => goalExecutionActive() ? customApi().replay() : inferenceActive() ? customApi().replay() : rareActive() ? BBRARELESSON.replay() : goalsActive() ? BBGOALS_LEVEL.replay() : rewardfitActive() ? BBREWARDFIT.replay() : thawActive() ? BBTHAW.replay() : ({ time: sceneTime, watching, stale: runState.stale, world: adapter && adapter.world,
         length: adapter && runState.record ? adapter.length(runState.record) : 0 }),
       levels: () => C.levels.map((l) => { const i = levelInfo(l); return { n: i.n, id: i.id, title: i.title, world: i.world, done: i.done, step: i.step }; }),
       level: (which) => {
@@ -3133,6 +3136,8 @@
     if (!customActive() || mapOpen) { customScene = null; pauseScene(); }
     const pane = $('#mode-pane'); pane.replaceChildren();
     S.afterRun = null; S.onPartsChange = null;
+    if (!goalExecutionActive() || S.level !== 'hindsight') BBHINDSIGHT.cancel();
+    if (!goalExecutionActive() || S.level !== 'hierarchy') BBHIERARCHY.cancel();
     if (!goalsActive() || mapOpen) BBGOALS_LEVEL.cancel();
     if (!rareActive() || mapOpen) BBRARELESSON.cancel();
     if (!vpoActive()) BBVPO.cancel();
