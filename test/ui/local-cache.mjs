@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 const [proof, url = 'http://localhost:8768/'] = process.argv.slice(2);
 fs.mkdirSync(proof, { recursive: true });
 function cli(...args) { return execFileSync('chrome-devtools-axi', args, { encoding: 'utf8', timeout: 60000,
-  env: { ...process.env, CHROME_DEVTOOLS_AXI_SESSION: 'bb-local-cache160' } }); }
+  env: { ...process.env, CHROME_DEVTOOLS_AXI_SESSION: process.env.CHROME_DEVTOOLS_AXI_SESSION || 'bb-local-cache160' } }); }
 function evaluate(js) {
   const out = cli('eval', js), m = out.match(/^result: (.+)$/m);
   if (!m) throw Error(out);
