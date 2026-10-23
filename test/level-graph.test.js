@@ -23,9 +23,9 @@ function content(beforeGraph) {
 }
 const plain = value => JSON.parse(JSON.stringify(value));
 const ids = ['slots', 'cliff', 'careful', 'cells', 'explode', 'mirage', 'credit', 'bigsteps', 'passfail',
-  'continuous', 'explore', 'offline', 'mixed', 'thaw', 'twoways', 'pick', 'residual', 'fetch', 'vpo', 'supermimic'];
+  'continuous', 'explore', 'offline', 'mixed', 'thaw', 'rewardfit', 'twoways', 'pick', 'residual', 'fetch', 'vpo', 'supermimic'];
 
-test('build attaches the six campaign worlds and approved metadata to exactly the 20 registered levels', () => {
+test('build attaches the six campaign worlds and approved metadata to the registered levels', () => {
   const C = content();
   assert.deepEqual(plain(C.levels.map(l => l.id)), ids);
   assert.deepEqual(worlds.map(w => [w.id, w.name]), approved.worlds);
@@ -63,7 +63,7 @@ test('both endpoints must be registered; returning a parent or child wakes only 
   assert.equal(withGoals.status('twoways', ['goals']), 'open');
   assert.deepEqual(withGoals.missing('mixed', ['offline']), ['goals']);
   assert.equal(withGoals.status('mixed', ['offline', 'goals']), 'open');
-  assert(!withGoals.activeEdges.some(e => e.to === 'rewardfit'));
+  assert.deepEqual(withGoals.parents('rewardfit'), ['goals']);
   const withRare = create([...C.levels, { id: 'rare', phase: 11 }]);
   assert.deepEqual(withRare.parents('rare'), ['slots', 'cliff']);
   assert.equal(withRare.status('rare', ['slots']), 'locked');

@@ -1,6 +1,7 @@
 // All registered lessons: full shared RunRecord replay contract; custom lessons retain their baseline.
 // npm run build && node test/ui/levels.mjs [proof directory] [URL]
 import assert from 'node:assert/strict';
+import { rewardfitContract } from '../support/rewardfit-ui.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -144,7 +145,7 @@ try {
         const errors = [];
         page.on('pageerror', e => errors.push(e.message));
         page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-        const record = { name, id, width, height, progress, errors, stage: id === 'thaw' ? 'thaw-replay' : ['vpo', 'supermimic'].includes(id) ? 'custom-baseline' : 'shared-replay', checks: [] };
+        const record = { name, id, width, height, progress, errors, stage: id === 'rewardfit' ? 'rewardfit-replay' : id === 'thaw' ? 'thaw-replay' : ['vpo', 'supermimic'].includes(id) ? 'custom-baseline' : 'shared-replay', checks: [] };
         const verify = (ok, text) => { record.checks.push({ text, passed: !!ok }); check(ok, name + ': ' + text); };
         try {
           await seed(page, progress === 'newer' ? fixture : null);
@@ -161,8 +162,8 @@ try {
           await page.locator('#tabs button').last().focus();
           await page.keyboard.press('Tab');
           verify(await page.locator('#campaign-strip button').evaluate(e => e === document.activeElement), 'Tab from header reaches map strip before lesson controls');
-          const custom = ['vpo', 'supermimic', 'thaw'].includes(id);
-          const scene = page.locator(id === 'thaw' ? '#thaw-scene' : custom ? '#vpo-lab svg' : '#stage').first();
+          const custom = ['vpo', 'supermimic', 'thaw', 'rewardfit'].includes(id);
+          const scene = page.locator(id === 'rewardfit' ? '#rewardfit-scene' : id === 'thaw' ? '#thaw-scene' : custom ? '#vpo-lab svg' : '#stage').first();
           verify(await scene.isVisible(), 'baseline scene visible before Run');
           record.before = await scene.evaluate(e => ({ tag: e.tagName, width: e.getBoundingClientRect().width, height: e.getBoundingClientRect().height, label: e.getAttribute('aria-label') }));
           verify(record.before.width > 0 && record.before.height > 0, 'scene has nonzero dimensions');
@@ -171,7 +172,9 @@ try {
           if (!custom) verify(await page.evaluate(() => bellman.record() === null && document.querySelector('#stage').dataset.world === bellman.state().world), 'fresh level has its actual world and no previous record');
           const button = custom ? `#${id}-run` : '#run-btn';
           await page.locator(button).click();
-          if (id === 'vpo') {
+          if (id === 'rewardfit') {
+            await rewardfitContract(page, record, verify, out);
+          } else if (id === 'vpo') {
             await page.waitForFunction(() => !document.querySelector('#vpo-run').disabled && document.querySelector('#vpo-source').textContent.includes('Live simulation completed'), null, { timeout: runTimeout });
             record.result = await page.locator('#vpo-source').innerText();
             verify(await page.locator('#vpo-lesson table').count() > 0, 'baseline measured results table exists');
@@ -222,6 +225,12 @@ try {
             verify(await page.evaluate(() => bellman.record() === null && bellman.replay().world === null && !document.querySelector('#stage').dataset.world), 'custom transition drops shared record and world');
             await page.evaluate(id => bellman.level(id), id);
             verify(await page.evaluate(() => bellman.record() === null && bellman.replay().world === bellman.state().world), 'return from custom mounts a fresh world without a record');
+          }
+          if (id === 'rewardfit') {
+            await page.evaluate(() => bellman.level('cliff'));
+            verify(await page.evaluate(() => BBREWARDFIT.record() === null && bellman.record() === null), 'leaving rewardfit drops its record');
+            await page.evaluate(() => bellman.level('rewardfit'));
+            verify(await page.evaluate(() => bellman.record() === null && document.querySelector('#rewardfit-scene').dataset.cell === '0,1'), 'returning rewardfit has no previous route');
           }
           await page.reload();
           const after = await stored(page);

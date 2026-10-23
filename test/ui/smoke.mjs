@@ -220,10 +220,11 @@ await session(1280, 900, 'phases', async (page) => {
   await page.getByRole('tab', { name: 'Campaign' }).click();
   await page.locator('#campaign-logo').click();
   // Every advisory node remains selectable; the save bar and agent hooks are there.
-  check(await page.locator('[data-map-level]').count() === await page.evaluate(() => CONTENT.levels.length) && !(await page.locator('[data-map-level][disabled]').count()), 'all registered levels are open');
+  const registeredLevels = await page.evaluate(() => CONTENT.levels.length);
+  check(await page.locator('[data-map-level]').count() === registeredLevels && !(await page.locator('[data-map-level][disabled]').count()), 'all registered levels are open');
   check(await page.locator('#mode-pane .savebar button', { hasText: 'Download save file' }).count() === 1, 'the level map offers a save file');
   const brief = await page.evaluate(() => window.bellman.help());
-  check(new RegExp('Level \\d+ of ' + await page.evaluate(() => CONTENT.levels.length)).test(brief) && /bellman\.run\(\)/.test(brief), 'window.bellman gives a brief for an AI helper');
+  check(new RegExp('Level \\d+ of ' + registeredLevels).test(brief) && /bellman\.run\(\)/.test(brief), 'window.bellman gives a brief for an AI helper');
   const wr = await page.evaluate(() => {
     const b = window.bellman, w0 = Object.assign({}, b.words().words);
     const a = b.words({ eps: true }), ae = a.words.eps, ar = a.rejected;
