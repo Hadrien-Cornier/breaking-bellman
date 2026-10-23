@@ -22,7 +22,7 @@ function content(beforeGraph) {
   return context.window.CONTENT;
 }
 const plain = value => JSON.parse(JSON.stringify(value));
-const ids = ["goals", "slots", "cliff", "careful", "cells", "explode", "mirage", "credit", "bigsteps", "passfail", "continuous", "explore", "elbo", "messages", "offline", "mixed", "thaw", "rewardfit", "rare", "twoways", "pick", "residual", "fetch", "vpo", "skills", "skew", "hindsight", "hierarchy", "supermimic"];
+const ids = ["goals", "slots", "cliff", "careful", "cells", "explode", "mirage", "credit", "bigsteps", "passfail", "continuous", "explore", "elbo", "messages", "offline", "mixed", "thaw", "rewardfit", "rare", "twoways", "pick", "residual", "fetch", "vpo", "skills", "skew", "hindsight", "metarl", "hierarchy", "supermimic"];
 
 test('build attaches the six campaign worlds and approved metadata to the registered levels', () => {
   const C = content();
