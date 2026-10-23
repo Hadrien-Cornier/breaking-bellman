@@ -12,8 +12,8 @@ const root = path.dirname(new URL(import.meta.url).pathname);
 const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 
 export const ENGINE_FILES = fastSource.engineFiles;
-const CONTENT_FILES = ['web/content.js', 'web/content2.js', 'web/measured.js', 'web/content3.js', 'web/expert.js', 'web/papers.js', 'web/wonder.js', 'web/fetch-level.js', 'web/quiz-content.js', 'web/vpo-reference.js', 'web/vpo-level.js', 'web/supermimic-level.js', 'web/level-graph.js'];
-const APP_FILES = ['src/sim/exact.js', 'web/fast.js', 'web/llm.js', 'web/scenes.js', 'web/run-record.js', 'web/scene-adapter.js', 'web/pagemd.js', 'web/help.js', 'web/algos.js', 'web/rules.js', 'web/reward-backup.js', 'web/campaign-map.js', 'web/app.js'];
+const CONTENT_FILES = ['web/content.js', 'web/content2.js', 'web/measured.js', 'web/content3.js', 'web/expert.js', 'web/papers.js', 'web/wonder.js', 'web/fetch-level.js', 'web/quiz-content.js', 'web/vpo-reference.js', 'web/vpo-level.js', 'web/supermimic-level.js', 'src/agents/rewardfit.js', 'web/rewardfit-record.js', 'web/rewardfit-level.js', 'web/level-graph.js'];
+const APP_FILES = ['src/sim/exact.js', 'web/fast.js', 'web/llm.js', 'web/scenes.js', 'web/rewardfit-scene.js', 'web/run-record.js', 'web/scene-adapter.js', 'web/pagemd.js', 'web/help.js', 'web/algos.js', 'web/rules.js', 'web/reward-backup.js', 'web/campaign-map.js', 'web/app.js'];
 
 const exists = (f) => fs.existsSync(path.join(root, f));
 const join = (files) => files.filter(exists).map(read).join('\n;\n');
@@ -28,7 +28,7 @@ const body = read('web/page.html')
   .replace('/*@ENGINE@*/', () => noClose(join(ENGINE_FILES)))
   .replace('/*@CONTENT@*/', () => join(CONTENT_FILES))
   .replace('/*@APP@*/', () => join(APP_FILES))
-  .replace('/*@CSS@*/', () => read('web/style.css'))
+  .replace('/*@CSS@*/', () => read('web/style.css') + '\n' + read('web/rewardfit.css'))
   .replace('/*@FONTS@*/', () => (exists('web/fonts/fonts.css') ? read('web/fonts/fonts.css').replace(/url\(\.\/([\w.-]+\.woff2)\)/g,
     (m, file) => 'url(data:font/woff2;base64,' + fs.readFileSync(path.join(root, 'web/fonts', file)).toString('base64') + ')') : ''));
 
