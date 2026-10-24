@@ -67,19 +67,28 @@ async function session(w, h, name, fn) {
   await page.close();
 }
 // tap a word chip in the mode pane, then the option with this label
+// A first visit opens the lesson explanation on the next frame. That modal covers the question.
+async function dismissLessonHelp(page) {
+  const help = page.locator('dialog.lesson-help');
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  if (!(await help.count())) return;
+  const open = await help.evaluate((el) => el.isConnected && el.open).catch(() => false);
+  if (!open) return;
+  await help.getByRole('button', { name: 'Back to the experiment' }).click();
+  await page.waitForFunction(() => !document.querySelector('dialog.lesson-help[open]'));
+}
 // Campaign, Workbench, and Saboteur keep the lesson in a closed drawer so the world stays on the first screen.
 async function revealLesson(page) {
-  const help = page.locator('dialog.lesson-help');
-  if (await help.waitFor({ state: 'visible', timeout: 1000 }).then(() => true, () => false)) {
-    await help.getByRole('button', { name: 'Back to the experiment' }).click();
-  }
+  await dismissLessonHelp(page);
   const lesson = page.locator('#lesson-drawer');
   if (await lesson.count() && await lesson.isVisible() && !(await lesson.evaluate(el => el.open))) {
     await lesson.locator('summary').click();
   }
 }
 // Predict and diagnose open on the scene. Explain stays in the lesson step.
+// The explanation is supposed to be open on a first visit. Close it, then answer.
 async function answerChoice(page, index) {
+  await dismissLessonHelp(page);
   await dismissDialog(page, '#reference-dialog', '#reference-close');
   await dismissDialog(page, '#run-simulation', '#run-simulation-close');
   const pop = page.locator('#prediction-pop .opt');
@@ -143,7 +152,7 @@ await session(375, 812, 'phone', async (page) => {
   console.log('L1 replay, last stage:', (await page.locator('#replay-lab .rp-stage').innerText()).slice(0, 200));
   await answerChoice(page, 1);
   await setWord(page, '#mode-pane', 'eps', 'sometimes at random');
-  const mjx = await page.locator('#mode-pane .math mjx-container').count();
+  const mjx = await page.locator('#mode-pane .algorithm-math-panel mjx-container').count();
   console.log('MathJax containers in the repair step:', mjx);
   await page.screenshot({ path: out + '/phone-repair.png', fullPage: false });
   await page.getByText('Run this sentence').click();
@@ -165,7 +174,7 @@ await session(1280, 900, 'desktop', async (page) => {
   await setWord(page, '#mode-pane', 'picker', 'a frozen copy');
   await setWord(page, '#mode-pane', 'scorer', 'a frozen copy');
   await page.waitForTimeout(1500);
-  console.log('math rows:', await page.locator('#mode-pane .math .mrow').count(), 'MathJax containers:', await page.locator('#mode-pane .math mjx-container').count());
+  console.log('math rows:', await page.locator('#mode-pane .algorithm-math-panel .mrow').count(), 'MathJax containers:', await page.locator('#mode-pane .algorithm-math-panel mjx-container').count());
   // every word combination of every family, on every world: each unique TeX line typesets without a MathJax error
   // (a twin network once wrote Q_A_\theta: "Double subscripts: use braces to clarify")
   await page.waitForFunction(() => window.MathJax && window.MathJax.tex2svg, null, { timeout: 30000 });
@@ -322,8 +331,8 @@ await session(1280, 900, 'phases', async (page) => {
   await answerChoice(page, 0);
   await setWord(page, '#mode-pane', 'credit', 'only the rewards after it');
   await setWord(page, '#mode-pane', 'scale', 'yes, by the standard deviation');
-  await page.waitForTimeout(800);
-  check(await page.locator('#mode-pane .math mjx-container').count() > 0, 'policy-gradient sentence renders its math');
+  await page.waitForSelector('#mode-pane .algorithm-math-panel mjx-container', { timeout: 15000 }).catch(() => {});
+  check(await page.locator('#mode-pane .algorithm-math-panel mjx-container').count() > 0, 'policy-gradient sentence renders its math');
   await page.getByText('Run this sentence').click();
   await runDone(page);
   console.log('credit repair run:', await page.locator('#run-result').innerText());
@@ -353,11 +362,11 @@ await session(1280, 900, 'phases', async (page) => {
   await setWord(page, '#mode-pane', 'source', 'a fixed dataset only');
   await setWord(page, '#mode-pane', 'aim', 'copy the actions in memory');
   await setWord(page, '#mode-pane', 'head', 'noise turned into an action');
-  await chooseHidden(page, '#seeds', '1'); await chooseHidden(page, '#budget', '3000');
+  await chooseHidden(page, '#seeds', '1'); await chooseHidden(page, '#budget', '4000');
   t0 = Date.now();
   await page.click('#run-btn');
   await runDone(page);
-  console.log('flow BC fork 3k in', ((Date.now() - t0) / 1000).toFixed(1), 's:', await page.locator('#run-result').innerText());
+  console.log('flow BC fork 4k in', ((Date.now() - t0) / 1000).toFixed(1), 's:', await page.locator('#run-result').innerText());
   console.log('name box:', (await page.locator('#rule .compound').innerText()).replace(/\n/g, ' | '));
   await page.screenshot({ path: out + '/phases-fork.png' });
 
