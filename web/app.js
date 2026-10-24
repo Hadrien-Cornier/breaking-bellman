@@ -3182,6 +3182,7 @@
       $('#lab').prepend($('#game-rules'));
     } else $('#notebook-rule').prepend($('#game-rules'));
     if (S.mode === 'campaign' && !mapping) document.querySelector('main.layout').prepend(campaignMap.strip());
+    if (customActive() && !mapping) customShell.objective(C.levels.find(l => l.id === S.level).goal.text);
     MODES[S.mode](pane);
     refreshSentences();
     if (!customActive()) renderRules();
