@@ -243,6 +243,8 @@ await session(1280, 800, 'desktop-pg', async (page) => {
 
 // ---- phone: a real campaign run, the autopsy card opens and fits the small screen ----
 await session(390, 844, 'phone-campaign', async (page) => {
+  await page.evaluate(() => window.bellman.level('slots'));
+  check(await page.locator('#mode-pane').innerText().then((text) => /Ten slot machines/.test(text)), 'phone campaign metric flow opens the intended slot-machine lesson');
   await page.locator('.mc .opt').nth(1).click();
   await page.getByText('Run the starting sentence').click();
   await runDone(page);
