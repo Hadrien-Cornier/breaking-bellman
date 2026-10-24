@@ -242,7 +242,7 @@
       h('summary', { text: 'What this guess means' }),
       h('p.small', { text: 'The guess: the learner does not wait for the rest of the episode. After the rewards it saw, it uses its own current estimate of the next state as a stand-in for everything that comes later. This is called bootstrapping. The guess is often wrong early on; each update copies part of that error into the estimate it moves.' }),
     ]);
-    if (!window.matchMedia('(min-width: 960px) and (max-height: 940px)').matches) gloss.open = true;
+    if (!window.matchMedia('(min-width: 960px) and (max-height: 1200px)').matches) gloss.open = true;
     return gloss;
   }
   function drawSentence(m) {
@@ -297,7 +297,7 @@
     // On a short desktop the choices float over the sentence so opening one does not push
     // the world, Run or the curve off the screen. If they would pass the bottom edge, shift up.
     queueMicrotask(() => {
-      if (!el.isConnected || !window.matchMedia('(min-width: 960px) and (max-height: 940px)').matches) return;
+      if (!el.isConnected || !window.matchMedia('(min-width: 960px) and (max-height: 1200px)').matches) return;
       const overflow = el.getBoundingClientRect().bottom - (window.innerHeight - 8);
       if (overflow > 0) el.style.marginTop = (-Math.ceil(overflow)) + 'px';
     });

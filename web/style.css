@@ -602,7 +602,7 @@ ul.preset-diff li { margin: 2px 0; }
     border-left: 1px solid var(--line); margin-left: 12px; padding-left: 12px;
   }
 }
-@media (min-width: 960px) and (max-height: 940px) {
+@media (min-width: 960px) and (max-height: 1200px) {
   /* The score bar stays in the header. The thin progress strip yields just enough
      vertical room for the world, Run, the sentence, its equations and the curve. */
   body:has(main.lesson-shell) .top { padding-block: 4px 2px; }
@@ -632,6 +632,29 @@ ul.preset-diff li { margin: 2px 0; }
     grid-template-columns: minmax(0, 1.45fr) minmax(0, 0.82fr); column-gap: 12px; align-items: start;
   }
   .lesson-shell > #lab > #exp-editor:has(#algorithm-math-panel:not(:empty)) > .eyebrow { grid-column: 1 / -1; }
+}
+@media (min-width: 1400px) {
+  /* The shared panel floors near 700px once its column is wide enough for the glossary
+     to stop wrapping. On a 1122-tall desktop that column can start beside the world,
+     so the sentence, the curve and the whole panel share the screen. */
+  .lesson-shell > #lab:has(#algorithm-math-panel:not(:empty)) {
+    grid-template-columns: minmax(420px, 0.9fr) minmax(680px, 1.15fr);
+    grid-template-areas: "world math" "eyebrow math" "rule math" "curve math";
+    align-items: start;
+  }
+  .lesson-shell > #lab:has(#algorithm-math-panel:not(:empty)) > #exp-editor { display: contents; }
+  .lesson-shell > #lab:has(#algorithm-math-panel:not(:empty)) > #exp-editor > .eyebrow {
+    grid-area: eyebrow; grid-column: 1; margin: 0; padding: 0; border: 0;
+  }
+  .lesson-shell > #lab:has(#algorithm-math-panel:not(:empty)) #rule {
+    grid-area: rule; margin: 0; padding: 0; border: 0;
+  }
+  .lesson-shell > #lab:has(#algorithm-math-panel:not(:empty)) #algorithm-math-panel { grid-area: math; align-self: start; }
+  .lesson-shell > #lab:has(#algorithm-math-panel:not(:empty)) > #exp-curve {
+    grid-area: curve; border-left: 0; margin-left: 0; padding-left: 0;
+  }
+  .lesson-shell > #lab:has(#algorithm-math-panel:not(:empty)) .stage { height: 160px; }
+  .lesson-shell > #lab:has(#algorithm-math-panel:not(:empty)) .live-curve { height: 96px; }
 }
 @media (max-width: 600px) {
   #lab { padding: 12px; }
