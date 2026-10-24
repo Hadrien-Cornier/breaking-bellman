@@ -343,6 +343,8 @@ ol.steps .num { display: grid; place-items: center; width: 30px; height: 30px; b
 .lesson-help::backdrop { background: rgb(0 0 0 / .5); }
 .lesson-help > * + * { margin-top: 16px; }
 .algo-rem-pop { margin: 0; inset: auto; max-height: calc(100dvh - 16px); overflow-y: auto; }
+.algo-rem-pop .metric-help-title { min-height: 40px; padding-right: 52px; display: flex; align-items: center; }
+.algo-rem-pop .metric-help-close { width: 44px; height: 44px; }
 .algo-rem-pop .algo-math {
   font-family: var(--font-mono); font-size: 0.8em; color: var(--ink); background: var(--sunk);
   padding: 6px 8px; border-radius: 6px; overflow-wrap: anywhere; white-space: pre-wrap;
