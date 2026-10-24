@@ -1,6 +1,7 @@
 // All registered lessons: full shared RunRecord replay contract; custom lessons retain their baseline.
 // npm run build && node test/ui/levels.mjs [proof directory] [URL]
 import assert from 'node:assert/strict';
+import { inferenceContract } from '../inference-ui.mjs';
 import { rareContract } from './rare.mjs';
 import { goalsReplayContract } from './helpers/goals.mjs';
 import { rewardfitContract } from '../support/rewardfit-ui.mjs';
@@ -235,6 +236,13 @@ try {
           await page.locator('#tabs button').last().focus();
           await page.keyboard.press('Tab');
           verify(await page.locator('#campaign-strip button').evaluate(e => e === document.activeElement), 'Tab from header reaches map strip before lesson controls');
+          const inference = ['elbo', 'messages'].includes(id);
+          if (inference) {
+            record.stage = 'inference-replay';
+            await inferenceContract(page, record, verify, out);
+            verify(errors.length === 0, 'no console or page errors');
+            record.passed = true; console.log('ok ' + name); continue;
+          }
           const custom = ['rare', 'vpo', 'supermimic', 'thaw', 'rewardfit', 'goals'].includes(id);
           const scene = page.locator(id === 'rare' ? '#rare-stage' : id === 'goals' ? '#goals-scene' : id === 'rewardfit' ? '#rewardfit-scene' : id === 'thaw' ? '#thaw-scene' : custom ? '#custom-stage' : '#stage').first();
           verify(await scene.isVisible(), 'baseline scene visible before Run');
