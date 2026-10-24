@@ -31,6 +31,7 @@ try {
     page.on('pageerror', e => errors.push(e.message));
     page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
     const input = progress === 'newer' ? structuredClone(fixture) : { intro: 1, level: 'slots', done: [] };
+    if (progress === 'newer') input.level = 'unknown-future';
     input.future = { nested: [false, null, { stable: 'keep' }] };
     input.made = { ...input.made, 'unknown-future': { nested: { rule: 42 } } };
     await seed(page, input);
@@ -56,6 +57,8 @@ try {
     await page.locator('[data-zoom="methods"]').click();
     check(await page.locator('[data-node="slots"] .map-chips').innerText() === 'ε-greedy\nOptimism\nUCB', 'Methods shows approved named methods');
     check(await page.locator('.map-edge-label').count() === expected.edges.length, 'Methods explains every active link');
+    const mapWidth = await page.evaluate(() => ({ viewport: innerWidth, scroll: document.documentElement.scrollWidth }));
+    check(mapWidth.scroll <= mapWidth.viewport, name + ' Methods map fits viewport: ' + JSON.stringify(mapWidth));
     await page.screenshot({ path: path.join(out, name + '-methods.png'), fullPage: true });
     await page.reload();
     await page.locator('#campaign-logo').click();
@@ -99,7 +102,7 @@ try {
       await page.locator('[data-open-level]').click();
       check((await stored(page)).level === id, 'lesson reachable ' + id);
       check(await page.locator('#campaign-strip button').innerText() === `All ${expected.ids.length} levels`, 'strip above ' + id);
-      check(await page.locator(['vpo', 'supermimic'].includes(id) ? '#vpo-lab svg' : '#stage').first().isVisible(), 'scene retained ' + id);
+      check(await page.locator(({"vpo": "#custom-stage", "supermimic": "#custom-stage", "thaw": "#thaw-scene", "rewardfit": "#rewardfit-scene", "goals": "#goals-scene", "rare": "#rare-stage", "elbo": "#elbo-scene", "messages": "#messages-scene", "hindsight": "#hindsight-scene", "hierarchy": "#hierarchy-scene", "skills": "#skills-stage", "skew": "#skew-stage", "metarl": "#metarl-scene", "ensemble": "#ensemble-stage", "replan": "#replan-stage"})[id] || '#stage').first().isVisible(), 'scene retained ' + id);
     }
     await page.reload();
     const actual = await stored(page);

@@ -2054,6 +2054,13 @@
   function setParts(p) { const f0 = fam(S.parts); S.parts = C.cfg(p || {}); if (fam(S.parts) !== f0) budgetOptions(); onPartsChanged(); }
 
   const MODES = {};
+  const shell = BB.shell.notebook($('#notebook'), section => {
+    if (section === 'curve' && S.results.length) { renderCharts(null, true); linkRun(); }
+  });
+  const customNotebook = BB.shell.createNotebook(document, 'custom-notebook');
+  document.querySelector('main.layout').append(customNotebook);
+  const customShell = BB.shell.notebook(customNotebook);
+  let notebookLevel = null;
 
   let mapOpen = !C.levels.some(l => l.id === S.level);
   if (mapOpen) S.mode = 'campaign';
@@ -2079,7 +2086,13 @@
   }
 
   // --- Campaign: a failure, a diagnosis, a repair in words, an explanation, the published sentence
-  const setStep = (lv, n) => { if ((S.lstep[lv.id] || 0) < n) { S.lstep[lv.id] = n; save(); render(); } };
+  const setStep = (lv, n) => {
+    if ((S.lstep[lv.id] || 0) < n) {
+      S.lstep[lv.id] = n; save(); render();
+      const heading = $('#mode-pane .step.active h3');
+      if (heading) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); }
+    }
+  };
   function setCampaignRunView(lv, state) {
     const button = $('[data-campaign-run="' + lv.id + '"]');
     const status = $('[data-campaign-run-status="' + lv.id + '"]');
@@ -2115,13 +2128,29 @@
         text: busy ? 'Training started. This button unlocks when the run finishes.' : 'Real training in your browser, ' + lv.seeds + ' runs.' }),
     ]);
   }
+  function arrangeLessonSteps(lv, steps) {
+    const history = $('#lesson-notes');
+    history.replaceChildren();
+    for (const previous of [...steps.children].slice(0, -1)) {
+      const title = previous.querySelector('h3').textContent;
+      previous.querySelectorAll('.btn').forEach(button => button.classList.add('ghost'));
+      history.append(h('details', null, [h('summary', { text: previous.querySelector('.num').textContent + ': ' + title }), previous]));
+    }
+    steps.lastElementChild.classList.add('active');
+    history.append(shell.conceptSketch({ label: 'Predict before you run, then diagnose.',
+      nodes: [{ id: 'predict', label: 'Predict', x: 45, y: 60 }, { id: 'run', label: 'Run', x: 160, y: 60 }, { id: 'diagnose', label: 'Diagnose', x: 275, y: 60 }],
+      edges: [{ from: 'predict', to: 'run' }, { from: 'run', to: 'diagnose' }] }));
+    if (lv.id === 'cliff' && (S.lstep[lv.id] || 0) >= 2 && window.BBBACKUP) {
+      history.append(window.BBBACKUP.mount(h));
+    }
+  }
   MODES.campaign = function (pane) {
     if (mapOpen) { campaignMap.mount(pane); return; }
     const lv = C.levels.find((l) => l.id === S.level);
     S.focus = lv.focus;
     if (lv.custom) {
       const api = lv.id === 'supermimic' ? BBSUPERMIMIC : BBVPO;
-      api.mount(pane, $('#vpo-lab'), { h, done: () => S.done.includes(lv.id), complete: () => {
+      api.mount(pane, $('#vpo-lab'), { h, shell: customShell, done: () => S.done.includes(lv.id), complete: () => {
         if (!S.done.includes(lv.id)) S.done.push(lv.id); S.lstep[lv.id] = 5; save(); updateScore();
       }, known: id => S.found.includes(id) || S.given.includes(id), reveal: id => {
         if (!S.given.includes(id)) {
@@ -2133,7 +2162,7 @@
       return;
     }
     const st = S.lstep[lv.id] || 0;
-    const card = h('div.card', null, [h('div.eyebrow', { text: C.worldNames[lv.world] }), h('h2', { text: lv.title }), h('p', { html: lv.intro }), h('section.game-rules', { id: 'challenge-rules', 'aria-label': 'Level rules' })]);
+    const card = h('div.card.teaching-card', null, [h('div.eyebrow', { text: C.worldNames[lv.world] }), h('h2', { text: lv.title }), h('p', { html: lv.intro })]);
     const steps = h('div.steps');
     const mk = (i, title, body) => h('div.step' + (st === i ? '.active' : st > i ? '.done' : ''), null, [h('span.num', { text: 'Step ' + (i + 1) }), h('h3', { text: title }), body]);
 
@@ -2143,7 +2172,7 @@
       campaignRunRow(lv),
     ])));
     if (st >= 2) steps.append(mk(2, 'Diagnose', h('div.stack', null, [
-      h('details', { open: true }, [h('summary', { text: 'Watch one update of this sentence' }), replayView()]),
+      h('button.btn.ghost', { type: 'button', onclick: () => { $('#replay-lab').closest('details').open = true; shell.open('autopsy'); } }, 'Watch one update of this sentence'),
       mcBlock(lv.diagnose, () => setStep(lv, 3)),
     ])));
     if (st >= 3) {
@@ -2174,14 +2203,9 @@
     }
     if (st >= 4 && lv.explain) steps.append(mk(4, 'Explain why it works', mcBlock(lv.explain, () => setStep(lv, 5))));
     if (st >= 5) steps.append(mk(5, 'Your sentence and the published one', consolidation(lv)));
+    arrangeLessonSteps(lv, steps);
     card.append(steps);
     pane.append(card);
-    // A direct child of the layout, in front of the columns, so the two tables can sit
-    // side by side. No new campaign step and no new save field.
-    if (lv.id === 'cliff' && st >= 2 && window.BBBACKUP) {
-      const layout = document.querySelector('main.layout');
-      layout.insertBefore(window.BBBACKUP.mount(h), document.querySelector('#campaign-strip').nextSibling);
-    }
   };
   // the reward controls of a level whose repair is the reward
   function rewardPanel(lv) {
@@ -2856,6 +2880,10 @@
       '',
       md($(customActive() ? '#vpo-lab' : '#lab')),
       '',
+      '## Notebook',
+      '',
+      md($(customActive() ? '#custom-notebook' : '#notebook')),
+      '',
       ...(dialogs.length ? ['## Open dialog', '', ...dialogs, ''] : []),
       '## Words of the current sentence (each word, its values, and the value now)',
       '',
@@ -3065,6 +3093,27 @@
     if (!mapping && !customActive() && !RLA.worlds[S.world]) setWorld(C.families[fam(S.parts)].worlds[0]);
     document.querySelector('main.layout').classList.toggle('mapping', mapping);
     $('#lab').hidden = mapping || customActive(); $('#vpo-lab').hidden = mapping || !customActive();
+    $('#notebook').hidden = mapping || customActive(); customNotebook.hidden = mapping || !customActive();
+    const campaign = S.mode === 'campaign' && !mapping;
+    const layout = document.querySelector('main.layout');
+    layout.classList.toggle('lesson-shell', campaign);
+    $('#run-btn').classList.toggle('ghost', campaign);
+    // DOM, visual and keyboard order agree: map, measured scene, teaching step, Notebook.
+    if (campaign) layout.insertBefore(customActive() ? $('#vpo-lab') : $('#lab'), pane);
+    else layout.prepend(pane);
+    const key = campaign ? S.level : S.mode;
+    if (notebookLevel !== key) {
+      notebookLevel = key; shell.reset(); customShell.reset(); $('#lesson-notes').replaceChildren();
+      for (const name of ['rule', 'curve', 'autopsy', 'notes']) {
+        customShell.notebook(name).replaceChildren(h('p.small', { text: name === 'notes' ? 'Lesson notes appear here.' : 'Run the lesson to inspect its ' + name + '.' }));
+      }
+    }
+    $('#notebook').classList.toggle('supporting-lab', !campaign);
+    if (!campaign) {
+      $('#notebook').open = true;
+      $$('#notebook [data-notebook-panel]').forEach(panel => { panel.hidden = false; });
+      $('#lab').prepend($('#game-rules'));
+    } else $('#notebook-rule').prepend($('#game-rules'));
     if (S.mode === 'campaign' && !mapping) document.querySelector('main.layout').prepend(campaignMap.strip());
     MODES[S.mode](pane);
     refreshSentences();

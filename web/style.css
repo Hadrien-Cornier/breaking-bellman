@@ -470,7 +470,7 @@ ul.preset-diff li { margin: 2px 0; }
 .campaign-strip button, .campaign-map button, .map-brief button { min-height: 44px; min-width: 44px; touch-action: manipulation; }
 .layout.mapping { grid-template-columns: minmax(0, 1fr); }
 .layout.mapping > [hidden] { display: none; }
-.campaign-map { width: min(100%, 820px); margin: auto; }
+.campaign-map { width: 100%; max-width: 820px; min-width: 0; margin: auto; }
 .map-heading { display: grid; gap: 12px; justify-items: center; text-align: center; padding: 12px 0 22px; }
 .map-zoom { display: flex; gap: 4px; border: 1px solid var(--line); border-radius: 30px; padding: 4px; }
 .map-zoom .btn { border-radius: 25px; }
@@ -537,3 +537,39 @@ ul.preset-diff li { margin: 2px 0; }
 #run-stale { border-left: 3px solid var(--accent); padding-left: 10px; }
 #run-btn, #run-mode, #budget, #seeds { min-height: 44px; min-width: 44px; }
 .w, #lab .btn, #mode-pane .btn { min-height: 44px; min-width: 44px; }
+
+/* The course shell keeps the experiment ahead of its single current step. */
+[hidden] { display: none !important; }
+.lesson-shell > .lab { position: static; max-height: none; overflow: visible; }
+.lesson-shell > #mode-pane { align-self: start; }
+.notebook { grid-column: 1 / -1; min-width: 0; border: 1px solid var(--line); border-radius: var(--r); padding: 12px 16px; }
+.notebook > summary { font-family: var(--font-display); font-weight: 700; cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 12px; }
+.notebook > summary::before { content: '+'; font-family: var(--font-mono); }
+.notebook[open] > summary::before { content: '−'; }
+.notebook-tabs { display: flex; flex-wrap: wrap; gap: 8px; padding-block: 8px 16px; }
+.notebook-tabs button { border: 1px solid var(--line); border-radius: 6px; background: transparent; padding: 8px 14px; min-width: 44px; min-height: 44px; }
+.notebook-tabs button[aria-selected='true'] { border-color: var(--ink); text-decoration: underline; text-underline-offset: 5px; }
+.notebook-panel { display: grid; gap: 16px; min-width: 0; }
+.teaching-card, .notebook { background: color-mix(in srgb, var(--surface) 93%, var(--accent)); box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--line) 38%, transparent); }
+.teaching-card { border-radius: 3px 10px 4px 9px; }
+.teaching-card .step { border-left-style: dashed; }
+.teaching-card .step .num { color: var(--ink); }
+.notebook-panel > details > summary, #lesson-notes summary { min-height: 44px; padding-block: 10px; cursor: pointer; }
+.notebook .measured-charts { background: var(--surface); box-shadow: none; }
+.concept-sketch { margin: 0; width: min(100%, 400px); }
+.concept-sketch svg { display: block; width: 100%; height: auto; }
+.concept-sketch :is(path, rect) { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.concept-sketch text { fill: var(--ink); font-family: 'Segoe Print', 'Bradley Hand', cursive; font-size: 13px; }
+.concept-sketch figcaption { color: var(--muted); font-size: .82rem; }
+.notebook :is(button, select, summary), .lesson-shell :is(button, select, summary), .lesson-shell input[type='range'] { min-height: 44px; min-width: 44px; }
+@media (min-width: 960px) {
+  .lesson-shell > #lab, .lesson-shell > #vpo-lab { grid-column: 1; grid-row: 2; }
+  .lesson-shell > #mode-pane { grid-column: 2; grid-row: 2; }
+}
+/* Other modes retain their complete lab controls and diagnostics. */
+.supporting-lab > :is(summary, .notebook-tabs) { display: none; }
+/* The full-width supporting Notebook follows this row; the lab must not cover it on scroll. */
+.layout:not(.lesson-shell) > .lab { position: static; max-height: none; overflow: visible; }
+.supporting-lab > .notebook-panel[hidden] { display: grid !important; }
+.supporting-lab { display: grid; gap: 16px; }
+@media (max-width: 600px) { .lesson-shell .stage { aspect-ratio: 16 / 9; } }
