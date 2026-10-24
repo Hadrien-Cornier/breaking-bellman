@@ -2,6 +2,32 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
 
+// Also callable alone after integration, without the expensive all-level matrix.
+export async function inferencePanels(page, id, measured, verify) {
+  const panels = {};
+  for (const [section, suffix] of [['curve', 'chart'], ['autopsy', 'evidence']]) {
+    const tab = page.locator('#custom-notebook-tab-' + section);
+    if (await tab.count()) {
+      const drawer = page.locator('#custom-notebook');
+      if (!(await drawer.evaluate(e => e.open))) await drawer.locator('summary').click();
+      await tab.click();
+    }
+    const panel = page.locator('#' + id + '-' + suffix);
+    const text = await panel.innerText();
+    const box = await panel.boundingBox();
+    verify(!!box && box.height > 0 && text.trim().length > 0, section + ' has visible content ' + (measured ? 'after' : 'before') + ' Run');
+    if (measured) {
+      verify(!text.includes('Run the lesson to inspect'), section + ' replaces pre-run guidance with measured content');
+      verify(await panel.locator(section === 'curve' ? 'table' : 'button').count() > 0, section + ' exposes measured ' + (section === 'curve' ? 'rows' : 'download'));
+    } else {
+      verify(text.includes('Run the lesson to inspect'), section + ' explains how to obtain measurements');
+      verify(await panel.locator('table,svg,button').count() === 0, section + ' shows no measured output before Run');
+    }
+    panels[section] = { text, height: box?.height };
+  }
+  return panels;
+}
+
 // Shared by the complete registered-level matrix and the focused inference matrix.
 export async function inferenceContract(page, proof, verify, out) {
   const id = proof.id, sel = suffix => '#' + id + '-' + suffix;
@@ -17,6 +43,7 @@ export async function inferenceContract(page, proof, verify, out) {
   verify(state.record === null && state.replay.world === id, 'fresh inference world exists without a previous record');
   verify(await page.locator(sel('scene')).isVisible(), 'sensor or known-line experiment is visible before prediction');
   verify(await page.locator(sel('scene')).locator('svg,canvas').count() > 0, 'the experiment is drawn before Run');
+  proof.panelsBefore = await inferencePanels(page, id, false, verify);
   proof.before = await page.locator(sel('scene')).innerText();
   await page.screenshot({ path: path.join(out, proof.name + '-before.png'), fullPage: true });
   // Follow the actual prediction before running on clean progress.
@@ -26,6 +53,7 @@ export async function inferenceContract(page, proof, verify, out) {
   await page.waitForFunction(() => bellman.record() !== null);
   state = await status();
   verify(state.record.level === id && state.linked && !state.visibleId, 'scene, charts, result and evidence share one internal identity');
+  proof.panelsAfter = await inferencePanels(page, id, true, verify);
   const exactBefore = await page.evaluate(() => RLA.exact.stringify(bellman.record()));
   fs.writeFileSync(path.join(out, proof.name + '-run.json.gz'), gzipSync(exactBefore));
   proof.run = state.record;
