@@ -653,3 +653,4 @@ ul.preset-diff li { margin: 2px 0; }
   .drawer-workspace #lesson-drawer { order: 5; }
   .drawer-workspace #notebook { order: 6; }
 }
+.sentence-explanation > summary { cursor: pointer; font-size: .78rem; min-height: 30px; }

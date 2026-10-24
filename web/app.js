@@ -255,13 +255,14 @@
   }
 
   // ---------------------------------------------------------------- sentence component
+  let algorithmMath = null;
   let mounts = [];   // { el, opts, open, permanent }
   function mountSentence(opts) {
     const m = { el: h('div.sentence'), opts, open: null, permanent: !!opts.permanent };
     mounts.push(m); drawSentence(m);
     return m.el;
   }
-  function refreshSentences() { if (!RLA.worlds[S.world]) return; for (const m of mounts) drawSentence(m); }
+  function refreshSentences() { if (!RLA.worlds[S.world]) return; for (const m of mounts) drawSentence(m); if (algorithmMath) algorithmMath.update(); }
   function drawSentence(m) {
     const o = m.opts, p = o.getParts(), world = o.world(), focus = o.focus ? o.focus() : [];
     const idle = idleWords(p, world);
@@ -294,7 +295,7 @@
     ]);
     const kids = [];
     for (const [keys, el] of L) {
-      kids.push(el);
+      kids.push(o.compact && el.classList.contains('gloss') ? h('details.sentence-explanation', null, [h('summary', { text: 'Why use a guess?' }), el]) : el);
       if (m.open && keys.includes(m.open)) kids.push(chooser(m, m.open, p, idle));
     }
     if (o.withName) kids.push(nameBox(p, world));
@@ -800,7 +801,7 @@
   let adapter = null, sceneTime = 0, scenePolicy = 0, watching = false, replayAnimation = null;
   // Original comparison lessons share the same replay clock and stable controls.
   const replayControls = $('#scene-controls'), replayNotice = $('#run-stale');
-  const replayHome = replayControls.parentElement;
+  let replayHome = replayControls.parentElement;
   let customScene = null;
   const comparisonReplay = {
     park() { replayHome.append(replayControls, replayNotice); },
@@ -1114,7 +1115,7 @@
   }
   function linkRun() {
     const record = runState.record;
-    for (const el of $$('#stage, #charts, #charts canvas, #run-result, #symptoms, #expert, #wonder, #run-source, [data-custom-scene], [data-custom-scene] canvas, [data-caption], [data-readout], [data-accounting], [data-custom-result]')) {
+    for (const el of $$('#stage, #charts, #charts canvas, #training-metric, #training-metric canvas, #run-result, #symptoms, #expert, #wonder, #run-source, [data-custom-scene], [data-custom-scene] canvas, [data-caption], [data-readout], [data-accounting], [data-custom-result]')) {
       if (record) { if (!el.dataset.interactive) el.dataset.run = record.id; el.dataset.stale = String(runState.stale); }
       else { delete el.dataset.run; delete el.dataset.stale; }
     }
@@ -2130,6 +2131,7 @@
   const replayDrawer = h('details.workspace-drawer', { id: 'replay-drawer' }, [h('summary', { text: 'Run readout and replay controls' })]);
   replayDrawer.append($('#run-result'), $('#run-source'), $('#stage-caption'), $('#scene-controls'));
   $('#lab').append(replayDrawer);
+  replayHome = replayDrawer;
   const MODES = {};
   const shell = BB.shell.notebook($('#notebook'), section => {
     if (section === 'curve' && S.results.length) { renderCharts(null, true); linkRun(); }
@@ -3274,7 +3276,11 @@
   });
 
   // the lab's own sentence (always present)
-  $('#rule').append(mountSentence({ getParts: () => S.parts, setPart: setMainPart, world: () => S.world, focus: () => (S.mode === 'campaign' ? S.focus || [] : []), withName: true, permanent: true, preset: true }));
+  $('#rule').append(mountSentence({ getParts: () => S.parts, setPart: setMainPart, world: () => S.world, focus: () => (S.mode === 'campaign' ? S.focus || [] : []), withName: true, permanent: true, preset: true, compact: true }));
+  if (window.ALGO_MATH) {
+    algorithmMath = window.ALGO_MATH.mount({ getParts: () => S.parts, world: () => S.world, hyper: () => hyperNow() });
+    $('#algorithm-math-slot').append(algorithmMath.el);
+  }
   $('#replay-lab').append(replayView());
   $('#grid-lab').append(gridView());
   $('#grid-card').addEventListener('toggle', () => { if ($('#grid-card').open) drawGrid(); });
