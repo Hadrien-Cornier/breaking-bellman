@@ -115,6 +115,9 @@ async function enterSavedLesson(page) {
   await revealLesson(page);
 }
 async function openNotebook(page, section) {
+  // Rules, Sources, Autopsy, and Notes sit behind the explanation and the simulation.
+  await dismissLessonHelp(page);
+  await dismissDialog(page, '#run-simulation', '#run-simulation-close');
   const dlg = page.locator('#reference-dialog');
   const already = await dlg.count() && await dlg.evaluate((el) => el.open).catch(() => false);
   if (!already) {
@@ -124,9 +127,34 @@ async function openNotebook(page, section) {
   const tab = page.locator('#notebook-tab-' + section);
   if (await tab.isVisible()) await tab.click();
 }
+// The sentence stays in the editor. Close the explanation, the notebook, and the simulation before changing a word.
+// Closing the simulation does not cancel a run; the word change does.
+async function returnToEditor(page) {
+  await dismissLessonHelp(page);
+  await dismissDialog(page, '#reference-dialog', '#reference-close');
+  await dismissDialog(page, '#run-simulation', '#run-simulation-close');
+}
 async function setWord(page, scope, key, label) {
+  await returnToEditor(page);
   await page.locator(scope + ' .w[data-key="' + key + '"]').first().click();
   await page.locator(scope + ' .chooser .choice', { hasText: label }).first().click();
+}
+// A first visit opens the lesson explanation. The intro text lives in that popup, not in the lesson pane.
+async function lessonIntro(page) {
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  const help = page.locator('dialog.lesson-help');
+  const open = await help.count() && await help.evaluate((el) => el.isConnected && el.open).catch(() => false);
+  if (!open) {
+    const drawer = page.locator('#lesson-drawer');
+    if (await drawer.count() && await drawer.isVisible() && !(await drawer.evaluate((el) => el.open))) {
+      await drawer.locator('summary').click();
+    }
+    const about = page.getByRole('button', { name: 'About this experiment' });
+    if (await about.count()) await about.click();
+  }
+  const shown = page.locator('dialog.lesson-help');
+  if (await shown.count() && await shown.evaluate((el) => el.open).catch(() => false)) return shown.innerText();
+  return page.locator('#mode-pane').innerText();
 }
 // Seeds, steps, and run mode stay hidden. Set them without waiting for a visible control.
 async function chooseHidden(page, selector, value) {
@@ -411,7 +439,7 @@ await session(375, 812, 'phone-frontier', async (page) => {
   await page.locator('[data-map-level][aria-label^="Steer a frozen policy"]').click();
   await page.locator('[data-open-level]').click();
   await page.waitForTimeout(500);
-  check(/mud/.test(await page.locator('#mode-pane').innerText()), 'mud level shows its intro');
+  check(/mud/.test(await lessonIntro(page)), 'mud level shows its intro');
   await answerChoice(page, 0);
   await setWord(page, '#rule', 'pick', 'the best of 8 samples, by the critic');
   const requested = await page.evaluate(() => ({ ...bellman.state(), steps: +document.querySelector('#budget').value,
@@ -468,6 +496,8 @@ await session(375, 812, 'phone-frontier', async (page) => {
   check(/Running the starting sentence/.test(await frontierRun.innerText()) &&
     /Training started/.test(await frontierRun.locator('..').innerText()), 'mud level reports startup beside the initiating button');
   const posts = await page.evaluate(() => window.__workerPosts);
+  // The simulation covers the tabs. Closing it leaves this run in progress.
+  await dismissDialog(page, '#run-simulation', '#run-simulation-close');
   await page.getByRole('tab', { name: 'Campaign' }).click();
   check(await frontierRun.isDisabled() && /Running the starting sentence/.test(await frontierRun.innerText()),
     'campaign run feedback survives a mode-panel rebuild');
@@ -486,7 +516,8 @@ await session(375, 812, 'phone-frontier', async (page) => {
   await page.locator('[data-map-level][aria-label^="Keep the controller"]').click();
   await page.locator('[data-open-level]').click();
   await page.waitForTimeout(500);
-  check(/kitting/.test(await page.locator('#mode-pane').innerText()), 'residual level shows its intro');
+  // The published intro says the arm picks up a heavy part. The older briefing said "kitting".
+  check(/heavy part/.test(await lessonIntro(page)), 'residual level shows its intro');
   await answerChoice(page, 1);
   await page.waitForTimeout(300);
   await page.screenshot({ path: out + '/phone-residual.png', fullPage: true });
@@ -565,6 +596,7 @@ await session(390, 844, 'pendulum', async (page) => {
       } };
     };
   });
+  await dismissLessonHelp(page);
   await page.click('#run-btn');
   await runDone(page);
   // The measured world lives in the simulation dialog. Reopen it to watch the recorded swing.
@@ -658,6 +690,7 @@ await session(390, 844, 'rules', async (page) => {
   await openNotebook(page, 'rule');
   check(await page.locator('#game-rules').isVisible() && /0.97 × dAfterNonterminal/.test(await page.locator('#game-rules').innerText()), 'Notebook exposes Fetch live reward rules after editing');
   await dismissDialog(page, '#reference-dialog', '#reference-close');
+  await dismissLessonHelp(page);
   await page.locator('#mode-pane button', { hasText: 'Back to the starting reward' }).click();
   await openNotebook(page, 'rule');
   check(/0.05 × cos/.test(await page.locator('#game-rules').innerText()), 'Fetch reward reset restores facing bonus in rules');
