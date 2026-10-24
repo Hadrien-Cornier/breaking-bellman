@@ -83,23 +83,25 @@
   }
   function train(arm, seed, generations = 240) {
     if (!['vpo', 'grpo'].includes(arm)) throw Error('Unknown comparison arm');
-    const random = rng.make(seed), model = policy(); let last;
+    const random = rng.make(seed), model = policy(), events = []; let last;
     for (let step = 0; step < generations; step++) {
       const weights = arm === 'vpo' ? directions(random) : [uniform];
       const groups = Array.from({ length: arm === 'vpo' ? 4 : 12 }, () => chain(model, random, arm === 'vpo' ? 3 : 1));
       const rewards = groups.map(ds => arm === 'vpo' ? setReward(ds.map(d => d.reward), weights) : dot(uniform, ds[0].reward));
+      groups.forEach((group, g) => group.forEach((d, i) => events.push({ t: events.length, generation: step, group: g, index: i, kind: 'route selection', ...d })));
       update(model, groups, rewards); last = { weights, groups, rewards, advantages: advantages(rewards) };
     }
-    return { arm, model, last, candidates: generations * 12, updates: generations * 2 };
+    return { arm, model, last, events, candidates: generations * 12, updates: generations * 2 };
   }
   function evaluate(model, arm, seed, repetitions = 64) {
-    const random = rng.make(seed), ks = [1,3,5,10,30], curve = ks.map(() => 0); let pool;
+    const random = rng.make(seed), ks = [1,3,5,10,30], curve = ks.map(() => 0), pools = []; let pool;
     for (let rep = 0; rep < repetitions; rep++) {
       pool = [];
       while (pool.length < 30) pool.push(...chain(model, random, arm === 'vpo' ? 3 : 1).map(d => d.action));
+      pools.push(pool.slice());
       ks.forEach((k, i) => { curve[i] += Math.max(...pool.slice(0, k).map(a => dot(uniform, routes[a].reward))) / repetitions; });
     }
-    return { ks, curve, pool, repetitions };
+    return { ks, curve, pool, pools, repetitions };
   }
   function compare(seed = 101, generations = 240) {
     const started = Date.now();
