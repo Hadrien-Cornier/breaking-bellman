@@ -5,6 +5,7 @@
   function notebook(root, changed = () => {}) {
     const tabs = [...root.querySelectorAll('[data-notebook-tab]')];
     const panels = [...root.querySelectorAll('[data-notebook-panel]')];
+    let ruleContent, objectiveText;
     const select = name => {
       tabs.forEach(tab => {
         const active = tab.dataset.notebookTab === name;
@@ -25,7 +26,21 @@
     });
     root.addEventListener('toggle', () => { if (root.open) changed(tabs.find(t => t.getAttribute('aria-selected') === 'true').dataset.notebookTab); });
     return {
-      notebook(name) { return panels.find(panel => panel.dataset.notebookPanel === name); },
+      notebook(name) { return name === 'rule' && ruleContent ? ruleContent : panels.find(panel => panel.dataset.notebookPanel === name); },
+      objective(text) {
+        if (!ruleContent) {
+          const document = root.ownerDocument, rule = panels.find(panel => panel.dataset.notebookPanel === 'rule');
+          const objective = document.createElement('section'); objective.className = 'game-rules';
+          objective.id = root.id + '-objective';
+          const heading = document.createElement('h3'); heading.textContent = 'Pass this challenge';
+          objectiveText = document.createElement('p'); objective.append(heading, objectiveText);
+          // Lessons replace their content on settings changes and completed runs.
+          // Keep the shell objective outside that independently redrawn container.
+          ruleContent = document.createElement('div'); ruleContent.className = 'notebook-content'; ruleContent.append(...rule.childNodes);
+          rule.append(objective, ruleContent);
+        }
+        objectiveText.textContent = text;
+      },
       open(name) {
         root.open = true; select(name);
         tabs.find(tab => tab.dataset.notebookTab === name)?.focus();

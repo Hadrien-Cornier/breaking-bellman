@@ -549,12 +549,12 @@ ul.preset-diff li { margin: 2px 0; }
 .notebook-tabs { display: flex; flex-wrap: wrap; gap: 8px; padding-block: 8px 16px; }
 .notebook-tabs button { border: 1px solid var(--line); border-radius: 6px; background: transparent; padding: 8px 14px; min-width: 44px; min-height: 44px; }
 .notebook-tabs button[aria-selected='true'] { border-color: var(--ink); text-decoration: underline; text-underline-offset: 5px; }
-.notebook-panel { display: grid; gap: 16px; min-width: 0; }
+.notebook-panel, .notebook-content { display: grid; gap: 16px; min-width: 0; }
 .teaching-card, .notebook { background: color-mix(in srgb, var(--surface) 93%, var(--accent)); box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--line) 38%, transparent); }
 .teaching-card { border-radius: 3px 10px 4px 9px; }
 .teaching-card .step { border-left-style: dashed; }
 .teaching-card .step .num { color: var(--ink); }
-.notebook-panel > details > summary, #lesson-notes summary { min-height: 44px; padding-block: 10px; cursor: pointer; }
+.notebook-panel > details > summary, .notebook-content > details > summary, #lesson-notes summary { min-height: 44px; padding-block: 10px; cursor: pointer; }
 .notebook .measured-charts { background: var(--surface); box-shadow: none; }
 .concept-sketch { margin: 0; width: min(100%, 400px); }
 .concept-sketch svg { display: block; width: 100%; height: auto; }
