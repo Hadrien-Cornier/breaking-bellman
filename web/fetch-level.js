@@ -39,9 +39,7 @@
   C.levels.push({
     id: 'fetch', phase: 6, world: 'fetch', title: 'Fetch!', seeds: 3, steps: 20000,
     knobs: { facingW: 0.05 }, start: ppo, focus: [], repairKnobs: ['facingW', 'shaping', 'closerW', 'timeCost', 'found'],
-    intro: 'Teach the dog to fetch the stick. It can walk, turn or sit. Keep the learner fixed and change what earns a reward.',
-    introMore: 'A dog, a field and a stick. Each throw, the dog must get the stick. It sees where the stick is from its own point of view, and it can walk, turn left, turn right or sit. This time you do not change the learner. You change the reward. The reward: 1 for the stick, −0.01 for each step, and a small bonus, 0.05 for each step the dog faces the stick, to help it learn to look first. The same algorithm trains Huggy in the Hugging Face Deep RL course (there for 2 million steps; here for 20000 steps, about 2 seconds).',
-    learner: 'The learner is the PPO sentence from phase 2, and it stays fixed for this level.',
+    intro: 'A dog, a field and a stick. Each throw, the dog must get the stick. It sees where the stick is from its own point of view, and it can walk, turn left, turn right or sit. The learner is the PPO sentence from phase 2, the same algorithm that trains Huggy in the Hugging Face Deep RL course (there for 2 million steps; here for 20000 steps, about 2 seconds). This time you do not change the learner. You change the reward. The reward: 1 for the stick, −0.01 for each step, and a small bonus, 0.05 for each step the dog faces the stick, to help it learn to look first.',
     predict: { id: 'fetch-p', prompt: 'The stick pays 1 and ends the throw. Each step costs 0.01. Each step the dog faces the stick pays 0.05. What does the trained dog do?', options: [
       o(['The bonus points the dog at the stick.', 'A dog that faces the stick walks to it sooner.', 'So it fetches faster than without the bonus.'], 'It fetches faster.', 0,
         `<b>Wrong at step 3.</b> Measured: it got the stick in ${M.hack20.succ}% of test throws (3 seeds). Without the bonus: ${M.plain20.succ}%.`),
