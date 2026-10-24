@@ -43,7 +43,16 @@ try {
       await page.locator(`#${id}-run`).click();
       await page.waitForFunction(id => bellman.record()?.level === id, id);
       const measured = await inspect('run'); assert.ok(measured.record);
-      if (id === 'skills') await page.locator('#skills-scene summary').click();
+      if (id === 'skills') {
+        const disclosure = page.locator('#skills-scene summary'), control = page.locator(settings[id]);
+        row.settingsDisclosure = { closed: await control.isVisible() };
+        assert.equal(row.settingsDisclosure.closed, false, name + ': settings start inside closed disclosure');
+        await disclosure.click(); row.settingsDisclosure.opened = await control.isVisible();
+        assert.equal(row.settingsDisclosure.opened, true, name + ': opening settings exposes real control');
+        await disclosure.click(); row.settingsDisclosure.closedAgain = await control.isVisible();
+        assert.equal(row.settingsDisclosure.closedAgain, false, name + ': closing settings hides control again');
+        await disclosure.click();
+      }
       const setting = page.locator(settings[id]);
       assert.ok(await setting.isVisible(), name + ': experiment setting exposed before change');
       if (id === 'ensemble') await setting.fill(String(Number(await setting.inputValue()) + 0.1));
