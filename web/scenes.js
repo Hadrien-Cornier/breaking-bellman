@@ -11,7 +11,10 @@
   const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
   const hash = (i) => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
   const signed = (v) => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(2);
-  const now = () => (typeof performance === 'object' ? performance.now() : Date.now());
+  let replayClock = null;
+  const now = () => replayClock == null ? (typeof performance === 'object' ? performance.now() : Date.now()) : replayClock;
+  // The same renderer and decorative clock are used for replay, screenshots and reduced motion.
+  SC.atTime = (t, draw) => { const previous = replayClock; replayClock = t; try { return draw(); } finally { replayClock = previous; } };
 
   function rr(ctx, x, y, w, h, r) {
     const R = Array.isArray(r) ? r : [r, r, r, r];
@@ -451,7 +454,7 @@
       if (!replay) hud(ctx, [narrow ? 'Press Run: a robot plays.' : 'Hidden average payouts. Press Run: a robot plays.'], null, 6, px, fonts.mono, W);
       else if (!done) {
         const sp = cur < SLOW ? '' : cur < MID ? ' ▶▶' : ' ▶▶▶';
-        hud(ctx, [(narrow ? 'Pull ' : 'Run 1, training pull ') + (cur + 1).toLocaleString('en-US') + ' of ' + N.toLocaleString('en-US') + sp + (narrow || cur < SLOW ? '' : cur < MID ? ' faster' : ' fast-forward')], 'skip ▶', 6, px, fonts.mono, W);
+        hud(ctx, [(narrow ? 'Pull ' : (d.label || 'Run 1') + ', training pull ') + (cur + 1).toLocaleString('en-US') + ' of ' + N.toLocaleString('en-US') + sp + (narrow || cur < SLOW ? '' : cur < MID ? ' faster' : ' fast-forward')], 'skip ▶', 6, px, fonts.mono, W);
       } else {
         hud(ctx, narrow ? ['gold: true · blue: believed'] : ['gold: true average', 'blue: what the robot believes'], 'replay', 6, px, fonts.mono, W);
         if (e > T + 1000 && pick >= 0) {
@@ -476,7 +479,7 @@
         if (e < T) { t0 = now() - T; advance(T); } else { t0 = now(); reset(); rx = spotX(Math.floor((n - 1) / 2)); }
       },
       busy() { return N > 0 && t0 != null && now() - t0 < END + 1200; },
-      pick, best,
+      pick, best, duration: END + 1200,
     };
   };
   function upper(arr, v) { let lo = 0, hi = arr.length; while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m] <= v) lo = m + 1; else hi = m; } return lo; }
@@ -731,6 +734,7 @@
         t0 = now() - to; advance(to);
       },
       busy() { return segs.length > 0 && t0 != null && now() - t0 < T + 400; },
+      duration: T + 400,
     };
   };
 
@@ -740,12 +744,12 @@
     return { k: Math.min(n - 1, Math.floor(u / step)), f: Math.min(1, (u % step) / step), end: u >= n * step, after: u - n * step };
   }
   // the common shell of a looping scene: draw(e) with e in ms since the start; a click restarts it
-  function looping(draw, has) {
+  function looping(draw, has, duration) {
     let t0 = null;
     return {
       frame(ts) { if (!has) { draw(null); return; } if (ts === Infinity) { draw(Infinity); return; } if (t0 == null) t0 = ts; draw(Math.max(0, ts - t0)); },
       click() { t0 = now(); },
-      busy() { return has; },
+      busy() { return has; }, duration,
     };
   }
   // a workshop wall: pegboard, a shelf and a few tool outlines
@@ -860,7 +864,7 @@
       else hud(ctx, [end ? (fell ? 'Fell after ' + secs.toFixed(1) + ' s.' : 'Still up after ' + secs.toFixed(1) + ' s, the end of the test.') : 'Test run, ' + secs.toFixed(1) + ' s'], 'replay', H * 0.05, px, fonts.mono, W);
       if (!n) bubbleSide(ctx, 'Hold my broom.', rx - rs * 0.32, rx + rs * 0.32, floorY - rs * 0.6, Math.max(10, Math.min(14, rs * 0.16)), fonts.display, W);
     };
-    return looping(draw, n > 0);
+    return looping(draw, n > 0, n * STEP + 2400);
   };
 
   // ---------------------------------------------------------------- doors: the mirage (two doors, machines behind the left one)
@@ -956,14 +960,14 @@
         lines(exitDoor.x, floorY - doorH * 0.86 + doorH * 0.04 + px * 2.3, '+0.00', d.qA[0]);
       }
       if (!N) hud(ctx, ['Press Run: the robot picks a door, many times.'], null, 6, px, fonts.mono, W);
-      else if (!done) hud(ctx, ['Run 1, training episode ' + (cur + 1).toLocaleString('en-US') + ' of ' + N.toLocaleString('en-US') + (cur < SLOW ? '' : cur < MID ? ' ▶▶' : ' ▶▶▶')], 'skip ▶', 6, px, fonts.mono, W);
+      else if (!done) hud(ctx, [(d.label || 'Run 1') + ', training episode ' + (cur + 1).toLocaleString('en-US') + ' of ' + N.toLocaleString('en-US') + (cur < SLOW ? '' : cur < MID ? ' ▶▶' : ' ▶▶▶')], 'skip ▶', 6, px, fonts.mono, W);
       else hud(ctx, ['After training. Behind the left door, every machine pays ' + signed(d.mean) + ' on average.'], 'replay', 6, px, fonts.mono, W);
       if (done && d.qA) bubbleSide(ctx, d.qA[1] > d.qA[0] ? 'Left door. Feeling lucky!' : 'Exit. Not falling for it.', rx - rs * 0.32, rx + rs * 0.32, floorY - rs * 0.6, Math.max(10, Math.min(14, rs * 0.16)), fonts.display, W);
     }
     return {
       frame(ts) { if (!N) { draw(null); return; } if (ts === Infinity) { advance(T + 1); draw(T + 1); return; } if (t0 == null) t0 = ts; const e = Math.max(0, ts - t0); advance(e); draw(e); },
       click() { if (!N) return; const e = now() - (t0 == null ? now() : t0); if (e < T) { t0 = now() - T; } else t0 = now(); },
-      busy() { return N > 0 && t0 != null && now() - t0 < T + 400; },
+      busy() { return N > 0 && t0 != null && now() - t0 < T + 400; }, duration: T + 400,
     };
   };
 
@@ -1034,7 +1038,7 @@
       if (!n) hud(ctx, ['Press Run: new start, new charger, every attempt.'], null, 6, px, fonts.mono, W);
       else hud(ctx, [end ? (reached ? 'Test: charger reached in ' + n + ' steps.' : 'Test: out of time after ' + n + ' steps.') : 'Test run, step ' + Math.max(0, k + 1) + ' of ' + n], 'replay', 6, px, fonts.mono, W);
     };
-    return looping(draw, n > 0);
+    return looping(draw, n > 0, (n + 1) * 230 + 1600);
   };
 
   // ---------------------------------------------------------------- joint: the pendulum as one servo with a weight
@@ -1084,7 +1088,7 @@
       if (!n) hud(ctx, ['Press Run: a weak motor learns to swing the weight up.'], null, 6, px, fonts.mono, W);
       else hud(ctx, ['Replay, ' + ((k + 1) * 0.05).toFixed(1) + ' s' + (up ? ', up!' : '') + (end ? ' (end)' : '')], 'replay', 6, px, fonts.mono, W);
     };
-    return looping(draw, n > 0);
+    return looping(draw, n > 0, n * STEP + 1500);
   };
 
   // ---------------------------------------------------------------- arm: the 2-joint reach (side view, with payload)
@@ -1139,7 +1143,7 @@
       if (!n) hud(ctx, ['Press Run: the arm learns to put its gripper on the red dot.'], null, 6, px, fonts.mono, W);
       else hud(ctx, ['Test run, ' + ((k + 1) * 0.05).toFixed(1) + ' s, ' + dist.toFixed(2) + ' m from the dot' + (hold ? ', holding the payload' : '')], 'replay', 6, px, fonts.mono, W);
     };
-    return looping(draw, n > 0);
+    return looping(draw, n > 0, n * STEP + 1500);
   };
 
   // ---------------------------------------------------------------- table: the fork (around a coffee mug, top view)
@@ -1190,6 +1194,6 @@
       if (!np) hud(ctx, ['Press Run: get the gripper to the target. Do not hit the mug.'], null, 6, px, fonts.mono, W);
       else hud(ctx, [np + ' test runs. Blue: around the left. Orange: around the right.'], 'replay', 6, px, fonts.mono, W);
     };
-    return looping(draw, np > 0);
+    return looping(draw, np > 0, len * STEP + 1800);
   };
 })();

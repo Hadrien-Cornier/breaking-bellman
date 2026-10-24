@@ -41,7 +41,7 @@ test('offline makes no data fetch; missing/corrupt/mismatched assets and network
   ]) { const {client}=fixture({fetcher});const r=await client.lookup(config);assert(!r.record);assert.match(r.reason,/Live/); }
 });
 test('a valid compressed payload with the wrong config or incomplete seeds is rejected',async()=>{
-  for(const mutate of [r=>r.config.steps++,r=>r.results.pop(),r=>r.results[0].seed++,r=>delete r.results[0].diag,r=>delete r.results[0].ep.ret,r=>delete r.results[0].bandit.arm,r=>r.results[0].bandit.reward=[1,2],r=>r.results[0].knobs.noise++]) {
+  for(const mutate of [r=>r.config.steps++,r=>r.results.pop(),r=>r.results[0].seed++,r=>delete r.results[0].diag,r=>delete r.results[0].data,r=>delete r.results[0].final.terminal,r=>r.results[0].data.fresh.steps=-1,r=>r.results[0].data.fresh.steps++,r=>r.results[0].data.fresh.attempts++,r=>r.results[0].events.pop(),r=>delete r.results[0].events,r=>delete r.results[0].ep.ret,r=>delete r.results[0].bandit.arm,r=>r.results[0].bandit.reward=[1,2],r=>r.results[0].knobs.noise++]) {
     const r=exact.parse(exact.stringify(record));mutate(r);const bytes=z.gzipSync(exact.stringify(r));
     const i={...index,records:{[key]:{...index.records[key],sha256:hash(bytes),bytes:bytes.length}}};
     const {client}=fixture({fetcher:async url=>url.endsWith('index.json')?{ok:true,json:async()=>i}:{ok:true,arrayBuffer:async()=>bytes}});
@@ -49,8 +49,8 @@ test('a valid compressed payload with the wrong config or incomplete seeds is re
   }
 });
 test('full consumer inputs are required for continuous replay, Fetch policy and residual baselines',async()=>{
-  for(const [id,mutate] of [['continuous',r=>delete r.replay],['fetch',r=>delete r.policy],['residual',r=>delete r.final.baseRet]]) {
-    const l=C.levels.find(l=>l.id===id),c=exact.resolve({world:l.world,parts:l.start,knobs:l.knobs,hyper:{...C.hyperOf(l.start,l.world),...l.hyper},steps:30},[101],versions,C);
+  for(const [id,mutate] of [['pick',r=>r.dataset=null],['continuous',r=>delete r.replay],['fetch',r=>delete r.policy],['residual',r=>delete r.final.baseRet]]) {
+    const l=C.levels.find(l=>l.id===id),c=exact.resolve({world:l.world,parts:l.start,knobs:l.knobs,hyper:{...C.hyperOf(l.start,l.world),...l.hyper,...(id==='pick'?{demoEpisodes:2,pretrain:2,hidden:[4]}:{})},steps:30},[101],versions,C);
     const k=hash(exact.stringify(c)),r={schema:'bb-full-results-v1',key:k,config:c,results:[RLA.run(exact.runConfig(c,101))]};
     let bytes;
     const {client}=fixture({fetcher:async url=>url.endsWith('index.json')?{ok:true,json:async()=>({schema:'bb-fast-index-v1',versions,records:{[k]:{path:'records/'+k+'.json.gz',sha256:hash(bytes),bytes:bytes.length}}})}:{ok:true,arrayBuffer:async()=>bytes}});
@@ -60,6 +60,23 @@ test('full consumer inputs are required for continuous replay, Fetch policy and 
     const broken=fixture({fetcher:async url=>url.endsWith('index.json')?{ok:true,json:async()=>({schema:'bb-fast-index-v1',versions,records:{[k]:{path:'records/'+k+'.json.gz',sha256:hash(bytes),bytes:bytes.length}}})}:{ok:true,arrayBuffer:async()=>bytes}});
     assert(!(await broken.client.lookup(c)).record,id+' incomplete consumer data rejected');
   }
+});
+test('fixed-data policies without a world demonstrator retain measured zero prior data',async()=>{
+  // This exact published Pendulum key exposed the consumer/engine mismatch. No training or substitution.
+  const fs=require('node:fs'),path=require('node:path');
+  const k='06dc024ced00499ef8ca65f5bcb00e37ce4d27ed79b2477d9b383424df4f5454';
+  const dir=path.resolve(__dirname,'../fast',hash(exact.stringify(versions)));
+  const i=JSON.parse(fs.readFileSync(path.join(dir,'index.json')));
+  const bytes=fs.readFileSync(path.join(dir,i.records[k].path));
+  const r=exact.parse(z.gunzipSync(bytes).toString());
+  assert.equal(r.config.world,'pendulum');assert.equal(r.config.parts.source,'fixed');
+  for(const result of r.results) {
+    assert.equal(result.dataset,null);assert.deepEqual(result.data.fresh,{steps:0,attempts:0});
+    assert(result.notes.includes('This world has no demonstrator, so there is no dataset. The learner starts from nothing.'));
+  }
+  const {client}=fixture({base:dir,fetcher:async url=>url.endsWith('index.json')?{ok:true,json:async()=>i}:{ok:true,arrayBuffer:async()=>bytes}});
+  const loaded=await client.lookup(r.config);
+  assert.equal(exact.stringify(loaded.record),exact.stringify(r));
 });
 test('abort and timeout never deliver an old stored result',async()=>{
   const controller=new AbortController();controller.abort();const {client,calls}=fixture();assert(!(await client.lookup(config,controller.signal)).record);assert.equal(calls.length,0);

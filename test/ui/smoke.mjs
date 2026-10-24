@@ -26,9 +26,10 @@ const browser = await chromium.launch({ executablePath: exe || undefined });
 const errors = [];
 const fails = [];
 const check = (cond, msg) => { if (!cond) fails.push(msg); console.log((cond ? 'ok   ' : 'FAIL ') + msg); };
-const runDone = (page) => page.waitForFunction(() => !document.querySelector('#run-btn').disabled && document.querySelector('#run-result').textContent.length > 0, null, { timeout: 240000 });
+const runDone = (page) => page.waitForFunction(() => !document.querySelector('#run-btn').disabled && document.querySelector('#run-result').textContent.length > 0, null, { timeout: Number(process.env.BB_UI_RUN_TIMEOUT_MS) || 3600000 });
 const fastRoot = new URL('../../fast/', import.meta.url);
-const fastVersion = fs.readdirSync(fastRoot, { withFileTypes: true }).find((e) => e.isDirectory()).name;
+const { exact, hash, source, content } = require('../../scripts/fast-source.js');
+const fastVersion = hash(exact.stringify(source().versions));
 async function preloadFastRecord(page, key) {
   const file = new URL(fastVersion + '/records/' + key + '.json.gz', fastRoot);
   const encoded = zlib.gunzipSync(fs.readFileSync(file)).toString();
@@ -319,9 +320,13 @@ await session(375, 812, 'phone-frontier', async (page) => {
   await page.waitForTimeout(500);
   check(/mud/.test(await page.locator('#mode-pane').innerText()), 'mud level shows its intro');
   await page.locator('#mode-pane .mc').first().locator('.opt').nth(0).click();
-  const best8MemoryKey = '159d9a9f429635030e1829838a9580a322297ce1936e218e539d9156fbd01ee9';
-  check(await preloadFastRecord(page, best8MemoryKey), 'the exact best-of-8 memory result is available to the browser regression');
   await setWord(page, '#rule', 'pick', 'the best of 8 samples, by the critic');
+  const requested = await page.evaluate(() => ({ ...bellman.state(), steps: +document.querySelector('#budget').value,
+    seeds: Array.from({ length: +document.querySelector('#seeds').value }, (_, i) => 101 * (i + 1)) }));
+  const C = content(), lv = C.levels.find(l => l.title === requested.level);
+  const best8MemoryKey = hash(exact.stringify(exact.resolve({ world: requested.world, knobs: requested.knobs,
+    parts: requested.words, hyper: { ...C.hyperOf(requested.words, requested.world), ...lv.hyper }, steps: requested.steps }, requested.seeds, source().versions, C)));
+  check(await preloadFastRecord(page, best8MemoryKey), 'the exact best-of-8 memory result is available to the browser regression');
   await page.click('#run-btn');
   await runDone(page);
   const storedBest8 = {
@@ -446,31 +451,45 @@ await session(390, 844, 'pendulum', async (page) => {
   await page.locator('[data-open-level]').click();
   await page.evaluate(() => {
     const joint = BB.scenes.joint;
+    window.pendulumAngles = []; window.pendulumTaskAngles = [];
     BB.scenes.joint = (ctx, w, h, d) => {
-      window.pendulumTrace = d.trace;
-      const rotate = ctx.rotate;
-      ctx.rotate = function (a) {
-        const t = this.getTransform();
-        if (Math.abs(t.e - w / 2) < 1 && Math.abs(t.f - h * 0.52) < 1) window.pendulumAngles.push(a);
-        return rotate.call(this, a);
-      };
-      return joint(ctx, w, h, d);
+      if (d.trace) window.pendulumTrace = d.trace;
+      const scene = joint(ctx, w, h, d);
+      // Each draw owns its probe. Mount's untrained task pose is not a measured replay state.
+      return { ...scene, frame(ts) {
+        const rotate = ctx.rotate;
+        ctx.rotate = function (a) {
+          const t = this.getTransform();
+          if (Math.abs(t.e - w / 2) < 1 && Math.abs(t.f - h * 0.52) < 1) {
+            (d.trace ? window.pendulumAngles : window.pendulumTaskAngles).push(a);
+          }
+          return rotate.call(this, a);
+        };
+        try { return scene.frame(ts); } finally { ctx.rotate = rotate; }
+      } };
     };
-    window.pendulumAngles = [];
   });
   await page.click('#run-btn');
   await runDone(page);
   await page.locator('#stage').scrollIntoViewIfNeeded();
-  await page.locator('#stage').click(); // restart the real animation clock
+  await page.locator('#scene-replay').click();
+  await page.locator('#scene-watch').click();
   await page.waitForTimeout(2200);
+  await page.locator('#scene-watch').click();
   const motion = await page.evaluate(() => ({
     count: pendulumAngles.length,
     span: Math.max(...pendulumAngles) - Math.min(...pendulumAngles),
     mismatch: Math.max(...pendulumAngles.map((a) => Math.min(...pendulumTrace.map((t) => Math.abs(a - t.s[0]))))),
     first: pendulumTrace[0].s[0],
+    taskCount: pendulumTaskAngles.length,
+    taskMismatch: Math.max(...pendulumTaskAngles.map(a => Math.abs(a - Math.PI))),
+    watching: bellman.replay().watching,
   }));
+  console.log('pendulum measured motion:', JSON.stringify(motion));
+  check(motion.taskCount > 0 && motion.taskMismatch < 1e-9, 'pendulum task pose is hanging still before the measured replay');
   check(motion.count > 10 && motion.span > 1, 'pendulum swings visibly in the phone canvas over time');
   check(motion.first > 3 && motion.mismatch < 1e-9, 'the rendered rod follows the hanging-start physics trace');
+  check(!motion.watching, 'pendulum Pause stops the recorded replay');
   check(/replay from hanging still/.test(await page.locator('#stage-caption').innerText()), 'caption identifies the separate replay');
   await page.locator('#stage').screenshot({ path: out + '/phone-pendulum.png' });
 });

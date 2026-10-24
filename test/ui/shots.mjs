@@ -40,9 +40,9 @@ const skipToEnd = async (p) => { await p.click('#run-btn'); await runDone(p); aw
 if (want('campaign')) await shot('campaign', 1280, 860, skipToEnd, { state: seen, scene: 'casino' });
 // the canyon: the first training episode, a few seconds in
 // (a scene's clock starts when the stage is on screen)
-if (want('canyon')) await shot('canyon', 1280, 860, async (p) => { await p.click('#run-btn'); await runDone(p); await p.locator('#stage').scrollIntoViewIfNeeded(); await p.waitForTimeout(2800); }, { state: Object.assign({ level: 'cliff' }, seen), scene: 'canyon' });
+if (want('canyon')) await shot('canyon', 1280, 860, async (p) => { await p.click('#run-btn'); await runDone(p); await p.locator('#scene-watch').click(); await p.locator('#stage').scrollIntoViewIfNeeded(); await p.waitForTimeout(2800); }, { state: Object.assign({ level: 'cliff' }, seen), scene: 'canyon' });
 // the broom: CartPole with too many cells falls fast
-if (want('broom')) await shot('broom', 1280, 860, async (p) => { await p.click('#run-btn'); await runDone(p); await p.locator('#stage').scrollIntoViewIfNeeded(); await p.waitForTimeout(1300); }, { state: Object.assign({ level: 'cells' }, seen), scene: 'broom' });
+if (want('broom')) await shot('broom', 1280, 860, async (p) => { await p.click('#run-btn'); await runDone(p); await p.locator('#scene-watch').click(); await p.locator('#stage').scrollIntoViewIfNeeded(); await p.waitForTimeout(1300); }, { state: Object.assign({ level: 'cells' }, seen), scene: 'broom' });
 if (want('workbench')) await shot('workbench', 1280, 860, async (p) => {
   await p.click('#tabs button[data-mode="workbench"]'); await p.waitForTimeout(300);
   await p.click('#run-btn'); await runDone(p); await p.waitForTimeout(800);
