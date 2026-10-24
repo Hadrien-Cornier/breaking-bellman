@@ -3,7 +3,7 @@
 const { hash } = require('./fast-source.js');
 const fs = require('node:fs'), path = require('node:path');
 const engineFiles = ['src/core/rng.js', 'src/agents/vpo.js'];
-const files = [...engineFiles, 'web/vpo-reference.js', 'web/vpo-level.js'];
+const files = [...engineFiles, 'web/custom-record.js', 'web/vpo-reference.js', 'web/vpo-level.js'];
 function version() {
   return hash(JSON.stringify(Object.fromEntries(files.map(f => [f, hash(fs.readFileSync(path.join(__dirname, '..', f)))]))));
 }
