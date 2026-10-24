@@ -582,3 +582,74 @@ ul.preset-diff li { margin: 2px 0; }
 .rare-count { display: grid; font-size: 12px; gap: 4px; }
 .rare-count meter { width: 100%; }
 @media (max-width: 500px) { .rare-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Variant C: an uninterrupted experiment, with deliberate lesson drawers. */
+#algorithm-workspace, #lesson-drawer { min-width: 0; }
+.workspace-drawer { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); padding: 10px 14px; }
+.workspace-drawer > summary, #optional-run-settings > summary, .more-curves > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; }
+.workspace-drawer[open] > summary { margin-bottom: 12px; }
+.drawer-workspace { gap: 12px; }
+.drawer-workspace #lab { gap: 10px; }
+.drawer-workspace #lab > .card { padding: 10px 12px; gap: 6px; }
+.drawer-workspace #algorithm-workspace { gap: 8px; }
+.drawer-workspace #notebook { grid-column: 1 / -1; }
+.drawer-workspace #lesson-drawer { grid-column: 1 / -1; }
+.drawer-workspace .stage { height: auto; width: 100%; max-height: 230px; object-fit: contain; }
+.drawer-workspace .chart { height: 130px; }
+.drawer-workspace #learning-monitor { gap: 8px; }
+.drawer-workspace .chart-title { font-size: .76rem; }
+.drawer-workspace #charts > .eyebrow { font-size: .65rem; }
+.drawer-workspace .sentence { font-size: .9rem; }
+.drawer-workspace .sentence .sl { margin-bottom: 6px; }
+.drawer-workspace .sentence .gloss { font-size: .75rem; }
+.drawer-workspace #run-source, .drawer-workspace #stage-caption { font-size: .74rem; }
+.drawer-workspace #run-result:empty { display: none; }
+.drawer-workspace #optional-run-settings .row { padding-block: 8px; }
+@media (min-width: 960px) {
+  .drawer-workspace { grid-template-columns: minmax(320px, .85fr) minmax(0, 1.15fr); align-items: start; }
+  .drawer-workspace > #lab { grid-column: 1; grid-row: 2; position: static; }
+  .drawer-workspace > #algorithm-workspace { grid-column: 2; grid-row: 2; }
+  .drawer-workspace > #lesson-drawer { grid-row: 3; }
+  .drawer-workspace #learning-monitor { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .drawer-workspace #training-metric:has(> p) { grid-column: 1 / -1; }
+  .drawer-workspace #training-metric:has(> p) + #charts { grid-column: 1 / -1; }
+  .drawer-workspace #charts { min-width: 0; }
+}
+@media (max-width: 959px) {
+  .drawer-workspace { display: flex; flex-direction: column; }
+  .drawer-workspace > * { width: 100%; }
+  .drawer-workspace #lab { order: 1; }
+  .drawer-workspace #algorithm-workspace { order: 2; }
+  .drawer-workspace #lesson-drawer { order: 3; }
+  .drawer-workspace #notebook { order: 4; }
+  .drawer-workspace #campaign-strip { order: 0; }
+  .drawer-workspace #learning-monitor { display: none; }
+  .drawer-workspace:has(#algorithm-workspace) #lab { display: contents; }
+  .drawer-workspace #lab > .card { order: 1; }
+  .drawer-workspace #lab > #learning-monitor { display: grid; order: 3; }
+  .drawer-workspace #lesson-drawer { order: 4; }
+  .drawer-workspace #notebook { order: 5; }
+}
+@media (min-width: 960px) {
+  .drawer-workspace { grid-template-columns: minmax(320px, .7fr) minmax(0, 1.3fr); }
+  .drawer-workspace #algorithm-workspace .w { min-height: 30px; padding: 1px 5px; }
+  .drawer-workspace #algorithm-workspace .sl { font-size: .84rem; line-height: 1.7; margin: 0; }
+  .drawer-workspace #algorithm-workspace .compound { padding: 4px 8px; }
+  .drawer-workspace #algorithm-workspace .compound .big { font-size: 1rem; }
+  .drawer-workspace #algorithm-workspace .preset { font-size: .78rem; }
+  .drawer-workspace #algorithm-workspace select { min-height: 34px; max-width: 100%; }
+}
+
+@media (min-width: 960px) {
+  body:has(.drawer-workspace) .top { padding-block: 4px; }
+  body:has(.drawer-workspace) .brand, body:has(.drawer-workspace) .brand canvas { width: 36px; height: 36px; flex-basis: 36px; }
+  body:has(.drawer-workspace) .tabs { margin-top: 4px; }
+  body:has(.drawer-workspace) .xpbar { margin-top: 4px; }
+  .drawer-workspace .campaign-strip { padding-block: 2px; }
+  .drawer-workspace #algorithm-workspace .preset-wrap { margin-block: 2px; }
+}
+@media (max-width: 959px) {
+  .drawer-workspace #replay-drawer { order: 4; }
+  .drawer-workspace #lesson-drawer { order: 5; }
+  .drawer-workspace #notebook { order: 6; }
+}

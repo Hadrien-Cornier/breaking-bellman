@@ -630,6 +630,21 @@
     if (done && record) partials = record.results.map(r => ({ evals: r.evals, diag: r.diag }));
     const box = $('#charts'); const steps = (S.lastCfg && S.lastCfg.steps) || 1;
     const ink = css('--ink'), acc = css('--accent'), val = css('--f-value'), pol = css('--f-policy'), muted = css('--muted');
+    const metric = $('#training-metric');
+    const parts = S.lastCfg ? S.lastCfg.parts : S.parts;
+    const family = fam(parts);
+    const fitsLoss = S.world !== 'bandit' &&
+      (family === 'value' ||
+       (family === 'pg' && parts.baseline === 'critic') ||
+       (family === 'ac' && parts.critics !== 'none'));
+    const losses = partials.map(p => (p.diag || []).filter(d => Number.isFinite(d.loss) && d.updates > 0));
+    if (fitsLoss) {
+      if (!$('#ch-loss')) metric.replaceChildren(chartBox('ch-loss', family === 'value' && parts.store === 'table' ? 'Squared TD update error' : 'Training loss · critic squared error', [[val, 'recorded per seed']]));
+      if (losses.some(d => d.length)) {
+        const series = losses.map((d, i) => ({ xs: d.map(x => x.t), ys: d.map(x => x.loss), color: val, alpha: .65, width: 1.5, label: 'seed ' + (i + 1) }));
+        lineChart($('#ch-loss'), series, { xmax: steps, ymin: 0, ymax: Math.max(.001, ...losses.flatMap(d => d.map(x => x.loss))), xlabel: 'training steps' });
+      }
+    } else metric.replaceChildren(h('p.small', { text: 'This learner does not record a training-loss curve. Its measured performance is shown below.' }));
     const prior = record && record.comparison;
     const A = S.pinA && prior ? { steps: prior.settings.steps, curves: curvesOf(prior.results, prior.world) } : null;
     const aLeg = A ? [[muted, 'A (pinned)', true]] : [];
@@ -669,6 +684,14 @@
       const eT = $('#ch-ent');
       if (eT) { const t = eT.parentNode.querySelector('.chart-title'); if (t) t.append(window.RLHELP.trigger('entropy', undefined, metricCtx())); }
     }
+    }
+    if (!box.querySelector('.more-curves')) {
+      const extra = [...box.querySelectorAll('.chart-wrap')].filter(el => !el.querySelector('#ch-ret'));
+      if (extra.length) {
+        const more = h('details.more-curves', null, [h('summary', { text: 'More performance curves' }), ...extra]);
+        more.addEventListener('toggle', () => { if (more.open && runState.record) renderCharts(null, true); });
+        box.append(more);
+      }
     }
     const maxSteps = (S.lastCfg && S.lastCfg.knobs && S.lastCfg.knobs.maxSteps) || RLA.knobDefaults(S.world).maxSteps;
     const per = partials.map((p) => p.evals);
@@ -1116,11 +1139,13 @@
     delete cv.dataset.world; delete cv.dataset.frame; delete cv.dataset.interactive; cv.onclick = null;
     $('#scene-policy').textContent = ''; $('#scene-seed').replaceChildren(); $('#run-source').textContent = '';
     $('#run-result').textContent = ''; $('#expert-card').hidden = true; $('#wonder').hidden = true;
+    $('#training-metric').replaceChildren();
     $('#charts').replaceChildren(h('p.small', { text: 'Curves appear here while a run trains.' }));
     $('#symptoms').replaceChildren(h('p.small', { text: 'No run yet.' }));
   }
   function showRunPending() {
     $('#run-result').textContent = 'New run in progress…';
+    $('#training-metric').replaceChildren();
     $('#charts').replaceChildren(h('p.small', { role: 'status', text: 'Preparing this run. Curves appear when training reports progress.' }));
     $('#symptoms').replaceChildren(h('p.small', { role: 'status', text: 'New run in progress. The autopsy appears when it finishes.' }));
     renderStage();
@@ -1129,6 +1154,7 @@
   }
   function showRunStopped(message) {
     $('#run-result').textContent = message;
+    $('#training-metric').replaceChildren();
     $('#charts').replaceChildren(h('p.small', { text: 'No curves are available because this run did not finish.' }));
     $('#symptoms').replaceChildren(h('p.small', { text: 'No autopsy is available because this run did not finish.' }));
     $('#stage-caption').textContent = message + ' Run the sentence again to see a replay.';
@@ -2096,10 +2122,14 @@
     dropRun(); S.world = w; S.knobs = Object.assign({}, knobs || {});
     budgetOptions(); renderStage(); renderAutopsy(); refreshSentences(); drawCompare(); drawGrid();
     $('#run-result').textContent = '';
+    $('#training-metric').replaceChildren();
     $('#charts').replaceChildren(h('p.small', { text: 'Curves appear here while a run trains.' }));
   }
   function setParts(p) { const f0 = fam(S.parts); S.parts = C.cfg(p || {}); if (fam(S.parts) !== f0) budgetOptions(); onPartsChanged(); }
 
+  const replayDrawer = h('details.workspace-drawer', { id: 'replay-drawer' }, [h('summary', { text: 'Run readout and replay controls' })]);
+  replayDrawer.append($('#run-result'), $('#run-source'), $('#stage-caption'), $('#scene-controls'));
+  $('#lab').append(replayDrawer);
   const MODES = {};
   const shell = BB.shell.notebook($('#notebook'), section => {
     if (section === 'curve' && S.results.length) { renderCharts(null, true); linkRun(); }
@@ -3139,7 +3169,9 @@
     mounts = mounts.filter((m) => m.permanent);
     comparisonReplay.park();
     if (!customActive() || mapOpen) { customScene = null; pauseScene(); }
-    const pane = $('#mode-pane'); pane.replaceChildren();
+    const pane = $('#mode-pane');
+    document.querySelector('main.layout').append(pane);
+    pane.replaceChildren();
     S.afterRun = null; S.onPartsChange = null;
     if (!goalExecutionActive() || S.level !== 'hindsight') BBHINDSIGHT.cancel();
     if (!goalExecutionActive() || S.level !== 'hierarchy') BBHIERARCHY.cancel();
@@ -3184,6 +3216,18 @@
     if (S.mode === 'campaign' && !mapping) document.querySelector('main.layout').prepend(campaignMap.strip());
     if (customActive() && !mapping) customShell.objective(C.levels.find(l => l.id === S.level).goal.text);
     MODES[S.mode](pane);
+    const workspace = !mapping && !customActive() && ['campaign', 'workbench', 'saboteur'].includes(S.mode);
+    layout.classList.toggle('drawer-workspace', workspace);
+    $('#algorithm-workspace').hidden = !workspace;
+    $('#lesson-drawer').hidden = !workspace;
+    if (workspace) {
+      layout.insertBefore($('#lab'), $('#algorithm-workspace'));
+      $('#lesson-drawer').append(pane);
+      $('#notebook').classList.remove('supporting-lab');
+      if (!layout.dataset.workspaceKey || layout.dataset.workspaceKey !== key) $('#notebook').open = false;
+      layout.dataset.workspaceKey = key;
+      $('#notebook-rule').prepend($('#game-rules'));
+    }
     refreshSentences();
     if (!customActive()) renderRules();
     updateScore();
