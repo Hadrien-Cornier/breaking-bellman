@@ -199,47 +199,9 @@
     return null;
   }
   const recipeOfCard = (id) => C.recipes.find((r) => r.card === id);
-  // words that do nothing in this sentence, with the reason
-  function idleWords(p, world) {
-    const o = {};
-    if (fam(p) === 'pg') return idlePg(p, world);
-    if (fam(p) === 'ac') return idleAc(p, world);
-    if (world === 'bandit') return o;
-    if (p.data !== 'replay') o.memory = 'the memory is used only with "random old moves from memory".';
-    if (p.store === 'net') o.step = 'a network always moves by small gradient steps (Adam, learning rate 0.001).';
-    // a row keeps a guess only when nstep leaves room for one before the episode ends
-    const maxSteps = (RLA.knobDefaults(world) || {}).maxSteps || 1;
-    const noGuess = p.nstep === 0 || p.nstep >= maxSteps;
-    if (noGuess) {
-      const r = p.nstep === 0 ? 'with all rewards to the end there is no guess.' : p.nstep + ' real rewards is the whole episode here, so there is no guess.';
-      o.agg = o.picker = o.scorer = o.sync = r;
-    } else {
-      if (p.agg === 'taken') o.picker = 'the action really taken next is not chosen by any estimate.';
-      if (p.picker !== 'frozen' && p.scorer !== 'frozen') o.sync = 'no frozen copy is used in this sentence.';
-    }
-    return o;
-  }
-  function idlePg(p) {
-    const o = {};
-    if (p.baseline !== 'critic') o.adv = 'only a critic judges actions this way.';
-    if (p.baseline === 'group') o.credit = 'the group baseline compares whole episodes, so every action gets its episode\'s return.';
-    if (p.epochs === 1) o.ratio = 'with 1 pass the policy has not moved yet when it computes the step, so the ratio is 1 and the limit never acts.';
-    if (p.group === 'same' && p.baseline !== 'group') o.group = 'the shared start matters only for "the mean of its group".';
-    return o;
-  }
-  function idleAc(p, world) {
-    const o = {};
-    const crit = p.critics !== 'none';
-    if (p.source === 'own') o.demos = 'there is no dataset: it learns from its own tries.';
-    if (!crit) { const r = 'there is no critic.'; o.target = o.next = o.penalty = o.delay = r; if (p.pick !== 'one') o.pick = 'choosing among samples needs a critic.'; }
-    if (p.head !== 'gauss' || !['q', 'qclose'].includes(p.aim)) o.entropy = p.head !== 'gauss' ? 'only the bell-curve policy has an entropy bonus here.' : 'the bonus acts only when the policy climbs the critic.';
-    if (p.base === 'classical' && !RLA.worlds[world].base) o.base = 'this world has no classical controller.';
-    if (p.chunk > 1 && (['q', 'qclose'].includes(p.aim) || p.base !== 'none' || p.pick !== 'one')) o.chunk = 'this lab plays chunks only for a policy that copies, acts alone and takes one sample.';
-    if (p.aim === 'none' && p.source !== 'both') o.delay = 'the policy does not learn.';
-    if (p.source === 'fixed') o.wait = 'with a fixed dataset there are no own tries to wait for.';
-    else if (!['q', 'qclose'].includes(p.aim) && p.pick !== 'edit') o.wait = 'the policy does not climb the critic.';
-    return o;
-  }
+  // words that do nothing in this sentence, with the reason (single source of truth: web/algorithm-math.js)
+  const idleWords = (p, world) => ALGO_MATH.idleWords(p, world);
+
   // the words that differ between two sentences (only words that matter in either)
   function wordDiff(a, b, world) {
     if (fam(a) !== fam(b)) return [{ key: 'family', from: C.families[fam(a)].name, to: C.families[fam(b)].name }];
@@ -255,13 +217,14 @@
   }
 
   // ---------------------------------------------------------------- sentence component
+  let algorithmMath = null;
   let mounts = [];   // { el, opts, open, permanent }
   function mountSentence(opts) {
     const m = { el: h('div.sentence'), opts, open: null, permanent: !!opts.permanent };
     mounts.push(m); drawSentence(m);
     return m.el;
   }
-  function refreshSentences() { if (!RLA.worlds[S.world]) return; for (const m of mounts) drawSentence(m); }
+  function refreshSentences() { if (!RLA.worlds[S.world]) return; for (const m of mounts) drawSentence(m); if (algorithmMath) algorithmMath.update(); }
   function drawSentence(m) {
     const o = m.opts, p = o.getParts(), world = o.world(), focus = o.focus ? o.focus() : [];
     const idle = idleWords(p, world);
@@ -294,11 +257,11 @@
     ]);
     const kids = [];
     for (const [keys, el] of L) {
-      kids.push(el);
+      kids.push(o.compact && el.classList.contains('gloss') ? h('details.sentence-explanation', null, [h('summary', { text: 'Why use a guess?' }), el]) : el);
       if (m.open && keys.includes(m.open)) kids.push(chooser(m, m.open, p, idle));
     }
     if (o.withName) kids.push(nameBox(p, world));
-    if (o.withMath) kids.push(mathBox(p, world));
+    if (o.withMath) kids.push(mathBox(m, p, world));
     if (o.preset) kids.push(presetRow(p, world, m));
     m.el.replaceChildren(...kids);
   }
@@ -368,170 +331,27 @@
     return h('div.compound', null, [h('span.big', { text: big }), h('span.small', { text: small })]);
   }
 
-  // ---------------------------------------------------------------- math (MathJax 3, inlined by the build; else from cdnjs; falls back to the TeX source)
-  let MJ = null;
-  function loadMathJax() {
-    if (MJ) return MJ;
-    MJ = new Promise((resolve) => {
-      const done = (v) => { resolve(v); };
-      window.MathJax = { tex: { inlineMath: [] }, svg: { fontCache: 'local' }, startup: { typeset: false, ready() { window.MathJax.startup.defaultReady(); window.MathJax.startup.promise.then(() => { try { document.head.append(window.MathJax.svgStylesheet()); } catch (e) { /* older build */ } done(window.MathJax); }); } } };
-      const s = document.createElement('script');
-      const local = document.getElementById('mathjax-src');
-      s.src = local && local.textContent.length > 1000 ? URL.createObjectURL(new Blob([local.textContent], { type: 'text/javascript' }))
-        : 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js';
-      s.async = true;
-      s.onerror = () => done(null);
-      document.head.append(s);
-      setTimeout(() => done(null), 15000);
-    });
-    return MJ;
-  }
-  function texInto(el, tex) {
-    el.textContent = tex; el.classList.add('tex-src'); el.setAttribute('data-tex', tex);
-    loadMathJax().then((M) => {
-      if (!M || !el.isConnected) return;
-      try { el.replaceChildren(M.tex2svg(tex, { display: true })); el.classList.remove('tex-src'); } catch (e) { /* keep the source */ }
-    });
-  }
-  function texPg(p) {
-    const out = [];
-    const grp = p.group === 'same';
-    out.push(['collect', `\\tau_1, \\dots, \\tau_{${p.batch}} \\sim \\pi_\\theta${grp ? '\\ \\text{ from one prompt}' : ''}`]);
-    const G = p.baseline === 'group' || p.credit === 'total' ? 'R(\\tau)' : 'G_t';
-    if (p.baseline === 'group' || p.credit === 'total') out.push(['credit', 'R(\\tau) = \\textstyle\\sum_{k} \\gamma^{k} r_{k+1} \\quad \\text{(the whole episode, for every step)}']);
-    else out.push(['credit', 'G_t = \\textstyle\\sum_{k \\ge t} \\gamma^{k-t} r_{k+1} \\quad \\text{(only the rewards after step } t)']);
-    let A;
-    if (p.baseline === 'none') A = `A_t = ${G}`;
-    else if (p.baseline === 'avg') A = `A_t = ${G} - \\bar{G}, \\quad \\bar{G} \\leftarrow \\bar{G} + 0.05\\,(G - \\bar{G})`;
-    else if (p.baseline === 'group') A = 'A_i = R(\\tau_i) - \\operatorname{mean}_j R(\\tau_j)';
-    else if (p.adv === 'mc') A = 'A_t = G_t - V_\\phi(s_t)';
-    else if (p.adv === 'td') A = 'A_t = r_{t+1} + \\gamma V_\\phi(s_{t+1}) - V_\\phi(s_t)';
-    else A = 'A_t = \\textstyle\\sum_k (\\gamma\\lambda)^k \\delta_{t+k},\\ \\ \\delta_t = r_{t+1} + \\gamma V_\\phi(s_{t+1}) - V_\\phi(s_t),\\ \\lambda = 0.95';
-    out.push(['weight', A]);
-    if (p.scale === 'std') out.push(['spread', p.baseline === 'group' ? 'A_i \\leftarrow A_i \\,/\\, \\operatorname{std}_j R(\\tau_j)' : 'A_t \\leftarrow (A_t - \\operatorname{mean} A) \\,/\\, \\operatorname{std} A']);
-    const r = '\\rho_t = \\frac{\\pi_\\theta(a_t \\mid s_t)}{\\pi_{\\text{old}}(a_t \\mid s_t)}';
-    const obj = p.ratio === 'clip' ? '\\min\\big(\\rho_t A_t,\\ \\operatorname{clip}(\\rho_t, 0.8, 1.2)\\, A_t\\big)' : '\\rho_t A_t';
-    out.push(['update', `\\theta \\leftarrow \\theta + ${p.lr}\\, \\nabla_\\theta \\textstyle\\frac{1}{N}\\sum_t ${obj}${p.bonus ? ' + 0.01\\, H(\\pi_\\theta(\\cdot \\mid s_t))' : ''} \\quad \\times ${p.epochs} \\text{ pass${p.epochs > 1 ? 'es' : ''} (Adam)}`]);
-    out.push(['ratio', `${r}${p.epochs === 1 ? ' = 1 \\text{ at the only pass, so } \\nabla \\rho_t = \\nabla \\log \\pi_\\theta(a_t \\mid s_t)' : ''}`]);
-    if (p.baseline === 'critic') out.push(['critic', `V_\\phi(s_t) \\leftarrow \\text{regress to } ${p.adv === 'mc' ? 'G_t' : 'A_t + V_\\phi(s_t)'}`]);
-    return out;
-  }
-  function texAc(p, world) {
-    const out = [];
-    const crit = p.critics !== 'none', two = p.critics === 'two';
-    const Qmin = (s, a, bar) => (two ? `\\min_{j=1,2} ${bar ? '\\bar{Q}' : 'Q'}_j(${s}, ${a})` : `${bar ? '\\bar{Q}' : 'Q'}(${s}, ${a})`);
-    const K = p.chunk > 1 ? p.chunk : 1;
-    const aT = K > 1 ? `a_{t:t+${K - 1}}` : 'a_t';
-    let act;
-    if (p.head === 'det') act = `${aT} = \\tanh f_\\theta(s_t) + \\epsilon,\\ \\epsilon \\sim \\mathcal{N}(0, 0.1^2) \\text{ while learning}`;
-    else if (p.head === 'gauss') act = ['q', 'qclose'].includes(p.aim) ? `${aT} = \\tanh\\big(\\mu_\\theta(s_t) + \\sigma_\\theta(s_t)\\,\\epsilon\\big),\\ \\epsilon \\sim \\mathcal{N}(0, 1)` : `${aT} = \\tanh \\mu_\\theta(s_t) + \\sigma_\\theta(s_t)\\,\\epsilon`;
-    else act = `x_0 \\sim \\mathcal{N}(0, I),\\ \\ x_{k+1} = x_k + \\tfrac{1}{10} v_\\theta(s_t, x_k, \\tfrac{k}{10}),\\ \\ ${aT} = x_{10}`;
-    out.push(['act', act]);
-    if (K > 1) out.push(['chunk', `\\text{play } a_t, \\dots, a_{t+${K - 1}} \\text{ in order, then decide again}`]);
-    if (p.base === 'classical') out.push(['base', 'a = a_{\\text{classical}}(s) + 0.5\\, a_\\theta(s, a_{\\text{classical}})']);
-    if (crit && p.pick === 'best') out.push(['pick', `a^* = \\arg\\max_{a_i} ${Qmin('s', 'a_i')},\\ \\ a_1, \\dots, a_8 \\sim \\pi_\\theta(\\cdot \\mid s)`]);
-    if (crit && p.pick === 'qavg') out.push(['pick', `\\bar{a} = \\textstyle\\sum_i w_i a_i,\\ \\ w_i \\propto \\exp ${Qmin('s', 'a_i')},\\ \\ a_1, \\dots, a_8 \\sim \\pi_\\theta`]);
-    if (crit && p.pick === 'edit') out.push(['pick', `a^* = \\arg\\max_{a \\in \\{a_i,\\, a_i + \\hat a_i\\}} ${Qmin('s', 'a')},\\ \\ \\hat a_i \\sim \\pi_{\\text{edit}}(\\cdot \\mid s, a_i),\\ |\\hat a| \\le 0.3`]);
-    if (crit) {
-      const ent = p.head === 'gauss' && p.entropy !== 'none' && ['q', 'qclose'].includes(p.aim) && p.pick === 'one' ? ' - \\alpha \\log \\pi_\\theta(a\' \\mid s\')' : '';
-      const bar = p.target === 'slow';
-      if (p.next === 'expectile') out.push(['target', 'y = r + \\gamma\\, V_\\psi(s\')']);
-      else out.push(['target', `y = r + \\gamma \\big( ${Qmin("s'", "a'", bar)}${ent} \\big),\\ \\ a' ${p.pick !== 'one' ? '= \\text{the chosen action at } s\'' : '\\sim \\pi_\\theta(s\')'}${p.next === 'smooth' ? ' + \\operatorname{clip}(\\mathcal{N}(0, 0.2^2), \\pm 0.5)' : ''}`]);
-      out.push(['critic', `Q_j \\leftarrow \\text{min } \\big(Q_j(s, a) - y\\big)^2${p.penalty === 'cql' ? ' + \\big(\\log \\textstyle\\sum_{a\' \\in \\text{random, policy}} e^{Q_j(s, a\')} - Q_j(s, a)\\big)' : ''}`]);
-      if (p.next === 'expectile' || p.aim === 'weighted' || p.aim === 'cond') out.push(['value', `V_\\psi(s) \\leftarrow \\text{expectile } \\tau = ${p.next === 'expectile' ? '0.7' : '0.5'} \\text{ of } ${Qmin('s', 'a', bar)},\\ (s, a) \\text{ from the data}`]);
-      if (bar) out.push(['slow copy', '\\bar{Q}_j \\leftarrow \\bar{Q}_j + 0.005\\,(Q_j - \\bar{Q}_j)']);
-    } else if (p.aim === 'weighted' || p.aim === 'cond') out.push(['value', 'V_\\psi(s_t) \\leftarrow \\text{regress to } G_t \\text{ (the real discounted return that followed)}']);
-    const Adv = crit ? `${Qmin('s', 'a', p.target === 'slow')} - V_\\psi(s)` : 'G_t - V_\\psi(s_t)';
-    const like = p.head === 'flow' ? (w) => `\\min ${w}\\, \\big\\| v_\\theta(s, x_\\tau, \\tau) - (a - x_0) \\big\\|^2,\\ x_\\tau = (1-\\tau) x_0 + \\tau a` : (w) => `\\max ${w}\\log \\pi_\\theta(a \\mid s)`;
-    let pol = null;
-    if (p.aim === 'q') pol = p.head === 'det' ? `\\max_\\theta Q_1\\big(s, \\pi_\\theta(s)\\big)` : `\\max_\\theta ${Qmin('s', '\\tilde a')} - \\alpha \\log \\pi_\\theta(\\tilde a \\mid s),\\ \\tilde a \\sim \\pi_\\theta(s)`;
-    else if (p.aim === 'qclose') pol = '\\max_\\theta \\lambda\\, Q\\big(s, \\pi_\\theta(s)\\big) - \\big(\\pi_\\theta(s) - a\\big)^2,\\ \\lambda = 2.5 / \\operatorname{mean}|Q|';
-    else if (p.aim === 'copy') pol = like('');
-    else if (p.aim === 'copybest') pol = like('') + '\\ \\text{ on the top 25\\% of episodes}';
-    else if (p.aim === 'weighted') pol = like('e^{A / \\sigma_A}') + `,\\ A = ${Adv}`;
-    else if (p.aim === 'cond') pol = like('').replace('\\mid s)', '\\mid s, I)') + `,\\ I = \\mathbb{1}[A > \\text{top-30\\% cut}],\\ A = ${Adv}`;
-    else pol = '\\theta \\text{ frozen}';
-    out.push(['policy', pol]);
-    if (p.aim === 'cond') out.push(['acting', 'I = 1 \\text{ ("better than usual") whenever it acts}']);
-    if (p.pick === 'edit' && crit) out.push(['edit', '\\max\\ Q(s, a_i + \\hat a_i) - \\alpha \\log \\pi_{\\text{edit}}(\\hat a_i \\mid s, a_i)']);
-    return out;
-  }
-  // the exploration rate of a value learner in this world, as the engine uses it (src/agents/value.js epsilon())
-  function epsText(world) {
-    const H = C.hyper[world] || {}, a = H.epsStart !== undefined ? H.epsStart : 1, b = H.epsEnd !== undefined ? H.epsEnd : 0.05;
-    return a === b ? String(a) : `${a} \\to ${b} \\text{ over the first } ${H.epsDecaySteps || 5000} \\text{ steps}`;
-  }
-  function texLines(p, world) {
-    if (fam(p) === 'pg') return texPg(p, world);
-    if (fam(p) === 'ac') return texAc(p, world);
-    const out = [];
-    if (world === 'bandit') {
-      const bonus = p.ucb ? ' + c\\sqrt{\\ln t \\,/\\, N(a)}' : '';
-      out.push(['act', `a_t = \\arg\\max_a \\big[\\, Q(a)${bonus} \\,\\big]${p.ucb ? '\\quad \\text{(a machine never pulled goes first)}' : ''}`]);
-      if (p.eps) out.push(['explore', `\\text{with prob. } \\varepsilon = ${epsText(world)}\\text{: a random machine instead}`]);
-      if (p.optimistic) out.push(['start', 'Q_0(a) = 5']);
-      const st = p.step === 'avg' ? '\\tfrac{1}{N(a_t)}' : '\\alpha';
-      out.push(['update', `Q(a_t) \\leftarrow Q(a_t) + ${st}\\,\\big[\\, r_t - Q(a_t) \\,\\big]`]);
-      return out;
-    }
-    const n = p.nstep;
-    const twins = n !== 0 && (p.picker === 'second' || p.scorer === 'second' || p.scorer === 'minpair');
-    const live = twins ? 'Q_A' : 'Q', frozen = twins ? '\\bar{Q}_A' : '\\bar{Q}';
-    const E = (k) => (k === 'live' ? live : k === 'frozen' ? frozen : 'Q_B');
-    const qa = twins ? '\\tfrac12(Q_A+Q_B)' : 'Q';
-    out.push(['act', `a_t = \\arg\\max_a \\big[\\, ${qa}(s_t,a)${p.ucb ? ' + c\\sqrt{\\ln N(s_t) / N(s_t,a)}' : ''} \\,\\big]`]);
-    if (p.eps) out.push(['explore', `\\text{with prob. } \\varepsilon = ${epsText(world)}\\text{: a random action instead}`]);
-    if (p.optimistic) out.push(['start', 'Q_0(s,a) = 5']);
-    let rewards;
-    if (n === 0) rewards = 'r_{t+1} + \\gamma\\, r_{t+2} + \\dots + \\gamma^{T-t-1} r_T';
-    else if (n === 1) rewards = 'r_{t+1}';
-    else if (n === 2) rewards = 'r_{t+1} + \\gamma\\, r_{t+2}';
-    else rewards = `r_{t+1} + \\gamma\\, r_{t+2} + \\dots + \\gamma^{${n - 1}} r_{t+${n}}`;
-    if (n === 0) out.push(['target', `y = ${rewards} \\quad \\text{(no guess)}`]);
-    else {
-      const sN = `s_{t+${n}}`, aN = `a_{t+${n}}`, g = n === 1 ? '\\gamma' : `\\gamma^{${n}}`;
-      const score = (arg) => (p.scorer === 'minpair' ? `\\min\\big(Q_A(${sN},${arg}),\\, Q_B(${sN},${arg})\\big)` : `${E(p.scorer)}(${sN},${arg})`);
-      let G;
-      if (p.agg === 'taken') G = score(aN);
-      else if (p.agg === 'mean') G = `\\sum_{a'} \\pi(a' \\mid ${sN})\\, ${score("a'")}`;
-      else {
-        const op = p.agg === 'min' ? 'min' : 'max';
-        G = p.scorer !== 'minpair' && p.picker === p.scorer ? `\\${op}_{a'} ${E(p.scorer)}(${sN},a')` : score(`\\arg\\${op}_{a'} ${E(p.picker)}(${sN},a')`);
-      }
-      out.push(['target', `y = ${rewards} + ${g}\\, ${G}`]);
-      if (p.agg === 'mean') out.push(['policy', p.eps
-        ? `\\pi = 1-\\varepsilon+\\tfrac{\\varepsilon}{|A|} \\text{ on } \\arg\\max_{a'} ${E(p.picker)},\\ \\ \\tfrac{\\varepsilon}{|A|} \\text{ on each other action}\\ \\ (\\varepsilon = ${epsText(world)}, \\text{ as when it acts})`
-        : `\\pi = 1 \\text{ on } \\arg\\max_{a'} ${E(p.picker)},\\ 0 \\text{ on the others: it never acts at random, so the average is the best action (as in Q-learning)}`]);
-    }
-    const Lq = twins ? 'Q_A' : 'Q';
-    // each twin is its own network: Q_A has weights theta_A (Q_A_theta would be a double subscript, a TeX error)
-    if (p.store === 'net') out.push(['update', twins
-      ? `\\theta_A \\leftarrow \\theta_A - \\eta\\, \\nabla_{\\theta_A} \\big(Q_A(s_t,a_t) - y\\big)^2 \\quad \\text{(Adam; } \\theta_A \\text{: the weights of } Q_A \\text{)}`
-      : `\\theta \\leftarrow \\theta - \\eta\\, \\nabla_\\theta \\big(Q_\\theta(s_t,a_t) - y\\big)^2 \\quad \\text{(Adam)}`]);
-    else { const st = p.step === 'avg' ? '\\tfrac{1}{N(s_t,a_t)}' : '\\alpha'; out.push(['update', `${Lq}(s_t,a_t) \\leftarrow ${Lq}(s_t,a_t) + ${st}\\,\\big[\\, y - ${Lq}(s_t,a_t) \\,\\big]`]); }
-    if (twins) out.push(['twins', '\\text{each update, a coin flip picks which twin is } Q_A \\text{ (it learns); the other is } Q_B']);
-    if (p.data === 'replay') {
-      const rs = n === 1 ? 'r_{t+1}' : n === 0 ? 'r_{t+1}, \\dots, r_T' : `r_{t+1}, \\dots, r_{t+${n}}`;
-      out.push(['data', `(s_t, a_t, ${rs}${n === 0 ? '' : `, s_{t+${n}}`}) \\text{ sampled from the last } ${p.memory} \\text{ moves, 32 at a time}`]);
-    }
-    if (n !== 0 && (p.picker === 'frozen' || p.scorer === 'frozen')) out.push(['frozen', `${twins ? '\\bar{Q}_A \\leftarrow Q_A,\\ \\bar{Q}_B \\leftarrow Q_B' : '\\bar{Q} \\leftarrow Q'} \\text{ every } ${p.sync} \\text{ updates}`]);
-    return out;
-  }
-  function mathBox(p, world) {
-    const lines = texLines(p, world);
-    const legend = fam(p) === 'pg' ? 'π_θ: the policy (a network θ). τ: one episode. A: the weight of each action. ρ: how much more likely the action is now than when it was tried. H: entropy. V_φ: the critic. γ = ' + (RLA.worlds[world] ? (world === 'goalgrid' ? '1' : '0.99') : '0.99') + '.'
-      : fam(p) === 'ac' ? 'Q: a critic, the value of action a in state s. Q̄: its slow copy. V_ψ: the value of a state. π_θ: the policy. y: the target. γ = ' + (world === 'pendulum' ? '0.99' : '0.97') + '. α: the entropy weight. All networks learn with Adam, step size ' + (hyperNow().lr || 0.001) + ', batches of ' + (hyperNow().batch || 64) + '.'
-      : world === 'bandit' ? 't: the pull number, counting the pulls of all machines (1, 2, 3, ...). a_t: the machine pulled at pull t; r_t: its payout. Q(a): the estimate of machine a. N(a): how many times machine a was pulled so far. c = 2: the weight of the bonus for few pulls. α = 0.1: the step size.'
-      : 't: the step number inside the episode (0, 1, 2, ...). T: the last step of the episode. s_t, a_t: the state and the action at step t; r_{t+1}: the reward that follows. Q: live estimate. Q̄: frozen copy. Q_A, Q_B: the two twins. N(s), N(s,a): visits of state s, and tries of action a in it. c = 2. γ = ' + (world === 'mirage' ? '1' : '0.99') + ': discount. α = ' + ((C.hyper[world] || {}).lrTable || 0.1) + ': step size. y: target.';
-    return h('div.math', { 'aria-label': 'The update rule as equations' }, [
-      ...lines.map(([label, tex]) => { const t = h('div.tex'); texInto(t, tex); return h('div.mrow', null, [h('span.ml', { text: label }), t]); }),
-      h('p.small', { text: legend }),
-    ]);
+  // ---------------------------------------------------------------- math (the equation derivation lives in web/algorithm-math.js, the single source of truth)
+  const texLines = (p, world) => ALGO_MATH.lines(p, world);
+  function mathBox(m, p, world) {
+    if (!m._math) m._math = ALGO_MATH.mount({ id: m.opts.mathId, hyper: hyperNow });
+    m._math.update(p, world);
+    return m._math.el;
   }
 
   // ---------------------------------------------------------------- charts (canvas, own scales)
   function setupCanvas(cv) {
     const dpr = window.devicePixelRatio || 1, r = cv.getBoundingClientRect();
+    if (cv.classList.contains('stage') && window.BBPLAYER) {
+      const hidden = !!(cv.closest('[hidden]') || r.width < 2 || r.height < 2);
+      const ratio = window.BBPLAYER.aspectRatio(getComputedStyle(cv).aspectRatio, cv.width, cv.height);
+      const box = window.BBPLAYER.stageBitmap(r.width, r.height, ratio, hidden);
+      const ctx = cv.getContext('2d');
+      if (!box) { ctx.setTransform(1, 0, 0, 1, 0, 0); return { ctx, w: cv.width, h: cv.height, held: true }; }
+      cv.width = Math.round(box.w * dpr); cv.height = Math.round(box.h * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { ctx, w: box.w, h: box.h };
+    }
     const w = Math.max(200, r.width), hgt = r.height || 180;
     cv.width = Math.round(w * dpr); cv.height = Math.round(hgt * dpr);
     const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -630,6 +450,21 @@
     if (done && record) partials = record.results.map(r => ({ evals: r.evals, diag: r.diag }));
     const box = $('#charts'); const steps = (S.lastCfg && S.lastCfg.steps) || 1;
     const ink = css('--ink'), acc = css('--accent'), val = css('--f-value'), pol = css('--f-policy'), muted = css('--muted');
+    const metric = $('#training-metric');
+    const parts = S.lastCfg ? S.lastCfg.parts : S.parts;
+    const family = fam(parts);
+    const fitsLoss = S.world !== 'bandit' &&
+      (family === 'value' ||
+       (family === 'pg' && parts.baseline === 'critic') ||
+       (family === 'ac' && parts.critics !== 'none'));
+    const losses = partials.map(p => (p.diag || []).filter(d => Number.isFinite(d.loss) && d.updates > 0));
+    if (fitsLoss) {
+      if (!$('#ch-loss')) metric.replaceChildren(chartBox('ch-loss', family === 'value' && parts.store === 'table' ? 'Squared TD update error' : 'Training loss · critic squared error', [[val, 'recorded per seed']]));
+      if (losses.some(d => d.length)) {
+        const series = losses.map((d, i) => ({ xs: d.map(x => x.t), ys: d.map(x => x.loss), color: val, alpha: .65, width: 1.5, label: 'seed ' + (i + 1) }));
+        lineChart($('#ch-loss'), series, { xmax: steps, ymin: 0, ymax: Math.max(.001, ...losses.flatMap(d => d.map(x => x.loss))), xlabel: 'training steps' });
+      }
+    } else metric.replaceChildren(h('p.small', { text: 'This learner does not record a training-loss curve. Its measured performance is shown below.' }));
     const prior = record && record.comparison;
     const A = S.pinA && prior ? { steps: prior.settings.steps, curves: curvesOf(prior.results, prior.world) } : null;
     const aLeg = A ? [[muted, 'A (pinned)', true]] : [];
@@ -669,6 +504,14 @@
       const eT = $('#ch-ent');
       if (eT) { const t = eT.parentNode.querySelector('.chart-title'); if (t) t.append(window.RLHELP.trigger('entropy', undefined, metricCtx())); }
     }
+    }
+    if (!box.querySelector('.more-curves')) {
+      const extra = [...box.querySelectorAll('.chart-wrap')].filter(el => !el.querySelector('#ch-ret'));
+      if (extra.length) {
+        const more = h('details.more-curves', null, [h('summary', { text: 'More performance curves' }), ...extra]);
+        more.addEventListener('toggle', () => { if (more.open && runState.record) renderCharts(null, true); });
+        box.append(more);
+      }
     }
     const maxSteps = (S.lastCfg && S.lastCfg.knobs && S.lastCfg.knobs.maxSteps) || RLA.knobDefaults(S.world).maxSteps;
     const per = partials.map((p) => p.evals);
@@ -777,10 +620,11 @@
   let adapter = null, sceneTime = 0, scenePolicy = 0, watching = false, replayAnimation = null;
   // Original comparison lessons share the same replay clock and stable controls.
   const replayControls = $('#scene-controls'), replayNotice = $('#run-stale');
-  const replayHome = replayControls.parentElement;
+  let replayHome = replayControls.parentElement;
+  const replayNoticeHome = replayNotice.parentElement;
   let customScene = null;
   const comparisonReplay = {
-    park() { replayHome.append(replayControls, replayNotice); },
+    park() { replayHome.append(replayControls); replayNoticeHome.append(replayNotice); },
     mount(host, record, settings) {
       comparisonReplay.park();
       host.querySelector('[data-replay-controls]').append(replayControls, replayNotice);
@@ -893,8 +737,10 @@
     if (!RLA.worlds[viewWorld]) return 0;
     const viewKnobs = record ? record.settings.knobs : S.knobs;
     if (!measure) { $('#stage').onclick = null; $('#stage').style.cursor = ''; }
-    const cv = $('#stage'); const { ctx, w, h: H } = measure
+    const cv = $('#stage'); const sized = measure
       ? { ctx: cv.getContext('2d'), w: cv.getBoundingClientRect().width, h: cv.getBoundingClientRect().height } : setupCanvas(cv);
+    if (sized.held) return 0;
+    const { ctx, w, h: H } = sized;
     const colors = { fg: css('--ink'), accent: css('--accent'), muted: css('--muted'), bad: css('--bad'), bg: css('--sunk') };
     const knobs = Object.assign(RLA.knobDefaults(viewWorld), viewKnobs);
     const world = RLA.worlds[viewWorld].make(knobs, RLA.rng.make(5));
@@ -1091,12 +937,14 @@
   }
   function linkRun() {
     const record = runState.record;
-    for (const el of $$('#stage, #charts, #charts canvas, #run-result, #symptoms, #expert, #wonder, #run-source, [data-custom-scene], [data-custom-scene] canvas, [data-caption], [data-readout], [data-accounting], [data-custom-result]')) {
+    for (const el of $$('#stage, #charts, #charts canvas, #training-metric, #training-metric canvas, #run-result, #symptoms, #expert, #wonder, #run-source, [data-custom-scene], [data-custom-scene] canvas, [data-caption], [data-readout], [data-accounting], [data-custom-result]')) {
       if (record) { if (!el.dataset.interactive) el.dataset.run = record.id; el.dataset.stale = String(runState.stale); }
       else { delete el.dataset.run; delete el.dataset.stale; }
     }
     $('#run-stale').hidden = !runState.stale;
     $('#scene-controls').hidden = !record;
+    const replay = $('#replay-drawer');
+    if (replay) replay.open = !!record;
   }
   function markRunStale() {
     if (customActive() && customScene && runState.record) {
@@ -1116,11 +964,26 @@
     delete cv.dataset.world; delete cv.dataset.frame; delete cv.dataset.interactive; cv.onclick = null;
     $('#scene-policy').textContent = ''; $('#scene-seed').replaceChildren(); $('#run-source').textContent = '';
     $('#run-result').textContent = ''; $('#expert-card').hidden = true; $('#wonder').hidden = true;
-    $('#charts').replaceChildren(h('p.small', { text: 'Curves appear here while a run trains.' }));
+    $('#training-metric').replaceChildren();
+    showEmptyCharts();
     $('#symptoms').replaceChildren(h('p.small', { text: 'No run yet.' }));
+  }
+  function showEmptyCharts() {
+    const family = S.world === 'bandit' || S.world === 'mirage' ? S.world : C.famOf(S.parts);
+    const rows = window.BBPLAYER ? window.BBPLAYER.emptyCurves(S.world, family) : [{ title: 'Learning curve', status: 'No measurements yet.' }];
+    const loss = rows.length > 1 ? rows[rows.length - 1] : null;
+    const perf = rows.length > 1 ? rows.slice(0, -1) : rows;
+    const metric = $('#training-metric');
+    const box = $('#charts');
+    if (metric) metric.replaceChildren(loss ? h('p.chart-empty', { role: 'status', text: loss.title + '. ' + loss.status }) : null);
+    if (box) box.replaceChildren(...perf.map((row) => h('div.chart-wrap', null, [
+      h('div.chart-title', null, [h('b', { text: row.title })]),
+      h('p.chart-empty', { role: 'status', text: row.status }),
+    ])));
   }
   function showRunPending() {
     $('#run-result').textContent = 'New run in progress…';
+    $('#training-metric').replaceChildren();
     $('#charts').replaceChildren(h('p.small', { role: 'status', text: 'Preparing this run. Curves appear when training reports progress.' }));
     $('#symptoms').replaceChildren(h('p.small', { role: 'status', text: 'New run in progress. The autopsy appears when it finishes.' }));
     renderStage();
@@ -1129,6 +992,7 @@
   }
   function showRunStopped(message) {
     $('#run-result').textContent = message;
+    $('#training-metric').replaceChildren();
     $('#charts').replaceChildren(h('p.small', { text: 'No curves are available because this run did not finish.' }));
     $('#symptoms').replaceChildren(h('p.small', { text: 'No autopsy is available because this run did not finish.' }));
     $('#stage-caption').textContent = message + ' Run the sentence again to see a replay.';
@@ -1264,6 +1128,7 @@
     return h('div.dc-item', null, [
       h('div.dc-kind', { text: kind }),
       h('div.dc-name', null, [h('span.dc-q', { 'aria-hidden': 'true', text: '???' }), h('span.dc-real', { text: c.name })]),
+      c.plain ? h('p.dc-plain', { text: c.plain }) : null,
       h('div.dc-node', { 'aria-hidden': 'true' }, [h('span', { text: c.short || c.name })]),
     ]);
   }
@@ -1293,7 +1158,7 @@
     document.body.append(overlay);
     overlay.addEventListener('click', dismiss);
     window.addEventListener('keydown', onKey);
-    setTimeout(dismiss, 1900); // short: the reveal plays, then it gets out of the way
+    setTimeout(dismiss, ids.some((id) => (C.cards[id] || {}).plain) ? 3200 : 1900); // short: the reveal plays (with its plain line, if any), then it gets out of the way
   }
   function discover(cardId, cfg, a) {
     if (S.found.includes(cardId)) return;
@@ -2035,7 +1900,7 @@
 
   // ---------------------------------------------------------------- multiple choice with derivations
   // q = { id, prompt, options: [{ steps: [..], result, correct, why }] }
-  function mcBlock(q, onAnswer) {
+  function mcBlock(q, onAnswer, kind) {
     const prev = S.answers[q.id];
     const wrap = h('div.mc');
     wrap.append(h('p', { html: q.prompt }));
@@ -2054,18 +1919,23 @@
     });
     wrap.append(...btns);
     if (window.RLHELP) window.RLHELP.enhance(wrap, metricCtx());
-    function show(i) {
+    function show(i, live) {
       btns.forEach((b, j) => {
         const { o, i: source } = entries[j];
-        b.classList.toggle('picked', source === i);
+        const picked = source === i;
+        b.classList.toggle('picked', picked);
         b.classList.toggle(o.correct ? 'right' : 'wrong', true);
-        const why = b.querySelector('.why'); why.hidden = false; why.innerHTML = (o.correct ? '<b>Sound chain.</b> ' : '') + o.why;
+        const why = b.querySelector('.why'); why.hidden = false;
+        if (picked && live) why.setAttribute('role', 'status');
+        else why.removeAttribute('role');
+        const head = o.correct ? (picked ? '<b>' + (kind === 'predict' ? 'You predicted it right.' : 'You were right.') + '</b> ' : '<b>Sound chain.</b> ') : '';
+        why.innerHTML = head + o.why;
       });
       if (window.RLHELP) window.RLHELP.enhance(wrap, metricCtx());
     }
     function choose(i) {
       if (!S.answers[q.id]) recordAnswer(q.id, i, !!q.options[i].correct);
-      show(i);
+      show(i, true);
       if (onAnswer) onAnswer(i);
     }
     if (prev) show(prev.choice);
@@ -2096,10 +1966,43 @@
     dropRun(); S.world = w; S.knobs = Object.assign({}, knobs || {});
     budgetOptions(); renderStage(); renderAutopsy(); refreshSentences(); drawCompare(); drawGrid();
     $('#run-result').textContent = '';
-    $('#charts').replaceChildren(h('p.small', { text: 'Curves appear here while a run trains.' }));
+    $('#training-metric').replaceChildren();
+    showEmptyCharts();
   }
   function setParts(p) { const f0 = fam(S.parts); S.parts = C.cfg(p || {}); if (fam(S.parts) !== f0) budgetOptions(); onPartsChanged(); }
 
+  function predictionMount(q, onAnswer, title, current, kind) {
+    if (!window.BBPLAYER || typeof document === 'undefined') return mcBlock(q, onAnswer, kind);
+    const reopen = h('button.btn', { type: 'button', 'data-prediction': q.id }, S.answers[q.id] ? 'Review the prediction' : 'Show the prediction');
+    const open = () => {
+      const node = mcBlock(q, (choice) => {
+        window.BBPLAYER.closePrediction(false);
+        onAnswer(choice);
+        const run = $('#run-btn');
+        if (run) run.focus();
+      }, kind);
+      window.BBPLAYER.openPrediction({
+        title: title || 'Predict before you run',
+        node,
+        anchor: $('#stage-card') || $('#lab'),
+        returnLabel: 'Back to the experiment',
+      });
+    };
+    reopen.addEventListener('click', open);
+    if (current && !S.answers[q.id] && window.BBPLAYER.claimPrediction(q.id)) queueMicrotask(open);
+    const launch = h('div.prediction-launch', null, [reopen]);
+    const stage = $('#stage-card');
+    if (current && stage) stage.append(launch);
+    return h('div.stack', null, [
+      h('p.small', { text: 'The question opens on the scene, so the world stays in view while you answer.' }),
+      current ? null : launch,
+    ]);
+  }
+
+  const replayDrawer = h('details.workspace-drawer', { id: 'replay-drawer' }, [h('summary', { text: 'Run readout and replay controls' })]);
+  replayDrawer.append($('#run-result'), $('#run-source'), $('#stage-caption'), $('#scene-controls'));
+  $('#lab').append(replayDrawer);
+  replayHome = replayDrawer;
   const MODES = {};
   const shell = BB.shell.notebook($('#notebook'), section => {
     if (section === 'curve' && S.results.length) { renderCharts(null, true); linkRun(); }
@@ -2109,8 +2012,7 @@
   const customShell = BB.shell.notebook(customNotebook);
   let notebookLevel = null;
 
-  let mapOpen = !C.levels.some(l => l.id === S.level);
-  if (mapOpen) S.mode = 'campaign';
+  let mapOpen = window.BBPLAYER ? window.BBPLAYER.mapOnEntry(S.mode) : S.mode === 'campaign';
   const campaignMap = BBCAMPAIGN.create({ h, C, S, choose: chooseLevel, show: showMap,
     saveActions: () => h('div.row.savebar', null, [
       h('span.small', { text: 'Progress saves in this browser.' }),
@@ -2209,18 +2111,23 @@
       return;
     }
     const st = S.lstep[lv.id] || 0;
-    const card = h('div.card.teaching-card', null, [h('div.eyebrow', { text: C.worldNames[lv.world] }), h('h2', { text: lv.title }), h('p', { html: lv.intro })]);
+    const card = h('div.card.teaching-card', null, [h('div.eyebrow', { text: C.worldNames[lv.world] }), h('h2', { text: lv.title }),
+      window.BBLESSON_HELP ? window.BBLESSON_HELP.mount(h, lv) : h('p', { html: lv.intro })]);
     const steps = h('div.steps');
     const mk = (i, title, body) => h('div.step' + (st === i ? '.active' : st > i ? '.done' : ''), null, [h('span.num', { text: 'Step ' + (i + 1) }), h('h3', { text: title }), body]);
 
-    steps.append(mk(0, 'Predict before you run', mcBlock(lv.predict, () => setStep(lv, 1))));
+    const ask = typeof predictionMount === 'function' ? predictionMount : (q, onAnswer, title, current, kind) => mcBlock(q, onAnswer, kind);
+    steps.append(mk(0, 'Predict before you run', h('div.stack', null, [
+      lv.learner ? h('p.small', { html: lv.learner }) : null,
+      ask(lv.predict, () => setStep(lv, 1), 'Predict before you run', st === 0, 'predict'),
+    ])));
     if (st >= 1) steps.append(mk(1, 'Run it', h('div.stack', null, [
       h('p', { html: lv.runText }),
       campaignRunRow(lv),
     ])));
     if (st >= 2) steps.append(mk(2, 'Diagnose', h('div.stack', null, [
       h('button.btn.ghost', { type: 'button', onclick: () => { $('#replay-lab').closest('details').open = true; shell.open('autopsy'); } }, 'Watch one update of this sentence'),
-      mcBlock(lv.diagnose, () => setStep(lv, 3)),
+      ask(lv.diagnose, () => setStep(lv, 3), 'Diagnose what happened', st === 2, 'diagnose'),
     ])));
     if (st >= 3) {
       const status = h('p.small', { text: 'Tap a word to see the choices. Words in a dashed box do nothing in this sentence.' });
@@ -2248,7 +2155,7 @@
         h('details', null, [h('summary', { text: 'Hint' }), h('p', { html: lv.hint })]),
       ])));
     }
-    if (st >= 4 && lv.explain) steps.append(mk(4, 'Explain why it works', mcBlock(lv.explain, () => setStep(lv, 5))));
+    if (st >= 4 && lv.explain) steps.append(mk(4, 'Explain why it works', mcBlock(lv.explain, () => setStep(lv, 5), 'explain')));
     if (st >= 5) steps.append(mk(5, 'Your sentence and the published one', consolidation(lv)));
     arrangeLessonSteps(lv, steps);
     card.append(steps);
@@ -2357,7 +2264,7 @@
     }
     if (lv.custom) { cancelRun(); return; }
     if (!forceStart && campaignRunLevel === lv.id && S.running) {
-      $('#seeds').value = String(lv.seeds); if (lv.steps) $('#budget').value = String(lv.steps);
+      applyLessonDefaults(lv);
       return;
     }
     if (S.world !== lv.world || JSON.stringify(S.knobs) !== JSON.stringify(lv.knobs || {})) setWorld(lv.world, lv.knobs || {});
@@ -2365,8 +2272,17 @@
     // a repair in progress keeps the player's words, unless they belong to another kind of learner (a reload, another level)
     if (forceStart || step < 3 || (!S.made[lv.id] && fam(S.parts) !== fam(lv.start))) setParts(lv.start);
     else if (S.made[lv.id]) { setParts(S.made[lv.id].parts); if (lv.repairKnobs && S.made[lv.id].knobs) { S.knobs = Object.assign({}, S.made[lv.id].knobs); renderStage(); } }
-    $('#seeds').value = String(lv.seeds); if (lv.steps) $('#budget').value = String(lv.steps);
+    applyLessonDefaults(lv);
     markRunStale();
+  }
+  function applyLessonDefaults(lv) {
+    const seeds = $('#seeds');
+    if (lv.seeds != null && ![...seeds.options].some((o) => o.value === String(lv.seeds))) seeds.append(h('option', { value: lv.seeds, text: String(lv.seeds) }));
+    if (lv.seeds != null) seeds.value = String(lv.seeds);
+    const budget = $('#budget');
+    if (lv.steps != null && ![...budget.options].some((o) => o.value === String(lv.steps))) budget.append(h('option', { value: lv.steps, text: String(lv.steps) }));
+    if (lv.steps != null) budget.value = String(lv.steps);
+    if ($('#run-mode').value !== 'fast') $('#run-mode').value = 'fast';
   }
 
   // --- Workbench: any sentence, any world
@@ -2387,7 +2303,7 @@
       h('div.row', null, [h('label', { for: 'wb-family', text: 'Kind of learner' }), famSel, h('label', { for: 'wb-world', text: 'World' }), worldSel]),
       h('p.small', { html: '<b>This world teaches:</b> ' + RLA.worlds[S.world].info.teaches + ' <b>It cannot teach:</b> ' + RLA.worlds[S.world].info.cannotTeach }),
     ]));
-    pane.append(h('div.card', null, [h('div.eyebrow', { text: 'The update rule' }), mainSentence({ withName: true, withMath: true })]));
+    pane.append(h('div.card', null, [h('div.eyebrow', { text: 'The update rule' }), mainSentence({ withName: true })]));
     pane.append(h('div.card', null, [h('div.eyebrow', { text: 'Watch one update' }), replayView()]));
     pane.append(h('details', null, [h('summary', { text: 'Save, export and import sentences' }), savePanel()]));
   };
@@ -2665,6 +2581,7 @@
     return h('div.entry' + (open ? '.discovery' : ''), null, [
       h('div.row', { style: 'justify-content:space-between' }, [h('div.eyebrow', { text: c.kind ? kindName : S.found.includes(id) ? 'Method, built by you' : 'Method, given by a level' }), tag]),
       h('h3', { text: c.name }),
+      c.plain ? h('p', { text: c.plain }) : null,
       h('dl', null, [
         h('dt', { text: 'Source' }), h('dd', null, [h('span', { html: c.paper }), paperLinks(id)]),
         rec ? h('dt', { text: 'Words' }) : null, rec ? h('dd', { text: Object.keys(rec.keys).map((k) => wordText(k, rec.keys[k])).join(' · ') }) : null,
@@ -3111,7 +3028,11 @@
 
   // first visit: what this is, in four lines
   function showIntro() {
-    const close = (mode) => { S.intro = 1; save(); dlg.close(); dlg.remove(); if (mode && mode !== S.mode) { S.mode = mode; save(); if (mode === 'campaign') enterLevel(C.levels.find((l) => l.id === S.level) || C.levels[0]); render(); } };
+    const close = (mode) => {
+      S.intro = 1; save(); dlg.close(); dlg.remove();
+      if (mode === 'campaign') { mapOpen = true; S.mode = 'campaign'; save(); render(); return; }
+      if (mode && mode !== S.mode) { S.mode = mode; save(); render(); }
+    };
     const step = (n, t, d) => h('li', null, [h('span.num', { text: n }), h('div', null, [h('b', { text: t }), h('p.small', { text: d })])]);
     const dlg = h('dialog.intro', { 'aria-label': 'Welcome' }, [h('div.stack', null, [
       h('div.eyebrow', { text: 'A small game about reinforcement learning' }),
@@ -3123,7 +3044,7 @@
         step('3', 'Fix', 'Change one word of its update rule. Get it right and you have reinvented a published method.'),
       ]),
       h('p.small', { text: C.levels.length + ' levels, any order. Progress saves in this browser; Settings has a save file you can take anywhere. No account, no server. The AI tutor is optional.' }),
-      h('div.row', null, [h('button.btn', { type: 'button', onclick: () => close('campaign') }, 'Start level 1'), h('button.btn.ghost', { type: 'button', onclick: () => close('workbench') }, 'Open the workbench')]),
+      h('div.row', null, [h('button.btn', { type: 'button', onclick: () => close('campaign') }, 'Open the campaign map'), h('button.btn.ghost', { type: 'button', onclick: () => close('workbench') }, 'Open the workbench')]),
     ])]);
     dlg.addEventListener('cancel', () => { S.intro = 1; save(); });
     document.body.append(dlg); dlg.showModal();
@@ -3131,15 +3052,24 @@
 
   // ---------------------------------------------------------------- top level
   function render() {
+    if (window.BBPLAYER) window.BBPLAYER.closePrediction(false);
+    $$('#stage-card .prediction-launch').forEach((el) => el.remove());
     const oldStrip = document.getElementById('campaign-strip');
     if (oldStrip) oldStrip.remove();
     const oldBackup = document.getElementById('reward-backup');
     if (oldBackup) oldBackup.remove();
     $$('#tabs button').forEach((b) => b.setAttribute('aria-selected', b.dataset.mode === S.mode ? 'true' : 'false'));
+    const more = $('#more-tools');
+    if (more) {
+      const inside = more.querySelector('[aria-selected="true"]');
+      more.querySelector('summary').textContent = inside ? inside.textContent : 'More';
+    }
     mounts = mounts.filter((m) => m.permanent);
     comparisonReplay.park();
     if (!customActive() || mapOpen) { customScene = null; pauseScene(); }
-    const pane = $('#mode-pane'); pane.replaceChildren();
+    const pane = $('#mode-pane');
+    document.querySelector('main.layout').append(pane);
+    pane.replaceChildren();
     S.afterRun = null; S.onPartsChange = null;
     if (!goalExecutionActive() || S.level !== 'hindsight') BBHINDSIGHT.cancel();
     if (!goalExecutionActive() || S.level !== 'hierarchy') BBHIERARCHY.cancel();
@@ -3175,8 +3105,9 @@
         customShell.notebook(name).replaceChildren(h('p.small', { text: name === 'notes' ? 'Lesson notes appear here.' : 'Run the lesson to inspect its ' + name + '.' }));
       }
     }
-    $('#notebook').classList.toggle('supporting-lab', !campaign);
-    if (!campaign) {
+    const workspace = !mapping && !customActive() && ['campaign', 'workbench', 'saboteur'].includes(S.mode);
+    $('#notebook').classList.toggle('supporting-lab', !campaign && !workspace);
+    if (!campaign && !workspace) {
       $('#notebook').open = true;
       $$('#notebook [data-notebook-panel]').forEach(panel => { panel.hidden = false; });
       $('#lab').prepend($('#game-rules'));
@@ -3184,8 +3115,26 @@
     if (S.mode === 'campaign' && !mapping) document.querySelector('main.layout').prepend(campaignMap.strip());
     if (customActive() && !mapping) customShell.objective(C.levels.find(l => l.id === S.level).goal.text);
     MODES[S.mode](pane);
+    layout.classList.toggle('drawer-workspace', workspace);
+    $('#algorithm-workspace').hidden = !workspace;
+    $('#lesson-drawer').hidden = !workspace;
+    if (workspace) {
+      layout.insertBefore($('#lab'), $('#algorithm-workspace'));
+      $('#lesson-drawer').append(pane);
+      $('#notebook').classList.remove('supporting-lab');
+      if (!layout.dataset.workspaceKey || layout.dataset.workspaceKey !== key) $('#notebook').open = false;
+      layout.dataset.workspaceKey = key;
+      $('#notebook-rule').prepend($('#game-rules'));
+    }
+    const stageBox = $('#stage').getBoundingClientRect();
+    const stageWidth = Math.round(stageBox.width), stageHeight = Math.round(stageBox.height);
+    if (stageWidth > 0 && stageHeight > 0 && (stageWidth !== stageW || stageHeight !== stageH)) {
+      stageW = stageWidth; stageH = stageHeight;
+      if (!S.running) renderStage();
+    }
     refreshSentences();
     if (!customActive()) renderRules();
+    if (!S.running && !S.results.length && !customActive()) showEmptyCharts();
     updateScore();
   }
   $$('#tabs button').forEach((b) => b.addEventListener('click', () => {
@@ -3220,7 +3169,7 @@
   });
   $('#copy-page-btn').addEventListener('click', copyPage);
   // redraw on a real width change only: phones fire resize when the address bar hides, and a redraw restarts the replay
-  let stageW = 0;
+  let stageW = 0, stageH = 0;
   window.addEventListener('resize', () => {
     const w = Math.round($('#stage').getBoundingClientRect().width);
     if (w === stageW) return;
@@ -3229,8 +3178,10 @@
     renderStage();
   });
 
-  // the lab's own sentence (always present)
-  $('#rule').append(mountSentence({ getParts: () => S.parts, setPart: setMainPart, world: () => S.world, focus: () => (S.mode === 'campaign' ? S.focus || [] : []), withName: true, permanent: true, preset: true }));
+  // the lab's own sentence (always present). Equations sit in the reserved slot under that sentence.
+  $('#rule').append(mountSentence({ getParts: () => S.parts, setPart: setMainPart, world: () => S.world, focus: () => (S.mode === 'campaign' ? S.focus || [] : []), withName: true, permanent: true, preset: true, compact: true }));
+  algorithmMath = window.ALGO_MATH.mount({ id: 'algorithm-math-panel', getParts: () => S.parts, world: () => S.world, hyper: () => hyperNow() });
+  $('#algorithm-math-slot').append(algorithmMath.el);
   $('#replay-lab').append(replayView());
   $('#grid-lab').append(gridView());
   $('#grid-card').addEventListener('toggle', () => { if ($('#grid-card').open) drawGrid(); });
@@ -3258,5 +3209,17 @@
     };
     window.ALGO_HELP.installAuto(document.body);
   }
-  if (!S.intro && !mapOpen) showIntro();
+  let stageFitting = false;
+  if (window.ResizeObserver) new ResizeObserver(() => {
+    if (stageFitting) return;
+    const cv = $('#stage');
+    if (!cv || cv.closest('[hidden]')) return;
+    const rect = cv.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) return;
+    const dpr = window.devicePixelRatio || 1;
+    if (Math.abs(cv.width - Math.round(rect.width * dpr)) < 2 && Math.abs(cv.height - Math.round(rect.height * dpr)) < 2) return;
+    stageFitting = true;
+    try { if (!S.running) renderStage(); } finally { stageFitting = false; }
+  }).observe($('#stage'));
+  if (!S.intro && S.mode === 'campaign') showIntro();
 })();

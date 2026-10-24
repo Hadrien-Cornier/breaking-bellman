@@ -48,7 +48,7 @@ async function session(w, h, name, fn) {
   await page.waitForTimeout(500);
   // a first visit opens the welcome dialog; it must close and leave level 1 ready
   check(await page.locator('dialog.intro').isVisible(), name + ' first visit shows the welcome');
-  await page.locator('dialog.intro button', { hasText: 'Start level 1' }).click();
+  await page.locator('dialog.intro button', { hasText: 'Open the campaign map' }).click();
   check(!(await page.locator('dialog.intro').count()), name + ' the welcome closes');
   // Existing smoke scenarios exercise the original Slots entry by stable id.
   await page.evaluate(() => bellman.level('slots'));
@@ -154,6 +154,7 @@ await session(1280, 900, 'desktop', async (page) => {
   check(rc.tables === 2 && rc.end && !rc.wrong && rc.fence, 'the export keeps each x grid in its own table and fences code safely ' + JSON.stringify(rc));
   const nulls = await page.evaluate(() => { const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); let n = 0; while (w.nextNode()) if (w.currentNode.textContent.trim() === 'null') n++; return n; });
   check(nulls === 0, 'no "null" text on the page after a run (found ' + nulls + ')');
+  await page.locator('#more-tools').evaluate(el => { el.open = true; });
   await page.click('#copy-page-btn');
   const copied = await page.waitForFunction(() => /as Markdown/.test(document.querySelector('#toast').textContent), null, { timeout: 5000 }).then(() => true, () => false);
   check(copied, 'Copy page copies or downloads the page as Markdown');
@@ -204,10 +205,13 @@ await session(1280, 900, 'desktop', async (page) => {
   });
   check(stray === 0, 'the wonder card shows no standalone "null" or "undefined" after a choice (found ' + stray + ')');
   await wq.screenshot({ path: out + '/desktop-wonder.png' });
+  await page.locator('#more-tools').evaluate(el => { el.open = true; });
   await page.getByRole('tab', { name: 'Review' }).click();
   await page.screenshot({ path: out + '/desktop-review.png' });
+  await page.locator('#more-tools').evaluate(el => { el.open = true; });
   await page.getByRole('tab', { name: 'Codex' }).click();
   await page.screenshot({ path: out + '/desktop-codex.png' });
+  await page.locator('#more-tools').evaluate(el => { el.open = true; });
   await page.getByRole('tab', { name: 'Saboteur' }).click();
   await page.screenshot({ path: out + '/desktop-sab.png' });
   // an API key never reaches the page export, even when the player shows it
@@ -291,10 +295,12 @@ await session(1280, 900, 'phases', async (page) => {
   console.log('name box:', (await page.locator('#rule .compound').innerText()).replace(/\n/g, ' | '));
   await page.screenshot({ path: out + '/phases-fork.png' });
 
+  await page.locator('#more-tools').evaluate(el => { el.open = true; });
   await page.getByRole('tab', { name: 'Codex' }).click();
   const trees = await page.locator('#mode-pane .genealogy svg').count();
   check(trees === 5, 'codex shows 5 family trees (got ' + trees + ')');
   await page.screenshot({ path: out + '/phases-codex.png', fullPage: true });
+  await page.locator('#more-tools').evaluate(el => { el.open = true; });
   await page.getByRole('tab', { name: 'Saboteur' }).click();
   await page.locator('#mode-pane .mission', { hasText: 'Look more often' }).click();
   await page.waitForTimeout(300);

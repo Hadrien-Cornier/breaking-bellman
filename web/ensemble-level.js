@@ -6,7 +6,8 @@
   const lessonGoal = 'Plan on the average and on the average minus the disagreement penalty, walk both plans in the aisle, and see that agreement is not the same as the true reward.';
   const ensembleLevel = {
     id: 'ensemble', custom: true, phase: 8, world: 'ensemble', title: 'Stop where the tables disagree', focus: [],
-    intro: 'Two reward tables are already filled in. On the shelf they agree. On the glare door they do not, and their average is high. The aisle pays nothing for glare. Planning on the average walks in. Planning on the average minus a penalty for the difference stays with the shelf.',
+    intro: 'Two reward tables disagree about a glare door that pays nothing. Compare trusting their average with penalizing their disagreement.',
+    introMore: 'Two reward tables are already filled in. On the shelf they agree. On the glare door they do not, and their average is high. The aisle pays nothing for glare. Planning on the average walks in. Planning on the average minus a penalty for the difference stays with the shelf.',
     goal: { text: lessonGoal },
   };
   const replanAt = C.levels.findIndex((l) => l.id === 'replan');
@@ -207,7 +208,7 @@
           id:q.id+'-'+i, type:'button', disabled:state.picks[q.id]===q.correct,
           onclick:() => { state.picks[q.id]=i; if(hooks.record) hooks.record(q.id,i,opt.correct); if(opt.correct) onCorrect(); redraw(); }
         }, [h('span', {text:opt.text}), state.picks[q.id]===i ? h('span.why', {role:'status',text:opt.why}) : null]))]);
-        body.replaceChildren(h('div.eyebrow', {text:'Two reward tables'}), h('h2', {text:ensembleLevel.title}), h('p', {text:ensembleLevel.intro}),
+        body.replaceChildren(h('div.eyebrow', {text:'Two reward tables'}), h('h2', {text:ensembleLevel.title}), h('p', {text:ensembleLevel.intro}), h('details', null, [h('summary', { text: 'Rules and method' }), h('p', { text: ensembleLevel.introMore })]),
           h('p.small', null, ['Idea adapted from ', h('a',{href:E.SOURCE.slides,target:'_blank',rel:'noopener'},'Berkeley CS 285'), '.']));
         const cards = [];
         cards.push(h('div.step', {id:'ensemble-step-predict'}, [h('h3',{text:'Predict before you run'}),choices(QUESTIONS.predict,()=>advance(1))]));

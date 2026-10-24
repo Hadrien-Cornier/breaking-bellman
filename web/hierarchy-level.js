@@ -7,7 +7,8 @@
   C.worldNames.hierarchy = 'Two rooms';
   const lesson = {
     id: 'hierarchy', custom: true, phase: 9, world: 'hierarchy', title: 'Call the short skill again', focus: [],
-    intro: 'Six cells sit in a line: Start, Hall, Door, Right hall, Prize, and Far. The Door is two steps from Start. The Prize is two steps past the Door. A table trains only on the Door. A given sequence then calls that same table for the Door and for the Prize.',
+    intro: 'Reach the Prize using a skill trained only to reach the Door. What happens when you ask that same skill to go farther?',
+    introMore: 'Six cells sit in a line: Start, Hall, Door, Right hall, Prize, and Far. The Door is two steps from Start. The Prize is two steps past the Door. A table trains only on the Door. A given sequence then calls that same table for the Door and for the Prize.',
     goal: { text: 'Train the low-level table on the Door inside the budget, call it for the given sequence, and match the flat budget to S plus H. Then change the room, the coordinates, or the farther goal and watch the second call miss.' },
   };
   const hindsightAt = C.levels.findIndex((l) => l.id === 'hindsight');
@@ -142,7 +143,7 @@
       const r = H.record(), report = r?.report, stale = H.replay().stale;
       const diagnosis = baseline ? diagnoseQuestion(baseline) : null;
       const explanation = baseline && longer ? explainQuestion(baseline, longer) : null;
-      const kids = [h('h2', { text: lesson.title }), h('p', { text: lesson.intro }), h('p.small', null, [h('a', { href: 'https://rail.eecs.berkeley.edu/deeprlcourse/static/slides/lec-24.pdf', target: '_blank', rel: 'noopener', text: 'Idea adapted from Berkeley CS 285' })])];
+      const kids = [h('h2', { text: lesson.title }), h('p', { text: lesson.intro }), h('details', null, [h('summary', { text: 'Rules and method' }), h('p', { text: lesson.introMore })]), h('p.small', null, [h('a', { href: 'https://rail.eecs.berkeley.edu/deeprlcourse/static/slides/lec-24.pdf', target: '_blank', rel: 'noopener', text: 'Idea adapted from Berkeley CS 285' })])];
       if (!report) kids.push(h('p', { text: 'Door skill learns the short goal, then follows the given sequence. Flat learner trains directly on the final goal; Flat learner with Door bonus also gets reward for entering Door. Empty table has never learned. Wiped table has its learned entries deleted before the same calls.' }), h('h3', { text: '1. Predict' }), choice(h, PREDICT, state.pred, i => { state.pred = i; api.recordAnswer?.(PREDICT.id, i, !!PREDICT.options[i].correct); advance(1); redraw(); }), h('p', { text: 'Use Run above, then Watch the training resets and each Door and Prize call. Select Flat learner to compare its own training and greedy check.' }));
       else if (stale) kids.push(h('p', { text: 'The setup changed. Run again to measure it.' }));
       else if ((state.diag == null || (api.step?.() || 0) < 3) && diagnosis && r.settings.variant === 'lesson') kids.push(h('h3', { text: '3. Diagnose' }), choice(h, diagnosis, state.diag, i => { state.diag = i; api.recordAnswer?.(diagnosis.id, i, !!diagnosis.options[i].correct); redraw(); }), h('button.btn', { id: 'hierarchy-continue', type: 'button', disabled: state.diag == null, onclick: () => { advance(3); redraw(); } }, 'Continue'));
@@ -154,7 +155,7 @@
       if (api.done?.() && api.next?.()) kids.push(h('button.btn', { type: 'button', onclick: api.openNext }, 'Next level: ' + api.next().title));
       body.replaceChildren(...kids);
       if (api.shell) {
-        api.shell.notebook('notes').replaceChildren(h('p', { text: lesson.intro }), h('p', { text: PREDICT.prompt }));
+        api.shell.notebook('notes').replaceChildren(h('p', { text: lesson.intro }), h('details', null, [h('summary', { text: 'Rules and method' }), h('p', { text: lesson.introMore })]), h('p', { text: PREDICT.prompt }));
         api.shell.notebook('autopsy').replaceChildren(...(report ? [h('p.small', { text: measureText(report) }), h('p.small', { text: qLines(report.skill.q) }), ...report.execution.options.map((op, i) => h('p.small', { text: 'Call ' + (i + 1) + ', goal ' + name(op.goal) + ': ' + op.moves.map(moveText).join(' ') }))] : [h('p', { text: 'Run to inspect the table and option calls.' })]));
       }
     };

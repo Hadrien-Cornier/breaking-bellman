@@ -45,7 +45,12 @@ a { color: var(--accent); }
 .brand { display: grid; place-items: center; width: 48px; height: 48px; flex: 0 0 48px; border-radius: 8px; }
 .brand canvas { display: block; width: 48px; height: 48px; }
 .score { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
-.tabs { display: flex; gap: 4px; margin-top: 10px; overflow-x: auto; scrollbar-width: none; }
+.tabs { display: flex; gap: 4px; margin-top: 10px; overflow-x: auto; scrollbar-width: none; align-items: center; }
+.more-tabs { position: relative; }
+.more-tabs > summary { list-style: none; cursor: pointer; border: 1px solid var(--line); background: var(--surface); padding: 6px 12px; border-radius: 999px; white-space: nowrap; font-size: 0.9rem; }
+.more-tabs > summary::-webkit-details-marker { display: none; }
+.more-tabs > div { position: absolute; z-index: 8; right: 0; display: grid; gap: 4px; min-width: 180px; margin-top: 6px; padding: 8px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 40px rgb(0 0 0 / 0.28); }
+.more-tabs button { text-align: left; }
 .tabs button { border: 1px solid var(--line); background: var(--surface); padding: 6px 12px; border-radius: 999px; white-space: nowrap; font-size: 0.9rem; }
 .tabs button[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 
@@ -330,14 +335,20 @@ ol.steps .num { display: grid; place-items: center; width: 30px; height: 30px; b
 .metric-help-body p { margin: 0; }
 .metric-help-anchor { font-family: var(--font-mono); font-size: 0.82em; color: var(--muted); background: var(--sunk); padding: 6px 8px; border-radius: 6px; }
 
-/* Algorithm-name reminders: the name itself is the trigger (hover, focus, tap). One shared popover. */
+/* Algorithm-name reminders: the name itself is the trigger (click, tap, Enter or Space only). One shared popover. */
 .algo-name {
   font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0;
-  border-bottom: 1px dotted var(--accent); cursor: help; text-align: inherit;
+  border-bottom: 1px dotted var(--accent); cursor: pointer; text-align: inherit;
 }
 .algo-name:hover, .algo-name[aria-expanded="true"] { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .algo-name:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 3px; }
 .algo-rem-pop .algo-idea { margin: 0; }
+.lesson-help { width: min(540px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; padding: 24px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); color: var(--ink); }
+.lesson-help::backdrop { background: rgb(0 0 0 / .5); }
+.lesson-help > * + * { margin-top: 16px; }
+.algo-rem-pop { margin: 0; inset: auto; max-height: calc(100dvh - 16px); overflow-y: auto; }
+.algo-rem-pop .metric-help-title { min-height: 40px; padding-right: 52px; display: flex; align-items: center; }
+.algo-rem-pop .metric-help-close { width: 44px; height: 44px; }
 .algo-rem-pop .algo-math {
   font-family: var(--font-mono); font-size: 0.8em; color: var(--ink); background: var(--sunk);
   padding: 6px 8px; border-radius: 6px; overflow-wrap: anywhere; white-space: pre-wrap;
@@ -407,6 +418,7 @@ ol.steps .num { display: grid; place-items: center; width: 30px; height: 30px; b
 .vpo-table th, .vpo-table td { padding: .5rem .35rem; text-align: left; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
 #vpo-lesson, #vpo-lab { min-width: 0; }
 #vpo-lab svg { display: block; width: 100%; max-width: 350px; margin: auto; }
+#vpo-lab .algorithm-math-panel svg { width: auto; max-width: 100%; height: auto; margin: 0; }
 #vpo-lesson .field { min-width: 0; }
 #vpo-lesson h4 { margin-top: .7rem; }
 [hidden] { display: none !important; }
@@ -491,8 +503,12 @@ ul.preset-diff li { margin: 2px 0; }
 .map-node.next .map-coin { outline: 3px solid var(--world-color); outline-offset: 6px; }
 .map-node.next > small { color: var(--accent); font-weight: 700; }
 .map-rover { position: absolute; width: 60px; height: 60px; top: -12px; left: calc(50% - 100px); pointer-events: none; }
-.map-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
-.map-node .chip { font-size: .72rem; padding: 3px 6px; }
+.map-chips { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; }
+.map-chips > .chip { display: inline-flex; align-items: center; justify-content: center; min-height: 32px; padding: 6px 10px; line-height: 1.2; white-space: nowrap; }
+.map-methods { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: 0.85rem; color: var(--muted); }
+.map-methods b { color: var(--ink); font-weight: 600; }
+.map-node .chip { font-size: .72rem; padding: 6px 8px; }
+.map-brief .map-chips button.algo-name, .map-node .map-chips button.algo-name { min-height: 0; min-width: 0; padding: 0; line-height: inherit; }
 .map-failure { border-style: dashed; }
 .map-edge-label { background: var(--bg); padding: 2px 4px; border-radius: 4px; }
 .map-edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
@@ -572,13 +588,132 @@ ul.preset-diff li { margin: 2px 0; }
 .layout:not(.lesson-shell) > .lab { position: static; max-height: none; overflow: visible; }
 .supporting-lab > .notebook-panel[hidden] { display: grid !important; }
 .supporting-lab { display: grid; gap: 16px; }
-@media (max-width: 600px) { .lesson-shell .stage { aspect-ratio: 16 / 9; } }
+@media (max-width: 600px) {
+  .lesson-shell .stage { aspect-ratio: 16 / 9; }
+  .drawer-workspace #algorithm-workspace { padding: 8px; }
+}
 /* Rare's measured hall stays readable without horizontal scrolling. */
 #rare-stage { display: block; width: 100%; height: auto; border-radius: 8px; }
 #rare-experiment, #rare-lesson { min-width: 0; }
+#rare-experiment .rare-math-slot { min-width: 0; }
+#stage-card { position: relative; }
+.run-advanced[hidden] { display: none !important; }
+.prediction-pop {
+  position: absolute; inset: auto 10px 10px 10px; width: auto; max-width: none; height: fit-content;
+  max-height: min(58%, 300px); margin: 0; overflow: auto; z-index: 6;
+  border: 1px solid var(--line); border-radius: 12px; padding: 12px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent); color: var(--ink);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.28);
+}
+.prediction-pop::backdrop { background: transparent; }
+.prediction-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.prediction-head h3 { font-size: 1rem; }
+.prediction-body { display: grid; gap: 8px; margin-top: 8px; }
+.prediction-launch { margin-top: 8px; }
+.chart-empty { min-height: 72px; margin: 0; }
+.dc-plain { margin: 0; font-size: 0.95rem; color: var(--ink); max-width: 46ch; }
+@media (min-width: 960px) {
+  .lesson-shell:has(#rare-experiment) > #vpo-lab { grid-column: 1 / -1; }
+  .lesson-shell:has(#rare-experiment) > #mode-pane { grid-column: 1 / -1; grid-row: 3; }
+  #rare-experiment { display: grid; grid-template-columns: minmax(280px, .9fr) minmax(340px, 1.15fr); column-gap: 16px; align-items: start; }
+  #rare-experiment > h2,
+  #rare-experiment > p:first-of-type,
+  #rare-experiment > #rare-clock,
+  #rare-experiment > #rare-event,
+  #rare-experiment > p.small:last-of-type { grid-column: 1 / -1; }
+  #rare-experiment > .rare-math-slot { grid-column: 2; grid-row: 3 / span 5; }
+}
 #rare-experiment select, #rare-experiment button, #rare-lesson button { min-height: 44px; min-width: 44px; max-width: 100%; }
 #rare-experiment .field { min-width: 0; max-width: 100%; }
 .rare-counts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .rare-count { display: grid; font-size: 12px; gap: 4px; }
 .rare-count meter { width: 100%; }
 @media (max-width: 500px) { .rare-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Variant C: an uninterrupted experiment, with deliberate lesson drawers. */
+#algorithm-workspace, #lesson-drawer { min-width: 0; }
+.workspace-drawer { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); padding: 10px 14px; }
+.workspace-drawer > summary, #optional-run-settings > summary, .more-curves > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; }
+.workspace-drawer[open] > summary { margin-bottom: 12px; }
+.drawer-workspace #replay-drawer[open] > summary { margin-bottom: 4px; }
+.drawer-workspace #scene-policy { display: none; }
+.drawer-workspace #replay-drawer .replay-controls { flex-wrap: nowrap; gap: 6px; margin-top: 4px; }
+.drawer-workspace #replay-drawer #stage-caption,
+.drawer-workspace #replay-drawer #run-source { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; }
+.drawer-workspace { gap: 12px; }
+.drawer-workspace #lab { gap: 10px; }
+.drawer-workspace #lab > .card { padding: 10px 12px; gap: 6px; }
+.drawer-workspace #algorithm-workspace { gap: 8px; }
+.drawer-workspace #notebook { grid-column: 1 / -1; }
+.drawer-workspace #lesson-drawer { grid-column: 1 / -1; }
+.drawer-workspace .stage, .drawer-workspace.lesson-shell .stage { width: min(100%, calc(220px * 640 / 280)); max-width: 100%; height: auto; max-height: 220px; aspect-ratio: 640 / 280; }
+.drawer-workspace .chart { height: 130px; }
+@media (max-height: 860px) {
+  .drawer-workspace .chart { height: 84px; }
+  .drawer-workspace .more-curves > summary { min-height: 28px; }
+  .drawer-workspace #replay-drawer { padding: 6px 10px; }
+}
+.drawer-workspace #learning-monitor { gap: 8px; }
+.drawer-workspace .chart-title { font-size: .76rem; }
+.drawer-workspace #charts > .eyebrow { font-size: .65rem; }
+.drawer-workspace .sentence { font-size: .9rem; }
+.drawer-workspace .sentence .sl { margin-bottom: 6px; }
+.drawer-workspace .sentence .gloss { font-size: .75rem; }
+.drawer-workspace #run-source, .drawer-workspace #stage-caption { font-size: .74rem; }
+.drawer-workspace #run-result:empty { display: none; }
+.drawer-workspace #optional-run-settings .row { padding-block: 8px; }
+@media (min-width: 960px) {
+  .drawer-workspace { grid-template-columns: minmax(320px, .85fr) minmax(0, 1.15fr); align-items: start; }
+  .drawer-workspace > #lab { grid-column: 1; grid-row: 2; position: static; }
+  .drawer-workspace > #algorithm-workspace { grid-column: 2; grid-row: 2; }
+  .drawer-workspace > #lesson-drawer { grid-column: 1 / -1; grid-row: 3; }
+  .drawer-workspace > #notebook { grid-column: 1 / -1; grid-row: 4; }
+  .drawer-workspace #learning-monitor { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .drawer-workspace #training-metric:has(> p) { grid-column: 1 / -1; }
+  .drawer-workspace #training-metric:has(> p) + #charts { grid-column: 1 / -1; }
+  .drawer-workspace #charts { min-width: 0; }
+}
+@media (max-width: 959px) {
+  .drawer-workspace { display: flex; flex-direction: column; }
+  .drawer-workspace > * { width: 100%; }
+  .drawer-workspace #lab { order: 1; }
+  .drawer-workspace #algorithm-workspace { order: 2; }
+  .drawer-workspace #lesson-drawer { order: 3; }
+  .drawer-workspace #notebook { order: 4; }
+  .drawer-workspace #campaign-strip { order: 0; }
+  .drawer-workspace #learning-monitor { display: none; }
+  .drawer-workspace:has(#algorithm-workspace) #lab { display: contents; }
+  .drawer-workspace #lab > .card { order: 1; }
+  .drawer-workspace #lab > #learning-monitor { display: grid; order: 3; }
+  .drawer-workspace #lesson-drawer { order: 4; }
+  .drawer-workspace #notebook { order: 5; }
+}
+@media (min-width: 960px) {
+  .drawer-workspace { grid-template-columns: minmax(320px, .7fr) minmax(0, 1.3fr); }
+  .drawer-workspace #algorithm-workspace .w { min-height: 30px; padding: 1px 5px; }
+  .drawer-workspace #algorithm-workspace .sl { font-size: .84rem; line-height: 1.45; margin: 0; }
+  .drawer-workspace #algorithm-workspace .compound { padding: 2px 8px; }
+  .drawer-workspace #algorithm-workspace .compound .big { font-size: 1rem; }
+  .drawer-workspace #algorithm-workspace .preset { font-size: .78rem; }
+  .drawer-workspace #algorithm-workspace select { min-height: 34px; max-width: 100%; }
+}
+
+@media (min-width: 960px) {
+  body:has(.drawer-workspace) .top { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "brand tabs" "xp xp"; align-items: center; column-gap: 12px; padding-block: 2px 4px; }
+  body:has(.drawer-workspace) .top-row { grid-area: brand; }
+  body:has(.drawer-workspace) .brand, body:has(.drawer-workspace) .brand canvas { width: 36px; height: 36px; flex-basis: 36px; }
+  body:has(.drawer-workspace) .tabs { grid-area: tabs; margin-top: 0; justify-content: flex-end; }
+  body:has(.drawer-workspace) .xpbar { grid-area: xp; margin-top: 2px; }
+  body:has(.drawer-workspace) main.layout { margin-top: 8px; }
+  .drawer-workspace .campaign-strip { padding-block: 2px; }
+  .drawer-workspace #algorithm-workspace { padding: 8px 10px; }
+  .drawer-workspace #algorithm-workspace .preset-wrap { margin-block: 2px; }
+}
+@media (max-width: 959px) {
+  .drawer-workspace #replay-drawer { order: 4; }
+  .drawer-workspace #lesson-drawer { order: 5; }
+  .drawer-workspace #notebook { order: 6; }
+}
+.sentence-explanation > summary { cursor: pointer; font-size: .78rem; min-height: 30px; }
+.drawer-workspace #training-metric:empty { display: none; }
+.drawer-workspace #training-metric:empty + #charts { grid-column: 1 / -1; }

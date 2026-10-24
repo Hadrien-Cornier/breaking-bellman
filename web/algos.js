@@ -1,8 +1,10 @@
 // Breaking Bellman algorithm reminders.
 // One consistent content source per algorithm name. Whenever a name renders (level prose,
 // questions, method labels, Codex and the family tree) it offers a short reminder: the expanded
-// name, one line of idea, and the defining math with the symbols spelled out. The reminder is
-// available on mouse hover, keyboard focus and tap, and it dismisses with accessible semantics.
+// name, one line of idea, and the defining math with the symbols spelled out. The reminder opens
+// only on a deliberate action: click, tap or keyboard activation (Enter or Space). Hovering the
+// pointer or moving focus never opens it. It dismisses with accessible semantics: an explicit
+// close button, Escape, or a click outside.
 // The reminder never states the game's word recipe, so it cannot leak an undiscovered solution.
 (function (root) {
   // ---------------------------------------------------------------- one content source per name
@@ -323,37 +325,29 @@
     el.className = 'metric-help-pop algo-rem-pop';
     el.setAttribute('role', 'dialog');
     el.setAttribute('aria-modal', 'false');
+    el.setAttribute('popover', 'manual');
+    el.setAttribute('aria-labelledby', 'algo-rem-title');
     el.hidden = true;
     document.body.appendChild(el);
     return el;
   }
 
   let openTrigger = null;        // the element the popover is anchored to
-  let pinned = false;            // opened by click/tap: stays until an explicit dismiss
-  let suppressFocus = false;     // true while a dismiss refocuses the trigger, so focus does not reopen
-  let noHoverUntil = 0;          // ignore hover re-entry for a moment after a dismiss (Escape re-fire)
-  let closeTimer = 0;
-
-  function cancelClose() { if (closeTimer) { clearTimeout(closeTimer); closeTimer = 0; } }
-  function scheduleClose() {
-    cancelClose();
-    closeTimer = setTimeout(() => { if (!pinned) closeReminder(); }, 160);
-  }
 
   function closeReminder(refocus) {
     if (typeof document === 'undefined') return;
-    cancelClose();
-    noHoverUntil = Date.now() + 250;
     const el = document.getElementById(POP_ID);
-    if (el) el.hidden = true;
+    if (el) {
+      if (el.matches(':popover-open')) el.hidePopover();
+      el.hidden = true;
+    }
     if (openTrigger) {
       openTrigger.setAttribute('aria-expanded', 'false');
       const t = openTrigger;
       openTrigger = null;
-      // Return focus for keyboard users, but do not let that focus event reopen the popover.
-      if (refocus && t.focus) { suppressFocus = true; t.focus(); suppressFocus = false; }
+      // Return focus for keyboard users. Focus alone never reopens the reminder.
+      if (refocus && t.focus) t.focus();
     }
-    pinned = false;
   }
 
   // The shared method panel body: the reminder (idea, math, symbols) plus, only for a method the
@@ -409,11 +403,16 @@
     return wrap;
   }
 
-  function openReminder(id, anchorEl, opts) {
+  function openReminder(id, anchorEl) {
     if (typeof document === 'undefined') return;
     const a = ALGOS[id];
     if (!a) return;
+    if (openTrigger && openTrigger !== anchorEl) closeReminder(false);
     const el = ensurePop();
+    // A modal dialog makes body siblings inert. Keep the reminder in the trigger's
+    // dialog, and lift it into the top layer so the briefing cannot clip it.
+    const host = anchorEl?.closest('dialog') || document.body;
+    if (el.parentNode !== host) host.appendChild(el);
     el.replaceChildren();
 
     const close = document.createElement('button');
@@ -425,6 +424,7 @@
 
     const title = document.createElement('div');
     title.className = 'metric-help-title';
+    title.id = 'algo-rem-title';
     title.textContent = a.label;
 
     const body = document.createElement('div');
@@ -454,6 +454,7 @@
 
     el.append(close, title, body);
     el.hidden = false;
+    if (!el.matches(':popover-open')) el.showPopover();
     if (anchorEl) {
       const r = anchorEl.getBoundingClientRect();
       el.style.left = Math.max(8, Math.min(root.innerWidth - 8 - el.offsetWidth, r.left)) + 'px';
@@ -462,12 +463,13 @@
       anchorEl.setAttribute('aria-expanded', 'true');
       openTrigger = anchorEl;
     }
-    if (opts && opts.pin) pinned = true;
+    close.focus({ preventScroll: true });
   }
 
   // ---------------------------------------------------------------- inline name trigger
-  // The name itself is the control. A real button: focusable, tappable, hoverable. Never nested
-  // inside another control (see attachControl for the nested case).
+  // The name itself is the control. A real button: focusable, tappable, activatable with Enter or
+  // Space. It opens the reminder only on that deliberate activation, never on hover or focus alone.
+  // Never nested inside another control (see attachControl for the nested case).
   function makeTrigger(id, label) {
     const a = ALGOS[id];
     const b = document.createElement('button');
@@ -476,15 +478,11 @@
     b.setAttribute('aria-haspopup', 'dialog');
     b.setAttribute('aria-expanded', 'false');
     b.textContent = label;
-    b.addEventListener('pointerenter', (e) => { if (e.pointerType !== 'mouse') return; if (Date.now() < noHoverUntil) return; cancelClose(); openReminder(id, b); });
-    b.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') scheduleClose(); });
-    b.addEventListener('focus', () => { if (suppressFocus) return; cancelClose(); openReminder(id, b); });
-    b.addEventListener('blur', () => scheduleClose());
     b.addEventListener('click', (e) => {
       e.preventDefault();
       const pop = document.getElementById(POP_ID);
       const open = pop && !pop.hidden && openTrigger === b;
-      if (open && pinned) closeReminder(true); else { cancelClose(); openReminder(id, b, { pin: true }); }
+      if (open) closeReminder(true); else openReminder(id, b);
     });
     if (a) b.setAttribute('aria-label', a.label + ': show the reminder');
     return b;
@@ -613,7 +611,7 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         const pop = document.getElementById(POP_ID);
-        if (pop && !pop.hidden) { e.stopPropagation(); closeReminder(true); }
+        if (pop && !pop.hidden) { e.preventDefault(); e.stopPropagation(); closeReminder(true); }
       }
     }, true);
     document.addEventListener('pointerdown', (e) => {
@@ -622,10 +620,6 @@
       if (pop.contains(e.target)) return;
       if (openTrigger && openTrigger.contains(e.target)) return;
       closeReminder(false);
-    }, true);
-    document.addEventListener('pointerenter', (e) => {
-      const pop = document.getElementById(POP_ID);
-      if (pop && !pop.hidden && pop.contains(e.target)) cancelClose();
     }, true);
   }
 

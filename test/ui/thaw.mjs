@@ -21,7 +21,7 @@ try {
     page.on('pageerror', e => errors.push(e.message));
     page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
     await page.goto(url);
-    if (await page.locator('dialog.intro').count()) await page.getByRole('button', { name: 'Start level 1', exact: true }).click();
+    if (await page.locator('dialog.intro').count()) await page.getByRole('button', { name: 'Open the campaign map', exact: true }).click();
     await page.evaluate(() => bellman.level('thaw'));
     check(await page.locator('#thaw-scene').isVisible(), 'scene before prediction');
     check(await page.evaluate(() => bellman.record() === null), 'no fabricated pre-run result');

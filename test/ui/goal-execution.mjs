@@ -22,7 +22,7 @@ try {
       await page.goto(url);
       await page.evaluate(value => localStorage.setItem('breaking-bellman-v1', JSON.stringify(value)), progress === 'newer' ? fixture : { intro: 1, level: 'cliff' });
       await page.reload();
-      if (await page.locator('dialog.intro').count()) await page.getByRole('button', { name: 'Start level 1', exact: true }).click();
+      if (await page.locator('dialog.intro').count()) await page.getByRole('button', { name: 'Open the campaign map', exact: true }).click();
       const proof = await goalExecutionContract(page, id, out, name);
       if (progress === 'newer') {
         const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('breaking-bellman-v1')));

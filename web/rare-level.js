@@ -41,10 +41,12 @@
       if (!shell) lab.append(sections[name]);
     }
     function linked(el) { if (record) el.dataset.run = record.id; el.dataset.stale = String(stale); return el; }
+    // the shared equation panel (web/algorithm-math.js): one canonical math source for every layout
+    const mathPanel = window.ALGO_MATH ? window.ALGO_MATH.mountRare({ id: 'rare-algorithm-math-panel' }) : null;
     function draw(canvas, value, t) {
       if (t === null) return value ? value.settings.steps + 1 : 0;
       const frame = window.BBRARE_RECORD.frame(value, selected, t);
-      const columns = canvas.getBoundingClientRect().width < 500 ? 4 : 8;
+      const columns = window.innerWidth < 960 ? 4 : 8;
       canvas.width = columns * 100; canvas.height = columns === 4 ? 385 : 215;
       const context = canvas.getContext('2d');
       const dark = matchMedia('(prefers-color-scheme: dark)').matches;
@@ -74,6 +76,9 @@
         ? M.CELL_LABELS[f.last.obs] + ' → ' + M.PROTOCOL.actions[f.last.action] + ' → ' + M.CELL_LABELS[f.state] + '. Environment reward ' + f.last.reward + '. Visit bonus ' + num(f.last.visitBonus) + '; bonus in target ' + num(f.last.intrinsic) + '. ' + (f.last.explored ? 'Sampled random action.' : 'Highest action score.')
         : 'Left and right move along the hall. Open works only at Door. Gem returns to Start on the next step.';
       scene.querySelector('#rare-watch').textContent = timer ? 'Pause' : 'Watch';
+      // the shared equation component: the method's real equations plus the recorded step values
+      const policy = window.BBRARE_RECORD.policies.find((p) => p.name === selected);
+      if (mathPanel) mathPanel.update(policy, f.last || null);
       const counts = sections.curve.querySelector('#rare-counts');
       if (counts) counts.replaceChildren(...f.counts.map((n, i) => h('div.rare-count', null, [h('strong', { text: M.CELL_LABELS[i] }), h('span', { text: 'Visits ' + n }), h('meter', { min: 0, max: record.settings.steps + 1, value: n, 'aria-label': M.CELL_LABELS[i] + ' visits' }), h('span', { text: n ? '1/√n ' + num(1 / Math.sqrt(n)) : 'Unseen' })])));
       const total = sections.curve.querySelector('#rare-totals');
@@ -109,6 +114,7 @@
           h('button.btn', { id: 'rare-step', type: 'button', disabled: !record, onclick: () => { stop(); time = Math.min(record.settings.steps, time + 1); paint(); } }, 'Step'),
           h('button.btn', { id: 'rare-replay', type: 'button', disabled: !record, onclick: () => { stop(); time = 0; paint(); } }, 'Replay'),
         ]),
+        h('div.rare-math-slot', null, [mathPanel ? mathPanel.el : h('div', { id: 'rare-math' })]),
         h('p.small', { id: 'rare-clock' }), h('p.small', { id: 'rare-event' }),
         h('p.small', { text: 'Watch replays one actual training sample per method. Step and Replay work with reduced motion. No path is interpolated.' }),
       );
