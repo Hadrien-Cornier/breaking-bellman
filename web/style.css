@@ -182,6 +182,7 @@ details[open] > summary { margin-bottom: 8px; }
 .math { display: grid; gap: 4px; padding: 8px 10px; background: var(--sunk); border-radius: 8px; min-width: 0; margin-top: 4px; }
 .mrow { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 8px; align-items: center; min-width: 0; }
 .mrow .ml { font-family: var(--font-mono); font-size: 0.66rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.mrow.math-hit { background: color-mix(in srgb, var(--accent) 22%, transparent); border-radius: 6px; }
 .tex { overflow-x: auto; min-width: 0; font-size: 0.95rem; }
 @media (max-width: 520px) { .tex { font-size: 0.8rem; } .mrow { grid-template-columns: 50px minmax(0, 1fr); } }
 .tex mjx-container[jax="SVG"][display="true"] { margin: 2px 0 !important; text-align: left !important; }
@@ -577,7 +578,7 @@ ul.preset-diff li { margin: 2px 0; }
 .wb-charts .chart-title b { font-size: 0.78rem; }
 @media (min-width: 960px) {
   .lesson-shell > .campaign-strip { grid-row: 1; }
-  .lesson-shell > #lab { grid-column: 1; grid-row: 2; }
+  .lesson-shell > #lab { grid-column: 1; grid-row: 2; gap: 8px; }
   .lesson-shell > #vpo-lab { grid-column: 1 / -1; grid-row: 2; }
   .lesson-shell > #algo-panel { grid-column: 2; grid-row: 2; }
   .lesson-shell > #mode-pane { grid-column: 1 / -1; grid-row: 3; }
@@ -585,6 +586,13 @@ ul.preset-diff li { margin: 2px 0; }
   .layout:not(.lesson-shell):not(.mapping) > #mode-pane { grid-column: 1; grid-row: 1 / span 2; }
   .layout:not(.lesson-shell):not(.mapping) > #lab, .layout:not(.lesson-shell):not(.mapping) > #vpo-lab { grid-column: 2; grid-row: 1; }
   .layout:not(.lesson-shell):not(.mapping) > #algo-panel { grid-column: 2; grid-row: 2; }
+  /* Wide desktops still share one screen after replay controls appear, so the world
+     stays short enough for the curve and the sentence stays compact beside it. */
+  .lesson-shell .card { padding: 10px 12px; gap: 8px; }
+  .lesson-shell .stage { aspect-ratio: 16 / 7; max-height: 220px; }
+  .lesson-shell .sentence .sl { line-height: 1.45; }
+  .lesson-shell .replay-controls { margin-top: 0; }
+  #wb-curves .chart { height: 108px; }
 }
 /* Shorter desktop windows: tighten the workbench so the world, Run, the algorithm with its
    equations and the loss/metric curve still share one screen at 1186x835. Touch targets stay
@@ -598,24 +606,30 @@ ul.preset-diff li { margin: 2px 0; }
   main.layout { margin-top: 8px; gap: 12px; }
   .campaign-strip { padding: 4px 10px; }
   .layout { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); }
-  .lesson-shell > #lab, .lesson-shell > #algo-panel { gap: 10px; }
-  .lesson-shell .card { padding: 8px 10px; gap: 6px; }
-  .lesson-shell .stage { aspect-ratio: 5 / 2; }
-  #algo-panel .card { gap: 6px; }
+  .lesson-shell > #lab, .lesson-shell > #algo-panel { gap: 8px; }
+  .lesson-shell .card { padding: 6px 8px; gap: 5px; }
+  .lesson-shell .stage { aspect-ratio: 5 / 2; max-height: 148px; }
+  .lesson-shell #scene-policy, .lesson-shell #scene-controls > label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+  .lesson-shell .replay-controls { position: relative; flex-wrap: nowrap; }
+  .lesson-shell #scene-position { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; }
+  #algo-panel .card { gap: 4px; }
   #algo-panel .eyebrow { font-size: 0.62rem; }
   .sentence { gap: 2px; }
-  .sentence .sl { font-size: 0.82rem; line-height: 1.5; }
+  .sentence .sl { font-size: 0.82rem; line-height: 1.35; }
   .sentence .w { font-size: 0.82rem; padding: 0 5px; line-height: 1.3; }
   .sentence .compound { padding: 4px 8px; margin-top: 0; }
   .sentence .compound .big { font-size: 0.95rem; }
-  .sentence .gloss { font-size: 0.72rem; line-height: 1.35; margin: 0 0 2px; }
+  .sentence .gloss { font-size: 0.68rem; line-height: 1.28; margin: 0 0 2px; }
   .sentence .preset { font-size: 0.78rem; }
-  #algo-math-slot .math { gap: 2px; padding: 6px 8px; margin-top: 0; }
+  #algo-math-slot .math { gap: 1px; padding: 4px 6px; margin-top: 0; }
   #algo-math-slot .mrow .ml { font-size: 0.58rem; }
   #algo-math-slot .tex { font-size: 0.85rem; }
   #algo-math-slot .math > p.small { font-size: 0.68rem; line-height: 1.35; }
-  #wb-curves { gap: 6px; }
-  #wb-curves .chart { height: 100px; }
+  #wb-curves { gap: 4px; }
+  #wb-curves > .eyebrow { display: none; }
+  #wb-curves .chart { height: 56px; }
+  #wb-curve-note { line-height: 1.25; }
+  #wb-charts .chart-title b { font-size: 0.68rem; line-height: 1.15; }
 }
 /* Other modes retain their complete lab controls and diagnostics. */
 .supporting-lab > :is(summary, .notebook-tabs) { display: none; }

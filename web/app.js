@@ -444,14 +444,19 @@
     const Adv = crit ? `${Qmin('s', 'a', p.target === 'slow')} - V_\\psi(s)` : 'G_t - V_\\psi(s_t)';
     const like = p.head === 'flow' ? (w) => `\\min ${w}\\, \\big\\| v_\\theta(s, x_\\tau, \\tau) - (a - x_0) \\big\\|^2,\\ x_\\tau = (1-\\tau) x_0 + \\tau a` : (w) => `\\max ${w}\\log \\pi_\\theta(a \\mid s)`;
     let pol = null;
-    if (p.aim === 'q') pol = p.head === 'det' ? `\\max_\\theta Q_1\\big(s, \\pi_\\theta(s)\\big)` : `\\max_\\theta ${Qmin('s', '\\tilde a')} - \\alpha \\log \\pi_\\theta(\\tilde a \\mid s),\\ \\tilde a \\sim \\pi_\\theta(s)`;
+    const useEnt = p.head === 'gauss' && p.entropy !== 'none' && (p.aim === 'q' || p.aim === 'qclose');
+    if (p.aim === 'q') pol = p.head === 'det'
+      ? `\\max_\\theta Q_1\\big(s, \\pi_\\theta(s)\\big)`
+      : useEnt
+        ? `\\max_\\theta ${Qmin('s', '\\tilde a')} - \\alpha \\log \\pi_\\theta(\\tilde a \\mid s),\\ \\tilde a \\sim \\pi_\\theta(s)`
+        : `\\max_\\theta ${Qmin('s', '\\tilde a')},\\ \\tilde a \\sim \\pi_\\theta(s)`;
     else if (p.aim === 'qclose') pol = '\\max_\\theta \\lambda\\, Q\\big(s, \\pi_\\theta(s)\\big) - \\big(\\pi_\\theta(s) - a\\big)^2,\\ \\lambda = 2.5 / \\operatorname{mean}|Q|';
     else if (p.aim === 'copy') pol = like('');
     else if (p.aim === 'copybest') pol = like('') + '\\ \\text{ on the top 25\\% of episodes}';
     else if (p.aim === 'weighted') pol = like('e^{A / \\sigma_A}') + `,\\ A = ${Adv}`;
     else if (p.aim === 'cond') pol = like('').replace('\\mid s)', '\\mid s, I)') + `,\\ I = \\mathbb{1}[A > \\text{top-30\\% cut}],\\ A = ${Adv}`;
     else pol = '\\theta \\text{ frozen}';
-    out.push(['policy', pol]);
+    out.push(['policy', pol + (p.aim !== 'none' && Number(p.delay) > 1 ? ` \\quad \\text{every ${p.delay} critic updates}` : '')]);
     if (p.aim === 'cond') out.push(['acting', 'I = 1 \\text{ ("better than usual") whenever it acts}']);
     if (p.pick === 'edit' && crit) out.push(['edit', '\\max\\ Q(s, a_i + \\hat a_i) - \\alpha \\log \\pi_{\\text{edit}}(\\hat a_i \\mid s, a_i)']);
     return out;
@@ -517,12 +522,23 @@
     if (n !== 0 && (p.picker === 'frozen' || p.scorer === 'frozen')) out.push(['frozen', `${twins ? '\\bar{Q}_A \\leftarrow Q_A,\\ \\bar{Q}_B \\leftarrow Q_B' : '\\bar{Q} \\leftarrow Q'} \\text{ every } ${p.sync} \\text{ updates}`]);
     return out;
   }
+  function banditLegend(p) {
+    const bits = [
+      't: the pull number, counting the pulls of all machines (1, 2, 3, ...). a_t: the machine pulled at pull t; r_t: its payout.',
+      'Q(a): the estimate of machine a. N(a): how many times machine a was pulled so far.',
+    ];
+    bits.push(p.ucb ? 'c = 2: the weight of the bonus for few pulls.' : 'No count bonus is in this combination, so c is not used.');
+    bits.push(p.step === 'avg' ? 'The update uses 1/N(a), so a fixed step size α is not used.' : 'α = 0.1: the step size.');
+    if (p.eps) bits.push('ε: the chance of pulling a random machine.');
+    if (p.optimistic) bits.push('Estimates start at 5, not 0.');
+    return bits.join(' ');
+  }
   function mathBox(p, world) {
     const lines = texLines(p, world);
     const legend = fam(p) === 'pg' ? 'π_θ: the policy (a network θ). τ: one episode. A: the weight of each action. ρ: how much more likely the action is now than when it was tried. H: entropy. V_φ: the critic. γ = ' + (RLA.worlds[world] ? (world === 'goalgrid' ? '1' : '0.99') : '0.99') + '.'
       : fam(p) === 'ac' ? 'Q: a critic, the value of action a in state s. Q̄: its slow copy. V_ψ: the value of a state. π_θ: the policy. y: the target. γ = ' + (world === 'pendulum' ? '0.99' : '0.97') + '. α: the entropy weight. All networks learn with Adam, step size ' + (hyperNow().lr || 0.001) + ', batches of ' + (hyperNow().batch || 64) + '.'
-      : world === 'bandit' ? 't: the pull number, counting the pulls of all machines (1, 2, 3, ...). a_t: the machine pulled at pull t; r_t: its payout. Q(a): the estimate of machine a. N(a): how many times machine a was pulled so far. c = 2: the weight of the bonus for few pulls. α = 0.1: the step size.'
-      : 't: the step number inside the episode (0, 1, 2, ...). T: the last step of the episode. s_t, a_t: the state and the action at step t; r_{t+1}: the reward that follows. Q: live estimate. Q̄: frozen copy. Q_A, Q_B: the two twins. N(s), N(s,a): visits of state s, and tries of action a in it. c = 2. γ = ' + (world === 'mirage' ? '1' : '0.99') + ': discount. α = ' + ((C.hyper[world] || {}).lrTable || 0.1) + ': step size. y: target.';
+      : world === 'bandit' ? banditLegend(p)
+      : 't: the step number inside the episode (0, 1, 2, ...). T: the last step of the episode. s_t, a_t: the state and the action at step t; r_{t+1}: the reward that follows. Q: live estimate. Q̄: frozen copy. Q_A, Q_B: the two twins. N(s), N(s,a): visits of state s, and tries of action a in it. ' + (p.ucb ? 'c = 2. ' : 'No count bonus is in this combination, so c is not used. ') + 'γ = ' + (world === 'mirage' ? '1' : '0.99') + ': discount. α = ' + ((C.hyper[world] || {}).lrTable || 0.1) + ': step size. y: target.';
     return h('div.math', { 'aria-label': 'The update rule as equations' }, [
       ...lines.map(([label, tex]) => { const t = h('div.tex'); texInto(t, tex); return h('div.mrow', null, [h('span.ml', { text: label }), t]); }),
       h('p.small', { text: legend }),
@@ -534,7 +550,7 @@
   // option change, before Run. Until that commit lands, the slot shows the game's own config-derived
   // equations (mathBox) so the editor never hides its math; the fallback never renders next to the
   // shared component, so the equations are never duplicated.
-  let algoMath = null;
+  let algoMath = null, lastMathKey = null, lastTex = null;
   function updateAlgoMath() {
     const slot = $('#algo-math-slot');
     if (!slot) return;
@@ -542,8 +558,29 @@
       algoMath = window.ALGO_MATH.mount({ id: 'algorithm-math-panel', getParts: () => S.parts, world: () => S.world, hyper: () => hyperNow() });
       slot.replaceChildren(algoMath.el);
     }
-    if (algoMath) { algoMath.update(); return; }
-    slot.replaceChildren(mathBox(S.parts, S.world));
+    if (algoMath) { algoMath.update(); lastMathKey = null; lastTex = null; return; }
+    const lines = texLines(S.parts, S.world);
+    const box = mathBox(S.parts, S.world);
+    const map = Object.fromEntries(lines);
+    const key = S.world + '\n' + JSON.stringify(S.parts);
+    if (lastMathKey !== null && lastMathKey !== key && lastTex) {
+      const sameWorld = lastMathKey.slice(0, lastMathKey.indexOf('\n')) === S.world;
+      const changed = lines.filter(([label, tex]) => lastTex[label] !== tex).map(([label]) => label);
+      const removed = Object.keys(lastTex).filter((label) => map[label] === undefined);
+      if (sameWorld && changed.length) {
+        for (const row of box.querySelectorAll('.mrow')) {
+          if (changed.includes(row.querySelector('.ml').textContent)) row.classList.add('math-hit');
+        }
+        box.append(h('p.small.math-note', { text: 'Highlighted: ' + changed.join(', ') + '.' }));
+      } else if (sameWorld && !changed.length && !removed.length) {
+        box.append(h('p.small.math-note', { text: 'This option does not change the equations for the current combination.' }));
+      } else if (sameWorld && removed.length && !changed.length) {
+        box.append(h('p.small.math-note', { text: 'This option removes an equation line. The lines still shown are unchanged.' }));
+      }
+    }
+    lastMathKey = key; lastTex = map;
+    slot.replaceChildren(box);
+    if (box.querySelector('.math-hit')) setTimeout(() => { for (const row of box.querySelectorAll('.math-hit')) row.classList.remove('math-hit'); }, 1800);
   }
 
   // ---------------------------------------------------------------- charts (canvas, own scales)
@@ -689,7 +726,7 @@
     // ---- the honest note: recorded loss when the learner has one, no loss when it does not
     const note = $('#wb-curve-note');
     if (!note) return;
-    const ran = series.length > 0 || hasLoss;
+    const ran = series.some((s) => s.xs && s.xs.length) || hasLoss;
     note.textContent = !ran
       ? activeRun ? (isB || isM ? 'Training now. The curve for this world appears when the run finishes.' : 'Training now: the curve draws as the run reports.') : 'Run a sentence to see its learning curve.'
       : hasLoss ? 'The learner records its own training loss (mean squared error against its targets). The other curve is the performance it produces: ' + metric + ' (mean of runs).'
