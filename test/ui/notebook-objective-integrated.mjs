@@ -43,7 +43,9 @@ try {
       await page.locator(`#${id}-run`).click();
       await page.waitForFunction(id => bellman.record()?.level === id, id);
       const measured = await inspect('run'); assert.ok(measured.record);
+      if (id === 'skills') await page.locator('#skills-scene summary').click();
       const setting = page.locator(settings[id]);
+      assert.ok(await setting.isVisible(), name + ': experiment setting exposed before change');
       if (id === 'ensemble') await setting.fill(String(Number(await setting.inputValue()) + 0.1));
       else {
         const next = await setting.evaluate(e => [...e.options].find(o => o.value !== e.value).value);
