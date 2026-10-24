@@ -11,9 +11,13 @@ function cli(...args) {
   return execFileSync('chrome-devtools-axi', args, { encoding: 'utf8', env, timeout: 60000, maxBuffer: 2 ** 22 });
 }
 function evaluate(js) {
-  const text = cli('eval', js), match = text.match(/^result: (.+)$/m);
-  if (!match) throw Error(text);
-  const result = JSON.parse(match[1]);
+  // The CLI's human eval formatter truncates large measured records. The run
+  // transport prints complete JSON while retaining the same browser evaluation.
+  const text = execFileSync('chrome-devtools-axi', ['run'], {
+    input: `console.log(JSON.stringify(await page.eval(${JSON.stringify(js)})));`,
+    encoding: 'utf8', env, timeout: 60000, maxBuffer: 2 ** 22,
+  });
+  const result = JSON.parse(text.trim());
   return typeof result === 'string' ? JSON.parse(result) : result;
 }
 function check(ok, text) {
@@ -84,7 +88,7 @@ for (const width of [1280, 390]) {
   check(interaction.feedback && !interaction.overflow, 'quiz feedback explains the distinction at ' + width);
   evaluate('() => {document.querySelector(".dc")?.click();ALGO_HELP.closeReminder();const source=document.querySelector("#supermimic-source-context");source.scrollIntoView({block:"start"});source.querySelector(".algo-name")?.click();return true;}');
   cli('screenshot', path.join(proof, 'source-' + width + '.png'));
-  evaluate('() => {document.querySelector("#supermimic-gradients").scrollIntoView({block:"start"});return true;}');
+  evaluate('() => {document.querySelector("#custom-notebook").open=true;document.querySelector("#custom-notebook-tab-curve").click();document.querySelector("#supermimic-gradients").scrollIntoView({block:"start"});return true;}');
   cli('screenshot', path.join(proof, 'measures-' + width + '.png'));
   results.push({ width, run, interaction });
   fs.writeFileSync(path.join(proof, 'ui-results.json'), JSON.stringify(results, null, 2));
