@@ -558,7 +558,8 @@ ul.preset-diff li { margin: 2px 0; }
 #run-settings .run-bar { min-width: 0; }
 #run-settings { grid-template-columns: minmax(0, 1fr) auto; }
 #run-settings > :not(.run-bar):not(#replay-details) { grid-column: 1 / -1; }
-#run-settings { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 10px; }
+#run-settings { border-top: 0; margin-top: 0; padding-top: 0; }
+#lab:not(:has(#run-btn:disabled)) #run-settings > .progress { display: none; }
 .run-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 #run-extra { min-width: 0; flex: 1 1 200px; }
 #run-extra > summary {
