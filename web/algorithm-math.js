@@ -1,0 +1,435 @@
+// Breaking Bellman: the algorithm equation panel.
+//
+// ONE reusable equation component for every layout variant. It derives the CURRENT algorithm's
+// equations from the CURRENT word configuration (the same `parts` object the learner is built from),
+// so it always reflects the actual combination, including unnamed and custom sentences. It is not a
+// lookup of a named method's stock formula.
+//
+// It renders into a stable element (default id `algorithm-math-panel`) that a layout places beside or
+// below the editable update-rule sentence, visible by default. On every option change it re-derives
+// the equations, briefly highlights the line(s) whose math actually changed, explains the change in
+// plain language, defines unfamiliar symbols, and lists the options that have no effect here.
+//
+// The derivation is the single source of truth for the math. Layout workers mount this component and
+// must not write their own equations. See data/bb-equation-impact245/integration-contract.md.
+(function (root) {
+  'use strict';
+  const RLA = (root.RLA = root.RLA || {});
+  const C = root.CONTENT;
+  const W = C.words;
+  const fam = (p) => C.famOf(p);
+  const optOf = (key, val) => (W[key] ? W[key].options.find((o) => o[0] === val) : null);
+  const wordText = (key, val) => (Array.isArray(val) ? val.map((v) => wordText(key, v)).join(' or ') : ((optOf(key, val) || [0, String(val)])[1]));
+
+  // ---------------------------------------------------------------- which words do nothing here
+  // Mirrors the learner's own idle rules (src/agents/value.js, ac.js, pg.js). A word that is idle must
+  // never fake a mathematical change: the panel shows it as having no effect in this combination.
+  function idleWords(p, world) {
+    const o = {};
+    if (fam(p) === 'pg') return idlePg(p, world);
+    if (fam(p) === 'ac') return idleAc(p, world);
+    if (world === 'bandit') return o;
+    if (p.data !== 'replay') o.memory = 'the memory is used only with "random old moves from memory".';
+    if (p.store === 'net') o.step = 'a network always moves by small gradient steps (Adam, learning rate 0.001).';
+    const maxSteps = (RLA.knobDefaults(world) || {}).maxSteps || 1;
+    const noGuess = p.nstep === 0 || p.nstep >= maxSteps;
+    if (noGuess) {
+      const r = p.nstep === 0 ? 'with all rewards to the end there is no guess.' : p.nstep + ' real rewards is the whole episode here, so there is no guess.';
+      o.agg = o.picker = o.scorer = o.sync = r;
+    } else {
+      if (p.agg === 'taken') o.picker = 'the action really taken next is not chosen by any estimate.';
+      if (p.picker !== 'frozen' && p.scorer !== 'frozen') o.sync = 'no frozen copy is used in this sentence.';
+    }
+    return o;
+  }
+  function idlePg(p) {
+    const o = {};
+    if (p.baseline !== 'critic') o.adv = 'only a critic judges actions this way.';
+    if (p.baseline === 'group') o.credit = 'the group baseline compares whole episodes, so every action gets its episode\'s return.';
+    if (p.epochs === 1) o.ratio = 'with 1 pass the policy has not moved yet when it computes the step, so the ratio is 1 and the limit never acts.';
+    if (p.group === 'same' && p.baseline !== 'group') o.group = 'the shared start matters only for "the mean of its group".';
+    return o;
+  }
+  function idleAc(p, world) {
+    const o = {};
+    const crit = p.critics !== 'none';
+    if (p.source === 'own') o.demos = 'there is no dataset: it learns from its own tries.';
+    if (!crit) { const r = 'there is no critic.'; o.target = o.next = o.penalty = o.delay = r; if (p.pick !== 'one') o.pick = 'choosing among samples needs a critic.'; }
+    if (p.head !== 'gauss' || !['q', 'qclose'].includes(p.aim)) o.entropy = p.head !== 'gauss' ? 'only the bell-curve policy has an entropy bonus here.' : 'the bonus acts only when the policy climbs the critic.';
+    if (p.base === 'classical' && !RLA.worlds[world].base) o.base = 'this world has no classical controller.';
+    if (p.chunk > 1 && (['q', 'qclose'].includes(p.aim) || p.base !== 'none' || p.pick !== 'one')) o.chunk = 'this lab plays chunks only for a policy that copies, acts alone and takes one sample.';
+    if (p.aim === 'none' && p.source !== 'both') o.delay = 'the policy does not learn.';
+    if (p.source === 'fixed') o.wait = 'with a fixed dataset there are no own tries to wait for.';
+    else if (!['q', 'qclose'].includes(p.aim) && p.pick !== 'edit') o.wait = 'the policy does not climb the critic.';
+    return o;
+  }
+
+  // ---------------------------------------------------------------- MathJax rendering (inlined by the build; else cdnjs; falls back to TeX source)
+  let MJ = null;
+  function loadMathJax() {
+    if (MJ) return MJ;
+    MJ = new Promise((resolve) => {
+      const done = (v) => { resolve(v); };
+      root.MathJax = { tex: { inlineMath: [] }, svg: { fontCache: 'local' }, startup: { typeset: false, ready() { root.MathJax.startup.defaultReady(); root.MathJax.startup.promise.then(() => { try { document.head.append(root.MathJax.svgStylesheet()); } catch (e) { /* older build */ } done(root.MathJax); }); } } };
+      const s = document.createElement('script');
+      const local = document.getElementById('mathjax-src');
+      s.src = local && local.textContent.length > 1000 ? URL.createObjectURL(new Blob([local.textContent], { type: 'text/javascript' }))
+        : 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js';
+      s.async = true;
+      s.onerror = () => done(null);
+      document.head.append(s);
+      setTimeout(() => done(null), 15000);
+    });
+    return MJ;
+  }
+  function texInto(el, tex) {
+    el.textContent = tex; el.classList.add('tex-src'); el.setAttribute('data-tex', tex);
+    loadMathJax().then((M) => {
+      if (!M || !el.isConnected) return;
+      try { el.replaceChildren(M.tex2svg(tex, { display: true })); el.classList.remove('tex-src'); } catch (e) { /* keep the source */ }
+    });
+  }
+
+  // ---------------------------------------------------------------- the derivation (source of truth)
+  function epsText(world) {
+    const H = C.hyper[world] || {}, a = H.epsStart !== undefined ? H.epsStart : 1, b = H.epsEnd !== undefined ? H.epsEnd : 0.05;
+    return a === b ? String(a) : `${a} \\to ${b} \\text{ over the first } ${H.epsDecaySteps || 5000} \\text{ steps}`;
+  }
+  function texPg(p) {
+    const out = [];
+    const grp = p.group === 'same';
+    out.push(['collect', `\\tau_1, \\dots, \\tau_{${p.batch}} \\sim \\pi_\\theta${grp ? '\\ \\text{ from one prompt}' : ''}`]);
+    const G = p.baseline === 'group' || p.credit === 'total' ? 'R(\\tau)' : 'G_t';
+    if (p.baseline === 'group' || p.credit === 'total') out.push(['credit', 'R(\\tau) = \\textstyle\\sum_{k} \\gamma^{k} r_{k+1} \\quad \\text{(the whole episode, for every step)}']);
+    else out.push(['credit', 'G_t = \\textstyle\\sum_{k \\ge t} \\gamma^{k-t} r_{k+1} \\quad \\text{(only the rewards after step } t)']);
+    let A;
+    if (p.baseline === 'none') A = `A_t = ${G}`;
+    else if (p.baseline === 'avg') A = `A_t = ${G} - \\bar{G},\\quad \\bar{G} \\leftarrow \\bar{G} + 0.05\\,(G - \\bar{G})`;
+    else if (p.baseline === 'group') A = 'A_i = R(\\tau_i) - \\operatorname{mean}_j R(\\tau_j)';
+    else if (p.adv === 'mc') A = 'A_t = G_t - V_\\phi(s_t)';
+    else if (p.adv === 'td') A = 'A_t = r_{t+1} + \\gamma V_\\phi(s_{t+1}) - V_\\phi(s_t)';
+    else A = 'A_t = \\textstyle\\sum_k (\\gamma\\lambda)^k \\delta_{t+k},\\ \\ \\delta_t = r_{t+1} + \\gamma V_\\phi(s_{t+1}) - V_\\phi(s_t),\\ \\lambda = 0.95';
+    out.push(['weight', A]);
+    if (p.scale === 'std') out.push(['spread', p.baseline === 'group' ? 'A_i \\leftarrow A_i \\,/\\, \\operatorname{std}_j R(\\tau_j)' : 'A_t \\leftarrow (A_t - \\operatorname{mean} A) \\,/\\, \\operatorname{std} A']);
+    const r = '\\rho_t = \\frac{\\pi_\\theta(a_t \\mid s_t)}{\\pi_{\\text{old}}(a_t \\mid s_t)}';
+    // with one pass the ratio is 1 at the update, so the clip never binds (pg.js); show it only when it can act
+    const obj = p.ratio === 'clip' && p.epochs !== 1 ? '\\min\\big(\\rho_t A_t,\\ \\operatorname{clip}(\\rho_t, 0.8, 1.2)\\, A_t\\big)' : '\\rho_t A_t';
+    out.push(['update', `\\theta \\leftarrow \\theta + ${p.lr}\\, \\nabla_\\theta \\textstyle\\frac{1}{N}\\sum_t ${obj}${p.bonus ? ' + 0.01\\, H(\\pi_\\theta(\\cdot \\mid s_t))' : ''} \\quad \\times ${p.epochs} \\text{ pass${p.epochs > 1 ? 'es' : ''} (Adam)}`]);
+    out.push(['ratio', `${r}${p.epochs === 1 ? ' = 1 \\text{ at the only pass, so } \\nabla \\rho_t = \\nabla \\log \\pi_\\theta(a_t \\mid s_t)' : ''}`]);
+    if (p.baseline === 'critic') out.push(['critic', `V_\\phi(s_t) \\leftarrow \\text{regress to } ${p.adv === 'mc' ? 'G_t' : 'A_t + V_\\phi(s_t)'}`]);
+    return out;
+  }
+  function texAc(p, world) {
+    const out = [];
+    const crit = p.critics !== 'none', two = p.critics === 'two';
+    const Qmin = (s, a, bar) => (two ? `\\min_{j=1,2} ${bar ? '\\bar{Q}' : 'Q'}_j(${s}, ${a})` : `${bar ? '\\bar{Q}' : 'Q'}(${s}, ${a})`);
+    // the learner ignores chunking unless the policy copies, acts alone and takes one sample (ac.js)
+    const chunkIdle = ['q', 'qclose'].includes(p.aim) || p.base !== 'none' || p.pick !== 'one';
+    const K = p.chunk > 1 && !chunkIdle ? p.chunk : 1;
+    const aT = K > 1 ? `a_{t:t+${K - 1}}` : 'a_t';
+    let act;
+    if (p.head === 'det') act = `${aT} = \\tanh f_\\theta(s_t) + \\epsilon,\\ \\epsilon \\sim \\mathcal{N}(0, 0.1^2) \\text{ while learning}`;
+    else if (p.head === 'gauss') act = ['q', 'qclose'].includes(p.aim) ? `${aT} = \\tanh\\big(\\mu_\\theta(s_t) + \\sigma_\\theta(s_t)\\,\\epsilon\\big),\\ \\epsilon \\sim \\mathcal{N}(0, 1)` : `${aT} = \\tanh \\mu_\\theta(s_t) + \\sigma_\\theta(s_t)\\,\\epsilon`;
+    else act = `x_0 \\sim \\mathcal{N}(0, I),\\ \\ x_{k+1} = x_k + \\tfrac{1}{10} v_\\theta(s_t, x_k, \\tfrac{k}{10}),\\ \\ ${aT} = x_{10}`;
+    out.push(['act', act]);
+    if (K > 1) out.push(['chunk', `\\text{play } a_t, \\dots, a_{t+${K - 1}} \\text{ in order, then decide again}`]);
+    if (p.base === 'classical') out.push(['base', 'a = a_{\\text{classical}}(s) + 0.5\\, a_\\theta(s, a_{\\text{classical}})']);
+    if (crit && p.pick === 'best') out.push(['pick', `a^* = \\arg\\max_{a_i} ${Qmin('s', 'a_i')},\\ \\ a_1, \\dots, a_8 \\sim \\pi_\\theta(\\cdot \\mid s)`]);
+    if (crit && p.pick === 'qavg') out.push(['pick', `\\bar{a} = \\textstyle\\sum_i w_i a_i,\\ \\ w_i \\propto \\exp ${Qmin('s', 'a_i')},\\ \\ a_1, \\dots, a_8 \\sim \\pi_\\theta`]);
+    if (crit && p.pick === 'edit') out.push(['pick', `a^* = \\arg\\max_{a \\in \\{a_i,\\, a_i + \\hat a_i\\}} ${Qmin('s', 'a')},\\ \\ \\hat a_i \\sim \\pi_{\\text{edit}}(\\cdot \\mid s, a_i),\\ |\\hat a| \\le 0.3`]);
+    if (crit) {
+      const ent = p.head === 'gauss' && p.entropy !== 'none' && ['q', 'qclose'].includes(p.aim) && p.pick === 'one' ? ' - \\alpha \\log \\pi_\\theta(a\' \\mid s\')' : '';
+      const bar = p.target === 'slow';
+      if (p.next === 'expectile') out.push(['target', 'y = r + \\gamma\\, V_\\psi(s\')']);
+      else if (p.next === 'data') out.push(['target', `y = r + \\gamma\\, ${Qmin("s'", "a'_{\\text{mem}}", bar)},\\ \\ a'_{\\text{mem}} = \\text{the action really taken next in memory}`]);
+      else out.push(['target', `y = r + \\gamma \\big( ${Qmin("s'", "a'", bar)}${ent} \\big),\\ \\ a' ${p.pick !== 'one' ? '= \\text{the chosen action at } s\'' : '\\sim \\pi_\\theta(s\')'}${p.next === 'smooth' ? ' + \\operatorname{clip}(\\mathcal{N}(0, 0.2^2), \\pm 0.5)' : ''}`]);
+      out.push(['critic', `Q_j \\leftarrow \\text{min } \\big(Q_j(s, a) - y\\big)^2${p.penalty === 'cql' ? ' + \\big(\\log \\textstyle\\sum_{a\' \\in \\text{random, policy}} e^{Q_j(s, a\')} - Q_j(s, a)\\big)' : ''}`]);
+      if (p.next === 'expectile' || p.aim === 'weighted' || p.aim === 'cond') out.push(['value', `V_\\psi(s) \\leftarrow \\text{expectile } \\tau = ${p.next === 'expectile' ? '0.7' : '0.5'} \\text{ of } ${Qmin('s', 'a', bar)},\\ (s, a) \\text{ from the data}`]);
+      if (bar) out.push(['slow copy', '\\bar{Q}_j \\leftarrow \\bar{Q}_j + 0.005\\,(Q_j - \\bar{Q}_j)']);
+    } else if (p.aim === 'weighted' || p.aim === 'cond') out.push(['value', 'V_\\psi(s_t) \\leftarrow \\text{regress to } G_t \\text{ (the real discounted return that followed)}']);
+    const Adv = crit ? `${Qmin('s', 'a', p.target === 'slow')} - V_\\psi(s)` : 'G_t - V_\\psi(s_t)';
+    const like = p.head === 'flow' ? (w) => `\\min ${w}\\, \\big\\| v_\\theta(s, x_\\tau, \\tau) - (a - x_0) \\big\\|^2,\\ x_\\tau = (1-\\tau) x_0 + \\tau a` : (w) => `\\max ${w}\\log \\pi_\\theta(a \\mid s)`;
+    let pol = null;
+    // the entropy term is only paid by the bell-curve policy climbing the critic (ac.js useEntropy)
+    const entPol = p.head === 'gauss' && p.entropy !== 'none' && ['q', 'qclose'].includes(p.aim);
+    if (p.aim === 'q') pol = p.head === 'det' ? `\\max_\\theta Q_1\\big(s, \\pi_\\theta(s)\\big)` : `\\max_\\theta ${Qmin('s', '\\tilde a')}${entPol ? ' - \\alpha \\log \\pi_\\theta(\\tilde a \\mid s)' : ''},\\ \\tilde a \\sim \\pi_\\theta(s)`;
+    else if (p.aim === 'qclose') pol = '\\max_\\theta \\lambda\\, Q\\big(s, \\pi_\\theta(s)\\big) - \\big(\\pi_\\theta(s) - a\\big)^2,\\ \\lambda = 2.5 / \\operatorname{mean}|Q|';
+    else if (p.aim === 'copy') pol = like('');
+    else if (p.aim === 'copybest') pol = like('') + '\\ \\text{ on the top 25\\% of episodes}';
+    else if (p.aim === 'weighted') pol = like('e^{A / \\sigma_A}') + `,\\ A = ${Adv}`;
+    else if (p.aim === 'cond') pol = like('').replace('\\mid s)', '\\mid s, I)') + `,\\ I = \\mathbb{1}[A > \\text{top-30\\% cut}],\\ A = ${Adv}`;
+    else pol = '\\theta \\text{ frozen}';
+    out.push(['policy', pol]);
+    if (p.aim === 'cond') out.push(['acting', 'I = 1 \\text{ ("better than usual") whenever it acts}']);
+    if (p.pick === 'edit' && crit) out.push(['edit', '\\max\\ Q(s, a_i + \\hat a_i) - \\alpha \\log \\pi_{\\text{edit}}(\\hat a_i \\mid s, a_i)']);
+    return out;
+  }
+  function texLines(p, world) {
+    if (fam(p) === 'pg') return texPg(p, world);
+    if (fam(p) === 'ac') return texAc(p, world);
+    const out = [];
+    if (world === 'bandit') {
+      const bonus = p.ucb ? ' + c\\sqrt{\\ln t \\,/\\, N(a)}' : '';
+      out.push(['act', `a_t = \\arg\\max_a \\big[\\, Q(a)${bonus} \\,\\big]${p.ucb ? '\\quad \\text{(a machine never pulled goes first)}' : ''}`]);
+      if (p.eps) out.push(['explore', `\\text{with prob. } \\varepsilon = ${epsText(world)}\\text{: a random machine instead}`]);
+      if (p.optimistic) out.push(['start', 'Q_0(a) = 5']);
+      const st = p.step === 'avg' ? '\\tfrac{1}{N(a_t)}' : '\\alpha';
+      out.push(['update', `Q(a_t) \\leftarrow Q(a_t) + ${st}\\,\\big[\\, r_t - Q(a_t) \\,\\big]`]);
+      return out;
+    }
+    const n = p.nstep;
+    const twins = n !== 0 && (p.picker === 'second' || p.scorer === 'second' || p.scorer === 'minpair');
+    const live = twins ? 'Q_A' : 'Q', frozen = twins ? '\\bar{Q}_A' : '\\bar{Q}';
+    const E = (k) => (k === 'live' ? live : k === 'frozen' ? frozen : 'Q_B');
+    const qa = twins ? '\\tfrac12(Q_A+Q_B)' : 'Q';
+    out.push(['act', `a_t = \\arg\\max_a \\big[\\, ${qa}(s_t,a)${p.ucb ? ' + c\\sqrt{\\ln N(s_t) / N(s_t,a)}' : ''} \\,\\big]`]);
+    if (p.eps) out.push(['explore', `\\text{with prob. } \\varepsilon = ${epsText(world)}\\text{: a random action instead}`]);
+    if (p.optimistic) out.push(['start', 'Q_0(s,a) = 5']);
+    let rewards;
+    if (n === 0) rewards = 'r_{t+1} + \\gamma\\, r_{t+2} + \\dots + \\gamma^{T-t-1} r_T';
+    else if (n === 1) rewards = 'r_{t+1}';
+    else if (n === 2) rewards = 'r_{t+1} + \\gamma\\, r_{t+2}';
+    else rewards = `r_{t+1} + \\gamma\\, r_{t+2} + \\dots + \\gamma^{${n - 1}} r_{t+${n}}`;
+    if (n === 0) out.push(['target', `y = ${rewards} \\quad \\text{(no guess)}`]);
+    else {
+      const sN = `s_{t+${n}}`, aN = `a_{t+${n}}`, g = n === 1 ? '\\gamma' : `\\gamma^{${n}}`;
+      const score = (arg) => (p.scorer === 'minpair' ? `\\min\\big(Q_A(${sN},${arg}),\\, Q_B(${sN},${arg})\\big)` : `${E(p.scorer)}(${sN},${arg})`);
+      let G;
+      if (p.agg === 'taken') G = score(aN);
+      else if (p.agg === 'mean') G = `\\sum_{a'} \\pi(a' \\mid ${sN})\\, ${score("a'")}`;
+      else {
+        const op = p.agg === 'min' ? 'min' : 'max';
+        G = p.scorer !== 'minpair' && p.picker === p.scorer ? `\\${op}_{a'} ${E(p.scorer)}(${sN},a')` : score(`\\arg\\${op}_{a'} ${E(p.picker)}(${sN},a')`);
+      }
+      out.push(['target', `y = ${rewards} + ${g}\\, ${G}`]);
+      if (p.agg === 'mean') out.push(['policy', p.eps
+        ? `\\pi = 1-\\varepsilon+\\tfrac{\\varepsilon}{|A|} \\text{ on } \\arg\\max_{a'} ${E(p.picker)},\\ \\ \\tfrac{\\varepsilon}{|A|} \\text{ on each other action}\\ \\ (\\varepsilon = ${epsText(world)}, \\text{ as when it acts})`
+        : `\\pi = 1 \\text{ on } \\arg\\max_{a'} ${E(p.picker)},\\ 0 \\text{ on the others: it never acts at random, so the average is the best action (as in Q-learning)}`]);
+    }
+    const Lq = twins ? 'Q_A' : 'Q';
+    if (p.store === 'net') out.push(['update', twins
+      ? `\\theta_A \\leftarrow \\theta_A - \\eta\\, \\nabla_{\\theta_A} \\big(Q_A(s_t,a_t) - y\\big)^2 \\quad \\text{(Adam; } \\theta_A \\text{: the weights of } Q_A \\text{)}`
+      : `\\theta \\leftarrow \\theta - \\eta\\, \\nabla_\\theta \\big(Q_\\theta(s_t,a_t) - y\\big)^2 \\quad \\text{(Adam)}`]);
+    else { const st = p.step === 'avg' ? '\\tfrac{1}{N(s_t,a_t)}' : '\\alpha'; out.push(['update', `${Lq}(s_t,a_t) \\leftarrow ${Lq}(s_t,a_t) + ${st}\\,\\big[\\, y - ${Lq}(s_t,a_t) \\,\\big]`]); }
+    if (twins) out.push(['twins', '\\text{each update, a coin flip picks which twin is } Q_A \\text{ (it learns); the other is } Q_B']);
+    if (p.data === 'replay') {
+      const rs = n === 1 ? 'r_{t+1}' : n === 0 ? 'r_{t+1}, \\dots, r_T' : `r_{t+1}, \\dots, r_{t+${n}}`;
+      out.push(['data', `(s_t, a_t, ${rs}${n === 0 ? '' : `, s_{t+${n}}`}) \\text{ sampled from the last } ${p.memory} \\text{ moves, 32 at a time}`]);
+    }
+    if (n !== 0 && (p.picker === 'frozen' || p.scorer === 'frozen')) out.push(['frozen', `${twins ? '\\bar{Q}_A \\leftarrow Q_A,\\ \\bar{Q}_B \\leftarrow Q_B' : '\\bar{Q} \\leftarrow Q'} \\text{ every } ${p.sync} \\text{ updates}`]);
+    return out;
+  }
+
+  // ---------------------------------------------------------------- grouping: acting / target / fit / policy / copies / data
+  const GROUPS = [
+    ['acting', 'Acting: how actions are chosen'],
+    ['target', 'Target: what the estimate moves toward'],
+    ['fit', 'Fitting the estimates (critic / value)'],
+    ['policy', 'Policy update: how the behavior changes'],
+    ['copies', 'Frozen copies and twins'],
+    ['data', 'What it learns from'],
+    ['notes', 'Notes'],
+  ];
+  const GROUP = {
+    value: { act: 'acting', explore: 'acting', start: 'acting', target: 'target', policy: 'target', update: 'fit', data: 'data', frozen: 'copies', twins: 'copies' },
+    pg: { collect: 'data', credit: 'target', weight: 'target', spread: 'target', update: 'policy', ratio: 'policy', critic: 'fit' },
+    ac: { act: 'acting', chunk: 'acting', base: 'acting', pick: 'acting', edit: 'acting', acting: 'acting', target: 'target', critic: 'fit', value: 'fit', 'slow copy': 'copies', policy: 'policy' },
+  };
+  const groupOf = (f, label) => (GROUP[f] && GROUP[f][label]) || 'notes';
+
+  // ---------------------------------------------------------------- symbol legend and glossary
+  function legend(p, world, hyper) {
+    hyper = hyper || {};
+    return fam(p) === 'pg' ? 'π_θ: the policy (a network θ). τ: one episode. A: the weight of each action. ρ: how much more likely the action is now than when it was tried. H: entropy. V_φ: the critic. γ = ' + (RLA.worlds[world] ? (world === 'goalgrid' ? '1' : '0.99') : '0.99') + '.'
+      : fam(p) === 'ac' ? 'Q: a critic, the value of action a in state s. Q̄: its slow copy. V_ψ: the value of a state. π_θ: the policy. y: the target. γ = ' + (world === 'pendulum' ? '0.99' : '0.97') + '. α: the entropy weight. All networks learn with Adam, step size ' + (hyper.lr || 0.001) + ', batches of ' + (hyper.batch || 64) + '.'
+        : world === 'bandit' ? 't: the pull number, counting the pulls of all machines (1, 2, 3, ...). a_t: the machine pulled at pull t; r_t: its payout. Q(a): the estimate of machine a. N(a): how many times machine a was pulled so far. c = 2: the weight of the bonus for few pulls. α = 0.1: the step size.'
+          : 't: the step number inside the episode (0, 1, 2, ...). T: the last step of the episode. s_t, a_t: the state and the action at step t; r_{t+1}: the reward that follows. Q: live estimate. Q̄: frozen copy. Q_A, Q_B: the two twins. N(s), N(s,a): visits of state s, and tries of action a in it. c = 2. γ = ' + (world === 'mirage' ? '1' : '0.99') + ': discount. α = ' + ((C.hyper[world] || {}).lrTable || 0.1) + ': step size. y: target.';
+  }
+  // Short definitions for the symbols the player is least likely to know. Every entry is a symbol
+  // that actually appears in the derived lines above; nothing here is decorative.
+  function glossary(p, world) {
+    const f = fam(p);
+    const common = [
+      ['s, s′', 'a state now, and the state that follows it'],
+      ['a, a′', 'an action now, and the next action'],
+      ['r', 'the reward just seen'],
+      ['γ (gamma)', 'the discount, 0 to 1: how much a later reward counts compared with one now'],
+      ['y', 'the target: the value this update moves the estimate toward'],
+    ];
+    if (f === 'pg') return [
+      ['θ (theta)', 'the policy network\'s numbers (its weights); changing them changes the behavior'],
+      ['π_θ(a | s)', 'the policy: how likely action a is in state s'],
+      ['τ (tau)', 'one whole episode (a run from start to finish)'],
+      ['G_t', 'the return from step t: the discounted rewards after step t'],
+      ['R(τ)', 'the total discounted reward of a whole episode'],
+      ['A_t', 'the weight of an action: how much better it was than usual'],
+      ['ρ_t (rho)', 'how much more likely the action is now than when it was tried'],
+      ['V_φ(s)', 'the critic: a network that estimates how much a state is worth'],
+      ['H', 'entropy: how spread out and random the policy stays'],
+      ['∇_θ', 'the direction that raises the objective when the weights nudge that way'],
+    ];
+    if (f === 'ac') return [
+      ['π_θ(a | s)', 'the policy: how the action is chosen in state s'],
+      ['μ_θ, σ_θ', 'the policy\'s mean command and its spread (the bell curve it samples from)'],
+      ['ε (epsilon)', 'random noise from a standard bell curve, drawn fresh each time'],
+      ['Q_j(s, a)', 'critic j: a network that estimates the value of action a in state s'],
+      ['Q̄_j', 'a slow (frozen) copy of critic j, used only to build targets'],
+      ['V_ψ(s)', 'a network that estimates how much the state itself is worth (no action)'],
+      ['min_{j=1,2}', 'with two critics, use the smaller of the two estimates (pessimism)'],
+      ['α (alpha)', 'the entropy weight: how much the policy is paid for staying random'],
+      ['τ (tau)', 'the expectile level (how high an average) or the soft-update rate, as labelled'],
+      ['λ (lambda)', 'the scale that balances climbing the critic against staying near the data'],
+      ['tanh', 'squashes a command into the range −1 to 1'],
+    ];
+    return [
+      ['Q(s, a), Q(a)', 'the estimate of taking action a in state s (of machine a, in a casino)'],
+      ['Q̄', 'a frozen copy of the estimate, refreshed only every few updates'],
+      ['Q_A, Q_B', 'two twin estimates (used when one picks and the other scores)'],
+      ['N(s, a), N(a)', 'how many times this state-action (this machine) has been tried'],
+      ['α (alpha)', 'the step size: how far one update moves the estimate'],
+      ['ε (epsilon)', 'the chance of taking a random action instead of the best one'],
+      ['max / min over a′', 'the best (or worst) next action according to the estimate'],
+      ['π(a′ | s′)', 'how likely each next action is under the current behavior'],
+      ['n', 'how many real rewards are used before the guess'],
+    ];
+  }
+
+  // ---------------------------------------------------------------- what changed (plain language)
+  // Compare two configurations. Returns the changed words plus the labels of the equation lines whose
+  // math actually changed. A word that is idle in both states is not reported as a mathematical change.
+  function explain(prev, next, world) {
+    if (!prev) return null;
+    const f = fam(next);
+    const keys = world === 'bandit' && f === 'value' ? ['eps', 'ucb', 'optimistic', 'step'] : (C.families[f] ? C.families[f].keys : Object.keys(next));
+    const changed = [];
+    for (const k of keys) {
+      if (prev[k] === next[k]) continue;
+      const to = optOf(k, next[k]), from = optOf(k, prev[k]);
+      changed.push({ key: k, question: (W[k] && W[k].q) || k, from: wordText(k, prev[k]), to: wordText(k, next[k]), meaning: (to && to[2]) || '' });
+    }
+    const before = new Map(texLines(prev, world).map(([l, t]) => [l, t]));
+    const after = texLines(next, world);
+    const changedLines = [];
+    for (const [l, t] of after) if (!before.has(l) || before.get(l) !== t) changedLines.push(l);
+    for (const l of before.keys()) if (!after.some(([ll]) => ll === l)) changedLines.push(l);
+    return { changed, changedLines };
+  }
+
+  // ---------------------------------------------------------------- the component
+  function render(container, parts, world, opts) {
+    opts = opts || {};
+    const lines = texLines(parts, world);
+    const f = fam(parts);
+    const idle = idleWords(parts, world);
+    const highlight = opts.highlightLines || [];
+    const kids = [];
+    kids.push(h('p.math-title', { text: 'The math this sentence runs' }));
+
+    // group the lines, keeping their derivation order inside each group
+    const buckets = new Map();
+    for (const [label, tex] of lines) {
+      const g = groupOf(f, label);
+      if (!buckets.has(g)) buckets.set(g, []);
+      buckets.get(g).push([label, tex]);
+    }
+    for (const [g, title] of GROUPS) {
+      if (!buckets.has(g)) continue;
+      kids.push(h('p.math-group', { text: title }));
+      for (const [label, tex] of buckets.get(g)) {
+        const t = h('div.tex'); texInto(t, tex);
+        kids.push(h('div.mrow' + (highlight.includes(label) ? '.math-changed' : ''), { 'data-line': label }, [h('span.ml', { text: label }), t]));
+      }
+    }
+
+    // the plain-language explanation of the last change
+    if (opts.explain && opts.explain.changed && opts.explain.changed.length) {
+      const ex = opts.explain;
+      const box = h('div.math-explain', { role: 'status' });
+      box.append(h('p.math-explain-title', { text: ex.changedLines.length ? 'What changed in the math' : 'This change does not alter the math here' }));
+      for (const c of ex.changed) {
+        const why = idle[c.key];
+        box.append(h('p.math-explain-line', null, [h('b', { text: c.question + ': ' }), document.createTextNode(c.from + ' → ' + c.to + '. ' + c.meaning + (why ? ' No effect in this combination: ' + why : ''))]));
+      }
+      if (!ex.changedLines.length) {
+        const reasons = ex.changed.map((c) => idle[c.key]).filter(Boolean);
+        box.append(h('p.small', { text: reasons.length ? 'Reason: ' + reasons.join(' ') : 'No equation line depends on this word in the current combination.' }));
+      }
+      kids.push(box);
+    }
+
+    // options that do nothing in this combination
+    const idleKeys = Object.keys(idle);
+    if (idleKeys.length) {
+      kids.push(h('p.math-group', { text: 'No effect in this combination' }));
+      const ul = h('ul.math-idle');
+      for (const k of idleKeys) ul.append(h('li', null, [h('b', { text: wordText(k, parts[k]) + ': ' }), document.createTextNode(idle[k])]));
+      kids.push(ul);
+    }
+
+    kids.push(h('p.math-group', { text: 'Symbols' }));
+    kids.push(h('p.math-legend', { text: legend(parts, world, opts.hyper) }));
+    const dl = h('dl.math-gloss');
+    for (const [sym, def] of glossary(parts, world)) { dl.append(h('dt', { text: sym })); dl.append(h('dd', { text: def })); }
+    kids.push(dl);
+
+    container.replaceChildren(...kids);
+    // re-render any TeX that MathJax has not touched yet (replaceChildren above reset them)
+    return container;
+  }
+
+  function h(tag, attrs, kids) {
+    const m = tag.match(/^([a-z0-9]+)((?:\.[\w-]+)*)$/i);
+    const e = document.createElement(m ? m[1] : tag);
+    if (m && m[2]) e.className = m[2].slice(1).replace(/\./g, ' ');
+    if (attrs) for (const k in attrs) {
+      const v = attrs[k];
+      if (v == null || v === false) continue;
+      if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+      else if (k === 'html') e.innerHTML = v;
+      else if (k === 'text') e.textContent = v;
+      else if (k === 'style') e.style.cssText = v;
+      else e.setAttribute(k, v === true ? '' : v);
+    }
+    for (const c of [].concat(kids || [])) if (c != null && c !== false) e.append(c.nodeType ? c : document.createTextNode(String(c)));
+    return e;
+  }
+
+  // mount({ getParts, world, hyper, id }) -> { el, update(parts, world) }
+  // update() re-derives, highlights the changed lines briefly and explains the change. The component
+  // keeps its own previous render so it can diff; callers just call update() after any option change.
+  // The stable id is 'algorithm-math-panel'; pass id to set it (only the primary panel should).
+  function mount(opts) {
+    opts = opts || {};
+    const attrs = { 'aria-label': 'The update rule as equations' };
+    if (opts.id) attrs.id = opts.id;
+    const el = h('div.algorithm-math-panel', attrs);
+    const state = { prev: null, w: null, ex: null, hl: null, deadline: 0, timer: null };
+    function update(parts, world) {
+      const p = parts || (opts.getParts ? opts.getParts() : null);
+      const w = world || (opts.world ? opts.world() : null);
+      if (!p || !w) return;
+      // a family switch is not "changing one option": start fresh rather than diffing across families
+      const famChanged = state.prev && fam(state.prev) !== fam(p);
+      const ex = famChanged ? null : explain(state.prev, p, w);
+      if (famChanged) { state.ex = null; state.hl = null; }
+      if (ex && ex.changed && ex.changed.length) { state.ex = ex; state.hl = ex.changedLines; state.deadline = Date.now() + 2600; }
+      const highlight = (state.hl && Date.now() < state.deadline) ? state.hl : [];
+      render(el, p, w, { highlightLines: highlight, explain: state.ex, hyper: opts.hyper ? opts.hyper() : null });
+      state.prev = Object.assign({}, p);
+      // the highlight is brief: drop the class after its window, without disturbing the explanation
+      clearTimeout(state.timer);
+      if (highlight.length) {
+        state.timer = setTimeout(() => {
+          for (const r of el.querySelectorAll('.mrow.math-changed')) r.classList.remove('math-changed');
+        }, Math.max(0, state.deadline - Date.now()));
+      }
+    }
+    update();
+    return { el, update };
+  }
+
+  root.ALGO_MATH = {
+    mount, render, explain, lines: texLines, legend, glossary,
+    idleWords, idlePg, idleAc, groupOf, texInto, wordText, optOf,
+  };
+})(typeof window !== 'undefined' ? window : globalThis);
