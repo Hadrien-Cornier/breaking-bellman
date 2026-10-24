@@ -56,6 +56,8 @@ try {
     await page.locator('[data-zoom="methods"]').click();
     check(await page.locator('[data-node="slots"] .map-chips').innerText() === 'ε-greedy\nOptimism\nUCB', 'Methods shows approved named methods');
     check(await page.locator('.map-edge-label').count() === expected.edges.length, 'Methods explains every active link');
+    const mapWidth = await page.evaluate(() => ({ viewport: innerWidth, scroll: document.documentElement.scrollWidth }));
+    check(mapWidth.scroll <= mapWidth.viewport, name + ' Methods map fits viewport: ' + JSON.stringify(mapWidth));
     await page.screenshot({ path: path.join(out, name + '-methods.png'), fullPage: true });
     await page.reload();
     await page.locator('#campaign-logo').click();
