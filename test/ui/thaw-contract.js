@@ -1,0 +1,58 @@
+// Shared by the all-level matrix and the focused Thaw browser proof.
+module.exports = async function thawContract(page, proof, verify) {
+  const state = () => page.evaluate(() => ({ record: bellman.record(), replay: bellman.replay() }));
+  const frame = () => page.locator('#thaw-scene').evaluate(e => e.innerHTML);
+  let current = await state();
+  verify(current.record?.level === 'thaw' && !current.replay.stale, 'Thaw Run produces its measured record');
+  proof.record = current.record;
+  verify(!await page.locator('body').innerText().then(s => s.includes(current.record.id)), 'internal record id is not visible');
+  const surfaces = () => page.evaluate(() => [...document.querySelectorAll('#thaw-scene, #thaw-chart, #thaw-results, #thaw-evidence')].map(e => ({ id: e.id, run: e.dataset.run, stale: e.dataset.stale })));
+  verify((await surfaces()).length === 4 && (await surfaces()).every(e => e.run === current.record.id), 'scene, chart, results and evidence use one record');
+  const original = JSON.stringify(current.record);
+  const plotted = await page.locator('#thaw-chart path[data-policy]').evaluateAll(es => es.map(e => ({ name: e.dataset.policy, points: e.getAttribute('d').match(/[-+]?[0-9]*\.?[0-9]+(?:e[-+]?[0-9]+)?/gi).map(Number) })));
+  verify(plotted.length === 3 && plotted.every(p => p.points.length === 100 && current.record.series[p.name].every((s, i) => Math.abs((p.points[i * 2] - 32) / 5.3 - s.t) < 1e-10 && Math.abs((165 - p.points[i * 2 + 1]) / 80 - s.state.angle) < 1e-10)), 'all 50 plotted samples per named policy match the measured record');
+  for (let t = 0; t <= 50; t++) {
+    await page.locator('#thaw-scrub').fill(String(t));
+    const samples = await page.locator('#thaw-scene svg').evaluateAll(es => es.map(e => ({ policy: e.dataset.policy, angle: Number(e.dataset.angle) })));
+    verify(samples.every(s => s.angle === (t ? current.record.series[s.policy][t - 1].state.angle : 0)), 'all policies match measured state at replay step ' + t);
+  }
+  verify((await state()).replay.time === 50, 'last measured sample is reachable');
+  await page.locator('#thaw-replay').click(); const zero = await frame();
+  await page.locator('#thaw-step').click(); const one = await frame();
+  verify((await state()).replay.time === 1 && zero !== one, 'Step advances actual motion');
+  await page.locator('#thaw-watch').click();
+  await page.waitForFunction(() => bellman.replay().time >= 4);
+  await page.locator('#thaw-watch').click(); const paused = await frame();
+  await page.waitForTimeout(200);
+  verify(!((await state()).replay.watching) && paused === await frame(), 'Pause holds the exact recorded frame');
+  await page.locator('#thaw-replay').click(); verify(zero === await frame(), 'Replay resets deterministically');
+  await page.locator('#thaw-step').click(); verify(one === await frame(), 'draw is pure at the same record and time');
+  verify(JSON.stringify((await state()).record) === original, 'replay never mutates measured output');
+  await page.locator('#thaw-policy').selectOption('finetune');
+  verify(await page.locator('.thaw-policy:visible').count() === 1 && (await state()).replay.time === 1, 'named policy view preserves shared time');
+  await page.locator('#thaw-policy').selectOption('all');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.locator('#thaw-watch').click(); const reduced = await frame();
+  await page.waitForTimeout(200);
+  verify(!(await state()).replay.watching && reduced === await frame(), 'reduced motion uses a single measured step without autoplay');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  const targets = await page.locator('#thaw-lab button, #thaw-lab select, #thaw-lab input').evaluateAll(es => es.map(e => ({ width: e.getBoundingClientRect().width, height: e.getBoundingClientRect().height })));
+  verify(targets.every(x => x.width >= 44 && x.height >= 44), 'all scene controls meet 44px targets');
+  await page.locator('#thaw-budget').selectOption('20');
+  verify((await state()).replay.stale && await page.locator('#thaw-stale').isVisible(), 'budget change marks old record stale');
+  verify((await surfaces()).every(e => e.run === current.record.id && e.stale === 'true'), 'stale status propagates to every measured surface');
+  verify(await page.locator('#thaw-watch').isDisabled() && await page.locator('#thaw-run').isEnabled(), 'stale measurements require rerun');
+  await page.locator('#thaw-run').click();
+  await page.waitForFunction(() => bellman.record()?.settings.updates === 20 && !bellman.replay().stale);
+  const long = await state();
+  verify(long.record.id !== current.record.id && long.record.data.policies.scratch.fresh.attempts === 80, 'rerun measures 80 fresh attempts for each learning policy');
+  verify(long.record.metrics.scratch.terminalError < long.record.metrics.finetune.terminalError, 'long-budget final-error comparison is measured');
+  await page.locator('#thaw-inertia').selectOption('1');
+  verify((await state()).replay.stale, 'payload change invalidates the measured result');
+  await page.locator('#thaw-run').click();
+  await page.waitForFunction(() => bellman.record()?.settings.inertia === 1 && !bellman.replay().stale);
+  const light = await state();
+  verify(light.record.id !== long.record.id && light.record.metrics.frozen.endAngle !== long.record.metrics.frozen.endAngle, 'payload setting changes the real dynamics');
+  proof.long = long.record; proof.light = light.record;
+  proof.result = await page.locator('#thaw-results').textContent();
+};
