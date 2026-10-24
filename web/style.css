@@ -572,7 +572,10 @@ ul.preset-diff li { margin: 2px 0; }
 .layout:not(.lesson-shell) > .lab { position: static; max-height: none; overflow: visible; }
 .supporting-lab > .notebook-panel[hidden] { display: grid !important; }
 .supporting-lab { display: grid; gap: 16px; }
-@media (max-width: 600px) { .lesson-shell .stage { aspect-ratio: 16 / 9; } }
+@media (max-width: 600px) {
+  .lesson-shell .stage { aspect-ratio: 16 / 9; }
+  .drawer-workspace #algorithm-workspace { padding: 8px; }
+}
 /* Rare's measured hall stays readable without horizontal scrolling. */
 #rare-stage { display: block; width: 100%; height: auto; border-radius: 8px; }
 #rare-experiment, #rare-lesson { min-width: 0; }
@@ -594,7 +597,7 @@ ul.preset-diff li { margin: 2px 0; }
 .drawer-workspace #algorithm-workspace { gap: 8px; }
 .drawer-workspace #notebook { grid-column: 1 / -1; }
 .drawer-workspace #lesson-drawer { grid-column: 1 / -1; }
-.drawer-workspace .stage { height: auto; width: 100%; max-height: 230px; object-fit: contain; }
+.drawer-workspace .stage, .drawer-workspace.lesson-shell .stage { width: min(100%, calc(220px * 640 / 280)); max-width: 100%; height: auto; max-height: 220px; aspect-ratio: 640 / 280; }
 .drawer-workspace .chart { height: 130px; }
 .drawer-workspace #learning-monitor { gap: 8px; }
 .drawer-workspace .chart-title { font-size: .76rem; }
@@ -633,19 +636,22 @@ ul.preset-diff li { margin: 2px 0; }
 @media (min-width: 960px) {
   .drawer-workspace { grid-template-columns: minmax(320px, .7fr) minmax(0, 1.3fr); }
   .drawer-workspace #algorithm-workspace .w { min-height: 30px; padding: 1px 5px; }
-  .drawer-workspace #algorithm-workspace .sl { font-size: .84rem; line-height: 1.7; margin: 0; }
-  .drawer-workspace #algorithm-workspace .compound { padding: 4px 8px; }
+  .drawer-workspace #algorithm-workspace .sl { font-size: .84rem; line-height: 1.45; margin: 0; }
+  .drawer-workspace #algorithm-workspace .compound { padding: 2px 8px; }
   .drawer-workspace #algorithm-workspace .compound .big { font-size: 1rem; }
   .drawer-workspace #algorithm-workspace .preset { font-size: .78rem; }
   .drawer-workspace #algorithm-workspace select { min-height: 34px; max-width: 100%; }
 }
 
 @media (min-width: 960px) {
-  body:has(.drawer-workspace) .top { padding-block: 4px; }
+  body:has(.drawer-workspace) .top { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "brand tabs" "xp xp"; align-items: center; column-gap: 12px; padding-block: 2px 4px; }
+  body:has(.drawer-workspace) .top-row { grid-area: brand; }
   body:has(.drawer-workspace) .brand, body:has(.drawer-workspace) .brand canvas { width: 36px; height: 36px; flex-basis: 36px; }
-  body:has(.drawer-workspace) .tabs { margin-top: 4px; }
-  body:has(.drawer-workspace) .xpbar { margin-top: 4px; }
+  body:has(.drawer-workspace) .tabs { grid-area: tabs; margin-top: 0; justify-content: flex-end; }
+  body:has(.drawer-workspace) .xpbar { grid-area: xp; margin-top: 2px; }
+  body:has(.drawer-workspace) main.layout { margin-top: 8px; }
   .drawer-workspace .campaign-strip { padding-block: 2px; }
+  .drawer-workspace #algorithm-workspace { padding: 8px 10px; }
   .drawer-workspace #algorithm-workspace .preset-wrap { margin-block: 2px; }
 }
 @media (max-width: 959px) {

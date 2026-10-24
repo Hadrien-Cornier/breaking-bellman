@@ -3040,6 +3040,12 @@
       layout.dataset.workspaceKey = key;
       $('#notebook-rule').prepend($('#game-rules'));
     }
+    const stageBox = $('#stage').getBoundingClientRect();
+    const stageWidth = Math.round(stageBox.width), stageHeight = Math.round(stageBox.height);
+    if (stageWidth > 0 && stageHeight > 0 && (stageWidth !== stageW || stageHeight !== stageH)) {
+      stageW = stageWidth; stageH = stageHeight;
+      if (!S.running) renderStage();
+    }
     refreshSentences();
     if (!customActive()) renderRules();
     updateScore();
@@ -3076,7 +3082,7 @@
   });
   $('#copy-page-btn').addEventListener('click', copyPage);
   // redraw on a real width change only: phones fire resize when the address bar hides, and a redraw restarts the replay
-  let stageW = 0;
+  let stageW = 0, stageH = 0;
   window.addEventListener('resize', () => {
     const w = Math.round($('#stage').getBoundingClientRect().width);
     if (w === stageW) return;
