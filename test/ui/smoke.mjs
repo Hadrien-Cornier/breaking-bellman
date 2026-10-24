@@ -50,6 +50,8 @@ async function session(w, h, name, fn) {
   check(await page.locator('dialog.intro').isVisible(), name + ' first visit shows the welcome');
   await page.locator('dialog.intro button', { hasText: 'Start level 1' }).click();
   check(!(await page.locator('dialog.intro').count()), name + ' the welcome closes');
+  // Existing smoke scenarios exercise the original Slots entry by stable id.
+  await page.evaluate(() => bellman.level('slots'));
   await fn(page);
   const sw = await page.evaluate(() => document.documentElement.scrollWidth);
   check(sw <= w, name + ' no horizontal scroll (scrollWidth ' + sw + ', viewport ' + w + ')');
