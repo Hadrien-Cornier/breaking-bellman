@@ -27,6 +27,15 @@ const errors = [];
 const fails = [];
 const check = (cond, msg) => { if (!cond) fails.push(msg); console.log((cond ? 'ok   ' : 'FAIL ') + msg); };
 const runDone = (page) => page.waitForFunction(() => !document.querySelector('#run-btn').disabled && document.querySelector('#run-result').textContent.length > 0, null, { timeout: Number(process.env.BB_UI_RUN_TIMEOUT_MS) || 3600000 });
+async function setRun(page, values) {
+  await page.evaluate((v) => {
+    for (const [id, value] of Object.entries(v)) {
+      const el = document.getElementById(id);
+      el.value = String(value);
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }, values);
+}
 const fastRoot = new URL('../../fast/', import.meta.url);
 const { exact, hash, source, content } = require('../../scripts/fast-source.js');
 const fastVersion = hash(exact.stringify(source().versions));
@@ -48,7 +57,7 @@ async function session(w, h, name, fn) {
   await page.waitForTimeout(500);
   // a first visit opens the welcome dialog; it must close and leave level 1 ready
   check(await page.locator('dialog.intro').isVisible(), name + ' first visit shows the welcome');
-  await page.locator('dialog.intro button', { hasText: 'Start level 1' }).click();
+  await page.locator('dialog.intro button', { hasText: 'Open the campaign map' }).click();
   check(!(await page.locator('dialog.intro').count()), name + ' the welcome closes');
   // Existing smoke scenarios exercise the original Slots entry by stable id.
   await page.evaluate(() => bellman.level('slots'));
@@ -130,7 +139,7 @@ await session(1280, 900, 'desktop', async (page) => {
     return { combos, unique: seen.size, bad };
   });
   check(tex.unique > 100 && !tex.bad.length, 'the TeX of all ' + tex.combos + ' word combinations typesets (' + tex.unique + ' unique lines)' + (tex.bad.length ? ': ' + tex.bad.slice(0, 3).join(' | ') : ''));
-  await page.selectOption('#seeds', '1'); await page.selectOption('#budget', '10000');
+  await setRun(page, { seeds: '1', budget: '10000' });
   const t0 = Date.now();
   await page.click('#run-btn');
   await runDone(page);
@@ -267,7 +276,7 @@ await session(1280, 900, 'phases', async (page) => {
   await page.getByRole('tab', { name: 'Workbench' }).click();
   await page.selectOption('#wb-family', 'ac');
   await page.selectOption('#wb-world', 'pendulum');
-  await page.selectOption('#seeds', '1'); await page.selectOption('#budget', '6000');
+  await setRun(page, { seeds: '1', budget: '6000' });
   let t0 = Date.now();
   await page.click('#run-btn');
   await runDone(page);
@@ -283,7 +292,7 @@ await session(1280, 900, 'phases', async (page) => {
   await setWord(page, '#mode-pane', 'source', 'a fixed dataset only');
   await setWord(page, '#mode-pane', 'aim', 'copy the actions in memory');
   await setWord(page, '#mode-pane', 'head', 'noise turned into an action');
-  await page.selectOption('#seeds', '1'); await page.selectOption('#budget', '2000');
+  await setRun(page, { seeds: '1', budget: '2000' });
   t0 = Date.now();
   await page.click('#run-btn');
   await runDone(page);
@@ -380,7 +389,7 @@ await session(375, 812, 'phone-frontier', async (page) => {
       terminate() { for (const timer of this.timers) clearTimeout(timer); }
     };
   });
-  await page.selectOption('#run-mode', 'live');
+  await setRun(page, { 'run-mode': 'live' });
   const frontierRun = page.locator('[data-campaign-run="pick"]');
   await frontierRun.click();
   check(await frontierRun.isDisabled(), 'mud level disables its campaign run button as training starts');
@@ -449,7 +458,7 @@ await session(375, 812, 'expert', async (page) => {
   await page.getByRole('tab', { name: 'Workbench' }).click();
   await page.selectOption('#wb-world', 'cliff');
   await setWord(page, '#mode-pane', 'agg', 'the worst next action');
-  await page.selectOption('#seeds', '5');
+  await setRun(page, { seeds: '5' });
   await page.click('#run-btn');
   await runDone(page);
   console.log('cliff worst next action:', await page.locator('#run-result').innerText());

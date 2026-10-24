@@ -26,7 +26,7 @@
   <section class="pane" id="mode-pane" aria-live="polite"></section>
   <aside class="pane lab" id="lab" aria-label="Lab">
 
-    <div class="card">
+    <div class="card" id="stage-card">
       <div class="row" style="justify-content: space-between">
         <div class="eyebrow" id="lab-world">World</div>
         <span class="tag sim" title="Every curve comes from the game's simulation engine">Simulation</span>
@@ -46,16 +46,25 @@
     <div class="card" id="run-settings">
       <div class="row">
         <button class="btn" id="run-btn">Run</button>
-        <label class="small" for="seeds">Seeds</label>
-        <select id="seeds"><option>1</option><option selected>3</option><option>5</option></select>
-        <label class="small" for="budget">Steps</label>
-        <select id="budget"></select>
-        <label class="small" for="run-mode">Run mode</label>
-        <select id="run-mode"><option value="fast" selected>Fast (reuse exact results)</option><option value="live">Live (train fresh)</option></select>
       </div>
-      <p class="small muted" id="run-source" aria-live="polite">Live simulation: trains in this page.</p>
+      <div class="run-advanced" hidden>
+        <label class="small" for="seeds">Seeds</label>
+        <select id="seeds" tabindex="-1"><option>1</option><option selected>3</option><option>5</option></select>
+        <label class="small" for="budget">Steps</label>
+        <select id="budget" tabindex="-1"></select>
+        <label class="small" for="run-mode">Run mode</label>
+        <select id="run-mode" tabindex="-1"><option value="fast" selected>Fast (reuse exact results)</option><option value="live">Live (train fresh)</option></select>
+      </div>
+      <p class="small muted" id="run-source" aria-live="polite">Run uses the lesson defaults and reuses an exact stored result when one exists.</p>
       <div class="progress"><i id="prog"></i></div>
       <p class="small" id="run-result" aria-live="polite"></p>
+    </div>
+    <div class="card" id="rule-card">
+      <div class="eyebrow">The update rule: tap a word to change it</div>
+      <div id="rule"></div>
+    </div>
+    <div class="card" id="lab-curve">
+      <div id="charts"></div>
     </div>
   </aside>
   <aside class="pane lab" id="vpo-lab" aria-label="Comparison lesson lab" hidden></aside>
@@ -69,14 +78,13 @@
     </div>
     <section class="notebook-panel" role="tabpanel" tabindex="0" id="notebook-rule" data-notebook-panel="rule" aria-labelledby="notebook-tab-rule">
       <section class="game-rules" id="game-rules" aria-label="Game rules"></section>
-      <div class="eyebrow">The update rule: tap a word to change it</div>
-      <div id="rule"></div>
+      <p class="small" id="rule-notebook-note">The update rule and its equations sit with the world.</p>
       <details class="card-details" id="grid-card"><summary>Try every combination</summary><div id="grid-lab"></div></details>
     </section>
     <section class="notebook-panel" role="tabpanel" tabindex="0" id="notebook-curve" data-notebook-panel="curve" aria-labelledby="notebook-tab-curve" hidden>
       <div class="stack" id="compare"></div>
       <div class="card wonder" id="wonder" hidden></div>
-      <div class="card measured-charts" id="charts"></div>
+      <p class="small" id="curve-notebook-note">The learning curve sits with the world. It stays empty until Run records measurements.</p>
     </section>
     <section class="notebook-panel" role="tabpanel" tabindex="0" id="notebook-autopsy" data-notebook-panel="autopsy" aria-labelledby="notebook-tab-autopsy" hidden>
       <div class="symptoms" id="symptoms"><p class="small">No run yet.</p></div>

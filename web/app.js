@@ -341,6 +341,16 @@
   // ---------------------------------------------------------------- charts (canvas, own scales)
   function setupCanvas(cv) {
     const dpr = window.devicePixelRatio || 1, r = cv.getBoundingClientRect();
+    if (cv.classList.contains('stage') && window.BBPLAYER) {
+      const hidden = !!(cv.closest('[hidden]') || r.width < 2 || r.height < 2);
+      const ratio = window.BBPLAYER.aspectRatio(getComputedStyle(cv).aspectRatio, cv.width, cv.height);
+      const box = window.BBPLAYER.stageBitmap(r.width, r.height, ratio, hidden);
+      const ctx = cv.getContext('2d');
+      if (!box) { ctx.setTransform(1, 0, 0, 1, 0, 0); return { ctx, w: cv.width, h: cv.height, held: true }; }
+      cv.width = Math.round(box.w * dpr); cv.height = Math.round(box.h * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { ctx, w: box.w, h: box.h };
+    }
     const w = Math.max(200, r.width), hgt = r.height || 180;
     cv.width = Math.round(w * dpr); cv.height = Math.round(hgt * dpr);
     const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -451,6 +461,7 @@
       const c = curvesOf(S.results, S.world).main;
       lineChart($('#ch-main'), aSer(A && A.curves.main).concat([{ xs: c.xs, ys: c.ys, color: ink, width: 2.2, end: true, label: 'this run' }]),
         { xmax: isB ? Math.max(c.xs.length, A ? A.curves.main.xs.length : 0) : 100, ymin: 0, ymax: 1, ref: isB ? null : 0.05, xlabel: isB ? 'pulls' : "share of each run's episodes (%)" });
+      plotLoss(box, partials, pol);
       return;
     }
     const F = fam(S.lastCfg ? S.lastCfg.parts : S.parts), P_ = S.lastCfg ? S.lastCfg.parts : S.parts;
@@ -526,6 +537,33 @@
       lineChart($('#ch-qq'), [{ xs: md.xs, ys: md.ys, color: val, width: 2, end: true, label: 'actions in memory' }, { xs: mp.xs, ys: mp.ys, color: pol, width: 2, end: true, label: "policy's actions" }],
         { xmax, ymin: Math.min(0, ...vals), ymax: Math.max(0.1, ...vals), xlabel });
     }
+    plotLoss(box, partials, pol);
+  }
+  function plotLoss(box, partials, color) {
+    const series = (partials || []).map((p, i) => {
+      const d = (p.diag || []).filter((x) => Number.isFinite(x.loss));
+      return { xs: d.map((x) => x.t), ys: d.map((x) => x.loss), color, width: 1.3, label: 'seed ' + (i + 1) };
+    }).filter((s) => s.xs.length);
+    const note = document.getElementById('loss-note');
+    if (!series.length) {
+      if (!document.getElementById('ch-loss') && !note) box.append(h('p.chart-empty', { id: 'loss-note', text: 'No training loss was recorded. The score curve is the learning measure, and it is not relabeled as loss.' }));
+      return;
+    }
+    if (note) note.remove();
+    let canvas = document.getElementById('ch-loss');
+    if (!canvas) { box.append(chartBox('ch-loss', 'Training loss (squared update error)', [[color, 'each seed']])); canvas = document.getElementById('ch-loss'); }
+    const ys = series.flatMap((s) => s.ys).filter(Number.isFinite);
+    const xmax = Math.max(1, ...series.flatMap((s) => s.xs));
+    lineChart(canvas, series, { xmax, ymin: Math.min(0, ...ys), ymax: Math.max(1e-6, ...ys), xlabel: 'updates' });
+  }
+  function showEmptyCharts() {
+    const box = $('#charts');
+    if (!box) return;
+    const rows = window.BBPLAYER ? window.BBPLAYER.emptyCurves(S.world, fam(S.parts)) : [{ title: 'Learning curve', status: 'No measurements yet.' }];
+    box.replaceChildren(...rows.map((row) => h('div.chart-wrap', null, [
+      h('div.chart-title', null, [h('b', { text: row.title })]),
+      h('p.chart-empty', { role: 'status', text: row.status }),
+    ])));
   }
 
   // ---------------------------------------------------------------- stage (the world, replaying a trained policy)
@@ -925,7 +963,8 @@
     delete cv.dataset.world; delete cv.dataset.frame; delete cv.dataset.interactive; cv.onclick = null;
     $('#scene-policy').textContent = ''; $('#scene-seed').replaceChildren(); $('#run-source').textContent = '';
     $('#run-result').textContent = ''; $('#expert-card').hidden = true; $('#wonder').hidden = true;
-    $('#charts').replaceChildren(h('p.small', { text: 'Curves appear here while a run trains.' }));
+    if (typeof showEmptyCharts === 'function') showEmptyCharts();
+    else $('#charts').replaceChildren(h('p.small', { text: 'Curves appear here while a run trains.' }));
     $('#symptoms').replaceChildren(h('p.small', { text: 'No run yet.' }));
   }
   function showRunPending() {
@@ -1905,9 +1944,34 @@
     dropRun(); S.world = w; S.knobs = Object.assign({}, knobs || {});
     budgetOptions(); renderStage(); renderAutopsy(); refreshSentences(); drawCompare(); drawGrid();
     $('#run-result').textContent = '';
-    $('#charts').replaceChildren(h('p.small', { text: 'Curves appear here while a run trains.' }));
+    showEmptyCharts();
   }
   function setParts(p) { const f0 = fam(S.parts); S.parts = C.cfg(p || {}); if (fam(S.parts) !== f0) budgetOptions(); onPartsChanged(); }
+
+  function predictionMount(q, onAnswer, title, current) {
+    if (!window.BBPLAYER || typeof document === 'undefined') return mcBlock(q, onAnswer);
+    const reopen = h('button.btn', { type: 'button', 'data-prediction': q.id }, S.answers[q.id] ? 'Review the prediction' : 'Show the prediction');
+    const open = () => {
+      const node = mcBlock(q, (choice) => {
+        window.BBPLAYER.closePrediction(false);
+        onAnswer(choice);
+        const run = $('#run-btn');
+        if (run) run.focus();
+      });
+      window.BBPLAYER.openPrediction({
+        title: title || 'Predict before you run',
+        node,
+        anchor: $('#stage-card') || $('#lab'),
+        returnLabel: 'Back to the experiment',
+      });
+    };
+    reopen.addEventListener('click', open);
+    if (current && !S.answers[q.id] && window.BBPLAYER.claimPrediction(q.id)) queueMicrotask(open);
+    return h('div.prediction-launch', null, [
+      h('p', { text: 'The question opens on the scene, so the world stays in view while you answer.' }),
+      reopen,
+    ]);
+  }
 
   const MODES = {};
   const shell = BB.shell.notebook($('#notebook'), section => {
@@ -1918,8 +1982,7 @@
   const customShell = BB.shell.notebook(customNotebook);
   let notebookLevel = null;
 
-  let mapOpen = !C.levels.some(l => l.id === S.level);
-  if (mapOpen) S.mode = 'campaign';
+  let mapOpen = window.BBPLAYER ? window.BBPLAYER.mapOnEntry(S.mode) : S.mode === 'campaign';
   const campaignMap = BBCAMPAIGN.create({ h, C, S, choose: chooseLevel, show: showMap,
     saveActions: () => h('div.row.savebar', null, [
       h('span.small', { text: 'Progress saves in this browser.' }),
@@ -2022,14 +2085,15 @@
     const steps = h('div.steps');
     const mk = (i, title, body) => h('div.step' + (st === i ? '.active' : st > i ? '.done' : ''), null, [h('span.num', { text: 'Step ' + (i + 1) }), h('h3', { text: title }), body]);
 
-    steps.append(mk(0, 'Predict before you run', mcBlock(lv.predict, () => setStep(lv, 1))));
+    const ask = typeof predictionMount === 'function' ? predictionMount : mcBlock;
+    steps.append(mk(0, 'Predict before you run', ask(lv.predict, () => setStep(lv, 1), 'Predict before you run', st === 0)));
     if (st >= 1) steps.append(mk(1, 'Run it', h('div.stack', null, [
       h('p', { html: lv.runText }),
       campaignRunRow(lv),
     ])));
     if (st >= 2) steps.append(mk(2, 'Diagnose', h('div.stack', null, [
       h('button.btn.ghost', { type: 'button', onclick: () => { $('#replay-lab').closest('details').open = true; shell.open('autopsy'); } }, 'Watch one update of this sentence'),
-      mcBlock(lv.diagnose, () => setStep(lv, 3)),
+      ask(lv.diagnose, () => setStep(lv, 3), 'Diagnose what happened', st === 2),
     ])));
     if (st >= 3) {
       const status = h('p.small', { text: 'Tap a word to see the choices. Words in a dashed box do nothing in this sentence.' });
@@ -2920,7 +2984,11 @@
 
   // first visit: what this is, in four lines
   function showIntro() {
-    const close = (mode) => { S.intro = 1; save(); dlg.close(); dlg.remove(); if (mode && mode !== S.mode) { S.mode = mode; save(); if (mode === 'campaign') enterLevel(C.levels.find((l) => l.id === S.level) || C.levels[0]); render(); } };
+    const close = (mode) => {
+      S.intro = 1; save(); dlg.close(); dlg.remove();
+      if (mode === 'campaign') { mapOpen = true; S.mode = 'campaign'; save(); render(); return; }
+      if (mode && mode !== S.mode) { S.mode = mode; save(); render(); }
+    };
     const step = (n, t, d) => h('li', null, [h('span.num', { text: n }), h('div', null, [h('b', { text: t }), h('p.small', { text: d })])]);
     const dlg = h('dialog.intro', { 'aria-label': 'Welcome' }, [h('div.stack', null, [
       h('div.eyebrow', { text: 'A small game about reinforcement learning' }),
@@ -2932,14 +3000,33 @@
         step('3', 'Fix', 'Change one word of its update rule. Get it right and you have reinvented a published method.'),
       ]),
       h('p.small', { text: C.levels.length + ' levels, any order. Progress saves in this browser; Settings has a save file you can take anywhere. No account, no server. The AI tutor is optional.' }),
-      h('div.row', null, [h('button.btn', { type: 'button', onclick: () => close('campaign') }, 'Start level 1'), h('button.btn.ghost', { type: 'button', onclick: () => close('workbench') }, 'Open the workbench')]),
+      h('div.row', null, [h('button.btn', { type: 'button', onclick: () => close('campaign') }, 'Open the campaign map'), h('button.btn.ghost', { type: 'button', onclick: () => close('workbench') }, 'Open the workbench')]),
     ])]);
     dlg.addEventListener('cancel', () => { S.intro = 1; save(); });
     document.body.append(dlg); dlg.showModal();
   }
 
   // ---------------------------------------------------------------- top level
+  function placeSharedExperiment(campaign) {
+    const rule = $('#rule-card'), curve = $('#lab-curve');
+    if (!rule || !curve) return;
+    const standard = campaign && !customActive();
+    if (standard) {
+      const run = $('#run-settings'), lab = $('#lab');
+      if (run && rule.previousElementSibling !== run) run.after(rule);
+      if (lab && curve.parentElement !== lab) lab.append(curve);
+      rule.hidden = false; curve.hidden = false;
+    } else {
+      const rulePanel = $('#notebook-rule'), curvePanel = $('#notebook-curve');
+      if (rulePanel && rule.parentElement !== rulePanel) rulePanel.append(rule);
+      if (curvePanel && curve.parentElement !== curvePanel) curvePanel.append(curve);
+    }
+    const ruleNote = $('#rule-notebook-note'), curveNote = $('#curve-notebook-note');
+    if (ruleNote) ruleNote.hidden = rule.parentElement === $('#notebook-rule');
+    if (curveNote) curveNote.hidden = curve.parentElement === $('#notebook-curve');
+  }
   function render() {
+    if (window.BBPLAYER) window.BBPLAYER.closePrediction(false);
     const oldStrip = document.getElementById('campaign-strip');
     if (oldStrip) oldStrip.remove();
     const oldBackup = document.getElementById('reward-backup');
@@ -2973,7 +3060,7 @@
     const campaign = S.mode === 'campaign' && !mapping;
     const layout = document.querySelector('main.layout');
     layout.classList.toggle('lesson-shell', campaign);
-    $('#run-btn').classList.toggle('ghost', campaign);
+    placeSharedExperiment(campaign);
     // DOM, visual and keyboard order agree: map, measured scene, teaching step, Notebook.
     if (campaign) layout.insertBefore(customActive() ? $('#vpo-lab') : $('#lab'), pane);
     else layout.prepend(pane);
@@ -2995,6 +3082,7 @@
     MODES[S.mode](pane);
     refreshSentences();
     if (!customActive()) renderRules();
+    if (!S.running && !S.results.length && !customActive()) showEmptyCharts();
     updateScore();
   }
   $$('#tabs button').forEach((b) => b.addEventListener('click', () => {
@@ -3037,6 +3125,18 @@
     if (S.results.length) renderCharts(S.results.map((r) => ({ evals: r.evals, diag: r.diag })), true);
     renderStage();
   });
+  let stageFitting = false;
+  if (window.ResizeObserver) new ResizeObserver(() => {
+    if (stageFitting) return;
+    const cv = $('#stage');
+    if (!cv || cv.closest('[hidden]')) return;
+    const rect = cv.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) return;
+    const dpr = window.devicePixelRatio || 1;
+    if (Math.abs(cv.width - Math.round(rect.width * dpr)) < 2 && Math.abs(cv.height - Math.round(rect.height * dpr)) < 2) return;
+    stageFitting = true;
+    try { renderStage(); } finally { stageFitting = false; }
+  }).observe($('#stage'));
 
   // the lab's own sentence (always present)
   $('#rule').append(mountSentence({ getParts: () => S.parts, setPart: setMainPart, world: () => S.world, focus: () => (S.mode === 'campaign' ? S.focus || [] : []), withName: true, withMath: true, mathId: 'algorithm-math-panel', permanent: true, preset: true }));
@@ -3067,5 +3167,5 @@
     };
     window.ALGO_HELP.installAuto(document.body);
   }
-  if (!S.intro && !mapOpen) showIntro();
+  if (!S.intro && S.mode === 'campaign') showIntro();
 })();

@@ -74,8 +74,9 @@ async function replayContract(page, proof, verify) {
   fs.writeFileSync(path.join(out, proof.name + '-run.json.gz'), gzipSync(exactBefore));
   if (!await page.locator('#notebook').evaluate(e => e.open)) await page.locator('#notebook > summary').click();
   await page.locator('#notebook-tab-rule').click();
-  const dimensions = await page.locator('#scene-controls button, #scene-seed, #run-btn, #seeds, #budget, #run-mode, #rule .w').evaluateAll(es => es.map(e => ({ id: e.id, w: e.getBoundingClientRect().width, h: e.getBoundingClientRect().height })));
-  verify(dimensions.every(d => d.w >= 44 && d.h >= 44), 'Run, replay and result settings have 44px touch targets');
+  const dimensions = await page.locator('#scene-controls button, #scene-seed, #run-btn, #rule .w').evaluateAll(es => es.map(e => ({ id: e.id, w: e.getBoundingClientRect().width, h: e.getBoundingClientRect().height })));
+  verify(dimensions.every(d => d.w >= 44 && d.h >= 44), 'Run, replay and sentence controls have 44px touch targets');
+  verify(await page.locator('.run-advanced').evaluate(e => e.hidden === true), 'Seeds, steps and run mode stay out of view');
   await page.locator('#notebook > summary').click();
   await page.locator('#scene-replay').click();
   const zero = await frame();
@@ -101,7 +102,7 @@ async function replayContract(page, proof, verify) {
   verify(!(await status()).state.watching && await frame() === reduced, 'reduced motion does not autoplay');
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   const nextSeeds = await page.locator('#seeds').evaluate(e => [...e.options].find(o => o.value !== e.value).value);
-  await page.locator('#seeds').selectOption(nextSeeds);
+  await page.locator('#seeds').evaluate((e, value) => { e.value = value; e.dispatchEvent(new Event('change', { bubbles: true })); }, nextSeeds);
   const stale = await status();
   verify(stale.id === first.id && stale.state.stale && stale.linked, 'changed settings retain and mark the previous record stale on every surface');
   verify(await page.locator('#run-stale').isVisible() && await page.locator('#run-btn').isEnabled(), 'stale notice explains rerun and Run is enabled');
@@ -230,7 +231,7 @@ try {
         const verify = (ok, text) => { record.checks.push({ text, passed: !!ok }); check(ok, name + ': ' + text); };
         try {
           await seed(page, progress === 'newer' ? fixture : null);
-          if (await page.locator('dialog.intro').count()) await page.locator('dialog.intro button', { hasText: 'Start level 1' }).click();
+          if (await page.locator('dialog.intro').count()) await page.locator('dialog.intro button', { hasText: 'Open the campaign map' }).click();
           // Public API selects by stable id; it uses the same save/enter/render path as the map.
           await page.evaluate(id => bellman.level(id), id);
           const precedence = await page.evaluate(() => {

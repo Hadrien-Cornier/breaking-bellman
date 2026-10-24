@@ -491,8 +491,10 @@ ul.preset-diff li { margin: 2px 0; }
 .map-node.next .map-coin { outline: 3px solid var(--world-color); outline-offset: 6px; }
 .map-node.next > small { color: var(--accent); font-weight: 700; }
 .map-rover { position: absolute; width: 60px; height: 60px; top: -12px; left: calc(50% - 100px); pointer-events: none; }
-.map-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
-.map-node .chip { font-size: .72rem; padding: 3px 6px; }
+.map-chips { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; }
+.map-chips > .chip { display: inline-flex; align-items: center; justify-content: center; min-height: 32px; padding: 6px 10px; line-height: 1.2; white-space: nowrap; }
+.map-node .chip { font-size: .72rem; padding: 6px 8px; }
+.map-brief .map-chips button.algo-name, .map-node .map-chips button.algo-name { min-height: 0; min-width: 0; padding: 0; line-height: inherit; }
 .map-failure { border-style: dashed; }
 .map-edge-label { background: var(--bg); padding: 2px 4px; border-radius: 4px; }
 .map-edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
@@ -563,9 +565,43 @@ ul.preset-diff li { margin: 2px 0; }
 .concept-sketch figcaption { color: var(--muted); font-size: .82rem; }
 .notebook :is(button, select, summary), .lesson-shell :is(button, select, summary), .lesson-shell input[type='range'] { min-height: 44px; min-width: 44px; }
 @media (min-width: 960px) {
-  .lesson-shell > #lab, .lesson-shell > #vpo-lab { grid-column: 1; grid-row: 2; }
-  .lesson-shell > #mode-pane { grid-column: 2; grid-row: 2; }
+  .lesson-shell:not(:has(#lab[hidden])) {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.95fr);
+    grid-template-areas:
+      "strip strip"
+      "world curve"
+      "algo algo"
+      "run run"
+      "teach teach"
+      "notes notes";
+  }
+  .lesson-shell:not(:has(#lab[hidden])) > #lab { display: contents; }
+  .lesson-shell:not(:has(#lab[hidden])) > #campaign-strip { grid-area: strip; }
+  .lesson-shell:not(:has(#lab[hidden])) #stage-card { grid-area: world; align-self: start; }
+  .lesson-shell:not(:has(#lab[hidden])) #lab-curve { grid-area: curve; align-self: stretch; min-width: 0; }
+  .lesson-shell:not(:has(#lab[hidden])) #rule-card { grid-area: algo; min-width: 0; }
+  .lesson-shell:not(:has(#lab[hidden])) #run-settings { grid-area: run; }
+  .lesson-shell:not(:has(#lab[hidden])) > #mode-pane { grid-area: teach; }
+  .lesson-shell:not(:has(#lab[hidden])) > #notebook { grid-area: notes; }
+  .lesson-shell:not(:has(#lab[hidden])) .stage { width: 100%; height: auto; }
+  .lesson-shell:not(:has(#lab[hidden])) #lab-curve .chart { height: 150px; }
+  .lesson-shell:has(#lab[hidden]) > #vpo-lab { grid-column: 1; grid-row: 2; }
+  .lesson-shell:has(#lab[hidden]) > #mode-pane { grid-column: 2; grid-row: 2; }
 }
+#stage-card { position: relative; }
+.run-advanced[hidden] { display: none !important; }
+.prediction-pop {
+  position: absolute; inset: auto 10px 10px 10px; width: auto; max-width: none; height: fit-content;
+  max-height: min(58%, 300px); margin: 0; overflow: auto; z-index: 6;
+  border: 1px solid var(--line); border-radius: 12px; padding: 12px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent); color: var(--ink);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.28);
+}
+.prediction-pop::backdrop { background: transparent; }
+.prediction-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.prediction-head h3 { font-size: 1rem; }
+.prediction-body { display: grid; gap: 8px; margin-top: 8px; }
+.chart-empty { min-height: 72px; margin: 0; }
 /* Other modes retain their complete lab controls and diagnostics. */
 .supporting-lab > :is(summary, .notebook-tabs) { display: none; }
 /* The full-width supporting Notebook follows this row; the lab must not cover it on scroll. */
