@@ -584,28 +584,38 @@ ul.preset-diff li { margin: 2px 0; }
 @media (max-width: 500px) { .rare-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* ===== Variant E: the three-zone studio =====
-   Three coordinated zones at desktop width: (1) the world with Run and the live learning curve,
+   Three coordinated zones: (1) the world with Run and the live learning curve,
    (2) the editable update-rule sentence with its equations, (3) the lesson and the optional
-   Notebook. Zones 1 and 2 stay pinned beside the scrolling lesson so the world, the algorithm,
-   Run and the curve are always on screen together. Below 1000px the studio collapses to one
-   compact column: world and Run directly above the editable algorithm, then the lesson. */
+   Notebook. On a tall desktop the lesson sits in a third column. On a short desktop the lesson
+   drops below so the world, Run, the sentence and the curve stay on screen together.
+   Below 1000px the studio is one column: world and Run, then the editable algorithm, then the lesson. */
 :root { --sticky-top: 132px; }
-.studio-algo { min-width: 0; }
-.studio-algo .card { gap: 12px; }
-.algorithm-math-reserved { min-height: 132px; align-content: start; }
-.algorithm-math-reserved:not(:has(.algorithm-math-panel)) { background: var(--sunk); border-style: dashed; }
-.learn-chart { height: 152px; }
+.studio-algo { min-width: 0; container-type: inline-size; }
+.studio-algo .card { gap: 10px; }
+.studio-algo .w { min-height: 34px; }
+.algorithm-math-reserved { min-height: 0; align-content: start; }
+.algorithm-math-reserved:not(:has(.algorithm-math-panel)) { background: var(--sunk); border-style: dashed; min-height: 88px; }
+.learn-chart { height: 128px; }
 #learn-note { overflow-wrap: anywhere; }
 .run-options { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 6px 10px; }
 .run-options > summary { cursor: pointer; font-weight: 600; font-size: 0.85rem; min-height: 32px; display: flex; align-items: center; }
 .run-options[open] > summary { margin-bottom: 8px; }
 .run-option-row { gap: 6px 8px; }
 .run-bar { justify-content: space-between; flex-wrap: wrap; }
-#run-btn { min-width: 96px; }
+#lab #run-btn { min-width: 96px; }
+/* When the algorithm column is wide enough, the equations sit beside the sentence. */
+@container (min-width: 680px) {
+  .studio-algo .card { grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1.25fr); align-items: start; }
+  .studio-algo .card > .eyebrow { grid-column: 1 / -1; }
+  .studio-algo #rule { grid-column: 1; }
+  .studio-algo #algorithm-math-panel,
+  .studio-algo .algorithm-math-panel { grid-column: 2; grid-row: 2; margin-top: 0; }
+  .studio-algo #grid-card { grid-column: 1 / -1; }
+}
 @media (min-width: 1000px) {
-  /* the studio: world | algorithm | lesson+Notebook; wide full-row elements span all three */
+  /* the studio: world | algorithm | lesson+Notebook */
   .layout:not(.mapping) {
-    grid-template-columns: minmax(280px, 0.85fr) minmax(330px, 1fr) minmax(360px, 1.25fr);
+    grid-template-columns: minmax(260px, 0.72fr) minmax(460px, 1.35fr) minmax(280px, 0.95fr);
     align-items: start;
   }
   .layout:not(.mapping) > #lab {
@@ -626,11 +636,51 @@ ul.preset-diff li { margin: 2px 0; }
   .layout.lesson-shell.custom-shell > #vpo-lab { grid-column: 1; grid-row: 2; }
   .layout.lesson-shell.custom-shell > #mode-pane { grid-column: 2; grid-row: 2; }
   .layout.lesson-shell.custom-shell > #custom-notebook { grid-column: 1 / -1; grid-row: 3; }
+  .layout:not(.mapping):not(.custom-shell) .learn-chart { height: 112px; }
+  .layout:not(.mapping):not(.custom-shell) #learn-note {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+}
+@media (min-width: 1000px) and (max-height: 980px) {
+  /* Short desktop: world beside the algorithm, lesson underneath, so the four core elements fit. */
+  .layout:not(.mapping):not(.custom-shell) {
+    grid-template-columns: minmax(300px, 340px) minmax(0, 1fr);
+    gap: 12px;
+    margin-top: 10px;
+  }
+  .layout:not(.mapping):not(.custom-shell) > #campaign-strip { padding: 4px 10px; gap: 8px; grid-column: 1 / -1; grid-row: 1; }
+  .layout:not(.mapping):not(.custom-shell) > #campaign-strip button { min-height: 32px; padding: 2px 10px; }
+  .layout:not(.mapping):not(.custom-shell) > #lab .card { padding: 8px 10px; }
+  .layout:not(.mapping):not(.custom-shell) #scene-controls { flex-wrap: nowrap; overflow-x: auto; }
+  .layout:not(.mapping):not(.custom-shell) #scene-controls > * { flex: none; white-space: nowrap; }
+  .layout:not(.mapping):not(.custom-shell) .run-bar { flex-wrap: nowrap; align-items: center; }
+  .layout:not(.mapping):not(.custom-shell) .run-options { flex: 1 1 auto; min-width: 0; }
+  .layout:not(.mapping):not(.custom-shell) .run-options > summary {
+    display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .layout:not(.mapping):not(.custom-shell) #stage-caption {
+    display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .layout:not(.mapping):not(.custom-shell) #learn-note {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .layout:not(.mapping):not(.custom-shell) > #lab,
+  .layout:not(.mapping):not(.custom-shell) > #algo-zone {
+    position: static; max-height: none; overflow: visible;
+  }
+  .layout:not(.mapping):not(.custom-shell) > #lab { grid-column: 1; grid-row: 2; gap: 8px; }
+  .layout:not(.mapping):not(.custom-shell) > #algo-zone { grid-column: 2; grid-row: 2; }
+  .layout:not(.mapping):not(.custom-shell) > #mode-pane { grid-column: 1 / -1; grid-row: 3; }
+  .layout:not(.mapping):not(.custom-shell) > #notebook,
+  .layout:not(.mapping):not(.custom-shell) > #custom-notebook { grid-column: 1 / -1; grid-row: 4; }
+  .layout:not(.mapping):not(.custom-shell) .learn-chart { height: 88px; }
+  .stage { aspect-ratio: 2 / 1; max-height: 104px; }
 }
 @media (max-width: 999px) {
   /* phone and narrow tablet: one compact column, world and Run right above the algorithm */
   .layout { gap: 12px; margin-top: 12px; }
   .stage { aspect-ratio: 16 / 9; }
-  .learn-chart { height: 130px; }
+  .learn-chart { height: 112px; }
+  .studio-algo .w { min-height: 44px; }
   .run-options > summary { min-height: 40px; }
 }

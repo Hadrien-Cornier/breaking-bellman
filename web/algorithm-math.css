@@ -1,0 +1,118 @@
+/* Breaking Bellman: styles for the reusable algorithm equation panel (#algorithm-math-panel).
+   Every selector is scoped under .algorithm-math-panel so a layout variant can drop the panel in
+   without its own rules leaking out, and without the panel leaking into the rest of the page. */
+.algorithm-math-panel {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  margin-top: 6px;
+  background: var(--sunk, #f6f7f9);
+  border: 1px solid var(--line, #e2e5ea);
+  border-radius: 8px;
+  min-width: 0;
+  color: var(--ink, #1b1f24);
+}
+.algorithm-math-panel .math-title {
+  margin: 0;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted, #6b7280);
+}
+.algorithm-math-panel .math-group {
+  margin: 6px 0 0;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted, #6b7280);
+}
+.algorithm-math-panel .mrow {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+.algorithm-math-panel .mrow .ml {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.64rem;
+  color: var(--muted, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.algorithm-math-panel .mrow .tex {
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  font-size: 0.9rem;
+}
+.algorithm-math-panel .tex-src {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.72rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--muted, #6b7280);
+}
+/* the brief highlight of the line(s) whose math actually changed */
+.algorithm-math-panel .mrow.math-changed {
+  background: var(--highlight, rgba(255, 214, 102, 0.55));
+  box-shadow: inset 0 0 0 1px var(--highlight-edge, rgba(196, 149, 0, 0.55));
+}
+.algorithm-math-panel .math-explain {
+  margin-top: 4px;
+  padding: 8px 10px;
+  background: var(--card, #fff);
+  border: 1px solid var(--line, #e2e5ea);
+  border-radius: 6px;
+}
+.algorithm-math-panel .math-explain-title {
+  margin: 0 0 4px;
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+.algorithm-math-panel .math-explain-line {
+  margin: 2px 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+.algorithm-math-panel .math-idle {
+  margin: 0;
+  padding-left: 18px;
+}
+.algorithm-math-panel .math-idle li {
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+.algorithm-math-panel .math-legend {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--muted, #6b7280);
+}
+.algorithm-math-panel .math-gloss {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 2px 12px;
+  margin: 0;
+  font-size: 0.8rem;
+}
+.algorithm-math-panel .math-gloss dt {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--ink, #1b1f24);
+  white-space: nowrap;
+}
+.algorithm-math-panel .math-gloss dd {
+  margin: 0;
+  color: var(--muted, #6b7280);
+  line-height: 1.4;
+}
+@media (max-width: 520px) {
+  .algorithm-math-panel .mrow { grid-template-columns: 62px minmax(0, 1fr); }
+  .algorithm-math-panel .mrow .tex { font-size: 0.82rem; }
+  .algorithm-math-panel .math-gloss { grid-template-columns: minmax(0, 1fr); }
+  .algorithm-math-panel .math-gloss dt { margin-top: 4px; }
+}

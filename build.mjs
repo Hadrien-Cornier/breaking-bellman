@@ -31,7 +31,7 @@ const body = read('web/page.html')
   .replace('/*@REPLAN_ENGINE@*/', () => noClose(join(['src/agents/replan.js', 'web/replan-record.js'])))
   .replace('/*@CONTENT@*/', () => 'window.BB_THAW_VERSION = ' + JSON.stringify(thawSource.version()) + ';\nwindow.BB_INFERENCE_VERSION = ' + JSON.stringify(createHash('sha256').update(join(['src/agents/elbo.js', 'src/agents/messages.js', 'web/inference-record.js'])).digest('hex')) + ';\n' + join(CONTENT_FILES))
   .replace('/*@APP@*/', () => join(APP_FILES))
-  .replace('/*@CSS@*/', () => read('web/style.css') + '\n' + read('web/thaw.css') + '\n' + read('web/rewardfit.css') + '\n' + read('web/goals.css') + '\n' + read('web/inference.css') + '\n' + read('web/ensemble.css') + (exists('web/algorithm-math.css') ? '\n' + read('web/algorithm-math.css') : ''))
+  .replace('/*@CSS@*/', () => read('web/style.css') + '\n' + read('web/algorithm-math.css') + '\n' + read('web/thaw.css') + '\n' + read('web/rewardfit.css') + '\n' + read('web/goals.css') + '\n' + read('web/inference.css') + '\n' + read('web/ensemble.css'))
   .replace('/*@FONTS@*/', () => (exists('web/fonts/fonts.css') ? read('web/fonts/fonts.css').replace(/url\(\.\/([\w.-]+\.woff2)\)/g,
     (m, file) => 'url(data:font/woff2;base64,' + fs.readFileSync(path.join(root, 'web/fonts', file)).toString('base64') + ')') : ''));
 

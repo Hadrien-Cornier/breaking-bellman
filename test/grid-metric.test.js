@@ -19,6 +19,10 @@ const app = read('web/app.js');
 function harness() {
   const ctx = vm.createContext({ window: {}, RLA, performance: { now: () => 0 } });
   for (const f of ['web/content.js', 'web/content2.js', 'web/content3.js']) vm.runInContext(read(f), ctx);
+  // the equation module owns idleWords now (single source of truth); load it with the same roots
+  ctx.window.RLA = RLA;
+  vm.runInContext(read('web/algorithm-math.js'), ctx);
+  ctx.ALGO_MATH = ctx.window.ALGO_MATH;
   const C = ctx.window.CONTENT;
   const els = {};
   const el = (s) => (els[s] = els[s] || { value: s === '#seeds' ? '2' : '600', disabled: false, textContent: '' });
