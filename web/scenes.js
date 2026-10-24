@@ -391,8 +391,9 @@
         const fRow = rowOf(from), tRow = rowOf(target);
         rx = lerp(spotX(from), spotX(target), q); ry = lerp(feet(fRow), feet(tRow), q); rRow = q < 0.5 ? fRow : tRow;
       } else if (target >= 0) {
-        const k = done ? 0.08 : 0.4;
-        rx += (spotX(target) - rx) * k; ry += (feet(rowOf(target)) - ry) * k; rRow = Math.abs(ry - feet(rowOf(target))) < rs * 0.5 ? rowOf(target) : rRow;
+        // Fast pulls and the final choice must also work when replay seeks directly
+        // to this frame with a fresh scene, without earlier animation frames.
+        rx = spotX(target); ry = feet(rowOf(target)); rRow = rowOf(target);
       }
       // spotlight on the machine being played
       if (target >= 0) {

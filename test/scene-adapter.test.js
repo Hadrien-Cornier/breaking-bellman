@@ -90,6 +90,36 @@ test('draw requires mount and mount paints the task before any run', () => {
 });
 module.exports = { scenes, cases, draw };
 
+test('casino places the robot at the selected machine on direct fast and final frames', () => {
+  const SC = scenes(), fonts = { display: 'sans-serif', mono: 'monospace' };
+  for (const width of [360, 760]) for (const selected of [6, 0, 4, 9]) {
+    const n = 10, height = 300, rows = width < 560 ? 2 : 1, per = Math.ceil(n / rows);
+    const top = Math.max(26, height * .09), rowHeight = (height - top) / rows;
+    const slot = width * .94 / per, machineWidth = slot * .74;
+    const size = Math.min(rowHeight * .34, slot * .82), row = Math.floor(selected / per);
+    const expected = [width * .03 + selected % per * slot + (slot - machineWidth) / 2 - slot * .04 + machineWidth * .86,
+      top + row * rowHeight + rowHeight * (rows === 1 ? .8 : .76) + size * .3];
+    const q = Array(n).fill(0); q[selected] = 1;
+    const data = { means: q, q, arms: Array(64).fill(selected), rewards: Array(64).fill(0), fonts };
+    // Match app.playScene: reconstruct, initialize at zero, then seek. The first
+    // fast pull starts after 8*640 + 40*115 ms. Final choice follows 3200 ms later.
+    const before = exact.stringify(data);
+    // The slow pulling phase is the disconfirming control: it already positions
+    // correctly from elapsed time, even with a fresh scene.
+    for (const time of [448, 8 * 640 + 40 * 115 + 40, 8 * 640 + 40 * 115 + 3200 + 1200]) {
+      const cv = canvas(), scene = SC.casino(cv.getContext('2d'), width, height, data);
+      SC.atTime(0, () => scene.frame(0)); cv.calls.length = 0;
+      SC.atTime(time, () => scene.frame(time));
+      // Robot's feet are the only nonzero translation in the casino foreground.
+      const translations = cv.calls.filter(c => c[0] === 'translate' && c[1] !== 0);
+      assert.equal(translations.length, 1, 'one robot, including the correct row');
+      expected.forEach((value, i) => assert.ok(Math.abs(translations[0][i + 1] - value) < 1e-8,
+        `width ${width}, machine ${selected + 1}, time ${time}, coordinate ${i}`));
+    }
+    assert.equal(exact.stringify(data), before, 'rendering preserves measured data');
+  }
+});
+
 test('Watch preserves elapsed replay time across delayed browser frames and pauses offscreen', () => {
   const source = fs.readFileSync(require.resolve('../web/app.js'), 'utf8');
   const watch = source.slice(source.indexOf('  function watchScene()'), source.indexOf('  const sceneFonts ='));
