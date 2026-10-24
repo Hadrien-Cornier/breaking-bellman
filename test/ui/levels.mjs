@@ -1,6 +1,7 @@
 // All registered lessons: full shared RunRecord replay contract; custom lessons retain their baseline.
 // npm run build && node test/ui/levels.mjs [proof directory] [URL]
 import assert from 'node:assert/strict';
+import { skillsContract } from './lib/skills-contract.mjs';
 import { goalExecutionContract } from './lib/goal-execution.mjs';
 import { inferenceContract } from '../inference-ui.mjs';
 import { rareContract } from './rare.mjs';
@@ -237,6 +238,15 @@ try {
           await page.locator('#tabs button').last().focus();
           await page.keyboard.press('Tab');
           verify(await page.locator('#campaign-strip button').evaluate(e => e === document.activeElement), 'Tab from header reaches map strip before lesson controls');
+          if (['hindsight', 'hierarchy'].includes(id)) {
+            record.stage = 'goal-execution-replay';
+            record.proof = await goalExecutionContract(page, id, out, name);
+            await page.reload();
+            verify((await stored(page)).level === id, 'chosen stable id persists on reload');
+            if (progress === 'newer') retained(await stored(page), fixture, ids, id);
+            verify(errors.length === 0, 'no console or page errors');
+            record.passed = true; console.log('ok ' + name); continue;
+          }
           const inference = ['elbo', 'messages'].includes(id);
           if (inference) {
             record.stage = 'inference-replay';
@@ -244,8 +254,8 @@ try {
             verify(errors.length === 0, 'no console or page errors');
             record.passed = true; console.log('ok ' + name); continue;
           }
-          const custom = ['rare', 'vpo', 'supermimic', 'thaw', 'rewardfit', 'goals'].includes(id);
-          const scene = page.locator(id === 'rare' ? '#rare-stage' : id === 'goals' ? '#goals-scene' : id === 'rewardfit' ? '#rewardfit-scene' : id === 'thaw' ? '#thaw-scene' : custom ? '#custom-stage' : '#stage').first();
+          const custom = ['skills', 'rare', 'vpo', 'supermimic', 'thaw', 'rewardfit', 'goals'].includes(id);
+          const scene = page.locator(id === 'skills' ? '#skills-stage' : id === 'rare' ? '#rare-stage' : id === 'goals' ? '#goals-scene' : id === 'rewardfit' ? '#rewardfit-scene' : id === 'thaw' ? '#thaw-scene' : custom ? '#custom-stage' : '#stage').first();
           verify(await scene.isVisible(), 'baseline scene visible before Run');
           record.before = await scene.evaluate(e => ({ tag: e.tagName, width: e.getBoundingClientRect().width, height: e.getBoundingClientRect().height, label: e.getAttribute('aria-label') }));
           verify(record.before.width > 0 && record.before.height > 0, 'scene has nonzero dimensions');
@@ -254,7 +264,10 @@ try {
           if (!custom) verify(await page.evaluate(() => bellman.record() === null && document.querySelector('#stage').dataset.world === bellman.state().world), 'fresh level has its actual world and no previous record');
           const button = custom ? `#${id}-run` : '#run-btn';
           if (id !== 'rare') await page.locator(button).click();
-          if (id === 'rare') {
+          if (id === 'skills') {
+            record.skills = await skillsContract(page, out, name);
+            record.result = await page.locator('#skills-result').innerText();
+          } else if (id === 'rare') {
             record.result = await rareContract(page, out, name);
             verify(true, 'rare measured playback, accounting, stale/rerun, identity and level clearing');
           } else if (id === 'goals') {
