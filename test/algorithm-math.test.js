@@ -321,6 +321,20 @@ test('zero counts and withheld reward are explained, not hidden', () => {
   assert.ok(txt(wh.lines.find(([l]) => l === 'step target')[1]).includes('r + b'), 'the target still shows r and b as separate terms');
 });
 
+test('the glossary follows the method, and definitions stay behind a click', () => {
+  const gloss = (name) => Object.fromEntries(AM.rareGlossary(method(name)));
+  assert.match(gloss('targetOnly').b, /inside the target/);
+  assert.match(gloss('local').b, /sets b to 0/);
+  assert.match(gloss('local')['Score(s, a)'], /\+∞/);
+  assert.match(gloss('optimism')['Score(s, a)'], /untried/);
+  assert.match(gloss('withheld').r, /forces r to 0/);
+  assert.ok(!gloss('off').b.includes('paid inside the target'));
+  const src = fs.readFileSync(path.join(__dirname, '..', 'web', 'algorithm-math.js'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'web', 'algorithm-math.css'), 'utf8');
+  assert.ok(src.includes('Click for symbol definitions'), 'definitions are a click, not a second always-open block');
+  assert.ok(!css.includes('max-width: 100%'), 'wide formulas scroll at natural size instead of shrinking');
+});
+
 test('score-only never sees its bonus in the target, and the record agrees', () => {
   const run = BBRARE.run({ seed: 19, place: 'local', steps: 28 });
   assert.ok(run.trace.every((e) => e.intrinsic === 0 && e.visitBonus > 0), 'bonus measured, never in the target');

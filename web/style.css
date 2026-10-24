@@ -45,7 +45,12 @@ a { color: var(--accent); }
 .brand { display: grid; place-items: center; width: 48px; height: 48px; flex: 0 0 48px; border-radius: 8px; }
 .brand canvas { display: block; width: 48px; height: 48px; }
 .score { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
-.tabs { display: flex; gap: 4px; margin-top: 10px; overflow-x: auto; scrollbar-width: none; }
+.tabs { display: flex; gap: 4px; margin-top: 10px; overflow-x: auto; scrollbar-width: none; align-items: center; }
+.more-tabs { position: relative; }
+.more-tabs > summary { list-style: none; cursor: pointer; border: 1px solid var(--line); background: var(--surface); padding: 6px 12px; border-radius: 999px; white-space: nowrap; font-size: 0.9rem; }
+.more-tabs > summary::-webkit-details-marker { display: none; }
+.more-tabs > div { position: absolute; z-index: 8; right: 0; display: grid; gap: 4px; min-width: 180px; margin-top: 6px; padding: 8px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 40px rgb(0 0 0 / 0.28); }
+.more-tabs button { text-align: left; }
 .tabs button { border: 1px solid var(--line); background: var(--surface); padding: 6px 12px; border-radius: 999px; white-space: nowrap; font-size: 0.9rem; }
 .tabs button[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 
@@ -630,6 +635,11 @@ ul.preset-diff li { margin: 2px 0; }
 .workspace-drawer { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); padding: 10px 14px; }
 .workspace-drawer > summary, #optional-run-settings > summary, .more-curves > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; }
 .workspace-drawer[open] > summary { margin-bottom: 12px; }
+.drawer-workspace #replay-drawer[open] > summary { margin-bottom: 4px; }
+.drawer-workspace #scene-policy { display: none; }
+.drawer-workspace #replay-drawer .replay-controls { flex-wrap: nowrap; gap: 6px; margin-top: 4px; }
+.drawer-workspace #replay-drawer #stage-caption,
+.drawer-workspace #replay-drawer #run-source { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; }
 .drawer-workspace { gap: 12px; }
 .drawer-workspace #lab { gap: 10px; }
 .drawer-workspace #lab > .card { padding: 10px 12px; gap: 6px; }
@@ -651,7 +661,8 @@ ul.preset-diff li { margin: 2px 0; }
   .drawer-workspace { grid-template-columns: minmax(320px, .85fr) minmax(0, 1.15fr); align-items: start; }
   .drawer-workspace > #lab { grid-column: 1; grid-row: 2; position: static; }
   .drawer-workspace > #algorithm-workspace { grid-column: 2; grid-row: 2; }
-  .drawer-workspace > #lesson-drawer { grid-row: 3; }
+  .drawer-workspace > #lesson-drawer { grid-column: 1 / -1; grid-row: 3; }
+  .drawer-workspace > #notebook { grid-column: 1 / -1; grid-row: 4; }
   .drawer-workspace #learning-monitor { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
   .drawer-workspace #training-metric:has(> p) { grid-column: 1 / -1; }
   .drawer-workspace #training-metric:has(> p) + #charts { grid-column: 1 / -1; }

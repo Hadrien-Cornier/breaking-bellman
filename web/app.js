@@ -943,6 +943,7 @@
     }
     $('#run-stale').hidden = !runState.stale;
     $('#scene-controls').hidden = !record;
+    if (replayHome) replayHome.open = !!record;
   }
   function markRunStale() {
     if (customActive() && customScene && runState.record) {
@@ -2301,7 +2302,7 @@
       h('div.row', null, [h('label', { for: 'wb-family', text: 'Kind of learner' }), famSel, h('label', { for: 'wb-world', text: 'World' }), worldSel]),
       h('p.small', { html: '<b>This world teaches:</b> ' + RLA.worlds[S.world].info.teaches + ' <b>It cannot teach:</b> ' + RLA.worlds[S.world].info.cannotTeach }),
     ]));
-    pane.append(h('div.card', null, [h('div.eyebrow', { text: 'The update rule' }), mainSentence({ withName: true, withMath: true })]));
+    pane.append(h('div.card', null, [h('div.eyebrow', { text: 'The update rule' }), mainSentence({ withName: true })]));
     pane.append(h('div.card', null, [h('div.eyebrow', { text: 'Watch one update' }), replayView()]));
     pane.append(h('details', null, [h('summary', { text: 'Save, export and import sentences' }), savePanel()]));
   };
@@ -3057,6 +3058,11 @@
     const oldBackup = document.getElementById('reward-backup');
     if (oldBackup) oldBackup.remove();
     $$('#tabs button').forEach((b) => b.setAttribute('aria-selected', b.dataset.mode === S.mode ? 'true' : 'false'));
+    const more = $('#more-tools');
+    if (more) {
+      const inside = more.querySelector('[aria-selected="true"]');
+      more.querySelector('summary').textContent = inside ? inside.textContent : 'More';
+    }
     mounts = mounts.filter((m) => m.permanent);
     comparisonReplay.park();
     if (!customActive() || mapOpen) { customScene = null; pauseScene(); }
@@ -3098,8 +3104,9 @@
         customShell.notebook(name).replaceChildren(h('p.small', { text: name === 'notes' ? 'Lesson notes appear here.' : 'Run the lesson to inspect its ' + name + '.' }));
       }
     }
-    $('#notebook').classList.toggle('supporting-lab', !campaign);
-    if (!campaign) {
+    const workspace = !mapping && !customActive() && ['campaign', 'workbench', 'saboteur'].includes(S.mode);
+    $('#notebook').classList.toggle('supporting-lab', !campaign && !workspace);
+    if (!campaign && !workspace) {
       $('#notebook').open = true;
       $$('#notebook [data-notebook-panel]').forEach(panel => { panel.hidden = false; });
       $('#lab').prepend($('#game-rules'));
@@ -3107,7 +3114,6 @@
     if (S.mode === 'campaign' && !mapping) document.querySelector('main.layout').prepend(campaignMap.strip());
     if (customActive() && !mapping) customShell.objective(C.levels.find(l => l.id === S.level).goal.text);
     MODES[S.mode](pane);
-    const workspace = !mapping && !customActive() && ['campaign', 'workbench', 'saboteur'].includes(S.mode);
     layout.classList.toggle('drawer-workspace', workspace);
     $('#algorithm-workspace').hidden = !workspace;
     $('#lesson-drawer').hidden = !workspace;
