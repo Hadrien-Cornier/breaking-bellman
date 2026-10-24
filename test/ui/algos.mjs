@@ -170,11 +170,11 @@ await session(1280, 800, 'game', {}, async (page) => {
   check(found.length >= 1, 'the real level renders name triggers (' + found.join(', ') + ')');
   check(found.some((n) => /Q-learning/.test(n)), 'Q-learning in the level prose is a trigger');
 
-  await page.hover('.algo-name');
+  await page.hover('.lesson-help .algo-name');
   await page.waitForTimeout(120);
   check(await page.evaluate(() => (document.getElementById('algo-rem-popover')?.hidden ?? true)),
     'hover alone does not open a reminder in the real game');
-  await page.click('.algo-name');
+  await page.click('.lesson-help .algo-name');
   await page.waitForTimeout(120);
   const pop = await page.evaluate(() => { const p = document.getElementById('algo-rem-popover');
     return { open: p && !p.hidden, title: p.querySelector('.metric-help-title').textContent }; });
@@ -196,6 +196,8 @@ await session(1280, 900, 'offline', {}, async (page) => {
   await page.evaluate(() => { const d = document.querySelector('dialog.intro'); if (d && d.close) d.close(); });
   await page.evaluate(() => window.bellman.level('offline'));
   await page.waitForTimeout(500);
+
+  if (await page.locator('.lesson-help[open]').count()) await page.getByRole('button', { name: 'Back to the experiment', exact: true }).click();
 
   // 175: only unlocked (learned) methods are offered; unlearned ones are not listed.
   const opts = await page.evaluate(() => Array.from(document.querySelector('.preset select').options).map((o) => ({ t: o.textContent, disabled: o.disabled })));
@@ -296,7 +298,7 @@ await session(390, 844, 'phone', { hasTouch: true }, async (page) => {
   await page.waitForTimeout(500);
   const has = await page.evaluate(() => document.querySelectorAll('.algo-name').length);
   check(has >= 1, 'the phone layout renders name triggers (' + has + ')');
-  await page.locator('.algo-name').first().tap();
+  await page.locator('.lesson-help .algo-name').first().tap();
   await page.waitForTimeout(150);
   const p = await page.evaluate(() => {
     const el = document.getElementById('algo-rem-popover');
@@ -307,6 +309,33 @@ await session(390, 844, 'phone', { hasTouch: true }, async (page) => {
   check(p.fits, 'the open reminder fits the 390px viewport');
   await page.screenshot({ path: out + '/phone-algo.png' });
 });
+
+// Regression: a body-level reminder used to open behind the modal briefing and stay inert.
+for (const [w, h] of [[1348, 898], [1186, 835], [390, 844]]) {
+  await session(w, h, 'briefing-' + w, {}, async page => {
+    await page.locator('#campaign-logo').click();
+    await page.locator('[data-map-level="slots"]').click();
+    const trigger = page.locator('.map-methods .algo-name').first();
+    await trigger.hover();
+    await trigger.focus();
+    check(await trigger.getAttribute('aria-expanded') === 'false', 'briefing hover/focus does not open a reminder at ' + w);
+    await page.keyboard.press('Enter');
+    const visible = await page.locator(POP).evaluate(el => {
+      const r = el.getBoundingClientRect();
+      return el.matches(':popover-open') && !!el.closest('dialog[open]') &&
+        el.contains(document.elementFromPoint(r.left + 20, r.top + 20)) &&
+        r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight;
+    });
+    check(visible, 'briefing reminder is visible, interactive and within the viewport at ' + w);
+    await page.keyboard.press('Escape');
+    check(await page.locator('.map-brief[open]').count() === 1 && await trigger.evaluate(el => el === document.activeElement), 'Escape keeps the briefing open and restores trigger focus at ' + w);
+    await page.keyboard.press('Space');
+    await page.getByRole('button', { name: 'Close reminder', exact: true }).click();
+    await trigger.click();
+    check(await page.locator(POP).isVisible(), 'briefing click opens the reminder at ' + w);
+    await page.screenshot({ path: out + '/briefing-' + w + '.png' });
+  });
+}
 
 console.log(errors.length ? 'console errors:\n' + errors.join('\n') : 'no console errors');
 await browser.close();
