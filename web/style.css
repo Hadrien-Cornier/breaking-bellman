@@ -582,3 +582,55 @@ ul.preset-diff li { margin: 2px 0; }
 .rare-count { display: grid; font-size: 12px; gap: 4px; }
 .rare-count meter { width: 100%; }
 @media (max-width: 500px) { .rare-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ===== Variant E: the three-zone studio =====
+   Three coordinated zones at desktop width: (1) the world with Run and the live learning curve,
+   (2) the editable update-rule sentence with its equations, (3) the lesson and the optional
+   Notebook. Zones 1 and 2 stay pinned beside the scrolling lesson so the world, the algorithm,
+   Run and the curve are always on screen together. Below 1000px the studio collapses to one
+   compact column: world and Run directly above the editable algorithm, then the lesson. */
+:root { --sticky-top: 132px; }
+.studio-algo { min-width: 0; }
+.studio-algo .card { gap: 12px; }
+.algorithm-math-reserved { min-height: 132px; align-content: start; }
+.algorithm-math-reserved:not(:has(.algorithm-math-panel)) { background: var(--sunk); border-style: dashed; }
+.learn-chart { height: 152px; }
+#learn-note { overflow-wrap: anywhere; }
+.run-options { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 6px 10px; }
+.run-options > summary { cursor: pointer; font-weight: 600; font-size: 0.85rem; min-height: 32px; display: flex; align-items: center; }
+.run-options[open] > summary { margin-bottom: 8px; }
+.run-option-row { gap: 6px 8px; }
+.run-bar { justify-content: space-between; flex-wrap: wrap; }
+#run-btn { min-width: 96px; }
+@media (min-width: 1000px) {
+  /* the studio: world | algorithm | lesson+Notebook; wide full-row elements span all three */
+  .layout:not(.mapping) {
+    grid-template-columns: minmax(280px, 0.85fr) minmax(330px, 1fr) minmax(360px, 1.25fr);
+    align-items: start;
+  }
+  .layout:not(.mapping) > #lab {
+    grid-column: 1; grid-row: 2 / 4;
+    position: sticky; top: var(--sticky-top);
+    max-height: calc(100vh - var(--sticky-top) - 12px); overflow-y: auto;
+  }
+  .layout:not(.mapping) > #algo-zone {
+    grid-column: 2; grid-row: 2 / 4;
+    position: sticky; top: var(--sticky-top);
+    max-height: calc(100vh - var(--sticky-top) - 12px); overflow-y: auto;
+  }
+  .layout:not(.mapping) > #mode-pane { grid-column: 3; grid-row: 2; align-self: start; }
+  .layout:not(.mapping) > #notebook, .layout:not(.mapping) > #custom-notebook { grid-column: 3; grid-row: 3; align-self: start; }
+  /* comparison lessons (VPO, SuperMimic and the other custom levels) keep their two-zone
+     arrangement: their own lab beside the lesson, their Notebook full width below. */
+  .layout.lesson-shell.custom-shell { grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); }
+  .layout.lesson-shell.custom-shell > #vpo-lab { grid-column: 1; grid-row: 2; }
+  .layout.lesson-shell.custom-shell > #mode-pane { grid-column: 2; grid-row: 2; }
+  .layout.lesson-shell.custom-shell > #custom-notebook { grid-column: 1 / -1; grid-row: 3; }
+}
+@media (max-width: 999px) {
+  /* phone and narrow tablet: one compact column, world and Run right above the algorithm */
+  .layout { gap: 12px; margin-top: 12px; }
+  .stage { aspect-ratio: 16 / 9; }
+  .learn-chart { height: 130px; }
+  .run-options > summary { min-height: 40px; }
+}

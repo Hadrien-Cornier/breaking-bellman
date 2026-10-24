@@ -23,7 +23,7 @@
 </header>
 
 <main class="layout">
-  <section class="pane" id="mode-pane" aria-live="polite"></section>
+  <!-- Variant E, zone 1: the world, Run and the live learning curve. -->
   <aside class="pane lab" id="lab" aria-label="Lab">
 
     <div class="card">
@@ -44,20 +44,47 @@
       <p class="small" id="stage-caption">Run a recipe to see the trained policy act.</p>
     </div>
     <div class="card" id="run-settings">
-      <div class="row">
+      <div class="row run-bar">
         <button class="btn" id="run-btn">Run</button>
-        <label class="small" for="seeds">Seeds</label>
-        <select id="seeds"><option>1</option><option selected>3</option><option>5</option></select>
-        <label class="small" for="budget">Steps</label>
-        <select id="budget"></select>
-        <label class="small" for="run-mode">Run mode</label>
-        <select id="run-mode"><option value="fast" selected>Fast (reuse exact results)</option><option value="live">Live (train fresh)</option></select>
+        <details class="run-options" id="run-options">
+          <summary>Run options: Seeds, Steps, Fast or Live</summary>
+          <div class="row run-option-row">
+            <label class="small" for="seeds">Seeds</label>
+            <select id="seeds"><option>1</option><option selected>3</option><option>5</option></select>
+            <label class="small" for="budget">Steps</label>
+            <select id="budget"></select>
+            <label class="small" for="run-mode">Run mode</label>
+            <select id="run-mode"><option value="fast" selected>Fast (reuse exact results)</option><option value="live">Live (train fresh)</option></select>
+          </div>
+        </details>
       </div>
       <p class="small muted" id="run-source" aria-live="polite">Live simulation: trains in this page.</p>
       <div class="progress"><i id="prog"></i></div>
       <p class="small" id="run-result" aria-live="polite"></p>
     </div>
+    <div class="card" id="learn-card">
+      <div class="row" style="justify-content: space-between">
+        <div class="eyebrow" id="learn-title">Learning curve</div>
+      </div>
+      <canvas class="chart learn-chart" id="ch-learn" role="img" aria-label="Learning curve"></canvas>
+      <p class="small" id="learn-note">Press Run to record this learner's curve.</p>
+    </div>
   </aside>
+  <!-- Variant E, zone 2: the editable algorithm and its equations. -->
+  <aside class="pane studio-algo" id="algo-zone" aria-label="The editable algorithm">
+    <div class="card">
+      <div class="eyebrow">The update rule: tap a word to change it</div>
+      <div id="rule"></div>
+      <!-- Shared equations hook (bb-equation-impact245): ALGO_MATH.mount replaces this host in place. -->
+      <section class="card algorithm-math-reserved" id="algorithm-math-panel" aria-label="Algorithm equations">
+        <div class="eyebrow">Equations</div>
+        <p class="small muted">The current algorithm's equations appear here and update when you change a word.</p>
+      </section>
+      <details class="card-details" id="grid-card"><summary>Try every combination</summary><div id="grid-lab"></div></details>
+    </div>
+  </aside>
+  <!-- Variant E, zone 3: the lesson, then the optional Notebook with all secondary content. -->
+  <section class="pane" id="mode-pane" aria-live="polite"></section>
   <aside class="pane lab" id="vpo-lab" aria-label="Comparison lesson lab" hidden></aside>
   <details class="notebook" id="notebook">
     <summary>Notebook</summary>
@@ -69,9 +96,6 @@
     </div>
     <section class="notebook-panel" role="tabpanel" tabindex="0" id="notebook-rule" data-notebook-panel="rule" aria-labelledby="notebook-tab-rule">
       <section class="game-rules" id="game-rules" aria-label="Game rules"></section>
-      <div class="eyebrow">The update rule: tap a word to change it</div>
-      <div id="rule"></div>
-      <details class="card-details" id="grid-card"><summary>Try every combination</summary><div id="grid-lab"></div></details>
     </section>
     <section class="notebook-panel" role="tabpanel" tabindex="0" id="notebook-curve" data-notebook-panel="curve" aria-labelledby="notebook-tab-curve" hidden>
       <div class="stack" id="compare"></div>
