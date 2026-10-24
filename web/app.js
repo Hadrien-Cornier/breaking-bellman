@@ -274,6 +274,16 @@
     return m.el;
   }
   function refreshSentences() { if (!RLA.worlds[S.world]) return; for (const m of mounts) drawSentence(m); updateMath(); }
+  // The bootstrap note stays in the sentence. On a short desktop it starts closed so the
+  // world, Run, the editable lines and the curve still share the screen. Opening it shows the same text.
+  function glossNote() {
+    const gloss = h('details.gloss', null, [
+      h('summary', { text: 'What this guess means' }),
+      h('p.small', { text: 'The guess: the learner does not wait for the rest of the episode. After the rewards it saw, it uses its own current estimate of the next state as a stand-in for everything that comes later. This is called bootstrapping. The guess is often wrong early on; each update copies part of that error into the estimate it moves.' }),
+    ]);
+    if (!window.matchMedia('(min-width: 960px) and (max-height: 940px)').matches) gloss.open = true;
+    return gloss;
+  }
   function drawSentence(m) {
     const o = m.opts, p = o.getParts(), world = o.world(), focus = o.focus ? o.focus() : [];
     const idle = idleWords(p, world);
@@ -301,7 +311,7 @@
       [['data', 'memory'], line('Learn from', [' ', 'data', ' (memory ', 'memory', ' moves).'])],
       [['step', 'nstep'], line('Move', [' each estimate ', 'step', ' toward a target: ', 'nstep', p.nstep === 0 ? '.' : ', then a guess:'])],
       [['agg', 'picker', 'scorer'], line('Guess', [' the value of ', 'agg', ', chosen by ', 'picker', ' and scored by ', 'scorer', '.'])],
-    ].concat(p.nstep === 0 ? [] : [[[], h('p.small.gloss', { text: 'The guess: the learner does not wait for the rest of the episode. After the rewards it saw, it uses its own current estimate of the next state as a stand-in for everything that comes later. This is called bootstrapping. The guess is often wrong early on; each update copies part of that error into the estimate it moves.' })]], [
+    ].concat(p.nstep === 0 ? [] : [[[], glossNote()]], [
       [['sync'], line('Refresh', [' the frozen copy ', 'sync', '.'])],
     ]);
     const kids = [];
@@ -315,7 +325,7 @@
     m.el.replaceChildren(...kids);
   }
   function chooser(m, key, p, idle) {
-    return h('div.chooser', { role: 'group', 'aria-label': W[key].q }, [
+    const el = h('div.chooser', { role: 'group', 'aria-label': W[key].q }, [
       h('p', null, [h('b', { text: W[key].q })]),
       idle[key] ? h('p.small', { text: 'In this sentence this word does nothing: ' + idle[key] }) : null,
       ...W[key].options.map(([v, label, meaning]) => h('button.choice' + (p[key] === v ? '.on' : ''), {
@@ -323,6 +333,14 @@
         onclick: () => { m.open = null; m.opts.setPart(key, v); },
       }, [h('b', { text: label }), meaning ? h('span.small', { text: meaning }) : null])),
     ]);
+    // On a short desktop the choices float over the sentence so opening one does not push
+    // the world, Run or the curve off the screen. If they would pass the bottom edge, shift up.
+    queueMicrotask(() => {
+      if (!el.isConnected || !window.matchMedia('(min-width: 960px) and (max-height: 940px)').matches) return;
+      const overflow = el.getBoundingClientRect().bottom - (window.innerHeight - 8);
+      if (overflow > 0) el.style.marginTop = (-Math.ceil(overflow)) + 'px';
+    });
+    return el;
   }
   function setMainPart(key, v) { S.parts[key] = v; onPartsChanged(); }
   function onPartsChanged() { cancelRun(); markRunStale(); refreshSentences(); drawCompare(); drawGrid(); if (S.onPartsChange) S.onPartsChange(); }

@@ -594,7 +594,7 @@ ul.preset-diff li { margin: 2px 0; }
   .lesson-shell > #lab > #exp-world { grid-area: world; }
   .lesson-shell > #lab > #exp-editor { grid-area: editor; }
   .lesson-shell > #lab > #exp-editor:has(#algorithm-math-panel:not(:empty)) {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 16px;
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 0.82fr); column-gap: 12px; align-items: start;
   }
   .lesson-shell > #lab > #exp-editor > .eyebrow { grid-column: 1 / -1; }
   .lesson-shell > #lab > #exp-curve {
@@ -603,18 +603,33 @@ ul.preset-diff li { margin: 2px 0; }
   }
 }
 @media (min-width: 960px) and (max-height: 940px) {
-  .lesson-shell > #lab { top: calc(env(safe-area-inset-top, 0px) + 100px); padding: 12px; }
-  #lab > * + * { margin-top: 9px; padding-top: 9px; }
+  /* The score bar stays in the header. The thin progress strip yields just enough
+     vertical room for the world, Run, the sentence, its equations and the curve. */
+  body:has(main.lesson-shell) .top { padding-block: 4px 2px; }
+  body:has(main.lesson-shell) .xpbar { display: none; }
+  body:has(main.lesson-shell) .tabs { margin-top: 2px; }
+  body:has(main.lesson-shell) #logo-robot { width: 36px; height: 36px; }
+  .lesson-shell { gap: 6px; }
+  .lesson-shell > #lab { top: calc(env(safe-area-inset-top, 0px) + 80px); padding: 8px; }
+  #lab > * + * { margin-top: 4px; padding-top: 4px; }
   .lesson-shell > #lab > #exp-curve { margin-top: 0; padding-top: 0; }
-  #lab .stage { height: 132px; }
+  #lab .stage { height: 88px; }
+  #lab .sentence { gap: 2px; position: relative; }
+  #lab .chooser {
+    position: absolute; z-index: 6; left: 0; width: min(100%, 520px); max-height: 240px; overflow: auto;
+    box-shadow: 0 10px 28px rgb(0 0 0 / 0.16);
+  }
   #lab .sentence .sl { line-height: 1.5; font-size: 0.87rem; }
-  #lab .compound { padding: 6px 8px; margin-top: 2px; }
-  #lab .compound .big { font-size: 1.02rem; }
-  .live-curve { height: 108px; }
-  /* Tight desktop heights: the shared equations sit beside the sentence so the world, Run,
-     the editable algorithm with its math and the curve all fit without scrolling. */
+  #lab .gloss { margin: 0; padding: 2px 8px; }
+  #lab .gloss > summary { min-height: 32px; padding-block: 4px; font-size: 0.78rem; }
+  #lab .compound { padding: 2px 6px; margin-top: 0; }
+  #lab .compound .big { font-size: 0.95rem; }
+  #lab .preset-wrap { margin-top: 0; }
+  .live-curve { height: 88px; }
+  /* The sentence keeps the wider column so a long actor-critic line stays one row,
+     and the shared equations still have a readable column beside it. */
   .lesson-shell > #lab > #exp-editor:has(#algorithm-math-panel:not(:empty)) {
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); column-gap: 12px;
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 0.82fr); column-gap: 12px; align-items: start;
   }
   .lesson-shell > #lab > #exp-editor:has(#algorithm-math-panel:not(:empty)) > .eyebrow { grid-column: 1 / -1; }
 }
@@ -659,6 +674,9 @@ ul.preset-diff li { margin: 2px 0; }
 @media (max-width: 600px) { .lesson-shell .stage { aspect-ratio: 16 / 9; } }
 /* Rare's measured hall stays readable without horizontal scrolling. */
 #rare-stage { display: block; width: 100%; height: auto; border-radius: 8px; }
+#rare-math { display: grid; gap: 4px; margin-top: 8px; padding: 8px 10px; background: var(--sunk); border-radius: 8px; min-width: 0; }
+#rare-math p { margin: 0; font-size: 0.82rem; line-height: 1.45; }
+#rare-math .hot { background: color-mix(in srgb, var(--warn) 38%, transparent); border-radius: 3px; padding: 0 3px; }
 #rare-experiment, #rare-lesson { min-width: 0; }
 #rare-experiment select, #rare-experiment button, #rare-lesson button { min-height: 44px; min-width: 44px; max-width: 100%; }
 #rare-experiment .field { min-width: 0; max-width: 100%; }

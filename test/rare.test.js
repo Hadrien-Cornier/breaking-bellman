@@ -25,6 +25,21 @@ test('visit counts increase by one and 1/sqrt(n) falls on the real trace', () =>
   assert.deepEqual(run.counts, run.counts.map((n, i) => (seen[i] ? seen[i][seen[i].length - 1] : (i === 0 ? 1 : 0))));
 });
 
+test('each recorded step is the Q update that was applied', () => {
+  for (const place of ['off', 'local', 'target', 'optimism', 'backup']) {
+    const run = M.run({ seed: 19, place });
+    for (const step of run.trace) {
+      const target = step.env + step.intrinsic + run.gamma * step.bootstrap;
+      const expected = step.qBefore + run.alpha * (target - step.qBefore);
+      assert.ok(Math.abs(step.qAfter - expected) < 1e-9, place + ' step ' + step.t);
+      if (place === 'target' || place === 'backup') assert.equal(step.intrinsic, step.visitBonus);
+      else assert.equal(step.intrinsic, 0);
+    }
+  }
+  const withheld = M.run({ seed: 19, place: 'backup', reward: 'none' });
+  assert.ok(withheld.trace.every((step) => step.env === 0 && step.intrinsic === step.visitBonus));
+});
+
 test('environment reward stays separate from the visit bonus', () => {
   const on = M.run({ seed: 19, place: 'backup' });
   const env = on.trace.reduce((sum, step) => sum + step.env, 0);
