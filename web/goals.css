@@ -1,0 +1,13 @@
+/* Scoped lesson styling; the shared shell owns layout and Notebook. */
+#goals-stage, #goals-lesson { min-width: 0; }
+#goals-scene canvas { display: block; width: 100%; height: auto; }
+.goals-lane h3 { margin: 4px 0; }
+.goals-setting { display: grid; gap: 4px; }
+.goals-setting select { min-width: 0; max-width: 100%; min-height: 44px; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+#goals-controls button, #goals-lesson button, #goals-evidence a, #goals-stage a { min-height: 44px; min-width: 44px; }
+#goals-evidence a { display: inline-flex; align-items: center; }
+.goals-trace { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+.goals-trace span { padding: 6px; border: 2px solid transparent; overflow-wrap: anywhere; }
+.goals-trace [aria-current="true"] { border-color: var(--ink); border-radius: 6px; font-weight: bold; }
+#goals-result table { width: 100%; }
+#goals-result th, #goals-result td { padding: 6px 4px; text-align: left; }
