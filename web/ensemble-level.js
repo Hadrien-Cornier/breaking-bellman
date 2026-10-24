@@ -220,6 +220,7 @@
         cards.push(h('div.step',{id:'ensemble-step-explain'},[h('h3',{text:'Explain the limit'}),choices(QUESTIONS.explain,()=>{}),h('button.btn',{id:'ensemble-complete',type:'button',disabled:state.picks[QUESTIONS.explain.id]!==QUESTIONS.explain.correct || !wrongOk(state.wrongRun) || !highOk(state.highRun),onclick:()=>{if(hooks.complete)hooks.complete();state.finished=true;advance(5);redraw();}},state.finished?'Lesson complete':'Agreement is not the true reward')]));
         body.append(cards[Math.min(state.step,4)]);
         const notes = h('div.stack',null,cards.filter((_,i)=>i<state.step));
+        if (!notes.childNodes.length) notes.append(h('p.small', { text: 'Lesson notes appear here.' }));
         notebook('notes',notes);
         const rule = h('div.stack', {id:'ensemble-rules'}, [h('p',{text:'Supplied tables, no fitting. Score = (A + B) / 2 - coefficient × |A - B|. The planner never reads true rewards. Predicted reward is the table average; planner score includes the penalty; true return is measured by walking the chosen actions.'}),h('p',{text:'Prior interactions: 0. No training or bootstrap samples. Each Run executes two two-action episodes: 4 fresh interactions and 2 attempts.'})]);
         if(hooks.shell) rule.append(hooks.shell.conceptSketch({label:'Prediction and execution',nodes:[{id:'tables',label:'Two tables',x:55,y:35},{id:'plan',label:'Choose actions',x:215,y:35},{id:'truth',label:'Walk true aisle',x:215,y:95}],edges:[{from:'tables',to:'plan',label:'score'},{from:'plan',to:'truth',label:'execute'}]}));
