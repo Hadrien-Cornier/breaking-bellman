@@ -29,7 +29,7 @@
       const replay = runs[0];
       record.series[policy.name] = replay.trace.map(e => ({ t: e.t + 1, obs: e.s, action: e.a, reward: e.env,
         state: e.s2, nAfter: e.nAfter, visitBonus: e.visitBonus, intrinsic: e.intrinsic, explored: e.explored,
-        qBefore: e.qBefore, qAfter: e.qAfter, bootstrap: e.bootstrap, actionScore: e.actionScore }));
+        qBefore: e.qBefore, qAfter: e.qAfter, bootstrap: e.bootstrap, actionScore: e.actionScore, triedBefore: e.triedBefore }));
       record.events[policy.name] = replay.trace.map(e => ({ t: e.t + 1, kind: e.s === replay.door && e.a === 2 ? 'door-open' : e.s === replay.door + 1 ? 'reset' : 'move', from: e.s, to: e.s2 }));
       record.terminal[policy.name] = 'step-budget';
       record.metrics[policy.name] = {

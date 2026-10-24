@@ -92,6 +92,7 @@
       if (explored) a = j;
       const qBefore = Q[s][a];
       const takenScore = actionScore(s, a);
+      const triedBefore = nsa[s][a] > 0;
       const s2 = succ(s, a, door);
       const crossed = s === door && a === 2;
       const env = p.reward === 'none' ? 0 : (crossed ? 1 : 0);
@@ -121,6 +122,7 @@
         qAfter,
         bootstrap: mx,
         actionScore: takenScore,
+        triedBefore,
       });
       s = s2;
     }

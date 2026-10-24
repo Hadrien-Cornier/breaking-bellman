@@ -41,6 +41,7 @@
       if (!shell) lab.append(sections[name]);
     }
     function linked(el) { if (record) el.dataset.run = record.id; el.dataset.stale = String(stale); return el; }
+    const mathPanel = window.ALGO_MATH ? window.ALGO_MATH.mountRare({ id: 'rare-algorithm-math-panel' }) : null;
     function draw(canvas, value, t) {
       if (t === null) return value ? value.settings.steps + 1 : 0;
       const frame = window.BBRARE_RECORD.frame(value, selected, t);
@@ -74,40 +75,8 @@
         ? M.CELL_LABELS[f.last.obs] + ' → ' + M.PROTOCOL.actions[f.last.action] + ' → ' + M.CELL_LABELS[f.state] + '. Environment reward ' + f.last.reward + '. Visit bonus ' + num(f.last.visitBonus) + '; bonus in target ' + num(f.last.intrinsic) + '. ' + (f.last.explored ? 'Sampled random action.' : 'Highest action score.')
         : 'Left and right move along the hall. Open works only at Door. Gem returns to Start on the next step.';
       scene.querySelector('#rare-watch').textContent = timer ? 'Pause' : 'Watch';
-      const math = scene.querySelector('#rare-math');
-      if (math) {
-        const policy = window.BBRARE_RECORD.policies.find((p) => p.name === selected);
-        const place = policy.place;
-        const withheld = policy.reward === 'none';
-        const proto = window.BBRARE.PROTOCOL;
-        const hot = (on, text) => h('span' + (on ? '.hot' : ''), { text });
-        const showNum = (n) => (isFinite(n) ? num(n) : '∞');
-        const scoreTerm = place === 'local'
-          ? hot(true, 'Q(s, a) + 1/√n(next)')
-          : (place === 'optimism' || place === 'backup')
-            ? hot(true, '20 until that action is tried, otherwise Q(s, a)')
-            : 'Q(s, a)';
-        const lines = [
-          h('p', null, [h('b', { text: 'Action. ' }), 'Score = ', scoreTerm, '. Ties pick left.']),
-          h('p', null, [h('b', { text: 'Target. ' }), 'y = ', hot(withheld, 'r'), ' + ', hot(place === 'target' || place === 'backup', 'b'), ' + γ max Q(s′, a′). ',
-            place === 'local' ? 'b stays 0. 1/√n changes the action score only.' : '',
-            place === 'off' || place === 'optimism' ? 'b stays 0.' : '',
-            place === 'target' || place === 'backup' ? 'b is 1/√n after the visit.' : '',
-            withheld ? ' r is forced to 0.' : '']),
-        ];
-        if (!f.last) lines.push(h('p', { text: record ? 'Press Step to substitute the recorded values of this sample.' : 'Press Run, then Step. Numbers are copied from the recorded sample.' }));
-        else {
-          const y = f.last.reward + f.last.intrinsic + proto.gamma * f.last.bootstrap;
-          lines.push(h('p', null, [
-            'This step: ', M.CELL_LABELS[f.last.obs], ' → ', proto.actions[f.last.action], ' → ', M.CELL_LABELS[f.last.state], '. ',
-            f.last.explored ? 'Sampled random action. ' : 'Highest action score. ',
-            'Action score ', showNum(f.last.actionScore), '. r ', showNum(f.last.reward), ', b ', showNum(f.last.intrinsic), ', max Q ', showNum(f.last.bootstrap), ', y ', showNum(y), '. ',
-            'Q before ', showNum(f.last.qBefore), ', Q after ', showNum(f.last.qAfter), '. ',
-            'α ', String(proto.alpha), ', γ ', String(proto.gamma), ', n after the visit ', String(f.last.nAfter), '.',
-          ]));
-        }
-        math.replaceChildren(h('div.eyebrow', { text: 'Update for ' + policy.label }), ...lines);
-      }
+      const policy = window.BBRARE_RECORD.policies.find((p) => p.name === selected);
+      if (mathPanel) mathPanel.update(policy, f.last || null);
       const counts = sections.curve.querySelector('#rare-counts');
       if (counts) counts.replaceChildren(...f.counts.map((n, i) => h('div.rare-count', null, [h('strong', { text: M.CELL_LABELS[i] }), h('span', { text: 'Visits ' + n }), h('meter', { min: 0, max: record.settings.steps + 1, value: n, 'aria-label': M.CELL_LABELS[i] + ' visits' }), h('span', { text: n ? '1/√n ' + num(1 / Math.sqrt(n)) : 'Unseen' })])));
       const total = sections.curve.querySelector('#rare-totals');
@@ -143,7 +112,7 @@
           h('button.btn', { id: 'rare-step', type: 'button', disabled: !record, onclick: () => { stop(); time = Math.min(record.settings.steps, time + 1); paint(); } }, 'Step'),
           h('button.btn', { id: 'rare-replay', type: 'button', disabled: !record, onclick: () => { stop(); time = 0; paint(); } }, 'Replay'),
         ]),
-        h('div', { id: 'rare-math', 'aria-label': 'Action choice and Q update for the selected method' }),
+        h('div', null, [mathPanel ? mathPanel.el : h('div', { id: 'rare-math' })]),
         h('p.small', { id: 'rare-clock' }), h('p.small', { id: 'rare-event' }),
         h('p.small', { text: 'Watch replays one actual training sample per method. Step and Replay work with reduced motion. No path is interpolated.' }),
       );
