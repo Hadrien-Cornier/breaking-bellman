@@ -12,7 +12,7 @@ function content(beforeGraph) {
   const files = JSON.parse(build.match(/const CONTENT_FILES = (\[[^;]+\]);/)[1].replaceAll("'", '"'));
   const context = vm.createContext({ window: {}, structuredClone });
   context.window = context;
-  for (const file of ["src/core/rng.js", "src/agents/vpo.js", "src/agents/supermimic.js", "src/agents/hindsight.js", "src/agents/hierarchy.js"]) {
+  for (const file of ['src/core/rng.js', 'src/agents/vpo.js', 'src/agents/supermimic.js', 'src/agents/hindsight.js', 'src/agents/hierarchy.js', 'src/agents/replan.js', 'web/replan-record.js']) {
     vm.runInContext(fs.readFileSync(require.resolve('../' + file), 'utf8'), context, { filename: file });
   }
   for (const file of files) {
@@ -22,7 +22,7 @@ function content(beforeGraph) {
   return context.window.CONTENT;
 }
 const plain = value => JSON.parse(JSON.stringify(value));
-const ids = ["goals", "slots", "cliff", "careful", "cells", "explode", "mirage", "credit", "bigsteps", "passfail", "continuous", "explore", "elbo", "messages", "offline", "mixed", "thaw", "rewardfit", "rare", "twoways", "pick", "residual", "fetch", "vpo", "skills", "skew", "hindsight", "metarl", "hierarchy", "supermimic", "ensemble"];
+const ids = ["goals", "slots", "cliff", "careful", "cells", "explode", "mirage", "credit", "bigsteps", "passfail", "continuous", "explore", "elbo", "messages", "offline", "mixed", "thaw", "rewardfit", "rare", "twoways", "pick", "residual", "fetch", "vpo", "skills", "skew", "hindsight", "metarl", "hierarchy", "supermimic", "ensemble", "replan"];
 
 test('build attaches the six campaign worlds and approved metadata to the registered levels', () => {
   const C = content();
@@ -30,7 +30,7 @@ test('build attaches the six campaign worlds and approved metadata to the regist
   assert.deepEqual(worlds.map(w => [w.id, w.name]), approved.worlds);
   assert.deepEqual(edges.map(e => [e.from, e.to, e.label]), approved.edges);
   assert.equal(edges.length, 30);
-  assert.equal(C.graph.activeEdges.length, 29);
+  assert.equal(C.graph.activeEdges.length, 30);
   for (const level of C.levels) {
     const projected = C.graph.levels.find(l => l.id === level.id);
     assert.equal(level.campaignWorld, (['skew', 'metarl', 'ensemble'].includes(level.id) ? 'w6' : approved.levelWorlds[level.id]), level.id);

@@ -119,7 +119,11 @@
     function results() {
       const h = ctx.h;
       nodes.result.replaceChildren(); nodes.chart.replaceChildren(); nodes.evidence.replaceChildren();
-      if (!record) return;
+      if (!record) {
+        nodes.chart.append(h('p.small', { text: 'Run the lesson to inspect its curve.' }));
+        nodes.evidence.append(h('p.small', { text: 'Run the lesson to inspect its autopsy.' }));
+        return;
+      }
       nodes.result.append(h('h3', { text: 'Measured results' }));
       for (const { name, label } of record.policies) {
         const m = record.metrics[name];
