@@ -63,7 +63,7 @@
     answers: saved.answers || {},    // question id -> {choice, correct, ts}
     missions: saved.missions || [],
     saved: saved.saved || [],
-    level: saved.level || C.levels[0].id,
+    level: saved.level || (C.levels.some((l) => l.id === 'slots') ? 'slots' : C.levels[0].id),
     lstep: saved.lstep || {},        // level id -> step reached
     made: saved.made || {},          // level id -> { parts, recipe }
     reviews: saved.reviews || {},    // card id -> { last, n, right }
@@ -1022,8 +1022,37 @@
   const thawActive = () => S.mode === 'campaign' && S.level === 'thaw';
   const customActive = () => replanActive() || ensembleActive() || metarlActive() || skewActive() || skillsActive() || goalExecutionActive() || inferenceActive() || rareActive() || vpoActive() || supermimicActive() || thawActive() || rewardfitActive() || goalsActive();
   const customApi = () => replanActive() ? BBREPLAN : ensembleActive() ? BBENSEMBLE_LEVEL : metarlActive() ? BBMETARL : skewActive() ? BBSKEW : skillsActive() ? BBSKILLS_LEVEL : S.level === 'hindsight' ? BBHINDSIGHT : S.level === 'hierarchy' ? BBHIERARCHY : S.level === 'elbo' ? BBELBO_LEVEL : S.level === 'messages' ? BBMESSAGES_LEVEL : rareActive() ? BBRARELESSON : goalsActive() ? BBGOALS_LEVEL : rewardfitActive() ? BBREWARDFIT : thawActive() ? BBTHAW : supermimicActive() ? BBSUPERMIMIC : BBVPO;
+  function openSimulation() {
+    const dlg = $('#run-simulation');
+    const body = $('#run-simulation-body');
+    if (!dlg || !body || typeof dlg.showModal !== 'function') return;
+    const replay = $('#replay-drawer');
+    if (replay) {
+      replay.append($('#run-result'), $('#run-source'), $('#stage-caption'), $('#scene-controls'));
+      replay.open = true;
+    }
+    const progress = document.querySelector('#run-settings .progress');
+    if (progress) $('#run-simulation-head').append(progress);
+    body.append($('#stage-card'), replay, $('#learning-monitor'));
+    if (!dlg.open) dlg.showModal();
+    const rect = $('#stage').getBoundingClientRect();
+    if (rect.width > 2 && rect.height > 2) {
+      stageW = Math.round(rect.width);
+      stageH = Math.round(rect.height);
+      if (!S.running) renderStage();
+    }
+  }
+  function settleEditor() {
+    const curve = $('#editor-curve');
+    const result = $('#editor-result');
+    if (curve) curve.append($('#learning-monitor'));
+    if (result) result.append($('#run-result'), $('#run-source'));
+    const progress = document.querySelector('#run-simulation .progress');
+    if (progress && $('#run-settings')) $('#run-settings').append(progress);
+  }
   async function run() {
     if (customActive()) return customApi().run();
+    openSimulation();
     if (S.running) return null;
     S.running = true; $('#run-btn').disabled = true;
     const nSeeds = +$('#seeds').value, steps = +$('#budget').value;
@@ -1975,27 +2004,39 @@
     if (!window.BBPLAYER || typeof document === 'undefined') return mcBlock(q, onAnswer, kind);
     const reopen = h('button.btn', { type: 'button', 'data-prediction': q.id }, S.answers[q.id] ? 'Review the prediction' : 'Show the prediction');
     const open = () => {
+      const stage = $('#stage-card') || $('#lab');
+      const sim = $('#run-simulation');
+      const openedForQuestion = !!(stage && sim && stage.closest('#run-simulation') && !sim.open);
+      if (openedForQuestion) openSimulation();
       const node = mcBlock(q, (choice) => {
         window.BBPLAYER.closePrediction(false);
         onAnswer(choice);
         const run = $('#run-btn');
         if (run) run.focus();
       }, kind);
-      window.BBPLAYER.openPrediction({
+      const pop = window.BBPLAYER.openPrediction({
         title: title || 'Predict before you run',
         node,
-        anchor: $('#stage-card') || $('#lab'),
+        anchor: stage,
         returnLabel: 'Back to the experiment',
       });
+      if (pop && openedForQuestion) {
+        pop.addEventListener('close', () => {
+          if (sim.open && !S.running) sim.close();
+        }, { once: true });
+      }
     };
     reopen.addEventListener('click', open);
-    if (current && !S.answers[q.id] && window.BBPLAYER.claimPrediction(q.id)) queueMicrotask(open);
     const launch = h('div.prediction-launch', null, [reopen]);
     const stage = $('#stage-card');
-    if (current && stage) stage.append(launch);
+    const onScene = stage && !stage.closest('#run-simulation');
+    if (current && onScene && !S.answers[q.id] && window.BBPLAYER.claimPrediction(q.id)) queueMicrotask(open);
+    if (current && onScene) stage.append(launch);
     return h('div.stack', null, [
-      h('p.small', { text: 'The question opens on the scene, so the world stays in view while you answer.' }),
-      current ? null : launch,
+      h('p.small', { text: onScene
+        ? 'The question opens on the scene, so the world stays in view while you answer.'
+        : 'The question opens on the simulation, so the world stays in view while you answer.' }),
+      (current && onScene) ? null : launch,
     ]);
   }
 
@@ -2126,7 +2167,7 @@
       campaignRunRow(lv),
     ])));
     if (st >= 2) steps.append(mk(2, 'Diagnose', h('div.stack', null, [
-      h('button.btn.ghost', { type: 'button', onclick: () => { $('#replay-lab').closest('details').open = true; shell.open('autopsy'); } }, 'Watch one update of this sentence'),
+      h('button.btn.ghost', { type: 'button', onclick: () => openReference('autopsy') }, 'Watch one update of this sentence'),
       ask(lv.diagnose, () => setStep(lv, 3), 'Diagnose what happened', st === 2, 'diagnose'),
     ])));
     if (st >= 3) {
@@ -3189,6 +3230,44 @@
   for (const sel of ['#seeds', '#budget', '#run-mode']) $(sel).addEventListener('change', () => { cancelRun(); if (!G.running) drawGrid(); });
   document.addEventListener('change', () => { markRunStale(); if (activeRun && runIdentity() !== activeRun.identity) cancelRun(); });
 
+  function placeEditor() {
+    const body = $('#run-simulation-body');
+    if (!body) return;
+    body.append($('#stage-card'), $('#replay-drawer'));
+    $('#editor-curve').append($('#learning-monitor'));
+    $('#editor-run').append($('#run-settings'));
+    $('#editor-result').append($('#run-result'), $('#run-source'));
+    $('#reference-park').append($('#notebook'));
+  }
+  const referenceNames = { rule: 'Rules', curve: 'Sources', autopsy: 'Autopsy', notes: 'Notes' };
+  function openReference(name) {
+    const dlg = $('#reference-dialog');
+    if (!dlg || typeof dlg.showModal !== 'function') return;
+    $('#reference-title').textContent = referenceNames[name] || 'Notes';
+    $('#reference-host').append($('#notebook'));
+    $('#notebook').hidden = false;
+    shell.open(name);
+    if (name === 'autopsy') {
+      const watch = $('#replay-lab') && $('#replay-lab').closest('details');
+      if (watch) watch.open = true;
+    }
+    if (!dlg.open) dlg.showModal();
+  }
+  function closeReferenceDialog() {
+    if ($('#reference-dialog').open) $('#reference-dialog').close();
+  }
+  $$('#reference-bar [data-reference]').forEach((button) => {
+    button.addEventListener('click', () => openReference(button.dataset.reference));
+  });
+  $('#reference-close').addEventListener('click', closeReferenceDialog);
+  $('#reference-dialog').addEventListener('close', () => { $('#reference-park').append($('#notebook')); });
+  $('#simulation-btn').addEventListener('click', () => openSimulation());
+  $('#run-simulation-close').addEventListener('click', () => { if ($('#run-simulation').open) $('#run-simulation').close(); });
+  $('#run-simulation').addEventListener('close', () => {
+    settleEditor();
+    if ($('#run-btn')) $('#run-btn').focus();
+  });
+  placeEditor();
   budgetOptions();
   if (S.mode === 'campaign' && !mapOpen) enterLevel(C.levels.find((l) => l.id === S.level));
   else setWorld(S.world);

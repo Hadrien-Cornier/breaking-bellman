@@ -717,3 +717,37 @@ ul.preset-diff li { margin: 2px 0; }
 .sentence-explanation > summary { cursor: pointer; font-size: .78rem; min-height: 30px; }
 .drawer-workspace #training-metric:empty { display: none; }
 .drawer-workspace #training-metric:empty + #charts { grid-column: 1 / -1; }
+
+/* Editor: sentence and equations. The world appears only after Run. */
+#notebook { display: none; }
+#notebook > summary { display: none; }
+#reference-dialog #notebook { display: block; border: 0; background: transparent; padding: 0; }
+.drawer-workspace > #lab { display: none; }
+.drawer-workspace > #algorithm-workspace { grid-column: 1 / -1; }
+.drawer-workspace #algorithm-workspace {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 12px 16px; align-items: start;
+}
+.drawer-workspace #algorithm-workspace > .eyebrow,
+.drawer-workspace #editor-run,
+.drawer-workspace #editor-result,
+.drawer-workspace #editor-curve,
+.drawer-workspace #reference-bar { grid-column: 1 / -1; }
+.drawer-workspace #algorithm-workspace #rule { grid-column: 1; }
+.drawer-workspace #algorithm-workspace #algorithm-math-slot { grid-column: 2; }
+.drawer-workspace #editor-run #run-settings { padding: 0; background: transparent; border: 0; box-shadow: none; }
+.reference-bar { display: flex; flex-wrap: wrap; gap: 8px; }
+#run-simulation, #reference-dialog {
+  width: min(960px, calc(100vw - 32px)); max-height: min(920px, calc(100vh - 32px));
+  margin: auto; border: 1px solid var(--line); border-radius: 12px; padding: 16px;
+  background: var(--surface); color: var(--ink);
+}
+#run-simulation::backdrop, #reference-dialog::backdrop { background: rgb(0 0 0 / 0.55); }
+.run-simulation-head, .reference-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+#run-simulation .stage { width: min(100%, 720px); max-width: 100%; max-height: none; height: auto; aspect-ratio: 640 / 280; }
+#run-simulation #learning-monitor { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 959px) {
+  .drawer-workspace #algorithm-workspace { grid-template-columns: 1fr; }
+  .drawer-workspace #algorithm-workspace #rule,
+  .drawer-workspace #algorithm-workspace #algorithm-math-slot { grid-column: 1; }
+  .drawer-workspace #learning-monitor, #run-simulation #learning-monitor { display: grid; grid-template-columns: 1fr; }
+}

@@ -26,7 +26,15 @@ const browser = await chromium.launch({ executablePath: exe || undefined });
 const errors = [];
 const fails = [];
 const check = (cond, msg) => { if (!cond) fails.push(msg); console.log((cond ? 'ok   ' : 'FAIL ') + msg); };
-const runDone = (page) => page.waitForFunction(() => !document.querySelector('#run-btn').disabled && document.querySelector('#run-result').textContent.length > 0, null, { timeout: Number(process.env.BB_UI_RUN_TIMEOUT_MS) || 3600000 });
+async function dismissDialog(page, id, closeId) {
+  const dlg = page.locator(id);
+  if (await dlg.count() && await dlg.evaluate((el) => el.open).catch(() => false)) await page.locator(closeId).click();
+}
+// Run opens the simulation. The lesson continues after that dialog is dismissed.
+async function runDone(page) {
+  await page.waitForFunction(() => !document.querySelector('#run-btn').disabled && document.querySelector('#run-result').textContent.length > 0, null, { timeout: Number(process.env.BB_UI_RUN_TIMEOUT_MS) || 3600000 });
+  await dismissDialog(page, '#run-simulation', '#run-simulation-close');
+}
 const fastRoot = new URL('../../fast/', import.meta.url);
 const { exact, hash, source, content } = require('../../scripts/fast-source.js');
 const fastVersion = hash(exact.stringify(source().versions));
@@ -52,27 +60,69 @@ async function session(w, h, name, fn) {
   check(!(await page.locator('dialog.intro').count()), name + ' the welcome closes');
   // Existing smoke scenarios exercise the original Slots entry by stable id.
   await page.evaluate(() => bellman.level('slots'));
+  await revealLesson(page);
   await fn(page);
   const sw = await page.evaluate(() => document.documentElement.scrollWidth);
   check(sw <= w, name + ' no horizontal scroll (scrollWidth ' + sw + ', viewport ' + w + ')');
   await page.close();
 }
 // tap a word chip in the mode pane, then the option with this label
-async function openNotebook(page, section) {
-  if (await page.locator('main.lesson-shell').count()) {
-    if (!await page.locator('#notebook').evaluate(e => e.open)) await page.locator('#notebook > summary').click();
-    await page.locator('#notebook-tab-' + section).click();
+// Campaign, Workbench, and Saboteur keep the lesson in a closed drawer so the world stays on the first screen.
+async function revealLesson(page) {
+  const help = page.locator('dialog.lesson-help');
+  if (await help.waitFor({ state: 'visible', timeout: 1000 }).then(() => true, () => false)) {
+    await help.getByRole('button', { name: 'Back to the experiment' }).click();
+  }
+  const lesson = page.locator('#lesson-drawer');
+  if (await lesson.count() && await lesson.isVisible() && !(await lesson.evaluate(el => el.open))) {
+    await lesson.locator('summary').click();
   }
 }
+// Predict and diagnose open on the scene. Explain stays in the lesson step.
+async function answerChoice(page, index) {
+  await dismissDialog(page, '#reference-dialog', '#reference-close');
+  await dismissDialog(page, '#run-simulation', '#run-simulation-close');
+  const pop = page.locator('#prediction-pop .opt');
+  if (!(await pop.count())) {
+    const show = page.getByRole('button', { name: /Show the prediction|Review the prediction/ });
+    if (await show.count()) await show.first().click();
+  }
+  const choice = page.locator('#prediction-pop .opt');
+  if (await choice.count()) {
+    await choice.nth(index).click();
+    return;
+  }
+  await page.locator('#mode-pane .step.active .mc .opt, #mode-pane .mc .opt').nth(index).click();
+}
+// A campaign reload opens the map. The saved lesson, including its notebook, is behind Play.
+async function enterSavedLesson(page) {
+  if (!(await page.locator('#campaign-map').count())) return;
+  const id = await page.evaluate(() => {
+    try { return JSON.parse(localStorage.getItem('breaking-bellman-v1')).level; } catch { return null; }
+  });
+  if (!id) return;
+  await page.locator('[data-map-level="' + id + '"]').click();
+  await page.locator('[data-open-level="' + id + '"]').click();
+  await revealLesson(page);
+}
+async function openNotebook(page, section) {
+  const dlg = page.locator('#reference-dialog');
+  const already = await dlg.count() && await dlg.evaluate((el) => el.open).catch(() => false);
+  if (!already) {
+    const opener = page.locator('#reference-bar [data-reference="' + section + '"]');
+    if (await opener.count()) await opener.click();
+  }
+  const tab = page.locator('#notebook-tab-' + section);
+  if (await tab.isVisible()) await tab.click();
+}
 async function setWord(page, scope, key, label) {
-  if (scope === '#rule') await openNotebook(page, 'rule');
   await page.locator(scope + ' .w[data-key="' + key + '"]').first().click();
   await page.locator(scope + ' .chooser .choice', { hasText: label }).first().click();
 }
 
 await session(375, 812, 'phone', async (page) => {
   await page.screenshot({ path: out + '/phone-start.png' });
-  await page.locator('.mc .opt').nth(1).click();
+  await answerChoice(page, 1);
   await page.getByText('Run the starting sentence').click();
   await runDone(page);
   check(await page.locator('#mode-pane .step', { hasText: 'Diagnose' }).count() === 1, 'a successful campaign run advances to Diagnose');
@@ -82,7 +132,7 @@ await session(375, 812, 'phone', async (page) => {
   await page.waitForSelector('#replay-lab .rp-stage', { timeout: 60000 });
   for (let i = 0; i < 4; i++) await page.locator('#replay-lab .replay button', { hasText: /^Next$/ }).click();
   console.log('L1 replay, last stage:', (await page.locator('#replay-lab .rp-stage').innerText()).slice(0, 200));
-  await page.locator('#mode-pane .mc').first().locator('.opt').nth(1).click();
+  await answerChoice(page, 1);
   await setWord(page, '#mode-pane', 'eps', 'sometimes at random');
   const mjx = await page.locator('#mode-pane .math mjx-container').count();
   console.log('MathJax containers in the repair step:', mjx);
@@ -242,7 +292,7 @@ await session(1280, 900, 'phases', async (page) => {
   await page.locator('#campaign-logo').click();
   await page.locator('[data-map-level][aria-label^="Learn the policy itself"]').click();
   await page.locator('[data-open-level]').click();
-  await page.locator('#mode-pane .mc').first().locator('.opt').nth(1).click();
+  await answerChoice(page, 1);
   await page.getByText('Run the starting sentence').click();
   await runDone(page);
   const r1 = await page.locator('#run-result').innerText();
@@ -253,7 +303,7 @@ await session(1280, 900, 'phases', async (page) => {
   await page.waitForSelector('#replay-lab .rp-stage', { timeout: 60000 });
   for (let i = 0; i < 3; i++) await page.locator('#replay-lab .replay button', { hasText: /^Next$/ }).click();
   console.log('pg replay stage:', (await page.locator('#replay-lab .rp-stage').innerText()).slice(0, 160).replace(/\n/g, ' | '));
-  await page.locator('#mode-pane .mc').first().locator('.opt').nth(0).click();
+  await answerChoice(page, 0);
   await setWord(page, '#mode-pane', 'credit', 'only the rewards after it');
   await setWord(page, '#mode-pane', 'scale', 'yes, by the standard deviation');
   await page.waitForTimeout(800);
@@ -313,14 +363,14 @@ await session(1280, 900, 'twoways', async (page) => {
   await page.locator('#campaign-logo').click();
   await page.locator('[data-map-level][aria-label^="Two good ways"]').click();
   await page.locator('[data-open-level]').click();
-  await page.locator('#mode-pane .mc').first().locator('.opt').nth(0).click();
+  await answerChoice(page, 0);
   let t0 = Date.now();
   await page.getByText('Run the starting sentence').click();
   await runDone(page);
   const r1 = await page.locator('#run-result').innerText();
   console.log('twoways start run in', ((Date.now() - t0) / 1000).toFixed(0), 's:', r1);
   check(/Does not work yet/.test(r1), 'the 10-command Gaussian copy does not pass');
-  await page.locator('#mode-pane .mc').first().locator('.opt').nth(0).click();
+  await answerChoice(page, 0);
   await setWord(page, '#mode-pane', 'head', 'noise turned into an action');
   t0 = Date.now();
   await page.getByText('Run this sentence').click();
@@ -337,7 +387,7 @@ await session(375, 812, 'phone-frontier', async (page) => {
   await page.locator('[data-open-level]').click();
   await page.waitForTimeout(500);
   check(/mud/.test(await page.locator('#mode-pane').innerText()), 'mud level shows its intro');
-  await page.locator('#mode-pane .mc').first().locator('.opt').nth(0).click();
+  await answerChoice(page, 0);
   await setWord(page, '#rule', 'pick', 'the best of 8 samples, by the critic');
   const requested = await page.evaluate(() => ({ ...bellman.state(), steps: +document.querySelector('#budget').value,
     seeds: Array.from({ length: +document.querySelector('#seeds').value }, (_, i) => 101 * (i + 1)) }));
@@ -412,7 +462,7 @@ await session(375, 812, 'phone-frontier', async (page) => {
   await page.locator('[data-open-level]').click();
   await page.waitForTimeout(500);
   check(/kitting/.test(await page.locator('#mode-pane').innerText()), 'residual level shows its intro');
-  await page.locator('#mode-pane .mc').first().locator('.opt').nth(1).click();
+  await answerChoice(page, 1);
   await page.waitForTimeout(300);
   await page.screenshot({ path: out + '/phone-residual.png', fullPage: true });
 });
@@ -522,16 +572,16 @@ await session(390, 844, 'rules', async (page) => {
       const failures = [];
       const inspect = (name, objective) => {
         const panel = document.querySelector('#game-rules');
-        const campaign = document.querySelector('main').classList.contains('lesson-shell');
-        if (campaign) { document.querySelector('#notebook').open = true; document.querySelector('#notebook-tab-rule').click(); }
+        const inNotebook = !!panel.closest('#notebook');
+        if (inNotebook) { document.querySelector('#notebook').open = true; document.querySelector('#notebook-tab-rule').click(); }
         const text = panel.innerText;
         for (const label of ['Goal', 'Reward each step', 'Equation', 'Episode ends', 'Score', 'Pass this challenge']) {
           if (!text.includes(label)) failures.push(name + ': missing ' + label);
         }
         if (objective && !text.includes(objective)) failures.push(name + ': wrong challenge');
-        if (!campaign && !(panel.compareDocumentPosition(document.querySelector('#stage')) & Node.DOCUMENT_POSITION_FOLLOWING)) failures.push(name + ': rules follow manual play');
-        if (!campaign && !(panel.compareDocumentPosition(document.querySelector('#run-btn')) & Node.DOCUMENT_POSITION_FOLLOWING)) failures.push(name + ': rules follow Run');
-        if (campaign && (!panel.closest('#notebook-rule') || document.querySelector('#notebook-rule').hidden)) failures.push(name + ': Rule tab does not expose rules');
+        if (!inNotebook && !(panel.compareDocumentPosition(document.querySelector('#stage')) & Node.DOCUMENT_POSITION_FOLLOWING)) failures.push(name + ': rules follow manual play');
+        if (!inNotebook && !(panel.compareDocumentPosition(document.querySelector('#run-btn')) & Node.DOCUMENT_POSITION_FOLLOWING)) failures.push(name + ': rules follow Run');
+        if (inNotebook && (!panel.closest('#notebook-rule') || document.querySelector('#notebook-rule').hidden)) failures.push(name + ': Rule tab does not expose rules');
         if (document.documentElement.scrollWidth > innerWidth) failures.push(name + ': overflow');
       };
       for (const l of CONTENT.levels) {
@@ -573,17 +623,22 @@ await session(390, 844, 'rules', async (page) => {
     localStorage.setItem(key, JSON.stringify(saved));
   });
   await page.reload();
+  await enterSavedLesson(page);
   await page.selectOption('#rk-shaping', '2');
   await openNotebook(page, 'rule');
   check(/0.97 × dAfterNonterminal/.test(await page.locator('#game-rules').innerText()), 'Fetch repair updates potential shaping equation before Run');
   await openNotebook(page, 'rule');
   check(await page.locator('#game-rules').isVisible() && /0.97 × dAfterNonterminal/.test(await page.locator('#game-rules').innerText()), 'Notebook exposes Fetch live reward rules after editing');
+  await dismissDialog(page, '#reference-dialog', '#reference-close');
   await page.locator('#mode-pane button', { hasText: 'Back to the starting reward' }).click();
+  await openNotebook(page, 'rule');
   check(/0.05 × cos/.test(await page.locator('#game-rules').innerText()), 'Fetch reward reset restores facing bonus in rules');
+  await dismissDialog(page, '#reference-dialog', '#reference-close');
   await page.evaluate(() => {
     document.querySelector('[data-mode="workbench"]').click(); bellman.words({ family: 'ac' });
     bellman.world('pendulum', { maxSteps: 100, maxTorque: 0.5 });
   });
+  await openNotebook(page, 'rule');
   const shortRule = await page.locator('#game-rules').innerText();
   check(/Tests can run 200 steps; only the first 100/.test(shortRule) && /±0.5/.test(shortRule), 'short horizon and weaker motor appear accurately');
   await page.locator('#game-rules').screenshot({ path: out + '/rules-short-pendulum-phone-dark.png' });
@@ -608,6 +663,7 @@ async function backupPage(w, h) {
   }, save);
   await page.goto('file://' + out + '/page.html');
   await page.waitForTimeout(400);
+  await revealLesson(page);
   return page;
 }
 const backupPage1280 = await backupPage(1280, 900);
@@ -623,6 +679,7 @@ await backupPage1280.evaluate(() => {
   localStorage.setItem(key, JSON.stringify(saved));
 });
 await backupPage1280.reload();
+await enterSavedLesson(backupPage1280);
 await openNotebook(backupPage1280, 'notes');
 await backupPage1280.waitForSelector('#reward-backup');
 const readBackup = () => backupPage1280.evaluate(() => {
@@ -662,6 +719,7 @@ check(/0\.95\^1/.test(targets) && /0\.95\^8/.test(targets) && /0\.95\^3/.test(ta
 const progress = await backupPage1280.evaluate(() => JSON.parse(localStorage.getItem('breaking-bellman-v1')));
 check(progress.done.join() === 'slots' && progress.lstep.cliff === 2 && progress.lstep.slots === 5 && progress.answers['cliff-p'].choice === 1 && progress.found.join() === 'egreedy', 'backup: using the picture does not rewrite the save');
 await backupPage1280.reload();
+await enterSavedLesson(backupPage1280);
 await openNotebook(backupPage1280, 'notes');
 await backupPage1280.waitForSelector('#rb-round-value');
 check(await backupPage1280.locator('#rb-round-value').innerText() === '0', 'backup: a reload returns the picture to round 0 and leaves progress');

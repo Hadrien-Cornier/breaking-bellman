@@ -57,7 +57,10 @@
     const activeEdges = edges.filter(e => ids.has(e.from) && ids.has(e.to));
     const parents = id => activeEdges.filter(e => e.to === id).map(e => e.from);
     const missing = (id, done) => parents(id).filter(parent => !done.includes(parent));
-    const next = done => levels.find(l => !done.includes(l.id) && missing(l.id, done).length === 0)?.id ?? null;
+    const next = done => {
+      const open = levels.filter(l => !done.includes(l.id) && missing(l.id, done).length === 0);
+      return (open.find(l => l.id !== 'goals') || open[0])?.id ?? null;
+    };
     // Unknown ids are retained by saves but have no displayed graph state.
     function status(id, done) {
       if (!ids.has(id)) return null;

@@ -93,7 +93,7 @@
       for (const z of ZOOMS) controls.append(button(z[0].toUpperCase() + z.slice(1), () => setZoom(z), 'btn ghost', { 'data-zoom': z }));
       map.append(h('div.map-heading', null, [h('h1', { tabindex: '-1', text: 'Campaign map' }),
         h('p', { text: C.levels.filter(l => S.done.includes(l.id)).length + ' of ' + C.levels.length + ' levels cleared' }), controls,
-        h('p.small', { text: 'Follow the paths or choose any level. Locks only suggest an order.' }),
+        h('p.small', { text: 'Start with Ten slot machines. Follow the paths or choose any level. Locks only suggest an order.' }),
       ]), path, dock, saveActions());
       pane.append(map);
       const rows = {};

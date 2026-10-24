@@ -85,8 +85,9 @@ test('every registered parent must be cleared, and advisory completion wins over
 
 test('next uses course order, skips locked levels, and disappears when all levels are cleared', () => {
   const { graph } = content();
-  assert.equal(graph.next([]), 'goals');
+  assert.equal(graph.next([]), 'slots');
   assert.equal(graph.next(['goals']), 'slots');
+  assert.equal(graph.next(['slots']), 'cliff');
   assert.equal(graph.next(['goals', 'slots']), 'cliff');
   assert.equal(graph.next(['goals', 'slots', 'cliff']), 'careful');
   // Unknown saved ids do not compete for next.
@@ -115,7 +116,8 @@ test('states are derived afresh from done without mutating progress or creating 
     }
   }
   const immutable = Object.freeze(snapshot);
-  assert.equal(graph.status('goals', immutable), 'next');
+  assert.equal(graph.status('slots', immutable), 'next');
+  assert.equal(graph.status('goals', immutable), 'open');
   assert.equal(graph.status('cliff', immutable), 'locked');
   assert.deepEqual(immutable, ['future']);
   assert.deepEqual(plain(graph.levels.map(l => l.id)), ids);
