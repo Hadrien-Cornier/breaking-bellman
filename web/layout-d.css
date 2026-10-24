@@ -42,7 +42,7 @@
   .top:has(~ .world-strip-layout) .brand,
   .top:has(~ .world-strip-layout) .brand canvas { width: 32px; height: 32px; flex-basis: 32px; }
   .top:has(~ .world-strip-layout) .tabs { margin-top: 4px; }
-  .world-strip-layout > #lab { top: 90px; }
+  .world-strip-layout > #lab { top: 104px; }
   .world-strip-layout #stage { height: 116px; }
   .world-strip-layout #learning-metric .chart { height: 120px; }
   .world-strip-layout #algorithm-editor:has(#algorithm-math-panel) { grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); align-items: start; }
