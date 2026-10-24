@@ -8,7 +8,7 @@
     { id: 'w3', name: 'Smooth moves', phases: [3] },
     { id: 'w4', name: 'Learn from data', phases: [0, 4, 4.5] },
     { id: 'w5', name: 'Robot frontier', phases: [5] },
-    { id: 'w6', name: 'Plans and goals', phases: [7, 8, 9, 10] },
+    { id: 'w6', name: 'Plans and goals', phases: [7, 8, 9, 10, 10.5] },
   ];
   // All 30 settled links, including endpoints whose lessons are not registered yet.
   const edges = [
