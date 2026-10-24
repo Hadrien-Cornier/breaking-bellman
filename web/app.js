@@ -1198,8 +1198,8 @@
       S.stored = !!(stored && stored.record);
       S.source = S.stored ? stored.source : 'live';
       $('#run-source').textContent = S.stored
-        ? (S.source === 'local' ? 'Saved in this browser. Simulation. Ordered seeds: ' : 'Stored simulation. Ordered seeds: ') + seeds.join(', ') + '. Budget: ' + steps + ' steps per seed. Version: ' + window.BB_FAST.base.split('/').pop() + '. Recorded replay seed: ' + seeds[0] + '. Live reruns can vary numerically across browsers.'
-        : 'Live simulation: trained in this page. Replay seed: ' + seeds[0] + '.' + (savedLocally ? ' Saved in this browser for next time.' : '');
+        ? (S.source === 'local' ? 'Saved in this browser.' : 'Stored simulation.') + ' Playing a recorded run.'
+        : 'Live simulation: trained in this page.' + (savedLocally ? ' Saved in this browser for next time.' : '');
       const record = await RLA.runRecord.create({ level: S.mode === 'campaign' ? S.level : S.mode, config, results,
         source: S.source, label: nameOf(cfg.parts, cfg.world), name: (recognize(cfg.parts, cfg.world) || {}).id || 'current',
         comparison: S.pinA && S.pinA.world === cfg.world ? S.pinA.record : null });
@@ -1530,7 +1530,7 @@
         G.rows.push({ vals: combos[i], parts, v: m.v, se, works: C.works[world](a), rec: recognize(parts, world), stored: !!(stored && stored.record), source: stored && stored.source });
       }
       G.status = (G.stop ? 'Stopped after ' + G.rows.length + ' of ' + combos.length + ' combinations. ' : 'Done: ' + combos.length + ' combinations in ' + Math.round((performance.now() - t0) / 1000) + ' s. ') + G.cfgText + '. Simulation.';
-      if (fast) G.status += ' ' + G.rows.filter(r => r.stored).length + ' stored simulations (' + G.rows.filter(r => r.source === 'local').length + ' saved in this browser); the others ran Live. Ordered seeds: ' + seeds.join(', ') + '. Version: ' + window.BB_FAST.base.split('/').pop() + '.';
+      if (fast) G.status += ' ' + G.rows.filter(r => r.stored).length + ' stored simulations (' + G.rows.filter(r => r.source === 'local').length + ' saved in this browser); the others ran Live.';
     } catch (err) {
       G.status = 'A combination failed: ' + err.message;
     } finally {
