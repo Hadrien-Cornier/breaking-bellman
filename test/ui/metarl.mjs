@@ -14,6 +14,15 @@ export async function metarlContract(page, out, name, check = (ok, label) => ass
   check(await canvas.isVisible(), 'Meta-RL scene visible before prediction');
   check(await page.evaluate(() => !!(document.querySelector('#metarl-scene').compareDocumentPosition(document.querySelector('#metarl-lesson')) & Node.DOCUMENT_POSITION_FOLLOWING)), 'scene precedes prediction in DOM');
   check((await state()).record === null, 'level entry clears the previous record');
+  const openAutopsy = async () => {
+    if (await page.locator('#custom-notebook').count()) {
+      await page.locator('#custom-notebook').evaluate(e => { e.open = true; });
+      await page.locator('#custom-notebook-tab-autopsy').click();
+    } else await page.locator('#metarl-lab details').evaluate(e => { e.open = true; });
+  };
+  await openAutopsy();
+  check(await page.locator('#metarl-autopsy').isVisible() && (await page.locator('#metarl-autopsy').innerText()) === 'Run the lesson to inspect its autopsy.', 'Autopsy shows guidance before measurement');
+  check(await page.locator('#metarl-autopsy').getAttribute('data-run') === '' && (await page.locator('#metarl-result').innerText()) === '', 'pre-run guidance contains no measured identity or results');
   const layout = await page.evaluate(() => {
     const strip = document.querySelector('#campaign-strip'), main = document.querySelector('main.layout');
     return main.firstElementChild === strip && strip.contains(main.querySelector('button, a[href], input, select, summary'));
@@ -27,6 +36,9 @@ export async function metarlContract(page, out, name, check = (ok, label) => ass
   check(first.record?.id && first.record.level === 'metarl' && first.replay.length > 0, 'Run produces the measured Meta-RL record');
   const linked = () => page.evaluate(() => [...document.querySelectorAll('[data-record-surface]')].every(e => e.dataset.run === bellman.record()?.id && e.dataset.stale === String(bellman.replay().stale)));
   check(await linked(), 'scene, reward curve, result and autopsy share the record');
+  await openAutopsy();
+  const autopsyText = await page.locator('#metarl-autopsy').innerText();
+  check(autopsyText.includes('Fitted training counts') && autopsyText.includes('Terminal reasons:') && !autopsyText.includes('Run the lesson'), 'Run replaces Autopsy guidance with measured counts and terminal reasons');
   check(!await page.locator('body').innerText().then(t => t.includes(first.record.id)), 'internal record identity is never visible');
   check(first.record.data.fresh.steps === 22 && first.record.data.prior.steps === 0, 'actual 12 training plus 10 evaluation openings, no prior data');
   const touch = await page.locator('#metarl-lab button, #metarl-lab select, #metarl-lesson button').evaluateAll(es => es.filter(e => e.getClientRects().length).map(e => ({ id: e.id, w: e.getBoundingClientRect().width, h: e.getBoundingClientRect().height })));

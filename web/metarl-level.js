@@ -157,7 +157,7 @@
       h('p.small', null, [h('a', { href: 'https://rail.eecs.berkeley.edu/deeprlcourse/static/slides/lec-24.pdf', target: '_blank', rel: 'noopener' }, 'Idea adapted from Berkeley CS 285')]),
     ]);
     const curve = h('figure', { id: 'metarl-curve', 'data-record-surface': '' }, [h('canvas', { id: 'metarl-curve-plot', width: 640, height: 180, role: 'img', 'aria-label': 'Measured door rewards in opening order. Squares are training, circles are new tasks.', style: 'width:100%;height:auto', 'data-record-surface': '' }), h('figcaption.small', { id: 'metarl-curve-caption', text: 'Run to record rewards, then step through their measured order.' })]);
-    const autopsy = h('div.stack', { id: 'metarl-autopsy', 'data-record-surface': '' });
+    const autopsy = h('div.stack', { id: 'metarl-autopsy', 'data-record-surface': '' }, [h('p.small', { text: 'Run the lesson to inspect its autopsy.' })]);
     // The shared shell owns the Notebook. Before slice6 lands, these are small local sections.
     if (api.shell) {
       api.shell.notebook('rule').replaceChildren(rule);
