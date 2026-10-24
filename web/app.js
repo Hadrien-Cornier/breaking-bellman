@@ -1145,10 +1145,11 @@
   }
   const vpoActive = () => S.mode === 'campaign' && S.level === 'vpo';
   const supermimicActive = () => S.mode === 'campaign' && S.level === 'supermimic';
+  const goalsActive = () => S.mode === 'campaign' && S.level === 'goals';
   const rewardfitActive = () => S.mode === 'campaign' && S.level === 'rewardfit';
   const thawActive = () => S.mode === 'campaign' && S.level === 'thaw';
-  const customActive = () => vpoActive() || supermimicActive() || thawActive() || rewardfitActive();
-  const customApi = () => rewardfitActive() ? BBREWARDFIT : thawActive() ? BBTHAW : supermimicActive() ? BBSUPERMIMIC : BBVPO;
+  const customActive = () => vpoActive() || supermimicActive() || thawActive() || rewardfitActive() || goalsActive();
+  const customApi = () => goalsActive() ? BBGOALS_LEVEL : rewardfitActive() ? BBREWARDFIT : thawActive() ? BBTHAW : supermimicActive() ? BBSUPERMIMIC : BBVPO;
   async function run() {
     if (customActive()) return customApi().run();
     if (S.running) return null;
@@ -2338,7 +2339,7 @@
   function enterLevel(lv, forceStart) {
     if (enteredLevel !== lv.id) {
       cancelRun(); comparisonReplay.park(); customScene = null; dropRun(); BBTHAW.clear();
-      BBVPO.reset?.(); BBSUPERMIMIC.reset?.();
+      BBVPO.reset?.(); BBSUPERMIMIC.reset?.(); BBGOALS_LEVEL.reset();
       $('label[for="scene-seed"]').textContent = 'Replay seed';
       S.pinA = null; enteredLevel = lv.id;
       S.world = lv.world; S.knobs = Object.assign({}, lv.knobs || {});
@@ -2822,7 +2823,7 @@
           return out;
         } },
       { name: 'set_world', description: 'Change the world and its knobs (knobs not given keep their defaults).', inputSchema: { type: 'object', properties: { world: { type: 'string', enum: Object.keys(C.worldNames) }, knobs: { type: 'object' } }, required: ['world'] },
-        execute: ({ world, knobs }) => { if (world === 'vpo' || world === 'supermimic' || world === 'rewardfit') return window.bellman.level(world); if (customActive()) S.mode = 'workbench'; setWorld(world, knobs || {}); note('world → ' + world + ' ' + JSON.stringify(knobs || {})); return { world: S.world, knobs: S.knobs }; } },
+        execute: ({ world, knobs }) => { if (world === 'vpo' || world === 'supermimic' || world === 'rewardfit' || world === 'goals' || world === 'thaw') return window.bellman.level(world); if (customActive()) S.mode = 'workbench'; setWorld(world, knobs || {}); note('world → ' + world + ' ' + JSON.stringify(knobs || {})); return { world: S.world, knobs: S.knobs }; } },
       { name: 'run_experiment', description: 'Train the current sentence on the current world for real (seconds) and return the autopsy. seeds applies to CartPole only (1, 3 or 5); the other worlds use many runs.', inputSchema: { type: 'object', properties: { seeds: { type: 'integer', minimum: 1, maximum: 5 } } },
         execute: async ({ seeds }) => { if (customActive()) return customApi().run(); const so = C.seedOptions[S.world]; if (seeds && S.world === 'cartpole') $('#seeds').value = String(so.reduce((b, n) => (Math.abs(n - seeds) < Math.abs(b - seeds) ? n : b), so[0])); note('running ' + $('#seeds').value + ' runs…'); const a = await run(); if (!a) throw new Error('run failed'); note('done'); return { symptoms: a.symptoms, summary: a.summary }; } },
     ];
@@ -2946,8 +2947,8 @@
         : supermimicActive() ? [{ label: 'Short-horizon objective', tex: 'J_H = sum_{t=0}^{H-1} gamma^t r_t + gamma^H V(s_H)' }]
           : texLines(Object.assign({}, S.parts, parts || {}), world || S.world).map(([label, tex]) => ({ label, tex })),
       state: () => labState(),
-      record: () => rewardfitActive() ? BBREWARDFIT.record() : thawActive() ? BBTHAW.record() : runState.record,
-      replay: () => rewardfitActive() ? BBREWARDFIT.replay() : thawActive() ? BBTHAW.replay() : ({ time: sceneTime, watching, stale: runState.stale, world: adapter && adapter.world,
+      record: () => goalsActive() ? BBGOALS_LEVEL.record() : rewardfitActive() ? BBREWARDFIT.record() : thawActive() ? BBTHAW.record() : runState.record,
+      replay: () => goalsActive() ? BBGOALS_LEVEL.replay() : rewardfitActive() ? BBREWARDFIT.replay() : thawActive() ? BBTHAW.replay() : ({ time: sceneTime, watching, stale: runState.stale, world: adapter && adapter.world,
         length: adapter && runState.record ? adapter.length(runState.record) : 0 }),
       levels: () => C.levels.map((l) => { const i = levelInfo(l); return { n: i.n, id: i.id, title: i.title, world: i.world, done: i.done, step: i.step }; }),
       level: (which) => {
@@ -3130,6 +3131,7 @@
     if (!customActive() || mapOpen) { customScene = null; pauseScene(); }
     const pane = $('#mode-pane'); pane.replaceChildren();
     S.afterRun = null; S.onPartsChange = null;
+    if (!goalsActive() || mapOpen) BBGOALS_LEVEL.cancel();
     if (!vpoActive()) BBVPO.cancel();
     if (!supermimicActive()) BBSUPERMIMIC.cancel();
     if (!thawActive()) BBTHAW.clear();
