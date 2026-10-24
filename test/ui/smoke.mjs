@@ -568,6 +568,7 @@ await session(390, 844, 'rules', async (page) => {
   });
   await page.reload();
   await page.selectOption('#rk-shaping', '2');
+  await openNotebook(page, 'rule');
   check(/0.97 × dAfterNonterminal/.test(await page.locator('#game-rules').innerText()), 'Fetch repair updates potential shaping equation before Run');
   await openNotebook(page, 'rule');
   check(await page.locator('#game-rules').isVisible() && /0.97 × dAfterNonterminal/.test(await page.locator('#game-rules').innerText()), 'Notebook exposes Fetch live reward rules after editing');
