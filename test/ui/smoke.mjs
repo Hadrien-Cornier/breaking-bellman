@@ -532,8 +532,8 @@ await session(390, 844, 'rules', async (page) => {
         bellman.level(l.id);
         if (l.custom) {
           document.querySelector('#custom-notebook').open = true; document.querySelector('#custom-notebook-tab-rule').click();
-          const rules = document.querySelector('#' + l.id + '-rules');
-          if (!rules || !rules.innerText.includes(l.goal.text)) failures.push(l.id + ': missing custom objective');
+          const rules = document.querySelector('#custom-notebook-rule');
+          if (!rules || rules.hidden || !rules.innerText.includes(l.goal.text)) failures.push(l.id + ': missing custom objective');
           if (!document.querySelector('#lab').hidden || document.querySelector('#vpo-lab').hidden) failures.push(l.id + ': wrong lab');
           if (document.documentElement.scrollWidth > innerWidth) failures.push(l.id + ': overflow');
         } else inspect('level ' + l.id, l.goal.text);
