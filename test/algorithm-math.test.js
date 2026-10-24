@@ -222,3 +222,108 @@ test('bandit words change the bandit equations', () => {
   const ex = AM.explain(b({ ucb: false }), b({ ucb: true }), 'bandit');
   assert.ok(ex.changedLines.includes('act'), 'the score line is what changes');
 });
+// ==== rare hallway worked case (section#rare-experiment) =====================================
+// The equations must come from src/agents/rare.js, the same code that records the steps, and the
+// substituted numbers must be the recorded ones. r (environment reward) and b (count bonus) are
+// never merged, and no diagnosis answer is leaked.
+const BBRARE = require(path.join(__dirname, '..', 'src', 'agents', 'rare.js'));
+const BBRARE_RECORD = require(path.join(__dirname, '..', 'web', 'rare-record.js'));
+const txt = (html) => [].concat(html).map((c) => (c && c.nodeType ? c.textContent : String(c))).join('');
+const rareText = (m) => AM.rareLines(m, BBRARE.PROTOCOL).map(([l, h]) => l + ': ' + txt(h)).join('\n');
+const stepText = (m, step) => AM.rareStepLines(m, step, BBRARE.PROTOCOL, { cells: BBRARE.CELL_LABELS, actions: BBRARE.PROTOCOL.actions }).lines.map(([l, h]) => l + ': ' + txt(h)).join('\n');
+const method = (name) => BBRARE_RECORD.policies.find((p) => p.name === name);
+
+test('each of the six methods derives its own real equations', () => {
+  const P = BBRARE.PROTOCOL;
+  assert.equal(P.alpha, 0.5); assert.equal(P.gamma, 0.95); assert.equal(P.eps, 0.05);
+  const off = rareText(method('off'));
+  assert.ok(off.includes('Score(s, a) = Q(s, a)') && off.includes('b = 0 at every step'), 'no bonus anywhere');
+  const local = rareText(method('local'));
+  assert.ok(local.includes('1/√n(s′)') && local.includes('+∞') && local.includes('before this visit'), 'score bonus uses the destination count before the visit, unseen means +∞');
+  assert.ok(local.includes('b = 0 at every step'), 'score-only keeps the bonus out of the target');
+  const target = rareText(method('targetOnly'));
+  assert.ok(target.includes('Score(s, a) = Q(s, a)') && target.includes('b = 1/√n(s′)') && target.includes('after this visit'), 'target-only puts the bonus in the target, counted after the visit');
+  const opt = rareText(method('optimism'));
+  assert.ok(opt.includes('untried-action start') && opt.includes('20') && opt.includes('b = 0 at every step'), 'optimism changes only untried scores');
+  const both = rareText(method('on'));
+  assert.ok(both.includes('untried-action start') && both.includes('b = 1/√n(s′)'), 'the combination uses both');
+  const wh = rareText(method('withheld'));
+  assert.ok(wh.includes('withheld'), 'withheld reward is named, and never relabeled as the bonus');
+  // the update line and the constants are the learner's own
+  for (const name of ['off', 'local', 'targetOnly', 'optimism', 'on', 'withheld']) {
+    const t = rareText(method(name));
+    assert.ok(t.includes('α = ' + P.alpha) && t.includes(P.gamma), name + ' shows the real alpha and gamma');
+    assert.ok(t.includes('ties pick the lowest action index'), name + ' states the tie rule');
+  }
+});
+
+test('the equations never leak the diagnosis answer', () => {
+  for (const name of ['off', 'local', 'targetOnly', 'optimism', 'on', 'withheld']) {
+    const t = rareText(method(name));
+    assert.ok(!t.includes('added to the environment reward'), name + ' does not answer the question');
+    assert.ok(!t.includes('logged as environment reward'), name + ' does not answer the question');
+  }
+});
+
+test('changing the method names exactly the term that changed', () => {
+  let ex = AM.rareExplain(method('targetOnly'), method('local'));
+  assert.ok(ex.lines.includes('act') && ex.lines.includes('b'), 'score and target terms both move');
+  ex = AM.rareExplain(method('off'), method('targetOnly'));
+  assert.deepEqual(ex.lines, ['target', 'b'], 'target-only touches only the target bonus');
+  ex = AM.rareExplain(method('on'), method('withheld'));
+  assert.deepEqual(ex.lines, ['r'], 'withheld touches only the environment reward');
+  ex = AM.rareExplain(method('off'), method('optimism'));
+  assert.ok(ex.lines.includes('act') && ex.lines.includes('boot'), 'optimism touches the score and the bootstrap');
+});
+
+test('the substituted step is the recorded update, nothing invented', () => {
+  // the screenshot case: 28 steps, target bonus only, Start -> left -> Start, r = 0, bonus 0.186
+  const run = BBRARE.run({ seed: 19, place: 'target', steps: 28 });
+  const hit = run.trace.find((e) => e.s === 0 && e.a === 0 && e.nAfter === 29);
+  assert.ok(hit, 'the step exists in the real trace');
+  assert.equal(Math.round(hit.visitBonus * 1000) / 1000, 0.186);
+  assert.equal(hit.env, 0);
+  assert.equal(hit.intrinsic, hit.visitBonus);
+  // the level feeds the recorded row (record shape) to the panel
+  const step = { obs: hit.s, action: hit.a, state: hit.s2, reward: hit.env, visitBonus: hit.visitBonus,
+    intrinsic: hit.intrinsic, nAfter: hit.nAfter, qBefore: hit.qBefore, qAfter: hit.qAfter,
+    bootstrap: hit.bootstrap, actionScore: hit.actionScore, triedBefore: hit.triedBefore, explored: hit.explored };
+  const t = stepText(method('targetOnly'), step);
+  const r3 = (x) => String(Math.round(x * 1000) / 1000);
+  assert.ok(t.includes('Start --left--> Start'), 'the transition is the recorded one');
+  assert.ok(t.includes('r + b + γ · boot = 0 + 0.186 + 0.95 · ' + r3(hit.bootstrap)) , 'substituted values are the recorded ones');
+  assert.ok(t.includes(r3(hit.qBefore) + ' → ' + r3(hit.qAfter)), 'Q before and after are shown');
+  assert.ok(t.includes('n(s′) after this visit = 29'), 'the count is the recorded one');
+  assert.ok(t.includes('1/√n(s′) = 0.186'), 'the bonus uses the recorded count');
+  // the numbers are consistent with the update the learner applied
+  const y = hit.env + hit.intrinsic + BBRARE.PROTOCOL.gamma * hit.bootstrap;
+  assert.ok(Math.abs(hit.qAfter - (hit.qBefore + BBRARE.PROTOCOL.alpha * (y - hit.qBefore))) < 1e-12);
+});
+
+test('zero counts and withheld reward are explained, not hidden', () => {
+  const localRun = BBRARE.run({ seed: 19, place: 'local', steps: 28 });
+  const unseen = localRun.trace.find((e) => e.actionScore === Infinity);
+  assert.ok(unseen, 'the score-only run meets an unseen destination');
+  const rec = { obs: unseen.s, action: unseen.a, state: unseen.s2, reward: unseen.env, visitBonus: unseen.visitBonus,
+    intrinsic: unseen.intrinsic, nAfter: unseen.nAfter, qBefore: unseen.qBefore, qAfter: unseen.qAfter,
+    bootstrap: unseen.bootstrap, actionScore: unseen.actionScore, triedBefore: unseen.triedBefore, explored: unseen.explored };
+  const t = stepText(method('local'), rec);
+  assert.ok(t.includes('+∞') && t.includes('unseen before this visit'), 'the +∞ score is named');
+  const info = AM.rareStepLines(method('local'), rec, BBRARE.PROTOCOL);
+  assert.ok(info.notes.some((n) => n.includes('out of the target')), 'the bonus staying out of the target is said in words');
+  const whRun = BBRARE.run({ seed: 19, place: 'backup', reward: 'none', steps: 28 });
+  const whRec = Object.assign({}, rec, { obs: whRun.trace[0].s, action: whRun.trace[0].a, state: whRun.trace[0].s2,
+    reward: whRun.trace[0].env, visitBonus: whRun.trace[0].visitBonus, intrinsic: whRun.trace[0].intrinsic,
+    nAfter: whRun.trace[0].nAfter, qBefore: whRun.trace[0].qBefore, qAfter: whRun.trace[0].qAfter,
+    bootstrap: whRun.trace[0].bootstrap, actionScore: whRun.trace[0].actionScore });
+  const wh = AM.rareStepLines(method('withheld'), whRec, BBRARE.PROTOCOL);
+  assert.ok(wh.notes.some((n) => n.includes('withhold')), 'r = 0 because the reward is withheld');
+  assert.ok(txt(wh.lines.find(([l]) => l === 'step target')[1]).includes('r + b'), 'the target still shows r and b as separate terms');
+});
+
+test('score-only never sees its bonus in the target, and the record agrees', () => {
+  const run = BBRARE.run({ seed: 19, place: 'local', steps: 28 });
+  assert.ok(run.trace.every((e) => e.intrinsic === 0 && e.visitBonus > 0), 'bonus measured, never in the target');
+  const run2 = BBRARE.run({ seed: 19, place: 'target', steps: 28 });
+  assert.ok(run2.trace.every((e) => e.intrinsic === e.visitBonus), 'target bonus is the visit bonus');
+});
