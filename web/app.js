@@ -1143,13 +1143,14 @@
     $('#run-source').textContent = 'Settings changed. Run this sentence to measure it.';
     showRunStopped('Run canceled after the settings changed.');
   }
+  const rareActive = () => S.mode === 'campaign' && S.level === 'rare';
   const vpoActive = () => S.mode === 'campaign' && S.level === 'vpo';
   const supermimicActive = () => S.mode === 'campaign' && S.level === 'supermimic';
   const goalsActive = () => S.mode === 'campaign' && S.level === 'goals';
   const rewardfitActive = () => S.mode === 'campaign' && S.level === 'rewardfit';
   const thawActive = () => S.mode === 'campaign' && S.level === 'thaw';
-  const customActive = () => vpoActive() || supermimicActive() || thawActive() || rewardfitActive() || goalsActive();
-  const customApi = () => goalsActive() ? BBGOALS_LEVEL : rewardfitActive() ? BBREWARDFIT : thawActive() ? BBTHAW : supermimicActive() ? BBSUPERMIMIC : BBVPO;
+  const customActive = () => rareActive() || vpoActive() || supermimicActive() || thawActive() || rewardfitActive() || goalsActive();
+  const customApi = () => rareActive() ? BBRARELESSON : goalsActive() ? BBGOALS_LEVEL : rewardfitActive() ? BBREWARDFIT : thawActive() ? BBTHAW : supermimicActive() ? BBSUPERMIMIC : BBVPO;
   async function run() {
     if (customActive()) return customApi().run();
     if (S.running) return null;
@@ -2339,7 +2340,7 @@
   function enterLevel(lv, forceStart) {
     if (enteredLevel !== lv.id) {
       cancelRun(); comparisonReplay.park(); customScene = null; dropRun(); BBTHAW.clear();
-      BBVPO.reset?.(); BBSUPERMIMIC.reset?.(); BBGOALS_LEVEL.reset();
+      BBVPO.reset?.(); BBSUPERMIMIC.reset?.(); BBGOALS_LEVEL.reset(); BBRARELESSON.cancel();
       $('label[for="scene-seed"]').textContent = 'Replay seed';
       S.pinA = null; enteredLevel = lv.id;
       S.world = lv.world; S.knobs = Object.assign({}, lv.knobs || {});
@@ -2947,8 +2948,8 @@
         : supermimicActive() ? [{ label: 'Short-horizon objective', tex: 'J_H = sum_{t=0}^{H-1} gamma^t r_t + gamma^H V(s_H)' }]
           : texLines(Object.assign({}, S.parts, parts || {}), world || S.world).map(([label, tex]) => ({ label, tex })),
       state: () => labState(),
-      record: () => goalsActive() ? BBGOALS_LEVEL.record() : rewardfitActive() ? BBREWARDFIT.record() : thawActive() ? BBTHAW.record() : runState.record,
-      replay: () => goalsActive() ? BBGOALS_LEVEL.replay() : rewardfitActive() ? BBREWARDFIT.replay() : thawActive() ? BBTHAW.replay() : ({ time: sceneTime, watching, stale: runState.stale, world: adapter && adapter.world,
+      record: () => rareActive() ? BBRARELESSON.record() : goalsActive() ? BBGOALS_LEVEL.record() : rewardfitActive() ? BBREWARDFIT.record() : thawActive() ? BBTHAW.record() : runState.record,
+      replay: () => rareActive() ? BBRARELESSON.replay() : goalsActive() ? BBGOALS_LEVEL.replay() : rewardfitActive() ? BBREWARDFIT.replay() : thawActive() ? BBTHAW.replay() : ({ time: sceneTime, watching, stale: runState.stale, world: adapter && adapter.world,
         length: adapter && runState.record ? adapter.length(runState.record) : 0 }),
       levels: () => C.levels.map((l) => { const i = levelInfo(l); return { n: i.n, id: i.id, title: i.title, world: i.world, done: i.done, step: i.step }; }),
       level: (which) => {
@@ -3132,6 +3133,7 @@
     const pane = $('#mode-pane'); pane.replaceChildren();
     S.afterRun = null; S.onPartsChange = null;
     if (!goalsActive() || mapOpen) BBGOALS_LEVEL.cancel();
+    if (!rareActive() || mapOpen) BBRARELESSON.cancel();
     if (!vpoActive()) BBVPO.cancel();
     if (!supermimicActive()) BBSUPERMIMIC.cancel();
     if (!thawActive()) BBTHAW.clear();
