@@ -540,8 +540,89 @@ ul.preset-diff li { margin: 2px 0; }
 
 /* The course shell keeps the experiment ahead of its single current step. */
 [hidden] { display: none !important; }
-.lesson-shell > .lab { position: static; max-height: none; overflow: visible; }
+.lesson-shell > #vpo-lab { position: static; max-height: none; overflow: visible; }
 .lesson-shell > #mode-pane { align-self: start; }
+
+/* Variant B: one unified experiment panel. The lab is a single surface: world with its Run strip,
+   the editor docked directly below the world, the reserved equation slot, then the learning curve. */
+#lab {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 14px; gap: 0; align-content: start;
+}
+#lab > * + * { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; }
+#lab .exp-block { display: grid; gap: 10px; min-width: 0; align-content: start; }
+#run-result:empty, #run-source:empty { display: none; }
+#replay-details { padding-block: 0; }
+#replay-details > summary { min-height: 32px; display: flex; align-items: center; font-size: .8rem; }
+#replay-details { grid-column: 2; grid-row: 1; align-self: start; }
+#run-settings .run-bar { min-width: 0; }
+#run-settings { grid-template-columns: minmax(0, 1fr) auto; }
+#run-settings > :not(.run-bar):not(#replay-details) { grid-column: 1 / -1; }
+#run-settings { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 10px; }
+.run-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#run-extra { min-width: 0; flex: 1 1 200px; }
+#run-extra > summary {
+  cursor: pointer; display: flex; align-items: center; gap: 8px; min-height: 44px; list-style: none;
+  font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+}
+#run-extra > summary::-webkit-details-marker { display: none; }
+#run-extra > summary::before { content: '+'; font-family: var(--font-mono); }
+#run-extra[open] > summary::before { content: '\2212'; }
+#run-extra .row { flex-wrap: wrap; gap: 8px; padding-block: 4px; }
+#live-curve-caption { margin: 0; }
+.live-curve { width: 100%; height: 132px; display: block; background: var(--sunk); border-radius: 8px; }
+#algorithm-math-panel { min-width: 0; }
+#algorithm-math-panel:empty { display: none; }
+#lab .stage { aspect-ratio: auto; height: clamp(150px, 24vh, 260px); }
+@media (min-width: 960px) {
+  .lesson-shell { gap: 12px; }
+  .lesson-shell .campaign-strip { padding-block: 2px; }
+  #lab .w { padding: 3px 6px; }
+  #lab .sentence .sl { line-height: 1.5; font-size: .87rem; }
+  #lab .sentence { gap: 4px; }
+  #lab .preset-wrap { margin-top: 4px; }
+  #run-extra { padding-block: 0; }
+  #run-extra > summary { min-height: 36px; }
+  #lab .compound { padding: 5px 8px; }
+  .lesson-shell > #lab {
+    position: sticky; top: calc(env(safe-area-inset-top, 0px) + 104px);
+    max-height: none; overflow: visible;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    grid-template-areas: 'world curve' 'editor editor';
+  }
+  .lesson-shell > #lab > #exp-world { grid-area: world; }
+  .lesson-shell > #lab > #exp-editor { grid-area: editor; }
+  .lesson-shell > #lab > #exp-editor:has(#algorithm-math-panel:not(:empty)) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 16px;
+  }
+  .lesson-shell > #lab > #exp-editor > .eyebrow { grid-column: 1 / -1; }
+  .lesson-shell > #lab > #exp-curve {
+    grid-area: curve; border-top: 0; margin-top: 0; padding-top: 0;
+    border-left: 1px solid var(--line); margin-left: 12px; padding-left: 12px;
+  }
+}
+@media (min-width: 960px) and (max-height: 940px) {
+  .lesson-shell > #lab { top: calc(env(safe-area-inset-top, 0px) + 100px); padding: 12px; }
+  #lab > * + * { margin-top: 9px; padding-top: 9px; }
+  .lesson-shell > #lab > #exp-curve { margin-top: 0; padding-top: 0; }
+  #lab .stage { height: 132px; }
+  #lab .sentence .sl { line-height: 1.5; font-size: 0.87rem; }
+  #lab .compound { padding: 6px 8px; margin-top: 2px; }
+  #lab .compound .big { font-size: 1.02rem; }
+  .live-curve { height: 108px; }
+  /* Tight desktop heights: the shared equations sit beside the sentence so the world, Run,
+     the editable algorithm with its math and the curve all fit without scrolling. */
+  .lesson-shell > #lab > #exp-editor:has(#algorithm-math-panel:not(:empty)) {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); column-gap: 12px;
+  }
+  .lesson-shell > #lab > #exp-editor:has(#algorithm-math-panel:not(:empty)) > .eyebrow { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+  #lab { padding: 12px; }
+  #run-settings { grid-template-columns: minmax(0, 1fr); }
+  #replay-details { grid-column: 1; grid-row: auto; }
+  .live-curve { height: 120px; }
+}
 .notebook { grid-column: 1 / -1; min-width: 0; border: 1px solid var(--line); border-radius: var(--r); padding: 12px 16px; }
 .notebook > summary { font-family: var(--font-display); font-weight: 700; cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 12px; }
 .notebook > summary::before { content: '+'; font-family: var(--font-mono); }
@@ -563,8 +644,10 @@ ul.preset-diff li { margin: 2px 0; }
 .concept-sketch figcaption { color: var(--muted); font-size: .82rem; }
 .notebook :is(button, select, summary), .lesson-shell :is(button, select, summary), .lesson-shell input[type='range'] { min-height: 44px; min-width: 44px; }
 @media (min-width: 960px) {
-  .lesson-shell > #lab, .lesson-shell > #vpo-lab { grid-column: 1; grid-row: 2; }
-  .lesson-shell > #mode-pane { grid-column: 2; grid-row: 2; }
+  .lesson-shell > #lab { grid-column: 1 / -1; grid-row: 2; }
+  .lesson-shell > #mode-pane { grid-column: 1 / -1; grid-row: 3; }
+  .lesson-shell > #vpo-lab { grid-column: 1; grid-row: 2; }
+  .lesson-shell:has(> #lab[hidden]) > #mode-pane { grid-column: 2; grid-row: 2; }
 }
 /* Other modes retain their complete lab controls and diagnostics. */
 .supporting-lab > :is(summary, .notebook-tabs) { display: none; }

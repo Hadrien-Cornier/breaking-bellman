@@ -64,8 +64,12 @@ async function openNotebook(page, section) {
     await page.locator('#notebook-tab-' + section).click();
   }
 }
+// Seeds, steps and the run mode live in a closed optional Run settings disclosure; open it before touching them.
+async function openRunSettings(page) {
+  const d = page.locator('#run-extra');
+  if (!await d.evaluate(e => e.open)) await d.locator('summary').click();
+}
 async function setWord(page, scope, key, label) {
-  if (scope === '#rule') await openNotebook(page, 'rule');
   await page.locator(scope + ' .w[data-key="' + key + '"]').first().click();
   await page.locator(scope + ' .chooser .choice', { hasText: label }).first().click();
 }
@@ -130,6 +134,7 @@ await session(1280, 900, 'desktop', async (page) => {
     return { combos, unique: seen.size, bad };
   });
   check(tex.unique > 100 && !tex.bad.length, 'the TeX of all ' + tex.combos + ' word combinations typesets (' + tex.unique + ' unique lines)' + (tex.bad.length ? ': ' + tex.bad.slice(0, 3).join(' | ') : ''));
+  await openRunSettings(page);
   await page.selectOption('#seeds', '1'); await page.selectOption('#budget', '10000');
   const t0 = Date.now();
   await page.click('#run-btn');
@@ -267,6 +272,7 @@ await session(1280, 900, 'phases', async (page) => {
   await page.getByRole('tab', { name: 'Workbench' }).click();
   await page.selectOption('#wb-family', 'ac');
   await page.selectOption('#wb-world', 'pendulum');
+  await openRunSettings(page);
   await page.selectOption('#seeds', '1'); await page.selectOption('#budget', '6000');
   let t0 = Date.now();
   await page.click('#run-btn');
@@ -283,6 +289,7 @@ await session(1280, 900, 'phases', async (page) => {
   await setWord(page, '#mode-pane', 'source', 'a fixed dataset only');
   await setWord(page, '#mode-pane', 'aim', 'copy the actions in memory');
   await setWord(page, '#mode-pane', 'head', 'noise turned into an action');
+  await openRunSettings(page);
   await page.selectOption('#seeds', '1'); await page.selectOption('#budget', '2000');
   t0 = Date.now();
   await page.click('#run-btn');
@@ -380,6 +387,7 @@ await session(375, 812, 'phone-frontier', async (page) => {
       terminate() { for (const timer of this.timers) clearTimeout(timer); }
     };
   });
+  await openRunSettings(page);
   await page.selectOption('#run-mode', 'live');
   const frontierRun = page.locator('[data-campaign-run="pick"]');
   await frontierRun.click();
@@ -486,6 +494,7 @@ await session(390, 844, 'pendulum', async (page) => {
   await page.click('#run-btn');
   await runDone(page);
   await page.locator('#stage').scrollIntoViewIfNeeded();
+  if (!await page.locator('#replay-details').evaluate(e => e.open)) await page.locator('#replay-details > summary').click();
   await page.locator('#scene-replay').click();
   await page.locator('#scene-watch').click();
   await page.waitForTimeout(2200);

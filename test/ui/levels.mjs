@@ -74,6 +74,9 @@ async function replayContract(page, proof, verify) {
   fs.writeFileSync(path.join(out, proof.name + '-run.json.gz'), gzipSync(exactBefore));
   if (!await page.locator('#notebook').evaluate(e => e.open)) await page.locator('#notebook > summary').click();
   await page.locator('#notebook-tab-rule').click();
+  // The seeds, steps and run-mode settings are in a closed optional disclosure; open it to measure and change them.
+  if (!await page.locator('#run-extra').evaluate(e => e.open)) await page.locator('#run-extra > summary').click();
+  if (!await page.locator('#replay-details').evaluate(e => e.open)) await page.locator('#replay-details > summary').click();
   const dimensions = await page.locator('#scene-controls button, #scene-seed, #run-btn, #seeds, #budget, #run-mode, #rule .w').evaluateAll(es => es.map(e => ({ id: e.id, w: e.getBoundingClientRect().width, h: e.getBoundingClientRect().height })));
   verify(dimensions.every(d => d.w >= 44 && d.h >= 44), 'Run, replay and result settings have 44px touch targets');
   await page.locator('#notebook > summary').click();

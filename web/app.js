@@ -256,12 +256,24 @@
 
   // ---------------------------------------------------------------- sentence component
   let mounts = [];   // { el, opts, open, permanent }
+  // The shared equations component (bb-equation-impact245) owns all algorithm math. This layout only
+  // mounts it below the editable sentence and calls update() on every edit, before Run. No equations
+  // are written or derived here; without the module the slot stays reserved and empty.
+  let mathPanel = null;
+  function updateMath() { if (mathPanel && mathPanel.update) mathPanel.update(); }
+  function mountMath() {
+    const slot = $('#algorithm-math-panel');
+    if (!slot || mathPanel || !window.ALGO_MATH || !window.ALGO_MATH.mount) return;
+    mathPanel = window.ALGO_MATH.mount({ id: 'algorithm-math-panel', getParts: () => S.parts, world: () => S.world, hyper: () => hyperNow() });
+    if (mathPanel && mathPanel.el && mathPanel.el !== slot && slot.parentNode) slot.replaceWith(mathPanel.el);
+    updateMath();
+  }
   function mountSentence(opts) {
     const m = { el: h('div.sentence'), opts, open: null, permanent: !!opts.permanent };
     mounts.push(m); drawSentence(m);
     return m.el;
   }
-  function refreshSentences() { if (!RLA.worlds[S.world]) return; for (const m of mounts) drawSentence(m); }
+  function refreshSentences() { if (!RLA.worlds[S.world]) return; for (const m of mounts) drawSentence(m); updateMath(); }
   function drawSentence(m) {
     const o = m.opts, p = o.getParts(), world = o.world(), focus = o.focus ? o.focus() : [];
     const idle = idleWords(p, world);
@@ -626,7 +638,61 @@
       h('canvas.chart', { id, 'aria-label': title, 'data-run': runState.record && runState.record.id }),
     ]);
   }
+  // The experiment panel's compact curve: the learner's real training loss when the run records one,
+  // otherwise its meaningful learning metric under that metric's honest name. Return or reward is
+  // never relabeled as loss and no loss trace is ever invented. The full performance curves stay in
+  // the Notebook's Curve tab.
+  function drawLiveCurve(partials, done, record = runState.record) {
+    const cv = $('#live-curve-canvas'); if (!cv) return;
+    const title = $('#live-curve-title'), cap = $('#live-curve-caption');
+    if (done && record) partials = record.results.map((r) => ({ evals: r.evals, diag: r.diag }));
+    const rows = (partials || []).filter((p) => p && (p.evals || p.diag));
+    const clear = () => { const { ctx, w, h: H } = setupCanvas(cv); ctx.clearRect(0, 0, w, H); };
+    if (!rows.length) {
+      title.textContent = 'Learning curve';
+      cap.textContent = 'No run yet. Press Run to train; the learner\u2019s curve appears here.';
+      cv.setAttribute('aria-label', 'No run yet: press Run to see the learner\u2019s curve');
+      clear(); return;
+    }
+    const parts = done && record ? record.settings.parts : S.lastCfg ? S.lastCfg.parts : S.parts;
+    const family = fam(parts);
+    // PG without a value baseline and AC without critics expose a zero placeholder in diag.loss.
+    // Those values are not an optimized loss and must not become a fabricated loss trace.
+    const fitsValue = family === 'value' || (family === 'pg' && parts.baseline === 'critic') || (family === 'ac' && parts.critics !== 'none');
+    const losses = rows.map((p) => fitsValue ? (p.diag || []).filter((d) => d.updates > 0).map((d) => ({ t: d.t, v: d.loss })).filter((d) => d.v != null && isFinite(d.v)) : []);
+    if (losses.some((l) => l.length)) {
+      const ml = meanCurve(losses.filter((l) => l.length));
+      const ys = ml.ys.filter(isFinite);
+      title.textContent = family === 'pg' ? 'Value critic training loss' : 'Critic training loss';
+      lineChart(cv, [{ xs: ml.xs, ys: ml.ys, color: css('--f-policy'), width: 2, label: 'mean of the seeds' }],
+        { xmax: Math.max(1, ...ml.xs), ymin: 0, ymax: (Math.max(1e-9, ...ys)) * 1.15, xlabel: 'training steps' });
+      cap.textContent = 'Recorded critic error, averaged over seeds. Performance curves remain in Notebook, Curve.';
+      cv.setAttribute('aria-label', title.textContent + ', mean of the seeds, from the last run');
+      return;
+    }
+    if ((S.world === 'bandit' || S.world === 'mirage') && done) {
+      const results = (record || {}).results || S.results;
+      if (results && results.length) {
+        const isB = S.world === 'bandit', c = curvesOf(results, S.world).main;
+        title.textContent = isB ? 'Share of pulls on the best machine' : 'Share of episodes that take the left door';
+        lineChart(cv, [{ xs: c.xs, ys: c.ys, color: css('--ink'), width: 2, label: 'this run' }],
+          { xmax: isB ? Math.max(1, c.xs.length) : 100, ymin: 0, ymax: 1, xlabel: isB ? 'pulls' : 'share of each run\u2019s episodes (%)' });
+        cap.textContent = 'This run records no training loss. ' + (isB ? 'This curve shows the share of pulls that go to the best machine.' : 'This curve shows the share of episodes that take the left door.') + ' That share is this learner\u2019s real learning metric. More curves are in the Notebook, Curve tab.';
+        cv.setAttribute('aria-label', title.textContent + ', from the last run');
+        return;
+      }
+    }
+    const per = rows.map((p) => p.evals || []);
+    const mr = meanCurve(per.map((ev) => ev.map((e) => ({ t: e.t, v: e.ret }))));
+    const ys = mr.ys.filter(isFinite);
+    title.textContent = 'Score per test episode';
+    lineChart(cv, [{ xs: mr.xs, ys: mr.ys, color: css('--ink'), width: 2, label: 'mean of the seeds' }],
+      { xmax: Math.max(1, ...(S.lastCfg && S.lastCfg.steps ? [S.lastCfg.steps] : []), ...mr.xs), ymin: Math.min(0, ...ys), ymax: Math.max(1, ...ys) * 1.1, xlabel: 'training steps' });
+    cap.textContent = fitsValue ? 'No critic loss recorded yet. Showing measured test scores; performance curves remain in Notebook, Curve.' : 'This learner records no training loss. Showing measured test scores, averaged over seeds. More curves in Notebook, Curve.';
+    cv.setAttribute('aria-label', 'Score per test episode, mean of the seeds, from the last run');
+  }
   function renderCharts(partials, done, record = runState.record) {
+    drawLiveCurve(partials, done, record);
     if (done && record) partials = record.results.map(r => ({ evals: r.evals, diag: r.diag }));
     const box = $('#charts'); const steps = (S.lastCfg && S.lastCfg.steps) || 1;
     const ink = css('--ink'), acc = css('--accent'), val = css('--f-value'), pol = css('--f-policy'), muted = css('--muted');
@@ -778,9 +844,10 @@
   // Original comparison lessons share the same replay clock and stable controls.
   const replayControls = $('#scene-controls'), replayNotice = $('#run-stale');
   const replayHome = replayControls.parentElement;
+  const replayNoticeHome = replayNotice.parentElement;
   let customScene = null;
   const comparisonReplay = {
-    park() { replayHome.append(replayControls, replayNotice); },
+    park() { replayHome.append(replayControls); replayNoticeHome.append(replayNotice); },
     mount(host, record, settings) {
       comparisonReplay.park();
       host.querySelector('[data-replay-controls]').append(replayControls, replayNotice);
@@ -1091,7 +1158,7 @@
   }
   function linkRun() {
     const record = runState.record;
-    for (const el of $$('#stage, #charts, #charts canvas, #run-result, #symptoms, #expert, #wonder, #run-source, [data-custom-scene], [data-custom-scene] canvas, [data-caption], [data-readout], [data-accounting], [data-custom-result]')) {
+    for (const el of $$('#stage, #charts, #charts canvas, #run-result, #symptoms, #expert, #wonder, #run-source, #live-curve-canvas, [data-custom-scene], [data-custom-scene] canvas, [data-caption], [data-readout], [data-accounting], [data-custom-result]')) {
       if (record) { if (!el.dataset.interactive) el.dataset.run = record.id; el.dataset.stale = String(runState.stale); }
       else { delete el.dataset.run; delete el.dataset.stale; }
     }
@@ -1111,6 +1178,7 @@
   }
   function dropRun() {
     pauseScene(); runState.clear(); S.results = []; S.lastCfg = null; S.lastA = null;
+    drawLiveCurve(null, false, null);
     sceneTime = 0; scenePolicy = 0; adapter = null; linkRun();
     const cv = $('#stage'); cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
     delete cv.dataset.world; delete cv.dataset.frame; delete cv.dataset.interactive; cv.onclick = null;
@@ -3231,6 +3299,7 @@
 
   // the lab's own sentence (always present)
   $('#rule').append(mountSentence({ getParts: () => S.parts, setPart: setMainPart, world: () => S.world, focus: () => (S.mode === 'campaign' ? S.focus || [] : []), withName: true, permanent: true, preset: true }));
+  mountMath();
   $('#replay-lab').append(replayView());
   $('#grid-lab').append(gridView());
   $('#grid-card').addEventListener('toggle', () => { if ($('#grid-card').open) drawGrid(); });
