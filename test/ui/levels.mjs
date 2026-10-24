@@ -108,6 +108,76 @@ async function replayContract(page, proof, verify) {
   proof.rendered = await page.locator('#lab').innerText() + '\n' + await page.locator('#notebook').innerText();
 
 }
+async function customReplayContract(page, proof, verify) {
+  const scene = page.locator('#custom-stage');
+  const state = () => page.evaluate(() => ({ ...bellman.replay(), id: bellman.record()?.id }));
+  const pixels = () => scene.evaluate(e => e.toDataURL());
+  const snapshot = await page.evaluate(() => JSON.stringify(bellman.record()));
+  fs.writeFileSync(path.join(out, proof.name + '-run.json.gz'), gzipSync(snapshot));
+  const linked = () => page.evaluate(() => [...document.querySelectorAll('[data-custom-scene], [data-custom-scene] canvas, [data-caption], [data-readout], [data-custom-result]')].every(e => e.dataset.run === bellman.record().id && e.dataset.stale === String(bellman.replay().stale)));
+  verify(await linked(), 'custom scene, reward chart and results share one record');
+  verify(!await page.evaluate(() => document.body.innerText.includes(bellman.record().id)), 'internal record id is not visible');
+  if (!await page.locator('#custom-notebook').evaluate(e => e.open)) await page.locator('#custom-notebook > summary').click();
+  await page.locator('#custom-notebook-tab-rule').click();
+  verify(await page.locator(proof.id === 'vpo' ? '#vpo-generations' : '#supermimic-budget').isVisible(), 'custom settings are visible in Notebook Rule');
+  const dimensions = await page.locator('#scene-controls button, #scene-seed, #vpo-run, #supermimic-run, #vpo-generations, #supermimic-budget').evaluateAll(es => es.map(e => ({ id: e.id, w: e.getBoundingClientRect().width, h: e.getBoundingClientRect().height })));
+  verify(dimensions.every(d => d.w >= 44 && d.h >= 44), 'custom Run, replay and settings have 44px targets');
+  const methods = await page.locator('#scene-seed option').evaluateAll(es => es.map(e => e.value));
+  verify(methods.length === 3, 'three named methods available, never seeds as methods');
+  for (const method of methods) {
+    await page.locator('#scene-seed').selectOption(method);
+    const first = await pixels();
+    await page.locator('#scene-step').click();
+    verify((await state()).time === 1, 'Step advances the selected method');
+    const second = await pixels();
+    verify(second !== first, 'measured step changes the physical scene');
+    await page.locator('#scene-replay').click();
+    verify(await pixels() === first, 'Replay restores exact first frame');
+    await page.locator('#scene-step').click();
+    verify(await pixels() === second, 'drawing is deterministic at the same time');
+    // Visit every stored frame using the actual shared Step handler, including all resets.
+    const finish = await page.evaluate(() => {
+      const n = bellman.replay().length;
+      for (let i = bellman.replay().time; i < n - 1; i++) document.querySelector('#scene-step').click();
+      return { time: bellman.replay().time, n, caption: document.querySelector('[data-caption]').textContent };
+    });
+    verify(finish.time === finish.n - 1 && /horizon|exit reached|budget exhausted/.test(finish.caption), 'full method replay reaches its measured terminal reason');
+    await page.locator('#scene-replay').click();
+  }
+  await scene.scrollIntoViewIfNeeded();
+  await page.locator('#scene-watch').click();
+  await page.waitForFunction(() => bellman.replay().time >= 4);
+  await page.locator('#scene-watch').click();
+  const paused = await state(); await page.waitForTimeout(200);
+  verify(!paused.watching && (await state()).time === paused.time, 'Watch advances and Pause holds');
+  verify(await page.evaluate(() => JSON.stringify(bellman.record())) === snapshot, 'all replay leaves the record unchanged');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.locator('#scene-watch').click();
+  verify(!(await state()).watching && (await state()).time === (await state()).length - 1, 'reduced motion reveals final measured frame without autoplay');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  const setting = proof.id === 'vpo' ? '#vpo-generations' : '#supermimic-budget';
+  const alternate = await page.locator(setting).evaluate(e => [...e.options].find(o => o.value !== e.value).value);
+  const before = await state();
+  await page.locator(setting).selectOption(alternate);
+  verify((await state()).id === before.id && (await state()).stale && await linked(), 'meaningful setting marks every prior surface stale');
+  verify(await page.locator('#run-stale').isVisible(), 'stale measurements have a visible rerun notice');
+  await page.mouse.move(0, 0);
+  await page.keyboard.press('Escape');
+  await page.locator('#' + proof.id + '-run').click();
+  await page.waitForFunction(() => bellman.record() && !bellman.replay().stale, null, { timeout: runTimeout });
+  verify((await state()).id !== before.id && await linked(), 'rerun replaces all measurements for changed settings');
+  proof.rendered = await page.locator('#mode-pane').innerText() + '\n' + await page.locator('#vpo-lab').innerText();
+  const other = proof.id === 'vpo' ? 'supermimic' : 'vpo';
+  await page.evaluate(id => bellman.level(id), other);
+  verify(await page.evaluate(id => bellman.record() === null && bellman.replay().time === 0 && bellman.replay().world === id, other), 'custom level switch clears old measurements and mounts actual world');
+  await page.evaluate(id => bellman.level(id), proof.id);
+  verify(await page.evaluate(() => bellman.record() === null), 'returning to custom lesson does not resurrect an old record');
+  await page.mouse.move(0, 0);
+  await page.keyboard.press('Escape');
+  await page.locator('#' + proof.id + '-run').click();
+  await page.waitForFunction(() => bellman.record() !== null, null, { timeout: runTimeout });
+}
+
 try {
   for (const [width, height] of [[1280, 800], [390, 844]]) {
     // Persistence through actual UI save actions and reload, before any explicit level choice.
@@ -145,7 +215,7 @@ try {
         const errors = [];
         page.on('pageerror', e => errors.push(e.message));
         page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-        const record = { name, id, width, height, progress, errors, stage: id === 'rewardfit' ? 'rewardfit-replay' : id === 'thaw' ? 'thaw-replay' : ['vpo', 'supermimic'].includes(id) ? 'custom-baseline' : 'shared-replay', checks: [] };
+        const record = { name, id, width, height, progress, errors, stage: id === 'rewardfit' ? 'rewardfit-replay' : id === 'thaw' ? 'thaw-replay' : ['vpo', 'supermimic'].includes(id) ? 'custom-replay' : 'shared-replay', checks: [] };
         const verify = (ok, text) => { record.checks.push({ text, passed: !!ok }); check(ok, name + ': ' + text); };
         try {
           await seed(page, progress === 'newer' ? fixture : null);
@@ -163,7 +233,7 @@ try {
           await page.keyboard.press('Tab');
           verify(await page.locator('#campaign-strip button').evaluate(e => e === document.activeElement), 'Tab from header reaches map strip before lesson controls');
           const custom = ['vpo', 'supermimic', 'thaw', 'rewardfit'].includes(id);
-          const scene = page.locator(id === 'rewardfit' ? '#rewardfit-scene' : id === 'thaw' ? '#thaw-scene' : custom ? '#vpo-lab svg' : '#stage').first();
+          const scene = page.locator(id === 'rewardfit' ? '#rewardfit-scene' : id === 'thaw' ? '#thaw-scene' : custom ? '#custom-stage' : '#stage').first();
           verify(await scene.isVisible(), 'baseline scene visible before Run');
           record.before = await scene.evaluate(e => ({ tag: e.tagName, width: e.getBoundingClientRect().width, height: e.getBoundingClientRect().height, label: e.getAttribute('aria-label') }));
           verify(record.before.width > 0 && record.before.height > 0, 'scene has nonzero dimensions');
@@ -198,6 +268,7 @@ try {
             verify(await page.locator('#charts canvas').count() > 0, 'record charts appear');
             await replayContract(page, record, verify);
           }
+          if (custom) await customReplayContract(page, record, verify);
           verify(record.result.length > 0, 'Run produces baseline results');
           verify(await scene.isVisible(), 'baseline scene remains visible after Run');
           verify(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'no overflow after Run');
@@ -226,7 +297,7 @@ try {
               verify(await page.evaluate(() => bellman.record() === null && bellman.replay().time === 0), 'another level in the same world drops the previous record');
             }
             await page.evaluate(() => bellman.level('vpo'));
-            verify(await page.evaluate(() => bellman.record() === null && bellman.replay().world === null && !document.querySelector('#stage').dataset.world), 'custom transition drops shared record and world');
+            verify(await page.evaluate(() => bellman.record() === null && bellman.replay().world === 'vpo' && !document.querySelector('#stage').dataset.world), 'custom transition drops shared record and world');
             await page.evaluate(id => bellman.level(id), id);
             verify(await page.evaluate(() => bellman.record() === null && bellman.replay().world === bellman.state().world), 'return from custom mounts a fresh world without a record');
           }
