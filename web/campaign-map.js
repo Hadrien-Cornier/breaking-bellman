@@ -27,6 +27,12 @@
     const state = id => graph.status(id, S.done);
     const button = (text, fn, cls = 'btn ghost', attrs = {}) => h('button.' + cls.replaceAll(' ', '.'), { type: 'button', onclick: fn, ...attrs }, text);
     const chips = id => h('div.map-chips', null, (METHODS[id] || []).map(text => h('span.chip', { text })));
+    // a short plain line per method name where it appears ("You will build"), so no name is bare
+    const plainOf = label => { for (const id in C.cards) { const c = C.cards[id]; if (c.plain && (c.short === label || c.name === label)) return c.plain; } return null; };
+    const methodLines = id => {
+      const rows = (METHODS[id] || []).map(label => [label, plainOf(label)]).filter(([, plain]) => plain);
+      return rows.length ? h('ul.map-methods', null, rows.map(([label, plain]) => h('li', null, [h('b', { text: label + ': ' }), plain]))) : null;
+    };
     function playNext() {
       const id = graph.next(S.done);
       return button(id ? 'Play next: ' + levels[id].title : 'Every level cleared', () => brief(id), 'btn', { disabled: !id, 'data-play-next': id });
@@ -58,7 +64,7 @@
       const content = h('div.map-brief-body', null, [
         h('p.eyebrow', { text: 'World ' + (graph.worlds.indexOf(w) + 1) + ' · ' + w.name }),
         h('p.map-state', { text: WORDS[st] }),
-        h('h3', { text: 'You will build' }), chips(id),
+        h('h3', { text: 'You will build' }), chips(id), methodLines(id),
         h('h3', { text: parents.length ? 'Builds on' : 'A starting point' }),
         parents.length ? relationRows(parents, true) : h('p', { text: 'Nothing comes before this level. It is open from the start.' }),
         children.length ? h('h3', { text: 'Opens the way to' }) : null,

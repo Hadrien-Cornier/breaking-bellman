@@ -4,7 +4,8 @@
   if (!C.phases.some(p => p.n === 0)) C.phases.unshift({ n: 0, title: 'Imitation before reward' });
   C.worldNames.goals = 'Two doors';
   const lesson = { id: 'goals', custom: true, phase: 0, world: 'goals', title: 'Tell it the goal', focus: [],
-    intro: 'Reach the requested room in a five-cell hall. Both policies copy the same four demonstration walks. One room appears three times, the other once. A policy is a rule for choosing an action. Hidden goal counts actions by location only. Named goal also uses the requested room.',
+    intro: 'Reach the requested room. Two policies copy the same demonstration walks, but only one uses the requested goal to choose its moves.',
+    introMore: 'Reach the requested room in a five-cell hall. Both policies copy the same four demonstration walks. One room appears three times, the other once. A policy is a rule for choosing an action. Hidden goal counts actions by location only. Named goal also uses the requested room.',
     goal: { text: 'Reach either requested room by keeping the goal in the action count.' } };
   C.levels.unshift(lesson);
   const label = id => id.replaceAll('-', ' ');
@@ -120,7 +121,7 @@
         h('button.opt', { id: id + '-' + value, type: 'button', 'aria-pressed': String(picked === value), onclick: () => onPick(value) }, text)));
       body.replaceChildren(h('div.eyebrow', { text: 'Tell it the goal · Step ' + (step + 1) + ' of 3' }));
       if (step === 0) {
-        body.append(h('h2', { text: 'Predict the hidden-goal walk' }), h('p', { text: lesson.intro }),
+        body.append(h('h2', { text: 'Predict the hidden-goal walk' }), h('p', { text: lesson.intro }), h('details', null, [h('summary', { text: 'Rules and method' }), h('p', { text: lesson.introMore })]),
           h('p', { text: 'Current notes: three walks ' + settings.majority + ', one ' + (settings.majority === 'west' ? 'east' : 'west') + '. Each walk has two moves. Both policies choose the most common action in their count. Equal counts choose west.' }),
           h('p', { text: 'You request the ' + label(settings.goal) + '. Where will Hidden goal finish?' }),
           question('goals-predict', predict, [['west', 'West room'], ['east', 'East room']], value => { predict = value; update(); }),

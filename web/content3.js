@@ -208,7 +208,9 @@
     {
       id: 'credit', phase: 2, world: 'cartpole', knobs: { maxSteps: 500 }, title: 'Learn the policy itself', seeds: 3, steps: 15000,
       start: pg({ batch: 1, credit: 'total', baseline: 'none' }), focus: ['credit', 'baseline', 'scale', 'batch'],
-      intro: 'A new idea: do not estimate values. Change the policy itself. The policy is a network that gives a probability to each action (left, right). After each episode, make every action of that episode more likely, in proportion to the return: good episodes push their actions more. This is a policy gradient. CartPole again, now with a 500-step limit. Budget: 15000 steps, 1 episode per update, step size 0.003.',
+      intro: 'Keep the pole up by pushing the cart left or right, now for up to 500 steps. This time the learner changes its action probabilities directly.',
+      introMore: 'A new idea: do not estimate values, change the policy itself. The policy is a network that gives a probability to each action. This is a policy gradient. CartPole again, now with a 500-step limit. Budget: 15000 steps, 1 episode per update, step size 0.003. The actions are left and right.',
+      learner: 'After each episode, the learner makes every action of that episode more likely, in proportion to the return: good episodes push their actions more.',
       predict: { id: 'credit-p', prompt: 'The simplest version pushes each action by the whole return of its episode. What does the greedy score do over 15000 steps?', options: [
         o(['Long episodes have large returns.', 'Large returns push their actions up a lot.', 'So it learns fast and keeps improving.'], 'It climbs toward 500 and stays there.', 0,
           `<b>Wrong at step 3.</b> Large returns also give large, noisy pushes. Measured: it peaked at ${i0(M('cr-total-none').peak)} on average, then fell to ${i0(M('cr-total-none').final)} (3 seeds, Simulation).`),
@@ -246,7 +248,9 @@
     {
       id: 'bigsteps', phase: 2, world: 'cartpole', knobs: { maxSteps: 500 }, title: 'Reuse each batch', seeds: 3, steps: 40000,
       start: pg({ batch: 8, credit: 'togo', baseline: 'critic', adv: 'gae', scale: 'std', ratio: 'plain', epochs: 10, lr: 0.03 }), focus: ['ratio', 'epochs', 'lr'],
-      intro: 'Each episode costs real time, so reuse it. Collect 8 episodes, then do 10 passes of updates on that batch. A critic V(s) judges each action (actor-critic, with a blend of 1, 2, 3, ... real rewards: GAE, λ = 0.95). Step size 0.03. Budget: 40000 steps.',
+      intro: 'Each episode costs real time, so reuse it: collect 8 episodes, then do 10 passes of updates on that batch.',
+      introMore: 'Step size 0.03. Budget: 40000 steps.',
+      learner: 'A critic V(s) judges each action (actor-critic), with a blend of 1, 2, 3, ... real rewards (GAE, λ = 0.95).',
       predict: { id: 'bigsteps-p', prompt: 'How far does one update move the policy? (Measured as the KL divergence between the policy before and after an update; PPO-sized steps are about 0.01.)', options: [
         o(['Each pass follows the gradient of the same batch.', 'After the first passes the policy has changed, but the batch still says "push these actions up".', 'Nothing stops the push, so after 10 passes some actions are pushed far beyond what the data supports.'], 'Very large steps, and the policy collapses.', 1,
           `Measured: mean KL ${d2(M('st-plain-e10-lr03').kl)} per update; randomness ${d2(M('st-plain-e10-lr03').ent)} (almost deterministic); ${M('st-plain-e10-lr03').collapsed} of 3 seeds collapsed; final ${i0(M('st-plain-e10-lr03').final)} of 500 (Simulation).`),
@@ -284,7 +288,9 @@
     {
       id: 'passfail', phase: 2, world: 'goalgrid', title: 'Pass or fail', seeds: 3, steps: 60000,
       start: pg({ batch: 16, baseline: 'critic', adv: 'gae', scale: 'std', ratio: 'clip', epochs: 4, lr: 0.003 }), focus: ['baseline', 'adv', 'group', 'scale'],
-      intro: 'A new world: a 7 by 7 grid. Each attempt (a "prompt") has a random start and a random goal, and 14 moves. Reward: 1 if it reaches the goal, else 0, given only at the end: pass or fail, like a math answer. No discount (γ = 1). The learner is PPO from the last level: a critic, GAE, the 20% limit, 4 passes. Budget: 60000 moves.',
+      intro: 'A new world: a 7 by 7 grid. Each attempt (a “prompt”) has a random start and a random goal, and 14 moves. The reward is pass or fail: 1 for reaching the goal, 0 otherwise, given only at the end, like a math answer.',
+      introMore: 'The grid is 7 by 7; each prompt allows 14 moves. Budget: 60000 moves. No discount (γ = 1).',
+      learner: 'The learner is PPO from the last level: a critic, GAE, the 20% limit, 4 passes.',
       predict: { id: 'passfail-p', prompt: 'PPO with its critic worked on CartPole. What share of new prompts does it solve here after 60000 moves?', options: [
         o(['PPO is a strong general method.', 'The grid is small: 49 cells.', 'So it solves almost all prompts.'], 'About 100%.', 0,
           `<b>Wrong at step 3.</b> Measured: ${pc(M('gg-ppo').succ)} (3 seeds, Simulation). The method needs a critic that understands this reward.`),
@@ -323,7 +329,9 @@
     {
       id: 'continuous', phase: 3, world: 'pendulum', title: 'Actions that are numbers', seeds: 3, steps: 10000, reveal: 'ddpg',
       start: ac({ head: 'det', critics: 'one', target: 'live', next: 'policy', entropy: 'none' }), focus: ['target', 'critics', 'next', 'delay'],
-      intro: 'Pendulum: swing a pole up and hold it up. The action is a torque: a real number between −2 and 2. The motor is too weak to lift the pole straight up, so it must swing. A max over actions does not work for a real number. The idea of DDPG: a policy network outputs one torque and moves toward higher critic values (the critic\'s slope). The critic learns Q(s, a) toward r + γ·Q(s′, policy(s′)). Here the target uses the live critic. Budget: 10000 steps.',
+      intro: 'Pendulum: swing the pole up and hold it. The action is a torque, a real number between −2 and 2. The motor is too weak to lift the pole straight up, so it must swing.',
+      introMore: 'Here the target uses the live critic. Budget: 10000 steps.',
+      learner: 'A max over actions does not work for a real number. The idea of DDPG: a policy network outputs one torque and moves toward higher critic values (the critic’s slope). The critic learns Q(s, a) toward r + γ·Q(s′, policy(s′)).',
       predict: { id: 'continuous-p', prompt: 'What test score does it reach? (Hanging still with zero torque scores about −1974 over 200 steps; swinging up and holding scores about −150.)', options: [
         o(['The critic learns from real rewards.', 'The policy follows its slope.', 'So all 3 seeds swing up.'], 'All seeds about −150.', 0,
           `<b>Wrong at step 1.</b> The critic also learns from its own guesses, made by the network it trains. Measured test scores: ${list(M('pd-ddpg-live').seeds)} (Simulation).`),
@@ -356,7 +364,8 @@
     {
       id: 'explore', phase: 3, world: 'pendulum', title: 'A policy that stops trying', seeds: 3, steps: 10000,
       start: ac({ entropy: 'none' }), focus: ['entropy', 'head'],
-      intro: 'A policy can also output a bell curve (a Gaussian) of torques: a mean and a spread. It samples its tries from it. Start: two critics, slow copies, a Gaussian policy that climbs the smaller critic, and no reward for staying random.',
+      intro: 'A policy can also output a bell curve (a Gaussian) of torques: a mean and a spread. It samples its tries from it. Swing the pole up and hold it.',
+      learner: 'The start sentence has two critics, slow copies, a Gaussian policy that climbs the smaller critic, and no reward for staying random.',
       predict: { id: 'explore-p', prompt: 'The policy climbs the critic. What happens to its spread (its randomness)?', options: [
         o(['Random torques are worth less now than the best torque.', 'Climbing the critic shrinks the spread toward 0.', 'With no randomness, a seed that has not found the swing-up yet stops looking for it.'], 'The spread collapses, and some seeds get stuck.', 1,
           `Measured: spread ${d2(M('pd-sac-none').std)} at the end; test scores ${list(M('pd-sac-none').seeds)} (Simulation).`),
@@ -387,7 +396,9 @@
     {
       id: 'offline', phase: 4, world: 'reach', title: 'No new tries', seeds: 3, steps: 8000,
       start: ac({ source: 'fixed', demos: 'expert', head: 'det', critics: 'one', aim: 'q', entropy: 'none' }), focus: ['aim', 'critics', 'next', 'penalty', 'head'],
-      intro: 'A 2-joint arm in a vertical plane, like two joints of a desk robot arm such as the SO-101. Put the tip on a random target and hold it. Each action is a pair of joint-speed commands. Now there are no new tries: you get 100 episodes from a good classical controller (with small noise 0.1 on each command), and that is all. This is offline learning. The start sentence is DDPG trained on the dataset only. Budget: 8000 updates.',
+      intro: 'Move the arm’s tip to a target and hold it there. Learn only from recorded attempts, with no new tries.',
+      introMore: 'A 2-joint arm in a vertical plane, like two joints of a desk robot arm. Put the tip on a random target and hold it. Each action is a pair of joint-speed commands. Now there are no new tries: this is offline learning. The arm is the 2-joint setup of a desk robot arm such as the SO-101. Budget: 8000 updates.',
+      learner: 'You get 100 episodes from a good classical controller (with small noise 0.1 on each command), and that is all. The start sentence is DDPG trained on the dataset only.',
       predict: { id: 'offline-p', prompt: `The data is good. DDPG learns a critic from it and climbs the critic. How close does the tip end? (The controller that made the data ends at ${d2(M('ox-naive').baseDist)} m.)`, options: [
         o(['The data comes from a good controller.', 'The critic learns the values of good actions.', 'So the policy that climbs it is as good: about 0.01 m.'], 'About 0.01 m.', 0,
           `<b>Wrong at step 3.</b> Measured: ${d2(M('ox-naive').dist)} m, more than the length of one link (0.5 m).`),
@@ -417,7 +428,8 @@
     {
       id: 'mixed', phase: 4, world: 'reach', title: 'Good and bad data', seeds: 3, steps: 8000, revealOnDone: ['recap'],
       start: ac({ source: 'fixed', demos: 'mixed', critics: 'none', aim: 'copy', entropy: 'none' }), focus: ['aim', 'critics', 'next', 'penalty'],
-      intro: 'A worse dataset: 50 episodes of the good controller and 50 episodes of random commands. Real data looks like this: some good attempts, some bad ones. The start sentence copies everything with a Gaussian policy.',
+      intro: 'A worse dataset: 50 episodes of the good controller and 50 episodes of random commands. Real data looks like this: some good attempts, some bad ones.',
+      learner: 'The start sentence copies everything with a Gaussian policy.',
       predict: { id: 'mixed-p', prompt: 'Behavior cloning copies all 100 episodes. Where does the tip end?', options: [
         o(['Half of the actions are random.', 'A copy fits a mix of good actions and random ones.', 'The copy acts like a blurred, weaker controller.'], 'Far from the target.', 1,
           `Measured: ${d2(M('om-bc-gauss').dist)} m (Gaussian), ${d2(M('om-bc-det').dist)} m (one action) (Simulation).`),
@@ -452,7 +464,9 @@
     {
       id: 'twoways', phase: 5, world: 'fork', title: 'Two good ways', seeds: 3, steps: 6000, revealOnDone: ['pi05'], hyper: { lr: 3e-3, batch: 128 },
       start: ac({ source: 'fixed', demos: 'expert', head: 'gauss', critics: 'none', aim: 'copy', entropy: 'none', chunk: 10 }), focus: ['head', 'chunk'],
-      intro: 'A point robot drives from its home pose at the bottom to a goal at the top. An obstacle sits in the middle. The demonstrator goes around it, left and right in turn: 50 demonstrations each way, all from the same home pose. Copy them. Like π0 (50 commands) and ACT (100), the policy outputs a chunk of 10 commands at a time, and the robot plays them without looking. Budget: 6000 updates (step size 0.003, batches of 128).',
+      intro: 'Drive around the obstacle to the goal. Copy demonstrations that go left and right, 50 each way.',
+      introMore: 'A point robot drives from its home pose at the bottom to a goal at the top. An obstacle sits in the middle. The demonstrator goes around it, left and right in turn: 50 demonstrations each way. Copy them. All demonstrations start from the same home pose. Budget: 6000 updates (step size 0.003, batches of 128).',
+      learner: 'Like π0 (50 commands) and ACT (100), the policy outputs a chunk of 10 commands at a time, and the robot plays them without looking.',
       predict: { id: 'twoways-p', prompt: 'A Gaussian policy copies the demonstrations, 10 commands at a time. From the home pose, half of the plans in the data go left and half go right. What does it do?', options: [
         o(['From one pose, the data holds two different 10-command plans.', 'One bell curve fits them with one plan near their average: mostly straight ahead.', 'The robot plays all 10 commands without looking, into the obstacle.'], 'It often drives into the obstacle.', 1,
           `Measured: ${pc(M('tw-gauss-c10').succ)} reached the goal; ${d1(M('tw-gauss-c10').crash)} obstacle hits per test (3 seeds, Simulation).`),
@@ -485,7 +499,9 @@
     {
       id: 'pick', phase: 5, world: 'fork', knobs: { mud: 0.1 }, title: 'Steer a frozen policy', seeds: 3, steps: 4000, revealOnDone: ['pi07'],
       start: ac({ source: 'both', demos: 'expert', head: 'flow', aim: 'none', critics: 'two', next: 'data', entropy: 'none', pick: 'one' }), focus: ['pick'],
-      intro: 'Same fork, one command per decision, but now there is mud on the left: each step in it costs 0.1 more. The demonstrator ignored the mud and went left half of the time. Keep the flow policy frozen, as in Q-planning (2026). Only a critic learns: first from the dataset (8000 updates), then from 4000 steps of the robot\'s own tries. Its target uses the action taken next in memory (as in Sarsa), so it never asks about a new action. The start plays one proposal of the flow policy. About 1.5 minutes.',
+      intro: 'Same fork, one command per decision, but now there is mud on the left: each step in it costs 0.1 more. The demonstrator ignored the mud and went left half of the time.',
+      introMore: 'The critic learns first from the dataset (8000 updates), then from 4000 steps of the robot’s own tries. The start plays one proposal of the flow policy. About 1.5 minutes.',
+      learner: 'Keep the flow policy frozen, as in Q-planning (2026). Only a critic learns: first from the dataset, then from the robot’s own tries. Its target uses the action taken next in memory (as in Sarsa), so it never asks about a new action.',
       predict: { id: 'pick-p', prompt: 'The policy is a faithful copy of the demonstrations, and a critic learns what each action is worth. How often does the robot go through the mud?', options: [
         o(['The copy reproduces the data, and half of the data goes left.', 'With "play one proposal", the critic is never asked.', 'So about half of the tests go through the mud.'], 'About half of the time.', 1,
           `Measured: ${pc(M('pk-one').left)} of the tests went left (3 seeds, Simulation).`),
@@ -518,7 +534,9 @@
     },
     {
       id: 'residual', phase: 5, world: 'reach', knobs: { payload: 2, pickAt: 15 }, title: 'Keep the controller', seeds: 3, steps: 15000,       start: ac({}), focus: ['base', 'wait'],
-      intro: 'Back to the 2-joint arm, now with kitting: at step 15 the gripper picks up a 2 kg part, and its weight pulls the arm down. A classical controller (Jacobian transpose, a = 12 Jᵀ(target − tip)) already does well but sags under the load. The start sentence is SAC learning from scratch, on its own tries. Budget: 15000 steps, about 12 minutes of arm time at 20 Hz.',
+      intro: 'Back to the 2-joint arm, now with kitting: at step 15 the gripper picks up a 2 kg part, and its weight pulls the arm down. A classical controller already does well but sags under the load.',
+      introMore: 'The classical controller is Jacobian transpose with gain 12: a = 12 Jᵀ(target − tip). Budget: 15000 steps, about 12 minutes of arm time at 20 Hz.',
+      learner: 'The start sentence is SAC learning from scratch, on its own tries.',
       predict: { id: 'residual-p', prompt: `On the same test starts, the classical controller scores ${d1(M('r-p2-sac').base)} (0 is perfect). What does SAC from scratch score after 15000 steps?`, options: [
         o(['SAC swung up the pendulum in 10000 steps.', 'Reaching is easier than swinging up.', 'So it beats the controller.'], 'Better than the controller.', 0,
           `<b>Wrong at step 2 to 3.</b> Here every episode has a new target, and the payload changes the arm halfway. Measured: ${d1(M('r-p2-sac').test)} (Simulation).`),
