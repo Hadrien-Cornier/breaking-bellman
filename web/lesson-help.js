@@ -8,6 +8,8 @@
       const restore = button;
       const close = () => {
         dialog.close(); dialog.remove();
+        const drawer = restore?.closest('details');
+        if (drawer && !drawer.open) drawer.open = true;
         if (restore?.isConnected) restore.focus({ preventScroll: true });
       };
       const dialog = h('dialog.lesson-help', { 'aria-labelledby': 'lesson-help-title' }, [

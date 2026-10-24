@@ -648,6 +648,11 @@ ul.preset-diff li { margin: 2px 0; }
 .drawer-workspace #lesson-drawer { grid-column: 1 / -1; }
 .drawer-workspace .stage, .drawer-workspace.lesson-shell .stage { width: min(100%, calc(220px * 640 / 280)); max-width: 100%; height: auto; max-height: 220px; aspect-ratio: 640 / 280; }
 .drawer-workspace .chart { height: 130px; }
+@media (max-height: 860px) {
+  .drawer-workspace .chart { height: 84px; }
+  .drawer-workspace .more-curves > summary { min-height: 28px; }
+  .drawer-workspace #replay-drawer { padding: 6px 10px; }
+}
 .drawer-workspace #learning-monitor { gap: 8px; }
 .drawer-workspace .chart-title { font-size: .76rem; }
 .drawer-workspace #charts > .eyebrow { font-size: .65rem; }

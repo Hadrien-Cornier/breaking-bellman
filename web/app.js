@@ -943,7 +943,8 @@
     }
     $('#run-stale').hidden = !runState.stale;
     $('#scene-controls').hidden = !record;
-    if (replayHome) replayHome.open = !!record;
+    const replay = $('#replay-drawer');
+    if (replay) replay.open = !!record;
   }
   function markRunStale() {
     if (customActive() && customScene && runState.record) {
@@ -968,7 +969,7 @@
     $('#symptoms').replaceChildren(h('p.small', { text: 'No run yet.' }));
   }
   function showEmptyCharts() {
-    const family = S.world === 'bandit' || S.world === 'mirage' ? S.world : fam(S.parts);
+    const family = S.world === 'bandit' || S.world === 'mirage' ? S.world : C.famOf(S.parts);
     const rows = window.BBPLAYER ? window.BBPLAYER.emptyCurves(S.world, family) : [{ title: 'Learning curve', status: 'No measurements yet.' }];
     const loss = rows.length > 1 ? rows[rows.length - 1] : null;
     const perf = rows.length > 1 ? rows.slice(0, -1) : rows;
