@@ -802,9 +802,10 @@
   // Original comparison lessons share the same replay clock and stable controls.
   const replayControls = $('#scene-controls'), replayNotice = $('#run-stale');
   let replayHome = replayControls.parentElement;
+  const replayNoticeHome = replayNotice.parentElement;
   let customScene = null;
   const comparisonReplay = {
-    park() { replayHome.append(replayControls, replayNotice); },
+    park() { replayHome.append(replayControls); replayNoticeHome.append(replayNotice); },
     mount(host, record, settings) {
       comparisonReplay.park();
       host.querySelector('[data-replay-controls]').append(replayControls, replayNotice);
