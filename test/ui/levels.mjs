@@ -1,6 +1,7 @@
 // All registered lessons: full shared RunRecord replay contract; custom lessons retain their baseline.
 // npm run build && node test/ui/levels.mjs [proof directory] [URL]
 import assert from 'node:assert/strict';
+import { goalExecutionContract } from './lib/goal-execution.mjs';
 import { inferenceContract } from '../inference-ui.mjs';
 import { rareContract } from './rare.mjs';
 import { goalsReplayContract } from './helpers/goals.mjs';
@@ -112,7 +113,7 @@ async function replayContract(page, proof, verify) {
 
 }
 async function customReplayContract(page, proof, verify) {
-  const scene = page.locator(id === 'rare' ? '#rare-stage' : '#custom-stage');
+  const scene = page.locator('#custom-stage');
   const state = () => page.evaluate(() => ({ ...bellman.replay(), id: bellman.record()?.id }));
   const pixels = () => scene.evaluate(e => e.toDataURL());
   const snapshot = await page.evaluate(() => JSON.stringify(bellman.record()));

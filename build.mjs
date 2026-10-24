@@ -14,8 +14,8 @@ const root = path.dirname(new URL(import.meta.url).pathname);
 const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 
 export const ENGINE_FILES = fastSource.engineFiles;
-const CONTENT_FILES = ['web/content.js', 'web/content2.js', 'web/measured.js', 'web/content3.js', 'web/expert.js', 'web/papers.js', 'web/wonder.js', 'web/fetch-level.js', 'web/quiz-content.js', 'web/vpo-reference.js', 'web/vpo-level.js', 'web/supermimic-level.js', 'src/agents/thaw.js', 'web/thaw-record.js', 'web/thaw-level.js', 'src/agents/rewardfit.js', 'web/rewardfit-record.js', 'web/rewardfit-level.js', 'src/agents/goals.js', 'web/goals-record.js', 'web/goals-level.js', 'src/agents/rare.js', 'web/rare-record.js', 'web/rare-level.js', 'src/agents/elbo.js', 'src/agents/messages.js', 'web/inference-record.js', 'web/inference-lesson.js', 'web/elbo-level.js', 'web/messages-level.js', 'web/level-graph.js'];
-const APP_FILES = ['src/sim/exact.js', 'web/fast.js', 'web/llm.js', 'web/scenes.js', 'web/rewardfit-scene.js', 'web/run-record.js', 'web/scene-adapter.js', 'web/custom-record.js', 'web/custom-scenes.js', 'web/pagemd.js', 'web/help.js', 'web/algos.js', 'web/rules.js', 'web/reward-backup.js', 'web/campaign-map.js', 'web/level-shell.js', 'web/app.js'];
+const CONTENT_FILES = ['web/content.js', 'web/content2.js', 'web/measured.js', 'web/content3.js', 'web/expert.js', 'web/papers.js', 'web/wonder.js', 'web/fetch-level.js', 'web/quiz-content.js', 'web/vpo-reference.js', 'web/vpo-level.js', 'web/supermimic-level.js', 'src/agents/thaw.js', 'web/thaw-record.js', 'web/thaw-level.js', 'src/agents/rewardfit.js', 'web/rewardfit-record.js', 'web/rewardfit-level.js', 'src/agents/goals.js', 'web/goals-record.js', 'web/goals-level.js', 'src/agents/rare.js', 'web/rare-record.js', 'web/rare-level.js', 'src/agents/elbo.js', 'src/agents/messages.js', 'web/inference-record.js', 'web/inference-lesson.js', 'web/elbo-level.js', 'web/messages-level.js', 'web/hindsight-level.js', 'web/hierarchy-level.js', 'web/level-graph.js'];
+const APP_FILES = ['src/sim/exact.js', 'web/fast.js', 'web/llm.js', 'web/scenes.js', 'web/rewardfit-scene.js', 'web/run-record.js', 'web/scene-adapter.js', 'web/goal-execution.js', 'web/custom-record.js', 'web/custom-scenes.js', 'web/pagemd.js', 'web/help.js', 'web/algos.js', 'web/rules.js', 'web/reward-backup.js', 'web/campaign-map.js', 'web/level-shell.js', 'web/app.js'];
 
 const exists = (f) => fs.existsSync(path.join(root, f));
 const join = (files) => files.filter(exists).map(read).join('\n;\n');
@@ -27,7 +27,7 @@ const body = read('web/page.html')
   .replace('/*@VPO_VERSION@*/', () => 'window.BB_VPO_VERSION = ' + JSON.stringify(vpoSource.version()) + ';')
   .replace('/*@SUPERMIMIC_ENGINE@*/', () => noClose(join(supermimicSource.engineFiles)))
   .replace('/*@SUPERMIMIC_VERSION@*/', () => 'window.BB_SUPERMIMIC_VERSION = ' + JSON.stringify(supermimicSource.version()) + ';')
-  .replace('/*@ENGINE@*/', () => noClose(join(ENGINE_FILES)))
+  .replace('/*@ENGINE@*/', () => noClose(join([...ENGINE_FILES, 'src/agents/hindsight.js', 'src/agents/hierarchy.js'])))
   .replace('/*@CONTENT@*/', () => 'window.BB_THAW_VERSION = ' + JSON.stringify(thawSource.version()) + ';\nwindow.BB_INFERENCE_VERSION = ' + JSON.stringify(createHash('sha256').update(join(['src/agents/elbo.js', 'src/agents/messages.js', 'web/inference-record.js'])).digest('hex')) + ';\n' + join(CONTENT_FILES))
   .replace('/*@APP@*/', () => join(APP_FILES))
   .replace('/*@CSS@*/', () => read('web/style.css') + '\n' + read('web/thaw.css') + '\n' + read('web/rewardfit.css') + '\n' + read('web/goals.css') + '\n' + read('web/inference.css'))
