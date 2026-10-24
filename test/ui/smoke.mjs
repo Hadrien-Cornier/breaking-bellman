@@ -119,6 +119,15 @@ async function setWord(page, scope, key, label) {
   await page.locator(scope + ' .w[data-key="' + key + '"]').first().click();
   await page.locator(scope + ' .chooser .choice', { hasText: label }).first().click();
 }
+// Seeds, steps, and run mode stay hidden. Set them without waiting for a visible control.
+async function chooseHidden(page, selector, value) {
+  const applied = await page.locator(selector).evaluate((el, value) => {
+    el.value = value;
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    return el.value;
+  }, String(value));
+  if (applied !== String(value)) throw new Error(selector + ' stayed ' + applied + ' after setting ' + value);
+}
 
 await session(375, 812, 'phone', async (page) => {
   await page.screenshot({ path: out + '/phone-start.png' });
@@ -180,13 +189,16 @@ await session(1280, 900, 'desktop', async (page) => {
     return { combos, unique: seen.size, bad };
   });
   check(tex.unique > 100 && !tex.bad.length, 'the TeX of all ' + tex.combos + ' word combinations typesets (' + tex.unique + ' unique lines)' + (tex.bad.length ? ': ' + tex.bad.slice(0, 3).join(' | ') : ''));
-  await page.selectOption('#seeds', '1'); await page.selectOption('#budget', '10000');
+  await chooseHidden(page, '#seeds', '1'); await chooseHidden(page, '#budget', '10000');
   const t0 = Date.now();
   await page.click('#run-btn');
   await runDone(page);
   console.log('DQN 10k 1 seed in', ((Date.now() - t0) / 1000).toFixed(1), 's:', await page.locator('#run-result').innerText());
+  // The expert card lives in Autopsy. Opening that dialog is how a player reads it; the run still has to leave the card open.
+  await openNotebook(page, 'autopsy');
   check(await page.locator('#expert-card').isVisible() && await page.locator('#expert-card').evaluate((d) => d.open), 'the expert card opens after a Workbench run');
   check(/The frozen copy sets how fast the values can grow/.test(await page.locator('#expert').innerText()), 'the expert explains the frozen copy for DQN');
+  await dismissDialog(page, '#reference-dialog', '#reference-close');
   check(await page.locator('#charts button', { hasText: 'Why this gap?' }).count() === 1, 'the value chart has a "Why this gap?" button');
   // "Copy page": the whole page as Markdown, with the numbers behind each chart
   const pmd = await page.evaluate(() => window.bellman.page());
@@ -214,7 +226,10 @@ await session(1280, 900, 'desktop', async (page) => {
   await page.locator('#mode-pane .rp-tab').nth(4).click();
   console.log('DQN replay verdict:', await page.locator('#mode-pane .rp-verdict').innerText());
   await page.screenshot({ path: out + '/desktop-wb.png' });
+  // Pin lives with the other comparisons in Sources.
+  await openNotebook(page, 'curve');
   await page.getByText('Pin this run as A').click();
+  await dismissDialog(page, '#reference-dialog', '#reference-close');
   await setWord(page, '#mode-pane', 'picker', 'the live estimate');
   await setWord(page, '#mode-pane', 'scorer', 'the live estimate');
   await setWord(page, '#mode-pane', 'data', 'the move just made');
@@ -240,8 +255,8 @@ await session(1280, 900, 'desktop', async (page) => {
   await runDone(page);
   console.log('mirage run:', await page.locator('#run-result').innerText());
   await page.screenshot({ path: out + '/desktop-mirage.png' });
-  // "Did you notice?": the mirage run opens the maximization-bias card. Open it the way a player
-  // does ("Show me the chart", then one of the 3 choices) and check the reveal text.
+  // "Did you notice?" lives in Sources. Open that dialog, then the chart and one of the 3 choices.
+  await openNotebook(page, 'curve');
   const wq = page.locator('#wonder');
   check(await wq.isVisible(), 'the wonder card shows after the mirage run');
   const look = wq.locator('button', { hasText: 'Show me the chart' });
@@ -255,6 +270,7 @@ await session(1280, 900, 'desktop', async (page) => {
   });
   check(stray === 0, 'the wonder card shows no standalone "null" or "undefined" after a choice (found ' + stray + ')');
   await wq.screenshot({ path: out + '/desktop-wonder.png' });
+  await dismissDialog(page, '#reference-dialog', '#reference-close');
   await page.locator('#more-tools').evaluate(el => { el.open = true; });
   await page.getByRole('tab', { name: 'Review' }).click();
   await page.screenshot({ path: out + '/desktop-review.png' });
@@ -321,7 +337,7 @@ await session(1280, 900, 'phases', async (page) => {
   await page.getByRole('tab', { name: 'Workbench' }).click();
   await page.selectOption('#wb-family', 'ac');
   await page.selectOption('#wb-world', 'pendulum');
-  await page.selectOption('#seeds', '1'); await page.selectOption('#budget', '6000');
+  await chooseHidden(page, '#seeds', '1'); await chooseHidden(page, '#budget', '6000');
   let t0 = Date.now();
   await page.click('#run-btn');
   await runDone(page);
@@ -337,11 +353,11 @@ await session(1280, 900, 'phases', async (page) => {
   await setWord(page, '#mode-pane', 'source', 'a fixed dataset only');
   await setWord(page, '#mode-pane', 'aim', 'copy the actions in memory');
   await setWord(page, '#mode-pane', 'head', 'noise turned into an action');
-  await page.selectOption('#seeds', '1'); await page.selectOption('#budget', '2000');
+  await chooseHidden(page, '#seeds', '1'); await chooseHidden(page, '#budget', '3000');
   t0 = Date.now();
   await page.click('#run-btn');
   await runDone(page);
-  console.log('flow BC fork 2k in', ((Date.now() - t0) / 1000).toFixed(1), 's:', await page.locator('#run-result').innerText());
+  console.log('flow BC fork 3k in', ((Date.now() - t0) / 1000).toFixed(1), 's:', await page.locator('#run-result').innerText());
   console.log('name box:', (await page.locator('#rule .compound').innerText()).replace(/\n/g, ' | '));
   await page.screenshot({ path: out + '/phases-fork.png' });
 
@@ -436,7 +452,7 @@ await session(375, 812, 'phone-frontier', async (page) => {
       terminate() { for (const timer of this.timers) clearTimeout(timer); }
     };
   });
-  await page.selectOption('#run-mode', 'live');
+  await chooseHidden(page, '#run-mode', 'live');
   const frontierRun = page.locator('[data-campaign-run="pick"]');
   await frontierRun.click();
   check(await frontierRun.isDisabled(), 'mud level disables its campaign run button as training starts');
@@ -505,7 +521,7 @@ await session(375, 812, 'expert', async (page) => {
   await page.getByRole('tab', { name: 'Workbench' }).click();
   await page.selectOption('#wb-world', 'cliff');
   await setWord(page, '#mode-pane', 'agg', 'the worst next action');
-  await page.selectOption('#seeds', '5');
+  await chooseHidden(page, '#seeds', '5');
   await page.click('#run-btn');
   await runDone(page);
   console.log('cliff worst next action:', await page.locator('#run-result').innerText());
@@ -513,6 +529,7 @@ await session(375, 812, 'expert', async (page) => {
   console.log('expert first note:', ex.split('\n').slice(0, 2).join(' | '));
   check(/Q predicts less than the policy earns/.test(ex), 'the expert reads a pessimistic value chart');
   check(/Why it fails here/.test(ex) && /Where it works/.test(ex), 'the worst-next-action note says why it fails on the cliff and where it works');
+  await openNotebook(page, 'autopsy');
   await page.locator('#expert-card').screenshot({ path: out + '/expert-cliff-min.png' });
 });
 await session(390, 844, 'pendulum', async (page) => {
@@ -541,6 +558,8 @@ await session(390, 844, 'pendulum', async (page) => {
   });
   await page.click('#run-btn');
   await runDone(page);
+  // The measured world lives in the simulation dialog. Reopen it to watch the recorded swing.
+  await page.locator('#simulation-btn').click();
   await page.locator('#stage').scrollIntoViewIfNeeded();
   await page.locator('#scene-replay').click();
   await page.locator('#scene-watch').click();

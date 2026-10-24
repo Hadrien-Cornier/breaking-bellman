@@ -2863,11 +2863,15 @@
     try { await navigator.clipboard.writeText(t); toast('Copied. Paste it into your AI chat.'); }
     catch (e) { download('breaking-bellman-brief.md', t, 'text/markdown'); toast('Clipboard blocked: downloaded the brief instead.'); }
   }
-  // the whole page as Markdown (window.BB.pageMd walks what is on screen): the open tab, the lab, an open dialog, the words
+  // the whole page as Markdown (window.BB.pageMd walks what is on screen): the open tab, the lab, the editor
+  // that stays up after Run closes, an open dialog, the words
   function pageMarkdown() {
     const md = (el) => window.BB.pageMd.fromNode(el, { depth: 2 });
     const tab = ($('#tabs button[data-mode="' + S.mode + '"]') || {}).textContent || S.mode;
     const dialogs = $$('dialog[open]').map((d) => md(d)).filter(Boolean);
+    const editor = $('#algorithm-workspace');
+    const editorOnScreen = editor && !editor.hidden && getComputedStyle(editor).display !== 'none';
+    const editorBody = editorOnScreen ? md(editor) : '';
     const now = new Date(), stamp = now.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
     return [
       '# Breaking Bellman: the ' + tab + ' page',
@@ -2890,6 +2894,7 @@
       '',
       md($(customActive() ? '#vpo-lab' : '#lab')),
       '',
+      ...(editorBody ? ['## Editor (the sentence, the equations and the last learning curve)', '', editorBody, ''] : []),
       '## Notebook',
       '',
       md($(customActive() ? '#custom-notebook' : '#notebook')),
@@ -3099,7 +3104,7 @@
     if (oldStrip) oldStrip.remove();
     const oldBackup = document.getElementById('reward-backup');
     if (oldBackup) oldBackup.remove();
-    $$('#tabs button').forEach((b) => b.setAttribute('aria-selected', b.dataset.mode === S.mode ? 'true' : 'false'));
+    $$('#tabs button[data-mode]').forEach((b) => b.setAttribute('aria-selected', b.dataset.mode === S.mode ? 'true' : 'false'));
     const more = $('#more-tools');
     if (more) {
       const inside = more.querySelector('[aria-selected="true"]');
@@ -3178,7 +3183,7 @@
     if (!S.running && !S.results.length && !customActive()) showEmptyCharts();
     updateScore();
   }
-  $$('#tabs button').forEach((b) => b.addEventListener('click', () => {
+  $$('#tabs button[data-mode]').forEach((b) => b.addEventListener('click', () => {
     S.mode = b.dataset.mode; save();
     if (S.mode === 'campaign' && !mapOpen) enterLevel(C.levels.find((l) => l.id === S.level));
     render();
@@ -3262,7 +3267,12 @@
   $('#reference-close').addEventListener('click', closeReferenceDialog);
   $('#reference-dialog').addEventListener('close', () => { $('#reference-park').append($('#notebook')); });
   $('#simulation-btn').addEventListener('click', () => openSimulation());
-  $('#run-simulation-close').addEventListener('click', () => { if ($('#run-simulation').open) $('#run-simulation').close(); });
+  $('#run-simulation-close').addEventListener('click', () => {
+    if (!$('#run-simulation').open) return;
+    // The dialog's close event is queued, so the curve has to move before close() returns.
+    settleEditor();
+    $('#run-simulation').close();
+  });
   $('#run-simulation').addEventListener('close', () => {
     settleEditor();
     if ($('#run-btn')) $('#run-btn').focus();
