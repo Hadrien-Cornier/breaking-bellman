@@ -184,6 +184,10 @@
         })), ...record.policies.map(p => h('p.small', { text: p.label + ' weights: ' + ['closeness', 'hazard', 'lane', 'step'].map((f, i) => f + ' ' + number(record.metrics[p.name].weights[i])).join(', ') + '.' })),
         h('p.small', { text: 'Prior data: ' + record.data.prior.steps + ' demonstrated moves in ' + record.data.prior.attempts + ' routes. Fresh environment data: ' + record.data.fresh.steps + ' moves, ' + record.data.fresh.attempts + ' attempts. Fitting and planning use the known grid model.' }), h('p', { text: level.soWhat }));
       }
+      if (!record) {
+        chart.append(h('p.small', { text: 'Run the lesson to inspect its curve.' }));
+        result.append(h('p.small', { text: 'Run the lesson to inspect its autopsy.' }));
+      }
       const evidence = h('details', { id: 'rewardfit-evidence' }, [h('summary', { text: 'Rules and evidence' }), h('section.game-rules', { id: 'rewardfit-rules' }, [h('h3', { text: 'Pass this challenge' }), h('p', { text: level.goal.text })]), h('p', { text: 'The planner stops at the flag, a repeated cell, or its move limit. The hazard is not terminal. The discount is 0.9. Fitting searches weights between −4 and 4, scoring the sum of log probabilities of the 12 demonstrated actions.' }),
         h('p', { text: C.cards.maxentirl.paper }), h('a', { href: C.paperLinks.maxentirl[0].u, target: '_blank', rel: 'noopener', text: 'Berkeley source slides' })]);
       body.replaceChildren(lesson); lab.replaceChildren(setup);
@@ -191,7 +195,7 @@
         hooks.shell.notebook('rule').replaceChildren(evidence);
         hooks.shell.notebook('curve').replaceChildren(chart);
         hooks.shell.notebook('autopsy').replaceChildren(result);
-        hooks.shell.notebook('notes').replaceChildren(...(current ? [quiz(h, level.predict), h('p', { text: level.soWhat })] : []));
+        hooks.shell.notebook('notes').replaceChildren(...(current ? [quiz(h, level.predict), h('p', { text: level.soWhat })] : [h('p.small', { text: 'Lesson notes appear here.' })]));
       } else {
         // Temporary host on the slice5 base; slice6 supplies the Notebook containers.
         lab.append(chart, result, evidence);
