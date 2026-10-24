@@ -74,6 +74,7 @@ async function replayContract(page, proof, verify) {
   fs.writeFileSync(path.join(out, proof.name + '-run.json.gz'), gzipSync(exactBefore));
   if (!await page.locator('#notebook').evaluate(e => e.open)) await page.locator('#notebook > summary').click();
   await page.locator('#notebook-tab-rule').click();
+  await page.evaluate(() => { const d = document.querySelector('#run-options'); if (d && !d.open) d.open = true; });
   const dimensions = await page.locator('#scene-controls button, #scene-seed, #run-btn, #seeds, #budget, #run-mode, #rule .w').evaluateAll(es => es.map(e => ({ id: e.id, w: e.getBoundingClientRect().width, h: e.getBoundingClientRect().height })));
   verify(dimensions.every(d => d.w >= 44 && d.h >= 44), 'Run, replay and result settings have 44px touch targets');
   await page.locator('#notebook > summary').click();
@@ -100,6 +101,7 @@ async function replayContract(page, proof, verify) {
   await page.waitForTimeout(150);
   verify(!(await status()).state.watching && await frame() === reduced, 'reduced motion does not autoplay');
   await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.evaluate(() => { const d = document.querySelector('#run-options'); if (d && !d.open) d.open = true; });
   const nextSeeds = await page.locator('#seeds').evaluate(e => [...e.options].find(o => o.value !== e.value).value);
   await page.locator('#seeds').selectOption(nextSeeds);
   const stale = await status();

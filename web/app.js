@@ -261,7 +261,7 @@
     mounts.push(m); drawSentence(m);
     return m.el;
   }
-  function refreshSentences() { if (!RLA.worlds[S.world]) return; for (const m of mounts) drawSentence(m); }
+  function refreshSentences() { if (!RLA.worlds[S.world]) return; for (const m of mounts) drawSentence(m); updateAlgoMath(); }
   function drawSentence(m) {
     const o = m.opts, p = o.getParts(), world = o.world(), focus = o.focus ? o.focus() : [];
     const idle = idleWords(p, world);
@@ -528,6 +528,23 @@
       h('p.small', { text: legend }),
     ]);
   }
+  // The equations beside the editable sentence (#algo-math-slot, below div#rule).
+  // Contract: the shared config-derived component window.ALGO_MATH (bb-equation-impact245) owns the
+  // math when it is in the build: mount it at #algorithm-math-panel and call panel.update() on every
+  // option change, before Run. Until that commit lands, the slot shows the game's own config-derived
+  // equations (mathBox) so the editor never hides its math; the fallback never renders next to the
+  // shared component, so the equations are never duplicated.
+  let algoMath = null;
+  function updateAlgoMath() {
+    const slot = $('#algo-math-slot');
+    if (!slot) return;
+    if (!algoMath && window.ALGO_MATH && window.ALGO_MATH.mount) {
+      algoMath = window.ALGO_MATH.mount({ id: 'algorithm-math-panel', getParts: () => S.parts, world: () => S.world, hyper: () => hyperNow() });
+      slot.replaceChildren(algoMath.el);
+    }
+    if (algoMath) { algoMath.update(); return; }
+    slot.replaceChildren(mathBox(S.parts, S.world));
+  }
 
   // ---------------------------------------------------------------- charts (canvas, own scales)
   function setupCanvas(cv) {
@@ -626,7 +643,60 @@
       h('canvas.chart', { id, 'aria-label': title, 'data-run': runState.record && runState.record.id }),
     ]);
   }
+  // The learning-curve card beside Run: the learner's own recorded training loss when it has one,
+  // and its real learning metric beside it. Nothing here is invented: the loss series is the
+  // learner's diagnostics as recorded by src/sim/run.js, and when the learner records no training
+  // loss the card says so instead of renaming a return curve. The full chart set stays in the
+  // Notebook Curve tab.
+  function renderWorkbenchCurve(partials, done, record = runState.record) {
+    const cv = $('#wb-curve');
+    if (!cv) return;
+    if (done && record) partials = record.results.map((r) => ({ evals: r.evals, diag: r.diag }));
+    else if (!partials) partials = S.results.map((r) => ({ evals: r.evals, diag: r.diag }));
+    const per = (partials || []).map((p) => p.evals || []);
+    const dg = (partials || []).map((p) => p.diag || []);
+    const isB = S.world === 'bandit', isM = S.world === 'mirage';
+    const metric = isB ? 'Share of pulls on the best machine' : isM ? 'Share of episodes that take the left door' : 'Score per test episode';
+    const title = isB ? 'Best machine chosen (moving mean of 50 pulls, mean of runs)' : isM ? 'Left door from A (mean of runs, window 10% of each run)' : 'Score per test episode (mean of runs)';
+    // ---- the recorded training loss, only when the learner really records one
+    const loss = meanCurve(dg.map((d) => d.map((x) => ({ t: x.t, v: x.loss }))));
+    const hasLoss = loss.ys.some(isFinite);
+    const lw = $('#wb-loss-wrap');
+    if (lw) {
+      lw.hidden = !hasLoss;
+      $('#wb-charts').classList.toggle('has-loss', hasLoss);
+      if (hasLoss) lineChart($('#wb-loss'), [{ xs: loss.xs, ys: loss.ys, color: css('--f-value'), width: 2, end: true, label: 'training loss' }],
+        { xmax: Math.max(1, loss.xs[loss.xs.length - 1] || 1), ymin: 0, xlabel: 'training steps' });
+    }
+    // ---- the learning metric the world actually measures
+    let series = [], xmax = 1;
+    if (isB || isM) {
+      if (done && S.results.length) {
+        const c = curvesOf(S.results, S.world).main;
+        series = [{ xs: c.xs, ys: c.ys, color: css('--ink'), width: 2.2, end: true, label: 'mean of runs' }];
+        xmax = Math.max(1, ...c.xs);
+      }
+    } else {
+      const m = meanCurve(per.map((ev) => ev.map((e) => ({ t: e.t, v: e.ret }))));
+      series = [{ xs: m.xs, ys: m.ys, color: css('--ink'), width: 2.2, end: true, label: 'mean of runs' }];
+      xmax = Math.max((S.lastCfg && S.lastCfg.steps) || 1, m.xs[m.xs.length - 1] || 1);
+    }
+    const tEl = $('#wb-curve-title');
+    if (tEl) tEl.textContent = title;
+    cv.setAttribute('aria-label', title);
+    if (series.length && series[0].xs.length) lineChart(cv, series, { xmax, xlabel: (isB ? 'pulls' : 'training steps') });
+    else { const { ctx, w, h: H } = setupCanvas(cv); ctx.clearRect(0, 0, w, H); }
+    // ---- the honest note: recorded loss when the learner has one, no loss when it does not
+    const note = $('#wb-curve-note');
+    if (!note) return;
+    const ran = series.length > 0 || hasLoss;
+    note.textContent = !ran
+      ? activeRun ? (isB || isM ? 'Training now. The curve for this world appears when the run finishes.' : 'Training now: the curve draws as the run reports.') : 'Run a sentence to see its learning curve.'
+      : hasLoss ? 'The learner records its own training loss (mean squared error against its targets). The other curve is the performance it produces: ' + metric + ' (mean of runs).'
+        : 'This learner records no training loss. The curve shows its measured learning metric: ' + metric + ' (mean of runs).';
+  }
   function renderCharts(partials, done, record = runState.record) {
+    renderWorkbenchCurve(partials, done, record);
     if (done && record) partials = record.results.map(r => ({ evals: r.evals, diag: r.diag }));
     const box = $('#charts'); const steps = (S.lastCfg && S.lastCfg.steps) || 1;
     const ink = css('--ink'), acc = css('--accent'), val = css('--f-value'), pol = css('--f-policy'), muted = css('--muted');
@@ -2928,9 +2998,11 @@
       '',
       md($('#mode-pane')),
       '',
-      '## Lab (the world, the update rule and the results of the last run)',
+      '## Lab (the world and the results of the last run)',
       '',
       md($(customActive() ? '#vpo-lab' : '#lab')),
+      '',
+      ...($('#algo-panel').hidden ? [] : ['## Algorithm (the update rule and its equations)', '', md($('#algo-panel')), '']),
       '',
       '## Notebook',
       '',
@@ -3160,14 +3232,18 @@
     if (!mapping && !customActive() && !RLA.worlds[S.world]) setWorld(C.families[fam(S.parts)].worlds[0]);
     document.querySelector('main.layout').classList.toggle('mapping', mapping);
     $('#lab').hidden = mapping || customActive(); $('#vpo-lab').hidden = mapping || !customActive();
+    $('#algo-panel').hidden = mapping || customActive();
     $('#notebook').hidden = mapping || customActive(); customNotebook.hidden = mapping || !customActive();
     const campaign = S.mode === 'campaign' && !mapping;
     const layout = document.querySelector('main.layout');
     layout.classList.toggle('lesson-shell', campaign);
     $('#run-btn').classList.toggle('ghost', campaign);
-    // DOM, visual and keyboard order agree: map, measured scene, teaching step, Notebook.
-    if (campaign) layout.insertBefore(customActive() ? $('#vpo-lab') : $('#lab'), pane);
-    else layout.prepend(pane);
+    // DOM, visual and keyboard order agree: map, world and Run, algorithm editor with its math, teaching step, Notebook.
+    if (campaign) {
+      layout.insertBefore(customActive() ? $('#vpo-lab') : $('#lab'), pane);
+      layout.insertBefore($('#algo-panel'), pane);
+    } else layout.prepend(pane);
+    renderWorkbenchCurve(null, true);
     const key = campaign ? S.level : S.mode;
     if (notebookLevel !== key) {
       notebookLevel = key; shell.reset(); customShell.reset(); $('#lesson-notes').replaceChildren();

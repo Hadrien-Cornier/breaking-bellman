@@ -46,16 +46,42 @@
     <div class="card" id="run-settings">
       <div class="row">
         <button class="btn" id="run-btn">Run</button>
-        <label class="small" for="seeds">Seeds</label>
-        <select id="seeds"><option>1</option><option selected>3</option><option>5</option></select>
-        <label class="small" for="budget">Steps</label>
-        <select id="budget"></select>
-        <label class="small" for="run-mode">Run mode</label>
-        <select id="run-mode"><option value="fast" selected>Fast (reuse exact results)</option><option value="live">Live (train fresh)</option></select>
+        <details id="run-options">
+          <summary>Optional run settings (Seeds, Steps, Fast or Live)</summary>
+          <div class="row">
+            <label class="small" for="seeds">Seeds</label>
+            <select id="seeds"><option>1</option><option selected>3</option><option>5</option></select>
+            <label class="small" for="budget">Steps</label>
+            <select id="budget"></select>
+            <label class="small" for="run-mode">Run mode</label>
+            <select id="run-mode"><option value="fast" selected>Fast (reuse exact results)</option><option value="live">Live (train fresh)</option></select>
+          </div>
+        </details>
       </div>
       <p class="small muted" id="run-source" aria-live="polite">Live simulation: trains in this page.</p>
       <div class="progress"><i id="prog"></i></div>
       <p class="small" id="run-result" aria-live="polite"></p>
+    </div>
+    <div class="card" id="wb-curves">
+      <div class="eyebrow">Learning curve</div>
+      <p class="small" id="wb-curve-note" role="status">Run a sentence to see its learning curve.</p>
+      <div class="wb-charts" id="wb-charts">
+        <div class="chart-wrap" id="wb-loss-wrap" hidden>
+          <div class="chart-title"><b>Training loss recorded by the learner (mean squared error against its target)</b></div>
+          <canvas class="chart" id="wb-loss" aria-label="Training loss recorded by the learner (mean squared error against its target)"></canvas>
+        </div>
+        <div class="chart-wrap">
+          <div class="chart-title"><b id="wb-curve-title">Score per test episode (mean of runs)</b></div>
+          <canvas class="chart" id="wb-curve" aria-label="Score per test episode (mean of runs)"></canvas>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <aside class="pane" id="algo-panel" aria-label="Algorithm">
+    <div class="card">
+      <div class="eyebrow">The update rule: tap a word to change it</div>
+      <div id="rule"></div>
+      <div id="algo-math-slot"></div>
     </div>
   </aside>
   <aside class="pane lab" id="vpo-lab" aria-label="Comparison lesson lab" hidden></aside>
@@ -69,8 +95,6 @@
     </div>
     <section class="notebook-panel" role="tabpanel" tabindex="0" id="notebook-rule" data-notebook-panel="rule" aria-labelledby="notebook-tab-rule">
       <section class="game-rules" id="game-rules" aria-label="Game rules"></section>
-      <div class="eyebrow">The update rule: tap a word to change it</div>
-      <div id="rule"></div>
       <details class="card-details" id="grid-card"><summary>Try every combination</summary><div id="grid-lab"></div></details>
     </section>
     <section class="notebook-panel" role="tabpanel" tabindex="0" id="notebook-curve" data-notebook-panel="curve" aria-labelledby="notebook-tab-curve" hidden>

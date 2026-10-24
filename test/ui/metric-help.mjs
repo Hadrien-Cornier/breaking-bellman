@@ -117,6 +117,7 @@ await session(1280, 800, 'desktop-pg', async (page) => {
   });
   await setWord(page, '#mode-pane', 'epochs', '10 passes');
   await setWord(page, '#mode-pane', 'lr', '0.01');
+  await page.evaluate(() => { const d = document.querySelector('#run-options'); if (d && !d.open) d.open = true; });
   await page.selectOption('#seeds', '1');
   const budget = await pickBudget(page, 40000);
   console.log('   pg cartpole run budget:', budget, 'steps');
@@ -219,6 +220,7 @@ await session(1280, 800, 'desktop-pg', async (page) => {
 
   // the grid: run two combinations, then the result tables carry the metric trigger
   await page.evaluate(() => { const d = document.querySelector('#grid-card'); if (d) d.open = true; });
+  await page.evaluate(() => { const d = document.querySelector('#run-options'); if (d && !d.open) d.open = true; });
   await page.selectOption('#seeds', '1');
   await pickBudget(page, 10000);
   await page.locator('#grid-lab .chip.gw').first().click();
