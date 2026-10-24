@@ -183,6 +183,11 @@ await session(1280, 900, 'offline', {}, async (page) => {
   // 175: load TD3 into the current offline arm. Only its own settings change, and nothing runs.
   const before = await page.evaluate(() => window.bellman.state().words);
   const td3Val = await page.evaluate(() => Array.from(document.querySelector('.preset select').options).find((o) => /TD3/.test(o.textContent)).value);
+  if (await page.locator('#notebook').count()) {
+    if (!await page.locator('#notebook').evaluate((node) => node.open)) await page.locator('#notebook > summary').click();
+    await page.locator('#notebook-tab-rule').click();
+  }
+  check(await page.locator('.preset select').isVisible(), 'learned preset selector is visible in Notebook Rule');
   await page.selectOption('.preset select', td3Val);
   await page.waitForTimeout(200);
   const st = await page.evaluate(() => ({
