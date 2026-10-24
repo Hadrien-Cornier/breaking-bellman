@@ -370,7 +370,7 @@
     kids.push(h('p.math-legend', { text: legend(parts, world, opts.hyper) }));
     const dl = h('dl.math-gloss');
     for (const [sym, def] of glossary(parts, world)) { dl.append(h('dt', { text: sym })); dl.append(h('dd', { text: def })); }
-    kids.push(dl);
+    kids.push(h('details.math-defs', null, [h('summary', { text: 'Click for one-line definitions' }), dl]));
 
     container.replaceChildren(...kids);
     // re-render any TeX that MathJax has not touched yet (replaceChildren above reset them)
@@ -428,8 +428,208 @@
     return { el, update };
   }
 
+  // ---------------------------------------------------------------- rare hallway worked case
+  // The first worked case of this panel: the sparse hallway (#rare-experiment). The equations come
+  // from src/agents/rare.js, the same code that produces the recorded steps: the action score, the
+  // target y = r + b + gamma * boot, and the tabular update. r (environment reward) and b (count
+  // bonus) are never the same symbol: visiting a rare cell pays b, opening the door pays r.
+  //
+  // method: { place: 'off'|'local'|'target'|'optimism'|'backup', reward: 'env'|'none', label? }
+  // step:   one recorded trace row (qBefore, qAfter, bootstrap, actionScore, visitBonus,
+  //         intrinsic, nAfter, reward, explored) or null before a run.
+  // proto:  { alpha, gamma, eps } (defaults to BBRARE.PROTOCOL in the page).
+  function rareProto(proto) {
+    return proto || (root.BBRARE && root.BBRARE.PROTOCOL) || { alpha: 0.5, gamma: 0.95, eps: 0.05, actions: ['left', 'right', 'open'] };
+  }
+  const rarePlace = (m) => (m && m.place) || 'off';
+  const rareWithheld = (m) => !!(m && m.reward === 'none');
+  const rareOptimistic = (m) => ['optimism', 'backup'].includes(rarePlace(m));
+  const rareBonusTarget = (m) => ['target', 'backup'].includes(rarePlace(m));
+  const rareBonusScore = (m) => rarePlace(m) === 'local';
+  function rareFacts(m, proto) {
+    const P = rareProto(proto), vopt = 1 / (1 - P.gamma);
+    return {
+      bonusScore: rareBonusScore(m), bonusTarget: rareBonusTarget(m), optimistic: rareOptimistic(m), withheld: rareWithheld(m),
+      vopt, voptText: String(Math.round(vopt * 1000) / 1000),
+      score: rareBonusScore(m) ? 'bonus-score' : rareOptimistic(m) ? 'optimistic' : 'plain',
+    };
+  }
+  // one [label, html] per line; the html may contain .sym spans so r, b, Score, Q and y are
+  // visually distinct everywhere they appear.
+  function rareLines(m, proto) {
+    const P = rareProto(proto), f = rareFacts(m, P);
+    const out = [];
+    const scoreExpr = f.score === 'bonus-score'
+      ? [e('span.sym-q', 'Q(s, a)'), ' + ', e('span.sym-b', '1/√n(s′)'), ', where n(s′) is the visit count of the cell this action leads to, counted before this visit. If n(s′) = 0 the score is +∞.']
+      : f.score === 'optimistic'
+        ? [e('span.sym-q', 'Q(s, a)'), ', or ', e('b', f.voptText), ' (the untried-action start, 1/(1 − γ)) if this action was never tried at s']
+        : [e('span.sym-q', 'Q(s, a)')];
+    out.push(['act', [e('span.sym-score', 'Score(s, a)'), ' = ', ...scoreExpr]]);
+    out.push(['choose', ['a = argmax over a of ', e('span.sym-score', 'Score(s, a)'), ', ties pick the lowest action index (left). With probability ε = ', String(P.eps), ' a random action instead.']]);
+    out.push(['target', [e('span.sym-y', 'y'), ' = ', e('span.sym-r', 'r'), ' + ', e('span.sym-b', 'b'), ' + ', String(P.gamma), ' · ', e('span.sym-q', 'boot')]]);
+    out.push(['r', f.withheld
+      ? [e('span.sym-r', 'r'), ' = 0 at every step: the environment reward is withheld in this method']
+      : [e('span.sym-r', 'r'), ' = 1 only for Open at the door, 0 at every other step (the reward of the rare cell bonus is not r)']]);
+    out.push(['b', f.bonusTarget
+      ? [e('span.sym-b', 'b'), ' = ', e('span.sym-b', '1/√n(s′)'), ', the visit count of the destination after this visit']
+      : [e('span.sym-b', 'b'), ' = 0 at every step: this method keeps the count bonus out of the target']]);
+    out.push(['boot', f.optimistic
+      ? [e('span.sym-q', 'boot'), ' = max over a′ of Q̃(s′, a′), where Q̃ = ', f.voptText, ' for an untried action and Q(s′, a′) otherwise']
+      : [e('span.sym-q', 'boot'), ' = max over a′ of Q(s′, a′)']]);
+    out.push(['update', [e('span.sym-q', 'Q(s, a)'), ' ← ', e('span.sym-q', 'Q(s, a)'), ' + α (', e('span.sym-y', 'y'), ' − ', e('span.sym-q', 'Q(s, a)'), '), α = ', String(P.alpha), '. Q starts at 0.']]);
+    out.push(['counts', ['n(s) grows by 1 on every arrival at s (Start begins at 1). n(s, a) grows by 1 when a is taken at s. The bonus uses n(s′), the destination count: ', e('span.sym-b', 'b'), ' reads it after the visit, ', e('span.sym-score', 'Score(s, a)'), ' reads it before.']]);
+    return out;
+  }
+  function e(tag, text) {
+    const m = tag.match(/^([a-z0-9]+)((?:\.[\w-]+)*)$/i);
+    if (typeof document === 'undefined') return { nodeType: 1, tagName: m ? m[1] : tag, className: m && m[2] ? m[2].slice(1).replace(/\./g, ' ') : '', textContent: text == null ? '' : String(text) };
+    const node = document.createElement(m ? m[1] : tag);
+    if (m && m[2]) node.className = m[2].slice(1).replace(/\./g, ' ');
+    if (text != null) node.textContent = text;
+    return node;
+  }
+  // what changes between two methods, in words, with the lines whose math really changed
+  function rareExplain(prev, next, proto) {
+    if (!prev) return null;
+    const a = rareFacts(prev, proto), b = rareFacts(next, proto), lines = [], changed = [];
+    if (a.score !== b.score) {
+      lines.push('act');
+      changed.push('Action score: ' + (a.score === 'plain' ? 'Q(s, a)' : a.score === 'bonus-score' ? 'Q(s, a) + 1/√n(s′)' : 'Q(s, a) with the untried-action start')
+        + ' becomes ' + (b.score === 'plain' ? 'Q(s, a)' : b.score === 'bonus-score' ? 'Q(s, a) + 1/√n(s′)' : 'Q(s, a) with the untried-action start') + '.');
+    }
+    if (a.bonusTarget !== b.bonusTarget) {
+      lines.push('target', 'b');
+      changed.push(b.bonusTarget ? 'Target: the count bonus now enters the target (b = 1/√n(s′)).' : 'Target: the count bonus leaves the target (b = 0).');
+    }
+    if (a.optimistic !== b.optimistic) {
+      lines.push('boot');
+      changed.push(b.optimistic ? 'Bootstrap: untried next actions now count ' + b.voptText + ' instead of their Q.' : 'Bootstrap: every next action now counts its Q.');
+    }
+    if (a.withheld !== b.withheld) {
+      lines.push('r');
+      changed.push(b.withheld ? 'Environment reward: forced to 0 in this method.' : 'Environment reward: back to 1 only for Open at the door.');
+    }
+    return { lines, changed };
+  }
+  // one recorded transition substituted into the equations. Every number comes from the record.
+  function rareStepLines(m, step, proto, labels) {
+    if (!step) return { lines: [], notes: [] };
+    const P = rareProto(proto), f = rareFacts(m, P);
+    const L = labels || (root.BBRARE ? { cells: root.BBRARE.CELL_LABELS, actions: root.BBRARE.PROTOCOL.actions } : { cells: [], actions: [] });
+    const cell = (i) => (L.cells && L.cells[i] != null ? L.cells[i] : String(i));
+    const act = (i) => (L.actions && L.actions[i] != null ? L.actions[i] : String(i));
+    const num = (x) => (isFinite(x) ? String(Math.round(x * 1000) / 1000) : '+∞');
+    const y = step.reward + step.intrinsic + P.gamma * step.bootstrap;
+    const nBefore = step.nAfter - 1; // the score reads the destination count before this visit
+    const out = [];
+    out.push(['step', [cell(step.obs), ' --', act(step.action), '--> ', cell(step.state), '. ', step.explored ? 'Sampled random action.' : 'Highest action score.']]);
+    out.push(['step score', [e('span.sym-score', 'Score(s, a)'), ' = ', num(step.actionScore),
+      f.bonusScore ? (nBefore > 0
+        ? ' (Q(s, a) + 1/√n(s′) with n(s′) = ' + String(nBefore) + ' before this visit)'
+        : ' (the destination was unseen before this visit, n(s′) = 0, so the score is +∞)')
+        : f.optimistic ? (step.triedBefore
+          ? ' (this action was already tried here, so its plain Q)'
+          : ' (this action was never tried here, so the untried-action start of ' + f.voptText + ')')
+          : ' (plain Q(s, a))']]);
+    out.push(['step target', [e('span.sym-y', 'y'), ' = ', e('span.sym-r', 'r'), ' + ', e('span.sym-b', 'b'), ' + γ · ', e('span.sym-q', 'boot'), ' = ', e('span.sym-r', num(step.reward)), ' + ', e('span.sym-b', num(step.intrinsic)), ' + ', String(P.gamma), ' · ', e('span.sym-q', num(step.bootstrap)), ' = ', e('span.sym-y', num(y))]]);
+    out.push(['step update', [e('span.sym-q', 'Q(s, a)'), ': ', num(step.qBefore), ' → ', num(step.qAfter), ' (Q + α (', e('span.sym-y', 'y'), ' − Q) = ', num(step.qBefore), ' + ', String(P.alpha), ' · ', num(y - step.qBefore), ')']]);
+    out.push(['step counts', ['n(s′) after this visit = ', String(step.nAfter), ', so 1/√n(s′) = ', num(step.visitBonus), '. n(s, a) for this pair grows by 1.']]);
+    const notes = [];
+    if (f.withheld) notes.push('r = 0 here because this method withholds the environment reward.');
+    else if (!step.reward) notes.push('The environment reward of this step is 0: only Open at the door pays r = 1.');
+    if (!f.bonusTarget && step.visitBonus) notes.push('The bonus 1/√n(s′) = ' + num(step.visitBonus) + ' exists, but this method keeps it out of the target (b = 0).');
+    if (!f.bonusScore && !f.bonusTarget && !f.optimistic) notes.push('No count bonus and no optimism are used in this method.');
+    return { lines: out, notes };
+  }
+  function rareGlossary(m) {
+    return [
+      ['r', 'the environment reward: 1 only for Open at the door, 0 otherwise'],
+      ['b', 'the count bonus 1/√n(s′) paid inside the target for arriving at a rarely visited cell'],
+      ['Score(s, a)', 'the number the learner compares to choose an action at s'],
+      ['Q(s, a)', 'the learned value of taking action a at s; starts at 0'],
+      ['y', 'the target: the number Q(s, a) moves toward in one update'],
+      ['boot', 'the guess for everything after this step: the best next-action value at s′'],
+      ['n(s), n(s, a)', 'how often s was visited, and how often a was taken at s'],
+      ['α (alpha)', 'the step size of one update: Q moves α of the way to y'],
+      ['γ (gamma)', 'the discount: how much a later value counts compared with a reward now'],
+      ['ε (epsilon)', 'the chance of taking a random action instead of the best-scoring one'],
+    ];
+  }
+  function renderRare(container, m, step, opts, state) {
+    opts = opts || {}; state = state || {};
+    const highlight = state.highlight || [];
+    const groups = { 'Choosing an action': [], 'The target and the update': [], 'This recorded step': [], 'No effect in this method': [], 'Symbols': [] };
+    const gOf = (label) => (['act', 'choose'].includes(label) ? 'Choosing an action'
+      : ['target', 'r', 'b', 'boot', 'update', 'counts'].includes(label) ? 'The target and the update'
+        : label.startsWith('step') ? 'This recorded step' : 'No effect in this method');
+    for (const [label, html] of rareLines(m, opts.proto)) groups[gOf(label)].push([label, html]);
+    const stepInfo = rareStepLines(m, step, opts.proto, opts.labels ? opts.labels() : null);
+    if (step) for (const [label, html] of stepInfo.lines) groups['This recorded step'].push([label, html]);
+    else groups['This recorded step'].push(['step', 'Press Run, then Watch or Step. The recorded values of the current step are substituted into the equations above.']);
+    const methodNotes = {
+      off: 'No count bonus and no optimism are used anywhere in this method: the score and the target see only Q and r.',
+      local: 'The count bonus never enters the target here (b = 0). It changes only which action is chosen.',
+      target: 'The count bonus changes only the target here. The action score is plain Q(s, a).',
+      optimism: 'No count bonus anywhere. Only untried actions get the high start of ' + rareFacts(m, opts.proto).voptText + '.',
+      backup: 'Both mechanisms are active: the untried-action start in the score and the bootstrap, and the count bonus in the target.',
+    };
+    if (rarePlace(m) !== 'backup' || rareWithheld(m)) groups['No effect in this method'].push(['note', methodNotes[rarePlace(m)]]);
+    if (rareWithheld(m)) groups['No effect in this method'].push(['note', 'The environment reward is forced to 0: only the count bonus moves the target.']);
+    if (stepInfo.notes) for (const n of stepInfo.notes) groups['No effect in this method'].push(['note', n]);
+    const legend = 'r: environment reward (Open at the door). b: count bonus 1/√n(s′). Score: the number compared to choose an action. Q: the learned value of a state-action pair. y: the target of one update. α = ' + String(rareProto(opts.proto).alpha) + ': the step size. γ = ' + String(rareProto(opts.proto).gamma) + ': the discount. n(s), n(s, a): visit counts.';
+    groups['Symbols'].push(['legend', legend]);
+    const dl = h('details.math-defs', null, [h('summary', { text: 'Click for one-line definitions' })]);
+    const gdl = h('dl.math-gloss');
+    for (const [sym, def] of rareGlossary(m)) { gdl.append(h('dt', { text: sym })); gdl.append(h('dd', { text: def })); }
+    dl.append(gdl);
+    groups['Symbols'].push(['defs', dl]);
+    const kids = [];
+    kids.push(h('p.math-title', { text: 'The math this method runs' }));
+    for (const [g, title] of [['Choosing an action', 'Choosing an action'], ['The target and the update', 'The target and the update'], ['This recorded step', 'This recorded step'], ['No effect in this method', 'No effect in this method'], ['Symbols', 'Symbols']]) {
+      const rows = groups[g];
+      if (!rows.length) continue;
+      kids.push(h('p.math-group', { text: title }));
+      for (const [label, html] of rows) {
+        const body = h('div.eq');
+        for (const c of [].concat(html)) body.append(c && c.nodeType ? c : document.createTextNode(String(c)));
+        kids.push(h('div.mrow' + (highlight.includes(label) ? '.math-changed' : ''), { 'data-line': label }, [h('span.ml', { text: label }), body]));
+      }
+    }
+    if (state.explain && state.explain.changed && state.explain.changed.length) {
+      const box = h('div.math-explain', { role: 'status' });
+      box.append(h('p.math-explain-title', { text: 'What changed in the math' }));
+      for (const c of state.explain.changed) box.append(h('p.math-explain-line', { text: c }));
+      kids.splice(1, 0, box);
+    }
+    container.replaceChildren(...kids);
+    return container;
+  }
+  // mountRare({ id, proto, labels }) -> { el, update(method, step) }
+  function mountRare(opts) {
+    opts = opts || {};
+    const attrs = { 'aria-label': 'The action rule and Q update of the selected method' };
+    if (opts.id) attrs.id = opts.id;
+    const el = h('div.algorithm-math-panel.rare-math', attrs);
+    const state = { prev: null, hl: null, deadline: 0, timer: null, ex: null };
+    function update(method, step) {
+      if (!method) return el;
+      const ex = state.prev ? rareExplain(state.prev, method, opts.proto) : null;
+      if (ex && ex.lines.length) { state.ex = ex; state.hl = ex.lines; state.deadline = Date.now() + 2600; }
+      const highlight = (state.hl && Date.now() < state.deadline) ? state.hl : [];
+      renderRare(el, method, step || null, opts, { highlight, explain: state.ex });
+      state.prev = Object.assign({}, method);
+      clearTimeout(state.timer);
+      if (highlight.length) state.timer = setTimeout(() => {
+        for (const r of el.querySelectorAll('.mrow.math-changed')) r.classList.remove('math-changed');
+      }, Math.max(0, state.deadline - Date.now()));
+      return el;
+    }
+    return { el, update };
+  }
+
   root.ALGO_MATH = {
     mount, render, explain, lines: texLines, legend, glossary,
     idleWords, idlePg, idleAc, groupOf, texInto, wordText, optOf,
+    rareLines, rareStepLines, rareExplain, rareGlossary, rareFacts, mountRare,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
