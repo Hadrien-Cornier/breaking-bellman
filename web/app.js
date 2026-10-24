@@ -1264,6 +1264,8 @@
     return h('div.dc-item', null, [
       h('div.dc-kind', { text: kind }),
       h('div.dc-name', null, [h('span.dc-q', { 'aria-hidden': 'true', text: '???' }), h('span.dc-real', { text: c.name })]),
+      // the short plain explanation shows at the discovery moment itself, not only elsewhere
+      c.plain ? h('p.dc-plain', { text: c.plain }) : null,
       h('div.dc-node', { 'aria-hidden': 'true' }, [h('span', { text: c.short || c.name })]),
     ]);
   }
@@ -1293,7 +1295,7 @@
     document.body.append(overlay);
     overlay.addEventListener('click', dismiss);
     window.addEventListener('keydown', onKey);
-    setTimeout(dismiss, 1900); // short: the reveal plays, then it gets out of the way
+    setTimeout(dismiss, ids.some((id) => (C.cards[id] || {}).plain) ? 3200 : 1900); // short: the reveal plays (with its plain line, if any), then it gets out of the way
   }
   function discover(cardId, cfg, a) {
     if (S.found.includes(cardId)) return;
@@ -2035,7 +2037,8 @@
 
   // ---------------------------------------------------------------- multiple choice with derivations
   // q = { id, prompt, options: [{ steps: [..], result, correct, why }] }
-  function mcBlock(q, onAnswer) {
+  // kind names the step: a correct pick in a prediction question gets praise for the prediction.
+  function mcBlock(q, onAnswer, kind) {
     const prev = S.answers[q.id];
     const wrap = h('div.mc');
     wrap.append(h('p', { html: q.prompt }));
@@ -2054,18 +2057,24 @@
     });
     wrap.append(...btns);
     if (window.RLHELP) window.RLHELP.enhance(wrap, metricCtx());
-    function show(i) {
+    function show(i, live) {
       btns.forEach((b, j) => {
         const { o, i: source } = entries[j];
-        b.classList.toggle('picked', source === i);
+        const picked = source === i;
+        b.classList.toggle('picked', picked);
         b.classList.toggle(o.correct ? 'right' : 'wrong', true);
-        const why = b.querySelector('.why'); why.hidden = false; why.innerHTML = (o.correct ? '<b>Sound chain.</b> ' : '') + o.why;
+        const why = b.querySelector('.why'); why.hidden = false;
+        if (picked && live) why.setAttribute('role', 'status');
+        else why.removeAttribute('role');
+        // Praise only an answer that is actually correct; an unpicked correct option keeps its label.
+        const head = o.correct ? (picked ? '<b>' + (kind === 'predict' ? 'You predicted it right.' : 'You were right.') + '</b> ' : '<b>Sound chain.</b> ') : '';
+        why.innerHTML = head + o.why;
       });
       if (window.RLHELP) window.RLHELP.enhance(wrap, metricCtx());
     }
     function choose(i) {
       if (!S.answers[q.id]) recordAnswer(q.id, i, !!q.options[i].correct);
-      show(i);
+      show(i, true);
       if (onAnswer) onAnswer(i);
     }
     if (prev) show(prev.choice);
@@ -2209,18 +2218,22 @@
       return;
     }
     const st = S.lstep[lv.id] || 0;
-    const card = h('div.card.teaching-card', null, [h('div.eyebrow', { text: C.worldNames[lv.world] }), h('h2', { text: lv.title }), h('p', { html: lv.intro })]);
+    const card = h('div.card.teaching-card', null, [h('div.eyebrow', { text: C.worldNames[lv.world] }), h('h2', { text: lv.title }),
+      BBLESSON_HELP.mount(h, lv)]);
     const steps = h('div.steps');
     const mk = (i, title, body) => h('div.step' + (st === i ? '.active' : st > i ? '.done' : ''), null, [h('span.num', { text: 'Step ' + (i + 1) }), h('h3', { text: title }), body]);
 
-    steps.append(mk(0, 'Predict before you run', mcBlock(lv.predict, () => setStep(lv, 1))));
+    steps.append(mk(0, 'Predict before you run', h('div.stack', null, [
+      lv.learner ? h('p.small', { html: lv.learner }) : null,
+      mcBlock(lv.predict, () => setStep(lv, 1), 'predict'),
+    ])));
     if (st >= 1) steps.append(mk(1, 'Run it', h('div.stack', null, [
       h('p', { html: lv.runText }),
       campaignRunRow(lv),
     ])));
     if (st >= 2) steps.append(mk(2, 'Diagnose', h('div.stack', null, [
       h('button.btn.ghost', { type: 'button', onclick: () => { $('#replay-lab').closest('details').open = true; shell.open('autopsy'); } }, 'Watch one update of this sentence'),
-      mcBlock(lv.diagnose, () => setStep(lv, 3)),
+      mcBlock(lv.diagnose, () => setStep(lv, 3), 'diagnose'),
     ])));
     if (st >= 3) {
       const status = h('p.small', { text: 'Tap a word to see the choices. Words in a dashed box do nothing in this sentence.' });
@@ -2248,7 +2261,7 @@
         h('details', null, [h('summary', { text: 'Hint' }), h('p', { html: lv.hint })]),
       ])));
     }
-    if (st >= 4 && lv.explain) steps.append(mk(4, 'Explain why it works', mcBlock(lv.explain, () => setStep(lv, 5))));
+    if (st >= 4 && lv.explain) steps.append(mk(4, 'Explain why it works', mcBlock(lv.explain, () => setStep(lv, 5), 'explain')));
     if (st >= 5) steps.append(mk(5, 'Your sentence and the published one', consolidation(lv)));
     arrangeLessonSteps(lv, steps);
     card.append(steps);
@@ -2665,6 +2678,7 @@
     return h('div.entry' + (open ? '.discovery' : ''), null, [
       h('div.row', { style: 'justify-content:space-between' }, [h('div.eyebrow', { text: c.kind ? kindName : S.found.includes(id) ? 'Method, built by you' : 'Method, given by a level' }), tag]),
       h('h3', { text: c.name }),
+      c.plain ? h('p', { text: c.plain }) : null,
       h('dl', null, [
         h('dt', { text: 'Source' }), h('dd', null, [h('span', { html: c.paper }), paperLinks(id)]),
         rec ? h('dt', { text: 'Words' }) : null, rec ? h('dd', { text: Object.keys(rec.keys).map((k) => wordText(k, rec.keys[k])).join(' · ') }) : null,

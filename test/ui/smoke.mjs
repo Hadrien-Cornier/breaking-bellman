@@ -52,13 +52,24 @@ async function session(w, h, name, fn) {
   check(!(await page.locator('dialog.intro').count()), name + ' the welcome closes');
   // Existing smoke scenarios exercise the original Slots entry by stable id.
   await page.evaluate(() => bellman.level('slots'));
+  await dismissLessonHelp(page);
   await fn(page);
   const sw = await page.evaluate(() => document.documentElement.scrollWidth);
   check(sw <= w, name + ' no horizontal scroll (scrollWidth ' + sw + ', viewport ' + w + ')');
   await page.close();
 }
 // tap a word chip in the mode pane, then the option with this label
+async function dismissLessonHelp(page) {
+  await page.evaluate(() => new Promise(requestAnimationFrame));
+  const help = page.locator('dialog.lesson-help[open]');
+  if (await help.count()) {
+    const intro = await help.locator('p').first().innerText();
+    check(intro.length > 30 && /[.!?]$/.test(intro), 'lesson help explains the setup in sentences');
+    await help.getByRole('button', { name: 'Back to the experiment', exact: true }).click();
+  }
+}
 async function openNotebook(page, section) {
+  await dismissLessonHelp(page);
   if (await page.locator('main.lesson-shell').count()) {
     if (!await page.locator('#notebook').evaluate(e => e.open)) await page.locator('#notebook > summary').click();
     await page.locator('#notebook-tab-' + section).click();
@@ -238,6 +249,7 @@ await session(1280, 900, 'phases', async (page) => {
   await page.locator('#campaign-logo').click();
   await page.locator('[data-map-level][aria-label^="Learn the policy itself"]').click();
   await page.locator('[data-open-level]').click();
+  await dismissLessonHelp(page);
   await page.locator('#mode-pane .mc').first().locator('.opt').nth(1).click();
   await page.getByText('Run the starting sentence').click();
   await runDone(page);
@@ -307,6 +319,7 @@ await session(1280, 900, 'twoways', async (page) => {
   await page.locator('#campaign-logo').click();
   await page.locator('[data-map-level][aria-label^="Two good ways"]').click();
   await page.locator('[data-open-level]').click();
+  await dismissLessonHelp(page);
   await page.locator('#mode-pane .mc').first().locator('.opt').nth(0).click();
   let t0 = Date.now();
   await page.getByText('Run the starting sentence').click();
@@ -329,8 +342,11 @@ await session(375, 812, 'phone-frontier', async (page) => {
   await page.locator('#campaign-logo').click();
   await page.locator('[data-map-level][aria-label^="Steer a frozen policy"]').click();
   await page.locator('[data-open-level]').click();
+  await dismissLessonHelp(page);
   await page.waitForTimeout(500);
-  check(/mud/.test(await page.locator('#mode-pane').innerText()), 'mud level shows its intro');
+  await page.getByRole('button', { name: 'About this experiment', exact: true }).click();
+  check(/mud/.test(await page.locator('.lesson-help').innerText()), 'mud level explains its setup in reopenable help');
+  await dismissLessonHelp(page);
   await page.locator('#mode-pane .mc').first().locator('.opt').nth(0).click();
   await setWord(page, '#rule', 'pick', 'the best of 8 samples, by the critic');
   const requested = await page.evaluate(() => ({ ...bellman.state(), steps: +document.querySelector('#budget').value,
@@ -404,8 +420,11 @@ await session(375, 812, 'phone-frontier', async (page) => {
   await page.locator('#campaign-logo').click();
   await page.locator('[data-map-level][aria-label^="Keep the controller"]').click();
   await page.locator('[data-open-level]').click();
+  await dismissLessonHelp(page);
   await page.waitForTimeout(500);
-  check(/kitting/.test(await page.locator('#mode-pane').innerText()), 'residual level shows its intro');
+  await page.getByRole('button', { name: 'About this experiment', exact: true }).click();
+  check(/heavy part/.test(await page.locator('.lesson-help').innerText()), 'residual level explains the load in reopenable help');
+  await dismissLessonHelp(page);
   await page.locator('#mode-pane .mc').first().locator('.opt').nth(1).click();
   await page.waitForTimeout(300);
   await page.screenshot({ path: out + '/phone-residual.png', fullPage: true });
@@ -463,6 +482,7 @@ await session(390, 844, 'pendulum', async (page) => {
   await page.locator('#campaign-logo').click();
   await page.locator('[data-map-level="continuous"]').click();
   await page.locator('[data-open-level]').click();
+  await dismissLessonHelp(page);
   await page.evaluate(() => {
     const joint = BB.scenes.joint;
     window.pendulumAngles = []; window.pendulumTaskAngles = [];
@@ -567,6 +587,7 @@ await session(390, 844, 'rules', async (page) => {
     localStorage.setItem(key, JSON.stringify(saved));
   });
   await page.reload();
+  await dismissLessonHelp(page);
   await page.selectOption('#rk-shaping', '2');
   await openNotebook(page, 'rule');
   check(/0.97 × dAfterNonterminal/.test(await page.locator('#game-rules').innerText()), 'Fetch repair updates potential shaping equation before Run');

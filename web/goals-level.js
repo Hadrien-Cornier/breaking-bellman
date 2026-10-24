@@ -4,7 +4,8 @@
   if (!C.phases.some(p => p.n === 0)) C.phases.unshift({ n: 0, title: 'Imitation before reward' });
   C.worldNames.goals = 'Two doors';
   const lesson = { id: 'goals', custom: true, phase: 0, world: 'goals', title: 'Tell it the goal', focus: [],
-    intro: 'Reach the requested room in a five-cell hall. Both policies copy the same four demonstration walks. One room appears three times, the other once. A policy is a rule for choosing an action. Hidden goal counts actions by location only. Named goal also uses the requested room.',
+    intro: 'Send a robot from the middle of the hall to the room you request. Both robots learn by copying the same recorded walks, but only one is told which room you want.',
+    introMore: 'Reach the requested room in a five-cell hall. Both policies copy the same four demonstration walks. One room appears three times, the other once. A policy is a rule for choosing an action. Hidden goal counts actions by location only. Named goal also uses the requested room.',
     goal: { text: 'Reach either requested room by keeping the goal in the action count.' } };
   C.levels.unshift(lesson);
   const label = id => id.replaceAll('-', ' ');
@@ -120,8 +121,10 @@
         h('button.opt', { id: id + '-' + value, type: 'button', 'aria-pressed': String(picked === value), onclick: () => onPick(value) }, text)));
       body.replaceChildren(h('div.eyebrow', { text: 'Tell it the goal · Step ' + (step + 1) + ' of 3' }));
       if (step === 0) {
-        body.append(h('h2', { text: 'Predict the hidden-goal walk' }), h('p', { text: lesson.intro }),
-          h('p', { text: 'Current notes: three walks ' + settings.majority + ', one ' + (settings.majority === 'west' ? 'east' : 'west') + '. Each walk has two moves. Both policies choose the most common action in their count. Equal counts choose west.' }),
+        body.append(h('h2', { text: 'Predict the hidden-goal walk' }), h('p', { text: lesson.intro }), h('details', null, [h('summary', { text: 'Rules and method' }), h('p', { text: lesson.introMore })]),
+          h('p', { text: 'A demonstration is a recorded example of someone walking to a room. Here, three examples go to the ' + settings.majority + ' room and one goes to the ' + (settings.majority === 'west' ? 'east' : 'west') + ' room. Each starts in the middle and takes two moves.' }),
+          h('p', { text: 'A policy is a rule for choosing the next move. The robot labelled Hidden goal sees only its location and copies the move most often recorded there. The robot labelled Named goal also sees your requested room, so it counts only examples that were headed to that room. Both use the same four walks; they group the examples differently.' }),
+          h('p', { text: 'Without the requested room, walks to different destinations are mixed together. With it, a robot can distinguish “go west from here” from “go east from here” even at the same starting point. If the action counts are equal, it chooses west.' }),
           h('p', { text: 'You request the ' + label(settings.goal) + '. Where will Hidden goal finish?' }),
           question('goals-predict', predict, [['west', 'West room'], ['east', 'East room']], value => { predict = value; update(); }),
           h('p.small', { text: predict ? 'Prediction saved for this comparison. Press Run comparison above to check it.' : 'Choose a prediction, then use Run comparison above.' }));
@@ -133,7 +136,7 @@
         body.append(h('h2', { text: 'Watch the same request twice' }),
           h('p', { text: 'Requested ' + label(record.settings.goal) + '. Hidden goal ends in the ' + label(hidden.end) + '; Named goal ends in the ' + label(named.end) + '. Both walks stop after two moves.' }),
           h('p', { text: 'Use Watch, Pause, Step and Replay above. Hidden goal ignores the room request when counting. Named goal uses only demonstrations for the requested room.' }),
-          h('p', { text: predict ? 'Your prediction for Hidden goal was ' + predict + '. The measured endpoint is ' + label(hidden.end) + '.' : 'Compare the measured endpoints with the requested room.' }),
+          h('p', { text: predict ? (predict === (hidden.end === 'west-room' ? 'west' : 'east') ? 'You predicted it correctly. ' : '') + 'Your prediction for Hidden goal was ' + predict + '. The measured endpoint is ' + label(hidden.end) + '.' : 'Compare the measured endpoints with the requested room.' }),
           h('p', { text: 'Change Requested room and rerun. Then reverse which demonstration is common. Named goal can still use the rarer walk because its room was kept in the notes.' }),
           h('button.btn', { type: 'button', id: 'goals-explain-open', onclick: () => { step = 2; update(); } }, 'Explain the difference'));
         if (shell) body.append(h('button.btn.ghost', { type: 'button', onclick: () => shell.open('curve') }, 'Inspect recorded moves'));
