@@ -242,7 +242,7 @@
       body.replaceChildren(h('h2', { text: lesson.title }), h('p', { text: lesson.intro }), steps[current]);
       if (current === 4) body.append(h('button.btn', { id: 'replan-complete', disabled: state.finished || !QUESTIONS.explain.options[state.picks['replan-x']]?.correct ? true : null,
         onclick: () => { hooks.complete?.(); state.finished = true; advance(5); redraw(); } }, state.finished ? 'Lesson complete' : 'Finish lesson'));
-      put('notes', steps.slice(0, current));
+      put('notes', current ? steps.slice(0, current) : [h('p.small', { text: 'Lesson notes appear here.' })]);
       put('rule', [h('p', { text: 'Given mean model: next cell = cell + action. Reality adds the disturbance too. Actions are -1, 0, +1. Reward is 1 minus the absolute safe cell, or -5 at a wall. Each plan scores all 81 sequences of four actions. No training data and no learning updates.' })]);
       put('autopsy', [h('p', { text: 'Replanning includes the past shove in the next observed state. Future shoves are still absent from the mean model. Planning cost can differ: each replan searches again. A +2 first shove crashes both controllers.' })]);
       if (hooks.shell) {
