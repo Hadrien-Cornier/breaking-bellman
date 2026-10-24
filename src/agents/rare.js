@@ -90,6 +90,9 @@
       }
       const explored = u < p.eps;
       if (explored) a = j;
+      const qBefore = Q[s][a];
+      const takenScore = actionScore(s, a);
+      const triedBefore = nsa[s][a] > 0;
       const s2 = succ(s, a, door);
       const crossed = s === door && a === 2;
       const env = p.reward === 'none' ? 0 : (crossed ? 1 : 0);
@@ -101,6 +104,7 @@
       for (let i = 1; i < nActions; i++) if (Q[s2][i] > mx) mx = Q[s2][i];
       if (optimisticPlace) mx = optimisticMax(s2);
       Q[s][a] += p.alpha * (env + intrinsic + p.gamma * mx - Q[s][a]);
+      const qAfter = Q[s][a];
       if (env === 0 && openings === 0) qRightBeforeReward = Q[0][1];
       envSum += env;
       visitBonusSum += visitBonus;
@@ -114,6 +118,11 @@
         nAfter: counts[s2],
         visitBonus,
         intrinsic,
+        qBefore,
+        qAfter,
+        bootstrap: mx,
+        actionScore: takenScore,
+        triedBefore,
       });
       s = s2;
     }
