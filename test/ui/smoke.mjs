@@ -587,6 +587,7 @@ await session(390, 844, 'rules', async (page) => {
     localStorage.setItem(key, JSON.stringify(saved));
   });
   await page.reload();
+  await dismissLessonHelp(page);
   await page.selectOption('#rk-shaping', '2');
   await openNotebook(page, 'rule');
   check(/0.97 × dAfterNonterminal/.test(await page.locator('#game-rules').innerText()), 'Fetch repair updates potential shaping equation before Run');
