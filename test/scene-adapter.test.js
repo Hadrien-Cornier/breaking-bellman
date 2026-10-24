@@ -95,7 +95,7 @@ test('Watch preserves elapsed replay time across delayed browser frames and paus
   const watch = source.slice(source.indexOf('  function watchScene()'), source.indexOf('  const sceneFonts ='));
   const frames = [], record = {}, button = {}; let tick;
   const context = vm.createContext({
-    watching: false, sceneTime: 0, stageSeen: true, replayAnimation: null,
+    customScene: null, watching: false, sceneTime: 0, stageSeen: true, replayAnimation: null,
     runState: { record }, adapter: { length: () => 100, draw: (r, t) => { assert.equal(r, record); frames.push(t); } },
     window: { matchMedia: () => ({ matches: false }) }, $: () => button,
     requestAnimationFrame: fn => { tick = fn; return 1; }, scenePosition() {},
