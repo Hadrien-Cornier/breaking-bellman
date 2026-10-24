@@ -19,6 +19,7 @@ function harness(found = []) {
   Object.assign(ctx, { C, S, h, mapOpen: false, MODES: {}, fam: (p) => p.family || 'value',
     save() {}, render() {}, arrangeLessonSteps() {}, enterLevel() {}, setWorld() {}, mcBlock() {}, replayView() {}, mainSentence() {},
     downloadSave() {}, loadSave() {}, copyBrief() {}, campaignRunRow: () => h('div'),
+    BBLESSON_HELP: { mount: () => h('button', { text: 'About this experiment' }) },
     setStep: (l, n) => { S.lstep[l.id] = n; },
     recognize: (p) => C.recipes.find((r) => (!r.family || r.family === 'value') && r.world !== 'bandit'
       && Object.entries(r.keys).every(([k, v]) => Array.isArray(v) ? v.includes(p[k]) : v === p[k])),

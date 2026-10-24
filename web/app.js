@@ -342,6 +342,16 @@
   // ---------------------------------------------------------------- charts (canvas, own scales)
   function setupCanvas(cv) {
     const dpr = window.devicePixelRatio || 1, r = cv.getBoundingClientRect();
+    if (cv.classList.contains('stage') && window.BBPLAYER) {
+      const hidden = !!(cv.closest('[hidden]') || r.width < 2 || r.height < 2);
+      const ratio = window.BBPLAYER.aspectRatio(getComputedStyle(cv).aspectRatio, cv.width, cv.height);
+      const box = window.BBPLAYER.stageBitmap(r.width, r.height, ratio, hidden);
+      const ctx = cv.getContext('2d');
+      if (!box) { ctx.setTransform(1, 0, 0, 1, 0, 0); return { ctx, w: cv.width, h: cv.height, held: true }; }
+      cv.width = Math.round(box.w * dpr); cv.height = Math.round(box.h * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { ctx, w: box.w, h: box.h };
+    }
     const w = Math.max(200, r.width), hgt = r.height || 180;
     cv.width = Math.round(w * dpr); cv.height = Math.round(hgt * dpr);
     const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -727,8 +737,10 @@
     if (!RLA.worlds[viewWorld]) return 0;
     const viewKnobs = record ? record.settings.knobs : S.knobs;
     if (!measure) { $('#stage').onclick = null; $('#stage').style.cursor = ''; }
-    const cv = $('#stage'); const { ctx, w, h: H } = measure
+    const cv = $('#stage'); const sized = measure
       ? { ctx: cv.getContext('2d'), w: cv.getBoundingClientRect().width, h: cv.getBoundingClientRect().height } : setupCanvas(cv);
+    if (sized.held) return 0;
+    const { ctx, w, h: H } = sized;
     const colors = { fg: css('--ink'), accent: css('--accent'), muted: css('--muted'), bad: css('--bad'), bg: css('--sunk') };
     const knobs = Object.assign(RLA.knobDefaults(viewWorld), viewKnobs);
     const world = RLA.worlds[viewWorld].make(knobs, RLA.rng.make(5));
@@ -951,8 +963,21 @@
     $('#scene-policy').textContent = ''; $('#scene-seed').replaceChildren(); $('#run-source').textContent = '';
     $('#run-result').textContent = ''; $('#expert-card').hidden = true; $('#wonder').hidden = true;
     $('#training-metric').replaceChildren();
-    $('#charts').replaceChildren(h('p.small', { text: 'Curves appear here while a run trains.' }));
+    showEmptyCharts();
     $('#symptoms').replaceChildren(h('p.small', { text: 'No run yet.' }));
+  }
+  function showEmptyCharts() {
+    const family = S.world === 'bandit' || S.world === 'mirage' ? S.world : fam(S.parts);
+    const rows = window.BBPLAYER ? window.BBPLAYER.emptyCurves(S.world, family) : [{ title: 'Learning curve', status: 'No measurements yet.' }];
+    const loss = rows.length > 1 ? rows[rows.length - 1] : null;
+    const perf = rows.length > 1 ? rows.slice(0, -1) : rows;
+    const metric = $('#training-metric');
+    const box = $('#charts');
+    if (metric) metric.replaceChildren(loss ? h('p.chart-empty', { role: 'status', text: loss.title + '. ' + loss.status }) : null);
+    if (box) box.replaceChildren(...perf.map((row) => h('div.chart-wrap', null, [
+      h('div.chart-title', null, [h('b', { text: row.title })]),
+      h('p.chart-empty', { role: 'status', text: row.status }),
+    ])));
   }
   function showRunPending() {
     $('#run-result').textContent = 'New run in progress…';
@@ -1101,6 +1126,7 @@
     return h('div.dc-item', null, [
       h('div.dc-kind', { text: kind }),
       h('div.dc-name', null, [h('span.dc-q', { 'aria-hidden': 'true', text: '???' }), h('span.dc-real', { text: c.name })]),
+      c.plain ? h('p.dc-plain', { text: c.plain }) : null,
       h('div.dc-node', { 'aria-hidden': 'true' }, [h('span', { text: c.short || c.name })]),
     ]);
   }
@@ -1130,7 +1156,7 @@
     document.body.append(overlay);
     overlay.addEventListener('click', dismiss);
     window.addEventListener('keydown', onKey);
-    setTimeout(dismiss, 1900); // short: the reveal plays, then it gets out of the way
+    setTimeout(dismiss, ids.some((id) => (C.cards[id] || {}).plain) ? 3200 : 1900); // short: the reveal plays (with its plain line, if any), then it gets out of the way
   }
   function discover(cardId, cfg, a) {
     if (S.found.includes(cardId)) return;
@@ -1872,7 +1898,7 @@
 
   // ---------------------------------------------------------------- multiple choice with derivations
   // q = { id, prompt, options: [{ steps: [..], result, correct, why }] }
-  function mcBlock(q, onAnswer) {
+  function mcBlock(q, onAnswer, kind) {
     const prev = S.answers[q.id];
     const wrap = h('div.mc');
     wrap.append(h('p', { html: q.prompt }));
@@ -1891,18 +1917,23 @@
     });
     wrap.append(...btns);
     if (window.RLHELP) window.RLHELP.enhance(wrap, metricCtx());
-    function show(i) {
+    function show(i, live) {
       btns.forEach((b, j) => {
         const { o, i: source } = entries[j];
-        b.classList.toggle('picked', source === i);
+        const picked = source === i;
+        b.classList.toggle('picked', picked);
         b.classList.toggle(o.correct ? 'right' : 'wrong', true);
-        const why = b.querySelector('.why'); why.hidden = false; why.innerHTML = (o.correct ? '<b>Sound chain.</b> ' : '') + o.why;
+        const why = b.querySelector('.why'); why.hidden = false;
+        if (picked && live) why.setAttribute('role', 'status');
+        else why.removeAttribute('role');
+        const head = o.correct ? (picked ? '<b>' + (kind === 'predict' ? 'You predicted it right.' : 'You were right.') + '</b> ' : '<b>Sound chain.</b> ') : '';
+        why.innerHTML = head + o.why;
       });
       if (window.RLHELP) window.RLHELP.enhance(wrap, metricCtx());
     }
     function choose(i) {
       if (!S.answers[q.id]) recordAnswer(q.id, i, !!q.options[i].correct);
-      show(i);
+      show(i, true);
       if (onAnswer) onAnswer(i);
     }
     if (prev) show(prev.choice);
@@ -1934,9 +1965,37 @@
     budgetOptions(); renderStage(); renderAutopsy(); refreshSentences(); drawCompare(); drawGrid();
     $('#run-result').textContent = '';
     $('#training-metric').replaceChildren();
-    $('#charts').replaceChildren(h('p.small', { text: 'Curves appear here while a run trains.' }));
+    showEmptyCharts();
   }
   function setParts(p) { const f0 = fam(S.parts); S.parts = C.cfg(p || {}); if (fam(S.parts) !== f0) budgetOptions(); onPartsChanged(); }
+
+  function predictionMount(q, onAnswer, title, current, kind) {
+    if (!window.BBPLAYER || typeof document === 'undefined') return mcBlock(q, onAnswer, kind);
+    const reopen = h('button.btn', { type: 'button', 'data-prediction': q.id }, S.answers[q.id] ? 'Review the prediction' : 'Show the prediction');
+    const open = () => {
+      const node = mcBlock(q, (choice) => {
+        window.BBPLAYER.closePrediction(false);
+        onAnswer(choice);
+        const run = $('#run-btn');
+        if (run) run.focus();
+      }, kind);
+      window.BBPLAYER.openPrediction({
+        title: title || 'Predict before you run',
+        node,
+        anchor: $('#stage-card') || $('#lab'),
+        returnLabel: 'Back to the experiment',
+      });
+    };
+    reopen.addEventListener('click', open);
+    if (current && !S.answers[q.id] && window.BBPLAYER.claimPrediction(q.id)) queueMicrotask(open);
+    const launch = h('div.prediction-launch', null, [reopen]);
+    const stage = $('#stage-card');
+    if (current && stage) stage.append(launch);
+    return h('div.stack', null, [
+      h('p.small', { text: 'The question opens on the scene, so the world stays in view while you answer.' }),
+      current ? null : launch,
+    ]);
+  }
 
   const replayDrawer = h('details.workspace-drawer', { id: 'replay-drawer' }, [h('summary', { text: 'Run readout and replay controls' })]);
   replayDrawer.append($('#run-result'), $('#run-source'), $('#stage-caption'), $('#scene-controls'));
@@ -1951,8 +2010,7 @@
   const customShell = BB.shell.notebook(customNotebook);
   let notebookLevel = null;
 
-  let mapOpen = !C.levels.some(l => l.id === S.level);
-  if (mapOpen) S.mode = 'campaign';
+  let mapOpen = window.BBPLAYER ? window.BBPLAYER.mapOnEntry(S.mode) : S.mode === 'campaign';
   const campaignMap = BBCAMPAIGN.create({ h, C, S, choose: chooseLevel, show: showMap,
     saveActions: () => h('div.row.savebar', null, [
       h('span.small', { text: 'Progress saves in this browser.' }),
@@ -2051,18 +2109,23 @@
       return;
     }
     const st = S.lstep[lv.id] || 0;
-    const card = h('div.card.teaching-card', null, [h('div.eyebrow', { text: C.worldNames[lv.world] }), h('h2', { text: lv.title }), h('p', { html: lv.intro })]);
+    const card = h('div.card.teaching-card', null, [h('div.eyebrow', { text: C.worldNames[lv.world] }), h('h2', { text: lv.title }),
+      window.BBLESSON_HELP ? window.BBLESSON_HELP.mount(h, lv) : h('p', { html: lv.intro })]);
     const steps = h('div.steps');
     const mk = (i, title, body) => h('div.step' + (st === i ? '.active' : st > i ? '.done' : ''), null, [h('span.num', { text: 'Step ' + (i + 1) }), h('h3', { text: title }), body]);
 
-    steps.append(mk(0, 'Predict before you run', mcBlock(lv.predict, () => setStep(lv, 1))));
+    const ask = typeof predictionMount === 'function' ? predictionMount : (q, onAnswer, title, current, kind) => mcBlock(q, onAnswer, kind);
+    steps.append(mk(0, 'Predict before you run', h('div.stack', null, [
+      lv.learner ? h('p.small', { html: lv.learner }) : null,
+      ask(lv.predict, () => setStep(lv, 1), 'Predict before you run', st === 0, 'predict'),
+    ])));
     if (st >= 1) steps.append(mk(1, 'Run it', h('div.stack', null, [
       h('p', { html: lv.runText }),
       campaignRunRow(lv),
     ])));
     if (st >= 2) steps.append(mk(2, 'Diagnose', h('div.stack', null, [
       h('button.btn.ghost', { type: 'button', onclick: () => { $('#replay-lab').closest('details').open = true; shell.open('autopsy'); } }, 'Watch one update of this sentence'),
-      mcBlock(lv.diagnose, () => setStep(lv, 3)),
+      ask(lv.diagnose, () => setStep(lv, 3), 'Diagnose what happened', st === 2, 'diagnose'),
     ])));
     if (st >= 3) {
       const status = h('p.small', { text: 'Tap a word to see the choices. Words in a dashed box do nothing in this sentence.' });
@@ -2090,7 +2153,7 @@
         h('details', null, [h('summary', { text: 'Hint' }), h('p', { html: lv.hint })]),
       ])));
     }
-    if (st >= 4 && lv.explain) steps.append(mk(4, 'Explain why it works', mcBlock(lv.explain, () => setStep(lv, 5))));
+    if (st >= 4 && lv.explain) steps.append(mk(4, 'Explain why it works', mcBlock(lv.explain, () => setStep(lv, 5), 'explain')));
     if (st >= 5) steps.append(mk(5, 'Your sentence and the published one', consolidation(lv)));
     arrangeLessonSteps(lv, steps);
     card.append(steps);
@@ -2199,7 +2262,7 @@
     }
     if (lv.custom) { cancelRun(); return; }
     if (!forceStart && campaignRunLevel === lv.id && S.running) {
-      $('#seeds').value = String(lv.seeds); if (lv.steps) $('#budget').value = String(lv.steps);
+      applyLessonDefaults(lv);
       return;
     }
     if (S.world !== lv.world || JSON.stringify(S.knobs) !== JSON.stringify(lv.knobs || {})) setWorld(lv.world, lv.knobs || {});
@@ -2207,8 +2270,17 @@
     // a repair in progress keeps the player's words, unless they belong to another kind of learner (a reload, another level)
     if (forceStart || step < 3 || (!S.made[lv.id] && fam(S.parts) !== fam(lv.start))) setParts(lv.start);
     else if (S.made[lv.id]) { setParts(S.made[lv.id].parts); if (lv.repairKnobs && S.made[lv.id].knobs) { S.knobs = Object.assign({}, S.made[lv.id].knobs); renderStage(); } }
-    $('#seeds').value = String(lv.seeds); if (lv.steps) $('#budget').value = String(lv.steps);
+    applyLessonDefaults(lv);
     markRunStale();
+  }
+  function applyLessonDefaults(lv) {
+    const seeds = $('#seeds');
+    if (lv.seeds != null && ![...seeds.options].some((o) => o.value === String(lv.seeds))) seeds.append(h('option', { value: lv.seeds, text: String(lv.seeds) }));
+    if (lv.seeds != null) seeds.value = String(lv.seeds);
+    const budget = $('#budget');
+    if (lv.steps != null && ![...budget.options].some((o) => o.value === String(lv.steps))) budget.append(h('option', { value: lv.steps, text: String(lv.steps) }));
+    if (lv.steps != null) budget.value = String(lv.steps);
+    if ($('#run-mode').value !== 'fast') $('#run-mode').value = 'fast';
   }
 
   // --- Workbench: any sentence, any world
@@ -2507,6 +2579,7 @@
     return h('div.entry' + (open ? '.discovery' : ''), null, [
       h('div.row', { style: 'justify-content:space-between' }, [h('div.eyebrow', { text: c.kind ? kindName : S.found.includes(id) ? 'Method, built by you' : 'Method, given by a level' }), tag]),
       h('h3', { text: c.name }),
+      c.plain ? h('p', { text: c.plain }) : null,
       h('dl', null, [
         h('dt', { text: 'Source' }), h('dd', null, [h('span', { html: c.paper }), paperLinks(id)]),
         rec ? h('dt', { text: 'Words' }) : null, rec ? h('dd', { text: Object.keys(rec.keys).map((k) => wordText(k, rec.keys[k])).join(' · ') }) : null,
@@ -2953,7 +3026,11 @@
 
   // first visit: what this is, in four lines
   function showIntro() {
-    const close = (mode) => { S.intro = 1; save(); dlg.close(); dlg.remove(); if (mode && mode !== S.mode) { S.mode = mode; save(); if (mode === 'campaign') enterLevel(C.levels.find((l) => l.id === S.level) || C.levels[0]); render(); } };
+    const close = (mode) => {
+      S.intro = 1; save(); dlg.close(); dlg.remove();
+      if (mode === 'campaign') { mapOpen = true; S.mode = 'campaign'; save(); render(); return; }
+      if (mode && mode !== S.mode) { S.mode = mode; save(); render(); }
+    };
     const step = (n, t, d) => h('li', null, [h('span.num', { text: n }), h('div', null, [h('b', { text: t }), h('p.small', { text: d })])]);
     const dlg = h('dialog.intro', { 'aria-label': 'Welcome' }, [h('div.stack', null, [
       h('div.eyebrow', { text: 'A small game about reinforcement learning' }),
@@ -2965,7 +3042,7 @@
         step('3', 'Fix', 'Change one word of its update rule. Get it right and you have reinvented a published method.'),
       ]),
       h('p.small', { text: C.levels.length + ' levels, any order. Progress saves in this browser; Settings has a save file you can take anywhere. No account, no server. The AI tutor is optional.' }),
-      h('div.row', null, [h('button.btn', { type: 'button', onclick: () => close('campaign') }, 'Start level 1'), h('button.btn.ghost', { type: 'button', onclick: () => close('workbench') }, 'Open the workbench')]),
+      h('div.row', null, [h('button.btn', { type: 'button', onclick: () => close('campaign') }, 'Open the campaign map'), h('button.btn.ghost', { type: 'button', onclick: () => close('workbench') }, 'Open the workbench')]),
     ])]);
     dlg.addEventListener('cancel', () => { S.intro = 1; save(); });
     document.body.append(dlg); dlg.showModal();
@@ -2973,6 +3050,8 @@
 
   // ---------------------------------------------------------------- top level
   function render() {
+    if (window.BBPLAYER) window.BBPLAYER.closePrediction(false);
+    $$('#stage-card .prediction-launch').forEach((el) => el.remove());
     const oldStrip = document.getElementById('campaign-strip');
     if (oldStrip) oldStrip.remove();
     const oldBackup = document.getElementById('reward-backup');
@@ -3048,6 +3127,7 @@
     }
     refreshSentences();
     if (!customActive()) renderRules();
+    if (!S.running && !S.results.length && !customActive()) showEmptyCharts();
     updateScore();
   }
   $$('#tabs button').forEach((b) => b.addEventListener('click', () => {
@@ -3122,5 +3202,17 @@
     };
     window.ALGO_HELP.installAuto(document.body);
   }
-  if (!S.intro && !mapOpen) showIntro();
+  let stageFitting = false;
+  if (window.ResizeObserver) new ResizeObserver(() => {
+    if (stageFitting) return;
+    const cv = $('#stage');
+    if (!cv || cv.closest('[hidden]')) return;
+    const rect = cv.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) return;
+    const dpr = window.devicePixelRatio || 1;
+    if (Math.abs(cv.width - Math.round(rect.width * dpr)) < 2 && Math.abs(cv.height - Math.round(rect.height * dpr)) < 2) return;
+    stageFitting = true;
+    try { if (!S.running) renderStage(); } finally { stageFitting = false; }
+  }).observe($('#stage'));
+  if (!S.intro && S.mode === 'campaign') showIntro();
 })();

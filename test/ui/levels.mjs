@@ -230,7 +230,7 @@ try {
         const verify = (ok, text) => { record.checks.push({ text, passed: !!ok }); check(ok, name + ': ' + text); };
         try {
           await seed(page, progress === 'newer' ? fixture : null);
-          if (await page.locator('dialog.intro').count()) await page.locator('dialog.intro button', { hasText: 'Start level 1' }).click();
+          if (await page.locator('dialog.intro').count()) await page.locator('dialog.intro button', { hasText: 'Open the campaign map' }).click();
           // Public API selects by stable id; it uses the same save/enter/render path as the map.
           await page.evaluate(id => bellman.level(id), id);
           const precedence = await page.evaluate(() => {

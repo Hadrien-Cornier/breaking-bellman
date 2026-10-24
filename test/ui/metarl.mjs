@@ -136,7 +136,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       await page.goto(url);
       await page.evaluate(progress => { if (progress) localStorage.setItem('breaking-bellman-v1', JSON.stringify(progress)); else localStorage.removeItem('breaking-bellman-v1'); }, save === 'newer' ? fixture : null);
       await page.reload();
-      if (await page.locator('dialog.intro').count()) await page.locator('dialog.intro button', { hasText: 'Start level 1' }).click();
+      if (await page.locator('dialog.intro').count()) await page.locator('dialog.intro button', { hasText: 'Open the campaign map' }).click();
       await page.evaluate(() => bellman.level('metarl'));
       await metarlContract(page, out, width + '-' + save);
       assert.deepEqual(errors, []);

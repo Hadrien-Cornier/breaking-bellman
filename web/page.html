@@ -26,7 +26,7 @@
   <section class="pane" id="mode-pane" aria-live="polite"></section>
   <aside class="pane lab" id="lab" aria-label="Lab">
 
-    <div class="card">
+    <div class="card" id="stage-card">
       <div class="row" style="justify-content: space-between">
         <div class="eyebrow" id="lab-world">World</div>
         <span class="tag sim" title="Every curve comes from the game's simulation engine">Simulation</span>
@@ -46,15 +46,16 @@
     <div class="card" id="run-settings">
       <div class="row">
         <button class="btn" id="run-btn">Run</button>
-        <details id="optional-run-settings"><summary>Optional run settings</summary><div class="row">
+      </div>
+      <div class="run-advanced" hidden>
         <label class="small" for="seeds">Seeds</label>
-        <select id="seeds"><option>1</option><option selected>3</option><option>5</option></select>
+        <select id="seeds" tabindex="-1"><option>1</option><option selected>3</option><option>5</option></select>
         <label class="small" for="budget">Steps</label>
-        <select id="budget"></select>
+        <select id="budget" tabindex="-1"></select>
         <label class="small" for="run-mode">Run mode</label>
-        <select id="run-mode"><option value="fast" selected>Fast (reuse exact results)</option><option value="live">Live (train fresh)</option></select>
-      </div></details></div>
-      <p class="small muted" id="run-source" aria-live="polite">Live simulation: trains in this page.</p>
+        <select id="run-mode" tabindex="-1"><option value="fast" selected>Fast (reuse exact results)</option><option value="live">Live (train fresh)</option></select>
+      </div>
+      <p class="small muted" id="run-source" aria-live="polite">Run uses the lesson defaults and reuses an exact stored result when one exists.</p>
       <div class="progress"><i id="prog"></i></div>
       <p class="small" id="run-result" aria-live="polite"></p>
     </div>

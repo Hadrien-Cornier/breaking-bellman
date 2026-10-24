@@ -48,7 +48,7 @@ async function session(w, h, name, fn) {
   await page.waitForTimeout(500);
   // a first visit opens the welcome dialog; it must close and leave level 1 ready
   check(await page.locator('dialog.intro').isVisible(), name + ' first visit shows the welcome');
-  await page.locator('dialog.intro button', { hasText: 'Start level 1' }).click();
+  await page.locator('dialog.intro button', { hasText: 'Open the campaign map' }).click();
   check(!(await page.locator('dialog.intro').count()), name + ' the welcome closes');
   // Existing smoke scenarios exercise the original Slots entry by stable id.
   await page.evaluate(() => bellman.level('slots'));

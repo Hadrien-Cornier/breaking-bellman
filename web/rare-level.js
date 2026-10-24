@@ -46,7 +46,7 @@
     function draw(canvas, value, t) {
       if (t === null) return value ? value.settings.steps + 1 : 0;
       const frame = window.BBRARE_RECORD.frame(value, selected, t);
-      const columns = canvas.getBoundingClientRect().width < 500 ? 4 : 8;
+      const columns = window.innerWidth < 960 ? 4 : 8;
       canvas.width = columns * 100; canvas.height = columns === 4 ? 385 : 215;
       const context = canvas.getContext('2d');
       const dark = matchMedia('(prefers-color-scheme: dark)').matches;
@@ -114,7 +114,7 @@
           h('button.btn', { id: 'rare-step', type: 'button', disabled: !record, onclick: () => { stop(); time = Math.min(record.settings.steps, time + 1); paint(); } }, 'Step'),
           h('button.btn', { id: 'rare-replay', type: 'button', disabled: !record, onclick: () => { stop(); time = 0; paint(); } }, 'Replay'),
         ]),
-        h('div', null, [mathPanel ? mathPanel.el : h('div', { id: 'rare-math' })]),
+        h('div.rare-math-slot', null, [mathPanel ? mathPanel.el : h('div', { id: 'rare-math' })]),
         h('p.small', { id: 'rare-clock' }), h('p.small', { id: 'rare-event' }),
         h('p.small', { text: 'Watch replays one actual training sample per method. Step and Replay work with reduced motion. No path is interpolated.' }),
       );
