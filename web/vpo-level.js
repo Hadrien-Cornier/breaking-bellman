@@ -56,7 +56,7 @@
     return h('div', null, [svg, h('p.small', { text: route.name + ': reward ' + vector(route.reward) + '. ' + (route.path.length-1) + ' moves. ' + (route.exit ? 'Exit reached.' : 'No exit, so every reward is zero.') }),
       h('p.small', { text:'S start · E exit · G gold · D diamond · L walkable lava. The line replays the selected route.' })]);
   }
-  V.mount = (pane, lab, { h, complete, done }) => {
+  V.mount = (pane, lab, { h, complete, done, shell }) => {
     const lesson = C.levels.find(l => l.id === 'vpo');
     const body = h('div.card.stack', { id:'vpo-lesson' }); pane.append(body);
     redraw = () => {
@@ -114,6 +114,31 @@
         h('p', { text:'Goal: offer useful treasure routes. Reward each step: no incremental payment; score the completed route. Equation: r = [exit, gold/3, diamonds/3, 1 - distinct lava/2], or [0,0,0,0] without exit. Episode ends: exit or 14 moves. Score: fixed mean of the four components. Pass this challenge: '+lesson.goal.text })]),
         h('section.card', null, [h('h3', { text:'Inspect a route' }),map(h), select('vpo-route','Route menu',V.routes.map((r,i)=>[i,r.name]),state.selected,v=>state.selected=v),
           h('p.small', { text:'Ten prewritten routes, including failures. The learner chooses among them. This small menu can saturate; ties here do not reproduce the harder held-out experiment.' })]));
+      if (shell) {
+        body.classList.add('teaching-card');
+        shell.notebook('rule').replaceChildren(lab.querySelector('#vpo-rules'));
+        const groups = []; let group = null;
+        for (const node of [...body.children]) {
+          if (node.matches('h3') && /^[123]\./.test(node.textContent)) {
+            group = h('section.step', { 'data-custom-step': groups.length }); groups.push(group);
+          }
+          if (group) group.append(node);
+        }
+        const active = state.result ? (state.inspected ? 2 : 1) : 0;
+        shell.notebook('notes').replaceChildren();
+        groups.forEach((step, i) => {
+          if (i === active) { step.classList.add('active'); body.append(step); }
+          else shell.notebook('notes').append(h('details', null, [h('summary', { text: step.querySelector('h3').textContent }), step]));
+        });
+        // Keep real settings and rerun available without adding a second main action.
+        const settings = body.querySelector('#vpo-run') || shell.notebook('notes').querySelector('#vpo-run');
+        if (active > 0) { settings.classList.add('ghost'); shell.notebook('rule').append(settings.parentElement); }
+        if (active === 1) body.querySelector('#vpo-preferences')?.classList.remove('ghost');
+        const referencePanel = body.querySelector('#vpo-reference') || shell.notebook('notes').querySelector('#vpo-reference');
+        referencePanel.before(h('button.btn.ghost', { type: 'button', onclick: () => shell.open('curve') }, 'Frozen reference · synthetic154'));
+        shell.notebook('curve').replaceChildren(referencePanel);
+        shell.notebook('autopsy').replaceChildren(h('p', { text: 'Which conclusion follows? More alternatives can help search, but a vector objective alone does not guarantee an advantage. Your game run may tie or favor either learner.' }));
+      }
     };
     redraw();
   };

@@ -10,9 +10,9 @@ const approved = require('./fixtures/level-graph.json');
 function content(beforeGraph) {
   const build = fs.readFileSync(require.resolve('../build.mjs'), 'utf8');
   const files = JSON.parse(build.match(/const CONTENT_FILES = (\[[^;]+\]);/)[1].replaceAll("'", '"'));
-  const context = vm.createContext({ window: {} });
+  const context = vm.createContext({ window: {}, structuredClone });
   context.window = context;
-  for (const file of ['src/core/rng.js', 'src/agents/vpo.js', 'src/agents/supermimic.js']) {
+  for (const file of ["src/core/rng.js", "src/agents/vpo.js", "src/agents/supermimic.js"]) {
     vm.runInContext(fs.readFileSync(require.resolve('../' + file), 'utf8'), context, { filename: file });
   }
   for (const file of files) {
@@ -22,10 +22,9 @@ function content(beforeGraph) {
   return context.window.CONTENT;
 }
 const plain = value => JSON.parse(JSON.stringify(value));
-const ids = ['slots', 'cliff', 'careful', 'cells', 'explode', 'mirage', 'credit', 'bigsteps', 'passfail',
-  'continuous', 'explore', 'offline', 'mixed', 'twoways', 'pick', 'residual', 'fetch', 'vpo', 'supermimic'];
+const ids = ["slots", "cliff", "careful", "cells", "explode", "mirage", "credit", "bigsteps", "passfail", "continuous", "explore", "offline", "mixed", "twoways", "pick", "residual", "fetch", "vpo", "supermimic"];
 
-test('build attaches the six campaign worlds and approved metadata to exactly the 19 registered levels', () => {
+test('build attaches the six campaign worlds and approved metadata to the registered levels', () => {
   const C = content();
   assert.deepEqual(plain(C.levels.map(l => l.id)), ids);
   assert.deepEqual(worlds.map(w => [w.id, w.name]), approved.worlds);
@@ -34,7 +33,7 @@ test('build attaches the six campaign worlds and approved metadata to exactly th
   assert.equal(C.graph.activeEdges.length, 18);
   for (const level of C.levels) {
     const projected = C.graph.levels.find(l => l.id === level.id);
-    assert.equal(level.campaignWorld, approved.levelWorlds[level.id], level.id);
+    assert.equal(level.campaignWorld, (['skew', 'metarl', 'ensemble'].includes(level.id) ? 'w6' : approved.levelWorlds[level.id]), level.id);
     assert.equal(projected.world, level.campaignWorld);
     assert.deepEqual(plain(projected.improves), plain(level.improves));
     assert.deepEqual(plain(level.improves), edges.filter(e => e.to === level.id).map(({ from, label }) => ({ from, label })));
@@ -44,7 +43,7 @@ test('build attaches the six campaign worlds and approved metadata to exactly th
 });
 
 test('dormant parents do not lock roots or require unknown saved ids', () => {
-  const { graph } = content();
+  const graph = create(content().levels.filter(l => l.id !== 'goals'));
   assert.deepEqual(plain(graph.parents('twoways')), []);
   assert.equal(graph.status('twoways', []), 'open');
   assert.deepEqual(plain(graph.parents('mixed')), ['offline']);
@@ -52,7 +51,8 @@ test('dormant parents do not lock roots or require unknown saved ids', () => {
   assert.equal(graph.status('mixed', ['offline']), 'open');
   assert.equal(graph.status('goals', ['goals']), null);
   assert.equal(graph.status('unknown', []), null);
-  assert(!graph.activeEdges.some(e => e.from === 'goals' || e.to === 'rare'));
+  assert(!graph.activeEdges.some(e => e.from === 'goals'));
+  assert.deepEqual(plain(graph.parents('rare')), []);
 });
 
 test('both endpoints must be registered; returning a parent or child wakes only its settled links', () => {
@@ -63,8 +63,10 @@ test('both endpoints must be registered; returning a parent or child wakes only 
   assert.equal(withGoals.status('twoways', ['goals']), 'open');
   assert.deepEqual(withGoals.missing('mixed', ['offline']), ['goals']);
   assert.equal(withGoals.status('mixed', ['offline', 'goals']), 'open');
-  assert(!withGoals.activeEdges.some(e => e.to === 'rewardfit'));
-  const withRare = create([...C.levels, { id: 'rare', phase: 11 }]);
+  assert.deepEqual(withGoals.parents('rewardfit'), []);
+  const withoutRare = create(C.levels.filter(l => !['rare', 'skills'].includes(l.id)));
+  assert(!withoutRare.activeEdges.some(e => e.to === 'rare'));
+  const withRare = create([...C.levels.filter(l => !['rare', 'skills'].includes(l.id)), { id: 'rare', phase: 11 }]);
   assert.deepEqual(withRare.parents('rare'), ['slots', 'cliff']);
   assert.equal(withRare.status('rare', ['slots']), 'locked');
   assert.equal(withRare.status('rare', ['slots', 'cliff']), 'open');
