@@ -1,6 +1,7 @@
 // All registered lessons: full shared RunRecord replay contract; custom lessons retain their baseline.
 // npm run build && node test/ui/levels.mjs [proof directory] [URL]
 import assert from 'node:assert/strict';
+import { goalsReplayContract } from './helpers/goals.mjs';
 import { rewardfitContract } from '../support/rewardfit-ui.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -197,11 +198,12 @@ try {
     retained(await stored(page), augmented, ids);
     await page.screenshot({ path: path.join(out, `unknown-level-${width}.png`), fullPage: true });
     // Select through the real map button, not a direct state assignment.
+    const selectedId = await page.locator('[data-map-level]').first().getAttribute('data-map-level');
     await page.locator('[data-map-level]').first().click();
     await page.locator('[data-open-level]').click();
-    retained(await stored(page), augmented, ids, ids[0]);
+    retained(await stored(page), augmented, ids, selectedId);
     await page.reload();
-    retained(await stored(page), augmented, ids, ids[0]);
+    retained(await stored(page), augmented, ids, selectedId);
     fs.writeFileSync(path.join(out, `persistence-${width}.json`), JSON.stringify(await stored(page), null, 2));
     console.log(`ok persistence ${width}: unknown selection until explicit map choice; unknown fields and ids after reload`);
     await context.close();
@@ -232,8 +234,8 @@ try {
           await page.locator('#tabs button').last().focus();
           await page.keyboard.press('Tab');
           verify(await page.locator('#campaign-strip button').evaluate(e => e === document.activeElement), 'Tab from header reaches map strip before lesson controls');
-          const custom = ['vpo', 'supermimic', 'thaw', 'rewardfit'].includes(id);
-          const scene = page.locator(id === 'rewardfit' ? '#rewardfit-scene' : id === 'thaw' ? '#thaw-scene' : custom ? '#custom-stage' : '#stage').first();
+          const custom = ['vpo', 'supermimic', 'thaw', 'rewardfit', 'goals'].includes(id);
+          const scene = page.locator(id === 'goals' ? '#goals-scene' : id === 'rewardfit' ? '#rewardfit-scene' : id === 'thaw' ? '#thaw-scene' : custom ? '#custom-stage' : '#stage').first();
           verify(await scene.isVisible(), 'baseline scene visible before Run');
           record.before = await scene.evaluate(e => ({ tag: e.tagName, width: e.getBoundingClientRect().width, height: e.getBoundingClientRect().height, label: e.getAttribute('aria-label') }));
           verify(record.before.width > 0 && record.before.height > 0, 'scene has nonzero dimensions');
@@ -242,7 +244,10 @@ try {
           if (!custom) verify(await page.evaluate(() => bellman.record() === null && document.querySelector('#stage').dataset.world === bellman.state().world), 'fresh level has its actual world and no previous record');
           const button = custom ? `#${id}-run` : '#run-btn';
           await page.locator(button).click();
-          if (id === 'rewardfit') {
+          if (id === 'goals') {
+            record.stage = 'goals-replay';
+            await goalsReplayContract(page, record, verify);
+          } else if (id === 'rewardfit') {
             await rewardfitContract(page, record, verify, out);
           } else if (id === 'vpo') {
             await page.waitForFunction(() => !document.querySelector('#vpo-run').disabled && document.querySelector('#vpo-source').textContent.includes('Live simulation completed'), null, { timeout: runTimeout });
@@ -300,6 +305,12 @@ try {
             verify(await page.evaluate(() => bellman.record() === null && bellman.replay().world === 'vpo' && !document.querySelector('#stage').dataset.world), 'custom transition drops shared record and world');
             await page.evaluate(id => bellman.level(id), id);
             verify(await page.evaluate(() => bellman.record() === null && bellman.replay().world === bellman.state().world), 'return from custom mounts a fresh world without a record');
+          }
+          if (id === 'goals') {
+            await page.evaluate(() => bellman.level('slots'));
+            verify(await page.evaluate(() => bellman.record() === null && bellman.replay().world === 'bandit'), 'leaving goals clears its record and mounts the next world');
+            await page.evaluate(() => bellman.level('goals'));
+            verify(await page.evaluate(() => bellman.record() === null && bellman.replay().time === 0), 'returning goals starts a fresh measured scene');
           }
           if (id === 'rewardfit') {
             await page.evaluate(() => bellman.level('cliff'));
