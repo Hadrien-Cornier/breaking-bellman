@@ -470,7 +470,7 @@ ul.preset-diff li { margin: 2px 0; }
 .campaign-strip button, .campaign-map button, .map-brief button { min-height: 44px; min-width: 44px; touch-action: manipulation; }
 .layout.mapping { grid-template-columns: minmax(0, 1fr); }
 .layout.mapping > [hidden] { display: none; }
-.campaign-map { width: min(100%, 820px); margin: auto; }
+.campaign-map { width: 100%; max-width: 820px; min-width: 0; margin: auto; }
 .map-heading { display: grid; gap: 12px; justify-items: center; text-align: center; padding: 12px 0 22px; }
 .map-zoom { display: flex; gap: 4px; border: 1px solid var(--line); border-radius: 30px; padding: 4px; }
 .map-zoom .btn { border-radius: 25px; }
