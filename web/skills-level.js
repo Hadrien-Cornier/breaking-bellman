@@ -260,6 +260,7 @@
           else if (diag !== 1) body.replaceChildren(...diagnosis);
           else { notes.append(...diagnosis); body.replaceChildren(...explanation); }
         }
+        if (!notes.childNodes.length) notes.append(h('p.small', { text: 'Lesson notes appear here.' }));
       } else body.replaceChildren(...kids);
       const result = linked(h('section', { id: 'skills-result' }));
       const details = h('details', null, [h('summary', { text: 'Evidence and assumptions' }),
