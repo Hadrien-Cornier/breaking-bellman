@@ -37,7 +37,7 @@ const seen = { intro: 1 };
 if (want('intro')) await shot('intro', 1280, 800, null);
 // level 1: run, then skip the casino replay to its end (a click on the stage)
 const skipToEnd = async (p) => { await p.click('#run-btn'); await runDone(p); await p.waitForTimeout(400); await p.locator('#stage').click(); await p.waitForTimeout(2600); };
-if (want('campaign')) await shot('campaign', 1280, 860, skipToEnd, { state: seen, scene: 'casino' });
+if (want('campaign')) await shot('campaign', 1280, 860, skipToEnd, { state: { ...seen, level: 'slots' }, scene: 'casino' });
 // the canyon: the first training episode, a few seconds in
 // (a scene's clock starts when the stage is on screen)
 if (want('canyon')) await shot('canyon', 1280, 860, async (p) => { await p.click('#run-btn'); await runDone(p); await p.locator('#scene-watch').click(); await p.locator('#stage').scrollIntoViewIfNeeded(); await p.waitForTimeout(2800); }, { state: Object.assign({ level: 'cliff' }, seen), scene: 'canyon' });
@@ -48,7 +48,7 @@ if (want('workbench')) await shot('workbench', 1280, 860, async (p) => {
   await p.click('#run-btn'); await runDone(p); await p.waitForTimeout(800);
 }, { state: Object.assign({ mode: 'workbench' }, seen) });
 if (want('settings')) await shot('settings', 1280, 860, async (p) => { await p.click('#settings-btn'); await p.selectOption('#ai-provider', 'anthropic'); await p.waitForTimeout(200); }, { state: seen });
-if (want('phone')) await shot('phone', 390, 844, async (p) => { await skipToEnd(p); await p.locator('#stage').scrollIntoViewIfNeeded(); await p.evaluate(() => window.scrollBy(0, -60)); }, { state: seen, dark: true });
+if (want('phone')) await shot('phone', 390, 844, async (p) => { await skipToEnd(p); await p.locator('#stage').scrollIntoViewIfNeeded(); await p.evaluate(() => window.scrollBy(0, -60)); }, { state: { ...seen, level: 'slots' }, dark: true });
 if (want('codex')) await shot('codex', 1280, 860, async (p) => { await p.click('#tabs button[data-mode="codex"]'); await p.waitForTimeout(400); },
   { state: Object.assign({ mode: 'codex', found: ['egreedy', 'lockin', 'qlearning', 'sarsa', 'triad', 'dqn', 'maxbias', 'doubleq', 'ppo', 'grpo', 'sac', 'iql', 'expo', 'recap'] }, seen) });
 if (want('fetch')) await shot('fetch', 1280, 860, async (p) => {

@@ -19,6 +19,7 @@ for(const width of [1280,390]){
     bellman.level('vpo');
     const seed=document.querySelector('#vpo-seed');seed.value='202';seed.dispatchEvent(new Event('change'));
     const result=await bellman.run();
+    document.querySelector('#custom-notebook').open=true;document.querySelector('#custom-notebook-tab-curve').click();
     const root=document.querySelector('#vpo-lesson');
     return {width:innerWidth,scroll:document.documentElement.scrollWidth,version:bellman.state().version,
       arms:result.arms.map(a=>({arm:a.arm,candidates:a.candidates,updates:a.updates,curve:a.evaluation.curve})),
@@ -50,7 +51,7 @@ for(const width of [1280,390]){
     document.querySelector('#vpo-complete').click();
     return {before,duplicate,complement,fresh,wrongDisabled,ready,done:bellman.levels().find(l=>l.id==='vpo').done,
       map:document.querySelector('#vpo-lab svg').getAttribute('aria-label'),
-      alternatives:document.querySelectorAll('#vpo-lesson button[aria-pressed]').length,
+      alternatives:document.querySelectorAll('#vpo-lesson button[aria-pressed], #custom-notebook button[aria-pressed]').length,
       overflow:document.documentElement.scrollWidth>innerWidth,
       evidence:document.querySelector('#vpo-evidence').textContent.includes('Confirmation was correctly not run')&&document.querySelector('#vpo-evidence').textContent.includes('finite planner-menu')};
   }`);

@@ -17,7 +17,7 @@ function harness(found = []) {
   const S = { found, done: [], given: [], lstep: { cells: 3 }, made: {}, parts: C.cfg({ store: 'net' }),
     level: 'cells', world: 'cartpole', knobs: {} };
   Object.assign(ctx, { C, S, h, mapOpen: false, MODES: {}, fam: (p) => p.family || 'value',
-    save() {}, render() {}, enterLevel() {}, setWorld() {}, mcBlock() {}, replayView() {}, mainSentence() {},
+    save() {}, render() {}, arrangeLessonSteps() {}, enterLevel() {}, setWorld() {}, mcBlock() {}, replayView() {}, mainSentence() {},
     downloadSave() {}, loadSave() {}, copyBrief() {}, campaignRunRow: () => h('div'),
     setStep: (l, n) => { S.lstep[l.id] = n; },
     recognize: (p) => C.recipes.find((r) => (!r.family || r.family === 'value') && r.world !== 'bandit'
