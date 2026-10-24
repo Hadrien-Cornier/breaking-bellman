@@ -1,0 +1,53 @@
+/* Variant D: a sticky world / run / metric strip above the editable algorithm. */
+.world-strip-layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.world-strip-layout > #campaign-strip { grid-column: 1; }
+.world-strip-layout > #lab {
+  grid-column: 1; grid-row: auto; display: grid;
+  grid-template-columns: minmax(260px, 1.1fr) minmax(200px, .7fr) minmax(300px, 1.2fr);
+  position: sticky; top: 116px; z-index: 12; background: var(--bg);
+  max-height: none; overflow: visible; gap: 10px; align-items: start;
+}
+.world-strip-layout #lab > .card { padding: 10px; gap: 6px; }
+.world-strip-layout #stage { height: 138px; aspect-ratio: auto; object-fit: contain; }
+.world-strip-layout #stage-caption { font-size: .72rem; }
+.world-strip-layout .replay-controls { gap: 4px; margin: 0; }
+.world-strip-layout .replay-controls :is(button,select) { padding: 3px 7px; min-height: 32px; }
+.world-strip-layout #run-result:empty { display: none; }
+.world-strip-layout #learning-metric .chart { height: 142px; }
+.world-strip-layout #learning-metric .chart-title { font-size: .8rem; }
+.world-strip-layout #algorithm-editor { grid-column: 1; grid-row: auto; }
+.world-strip-layout #rule { min-width: 0; }
+.world-strip-layout #rule > .sentence { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 4px 18px; }
+.world-strip-layout #rule .sl { font-size: .85rem; line-height: 1.65; }
+.world-strip-layout #rule .w { min-height: 32px; padding: 2px 5px; }
+.world-strip-layout #rule :is(.chooser,.namebox,.presets,.preset-row,.algo-namebox,.gloss) { grid-column: 1 / -1; }
+.world-strip-layout > #mode-pane { grid-column: 1; grid-row: auto; }
+.world-strip-layout #optional-run-settings summary { cursor: pointer; font-size: .78rem; min-height: 36px; }
+.world-strip-layout #optional-run-settings .row { padding-top: 8px; }
+.world-strip-layout #optional-run-settings select { max-width: 100%; }
+.world-strip-layout #optional-game-rules summary { cursor: pointer; min-height: 44px; }
+.world-strip-layout .table-scroll { overflow-x: auto; }
+@media (max-width: 700px) {
+  .top { position: static; }
+  .world-strip-layout > #lab { position: static; grid-template-columns: minmax(0,1fr); }
+  .world-strip-layout #stage { height: 140px; }
+  .world-strip-layout #run-settings { grid-template-columns: auto minmax(0,1fr); align-items: center; }
+  .world-strip-layout #run-settings :is(#run-source,.progress,#run-result) { grid-column: 1 / -1; }
+  .world-strip-layout #rule > .sentence { grid-template-columns: minmax(0,1fr); }
+  .world-strip-layout #rule .w { min-height: 44px; }
+  .world-strip-layout #learning-metric .chart { height: 110px; }
+}
+@media (min-width: 701px) {
+  .top:has(~ .world-strip-layout) { padding-block: 4px; }
+  .top:has(~ .world-strip-layout) .brand,
+  .top:has(~ .world-strip-layout) .brand canvas { width: 32px; height: 32px; flex-basis: 32px; }
+  .top:has(~ .world-strip-layout) .tabs { margin-top: 4px; }
+  .world-strip-layout > #lab { top: 90px; }
+  .world-strip-layout #stage { height: 116px; }
+  .world-strip-layout #learning-metric .chart { height: 120px; }
+  .world-strip-layout #algorithm-editor:has(#algorithm-math-panel) { grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); align-items: start; }
+  .world-strip-layout #algorithm-editor > .eyebrow { grid-column: 1 / -1; }
+}
+#lesson-flow { grid-column: 1 / -1; }
+#lesson-flow > summary { cursor: pointer; min-height: 44px; }
+#lesson-flow #mode-pane { padding-top: 8px; }

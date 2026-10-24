@@ -44,8 +44,8 @@
       <p class="small" id="stage-caption">Run a recipe to see the trained policy act.</p>
     </div>
     <div class="card" id="run-settings">
-      <div class="row">
-        <button class="btn" id="run-btn">Run</button>
+      <button class="btn" id="run-btn">Run</button>
+      <details id="optional-run-settings"><summary>Optional settings: Seeds, Steps, Fast / Live</summary><div class="row">
         <label class="small" for="seeds">Seeds</label>
         <select id="seeds"><option>1</option><option selected>3</option><option>5</option></select>
         <label class="small" for="budget">Steps</label>
@@ -53,24 +53,25 @@
         <label class="small" for="run-mode">Run mode</label>
         <select id="run-mode"><option value="fast" selected>Fast (reuse exact results)</option><option value="live">Live (train fresh)</option></select>
       </div>
+      </details>
       <p class="small muted" id="run-source" aria-live="polite">Live simulation: trains in this page.</p>
       <div class="progress"><i id="prog"></i></div>
       <p class="small" id="run-result" aria-live="polite"></p>
     </div>
+    <section class="card" id="learning-strip" aria-label="Learning metric"><div id="learning-metric"><p class="small">Run to measure learning.</p></div></section>
   </aside>
+  <section class="card" id="algorithm-editor" aria-label="Editable algorithm"><div class="eyebrow">Edit the algorithm: tap a word</div><div id="rule"></div></section>
   <aside class="pane lab" id="vpo-lab" aria-label="Comparison lesson lab" hidden></aside>
   <details class="notebook" id="notebook">
-    <summary>Notebook</summary>
+    <summary>Notebook: performance curves, diagnostics and notes</summary>
     <div class="notebook-tabs" role="tablist" aria-label="Notebook sections">
-      <button type="button" role="tab" id="notebook-tab-rule" data-notebook-tab="rule" aria-controls="notebook-rule" aria-selected="true">Rule</button>
+      <button type="button" role="tab" id="notebook-tab-rule" data-notebook-tab="rule" aria-controls="notebook-rule" aria-selected="true">Rules</button>
       <button type="button" role="tab" id="notebook-tab-curve" data-notebook-tab="curve" aria-controls="notebook-curve" aria-selected="false" tabindex="-1">Curve</button>
       <button type="button" role="tab" id="notebook-tab-autopsy" data-notebook-tab="autopsy" aria-controls="notebook-autopsy" aria-selected="false" tabindex="-1">Autopsy</button>
       <button type="button" role="tab" id="notebook-tab-notes" data-notebook-tab="notes" aria-controls="notebook-notes" aria-selected="false" tabindex="-1">Notes</button>
     </div>
     <section class="notebook-panel" role="tabpanel" tabindex="0" id="notebook-rule" data-notebook-panel="rule" aria-labelledby="notebook-tab-rule">
-      <section class="game-rules" id="game-rules" aria-label="Game rules"></section>
-      <div class="eyebrow">The update rule: tap a word to change it</div>
-      <div id="rule"></div>
+      <details id="optional-game-rules"><summary>World rules and sources</summary><section class="game-rules" id="game-rules" aria-label="Game rules"></section></details>
       <details class="card-details" id="grid-card"><summary>Try every combination</summary><div id="grid-lab"></div></details>
     </section>
     <section class="notebook-panel" role="tabpanel" tabindex="0" id="notebook-curve" data-notebook-panel="curve" aria-labelledby="notebook-tab-curve" hidden>

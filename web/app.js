@@ -255,13 +255,14 @@
   }
 
   // ---------------------------------------------------------------- sentence component
+  let algorithmMath = null;
   let mounts = [];   // { el, opts, open, permanent }
   function mountSentence(opts) {
     const m = { el: h('div.sentence'), opts, open: null, permanent: !!opts.permanent };
     mounts.push(m); drawSentence(m);
     return m.el;
   }
-  function refreshSentences() { if (!RLA.worlds[S.world]) return; for (const m of mounts) drawSentence(m); }
+  function refreshSentences() { if (!RLA.worlds[S.world]) return; for (const m of mounts) drawSentence(m); if (algorithmMath) algorithmMath.update(); }
   function drawSentence(m) {
     const o = m.opts, p = o.getParts(), world = o.world(), focus = o.focus ? o.focus() : [];
     const idle = idleWords(p, world);
@@ -626,8 +627,34 @@
       h('canvas.chart', { id, 'aria-label': title, 'data-run': runState.record && runState.record.id }),
     ]);
   }
+  // A measured curve stays beside the world; the full performance charts remain in Notebook.
+  function renderLearningMetric(partials, record) {
+    const parts = S.lastCfg ? S.lastCfg.parts : S.parts;
+    const family = fam(parts);
+    const hasLoss = !['bandit', 'mirage'].includes(S.world) &&
+      (family === 'value' || (family === 'ac' && parts.critics !== 'none') ||
+       (family === 'pg' && parts.baseline === 'critic'));
+    const series = (partials || []).filter(Boolean).map((p, i) => {
+      const points = hasLoss ? (p.diag || []).filter(d => Number.isFinite(d.loss)) : (p.evals || []).filter(d => Number.isFinite(d.ret));
+      return { xs: points.map(d => d.t), ys: points.map(d => hasLoss ? d.loss : d.ret), color: css('--accent'), alpha: 0.7, label: 'seed ' + (i + 1) };
+    });
+    // Bandits record every pull rather than evaluation episodes.
+    if (!hasLoss && ['bandit', 'mirage'].includes(S.world) && S.results.length) {
+      const c = curvesOf(S.results, S.world).main;
+      series.splice(0, series.length, { xs: c.xs, ys: c.ys, color: css('--accent'), label: 'mean of seeds' });
+    }
+    const title = hasLoss ? (family === 'pg' ? 'Value fitting loss (mean squared error)' : 'Critic training loss (mean squared TD error)') : S.world === 'bandit' ? 'Best machine chosen (share of pulls)' : S.world === 'mirage' ? 'Left door chosen (share of episodes)' : 'Test episode return';
+    const box = $('#learning-metric');
+    box.replaceChildren(chartBox('ch-learning', title, [[css('--accent'), 'recorded training']]));
+    if (!hasLoss) box.append(h('p.small', { text: 'This method has no fitted value loss. Showing its measured learning metric.' }));
+    const count = series.reduce((n, s) => n + s.xs.length, 0);
+    if (count) lineChart($('#ch-learning'), series, { xmax: Math.max(1, ...series.flatMap(s => s.xs)), xlabel: hasLoss ? 'training steps' : 'steps / pulls' });
+    else box.append(h('p.small', { text: 'Waiting for recorded training measurements.' }));
+    if (record) { box.dataset.run = record.id; $('#ch-learning').dataset.run = record.id; }
+  }
   function renderCharts(partials, done, record = runState.record) {
     if (done && record) partials = record.results.map(r => ({ evals: r.evals, diag: r.diag }));
+    renderLearningMetric(partials, record);
     const box = $('#charts'); const steps = (S.lastCfg && S.lastCfg.steps) || 1;
     const ink = css('--ink'), acc = css('--accent'), val = css('--f-value'), pol = css('--f-policy'), muted = css('--muted');
     const prior = record && record.comparison;
@@ -1110,6 +1137,7 @@
     linkRun();
   }
   function dropRun() {
+    $('#learning-metric').replaceChildren(h('p.small', { text: 'Run to measure learning.' }));
     pauseScene(); runState.clear(); S.results = []; S.lastCfg = null; S.lastA = null;
     sceneTime = 0; scenePolicy = 0; adapter = null; linkRun();
     const cv = $('#stage'); cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
@@ -1120,6 +1148,7 @@
     $('#symptoms').replaceChildren(h('p.small', { text: 'No run yet.' }));
   }
   function showRunPending() {
+    $('#learning-metric').replaceChildren(h('p.small', { text: 'Preparing recorded training measurements.' }));
     $('#run-result').textContent = 'New run in progress…';
     $('#charts').replaceChildren(h('p.small', { role: 'status', text: 'Preparing this run. Curves appear when training reports progress.' }));
     $('#symptoms').replaceChildren(h('p.small', { role: 'status', text: 'New run in progress. The autopsy appears when it finishes.' }));
@@ -1128,6 +1157,7 @@
     drawCompare();
   }
   function showRunStopped(message) {
+    $('#learning-metric').replaceChildren(h('p.small', { text: 'No curve: this run did not finish.' }));
     $('#run-result').textContent = message;
     $('#charts').replaceChildren(h('p.small', { text: 'No curves are available because this run did not finish.' }));
     $('#symptoms').replaceChildren(h('p.small', { text: 'No autopsy is available because this run did not finish.' }));
@@ -2108,6 +2138,7 @@
   document.querySelector('main.layout').append(customNotebook);
   const customShell = BB.shell.notebook(customNotebook);
   let notebookLevel = null;
+  const lessonFlow = h('details.card', { id: 'lesson-flow' }, [h('summary', { text: 'Lesson: predictions, explanations and challenges' })]);
 
   let mapOpen = !C.levels.some(l => l.id === S.level);
   if (mapOpen) S.mode = 'campaign';
@@ -3131,6 +3162,7 @@
 
   // ---------------------------------------------------------------- top level
   function render() {
+    if (lessonFlow.contains($('#mode-pane'))) lessonFlow.replaceWith($('#mode-pane'));
     const oldStrip = document.getElementById('campaign-strip');
     if (oldStrip) oldStrip.remove();
     const oldBackup = document.getElementById('reward-backup');
@@ -3179,13 +3211,23 @@
     if (!campaign) {
       $('#notebook').open = true;
       $$('#notebook [data-notebook-panel]').forEach(panel => { panel.hidden = false; });
-      $('#lab').prepend($('#game-rules'));
-    } else $('#notebook-rule').prepend($('#game-rules'));
+    }
+    $('#optional-game-rules').append($('#game-rules'));
+    $('#algorithm-editor').hidden = mapping || customActive();
+    layout.classList.toggle('world-strip-layout', !mapping && !customActive());
     if (S.mode === 'campaign' && !mapping) document.querySelector('main.layout').prepend(campaignMap.strip());
     if (customActive() && !mapping) customShell.objective(C.levels.find(l => l.id === S.level).goal.text);
     MODES[S.mode](pane);
+    if (!mapping && !customActive()) {
+      layout.insertBefore($('#lab'), pane);
+      layout.insertBefore($('#algorithm-editor'), pane);
+    }
     refreshSentences();
     if (!customActive()) renderRules();
+    if (!mapping && !customActive()) {
+      layout.insertBefore(lessonFlow, pane);
+      lessonFlow.append(pane);
+    }
     updateScore();
   }
   $$('#tabs button').forEach((b) => b.addEventListener('click', () => {
@@ -3231,6 +3273,10 @@
 
   // the lab's own sentence (always present)
   $('#rule').append(mountSentence({ getParts: () => S.parts, setPart: setMainPart, world: () => S.world, focus: () => (S.mode === 'campaign' ? S.focus || [] : []), withName: true, permanent: true, preset: true }));
+  if (window.ALGO_MATH) {
+    algorithmMath = window.ALGO_MATH.mount({ getParts: () => S.parts, world: () => S.world, hyper: () => hyperNow() });
+    $('#algorithm-editor').append(algorithmMath.el);
+  }
   $('#replay-lab').append(replayView());
   $('#grid-lab').append(gridView());
   $('#grid-card').addEventListener('toggle', () => { if ($('#grid-card').open) drawGrid(); });
