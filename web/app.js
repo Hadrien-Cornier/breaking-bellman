@@ -2218,8 +2218,8 @@
       return;
     }
     const st = S.lstep[lv.id] || 0;
-    const card = h('div.card.teaching-card', null, [h('div.eyebrow', { text: C.worldNames[lv.world] }), h('h2', { text: lv.title }), h('p', { html: lv.intro }),
-      lv.introMore ? h('details', null, [h('summary', { text: 'Rules, numbers and sources' }), h('div', { html: lv.introMore })]) : null]);
+    const card = h('div.card.teaching-card', null, [h('div.eyebrow', { text: C.worldNames[lv.world] }), h('h2', { text: lv.title }),
+      BBLESSON_HELP.mount(h, lv)]);
     const steps = h('div.steps');
     const mk = (i, title, body) => h('div.step' + (st === i ? '.active' : st > i ? '.done' : ''), null, [h('span.num', { text: 'Step ' + (i + 1) }), h('h3', { text: title }), body]);
 

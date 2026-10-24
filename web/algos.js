@@ -325,6 +325,8 @@
     el.className = 'metric-help-pop algo-rem-pop';
     el.setAttribute('role', 'dialog');
     el.setAttribute('aria-modal', 'false');
+    el.setAttribute('popover', 'manual');
+    el.setAttribute('aria-labelledby', 'algo-rem-title');
     el.hidden = true;
     document.body.appendChild(el);
     return el;
@@ -335,7 +337,10 @@
   function closeReminder(refocus) {
     if (typeof document === 'undefined') return;
     const el = document.getElementById(POP_ID);
-    if (el) el.hidden = true;
+    if (el) {
+      if (el.matches(':popover-open')) el.hidePopover();
+      el.hidden = true;
+    }
     if (openTrigger) {
       openTrigger.setAttribute('aria-expanded', 'false');
       const t = openTrigger;
@@ -404,6 +409,10 @@
     if (!a) return;
     if (openTrigger && openTrigger !== anchorEl) closeReminder(false);
     const el = ensurePop();
+    // A modal dialog makes body siblings inert. Keep the reminder in the trigger's
+    // dialog, and lift it into the top layer so the briefing cannot clip it.
+    const host = anchorEl?.closest('dialog') || document.body;
+    if (el.parentNode !== host) host.appendChild(el);
     el.replaceChildren();
 
     const close = document.createElement('button');
@@ -415,6 +424,7 @@
 
     const title = document.createElement('div');
     title.className = 'metric-help-title';
+    title.id = 'algo-rem-title';
     title.textContent = a.label;
 
     const body = document.createElement('div');
@@ -444,6 +454,7 @@
 
     el.append(close, title, body);
     el.hidden = false;
+    if (!el.matches(':popover-open')) el.showPopover();
     if (anchorEl) {
       const r = anchorEl.getBoundingClientRect();
       el.style.left = Math.max(8, Math.min(root.innerWidth - 8 - el.offsetWidth, r.left)) + 'px';
@@ -452,6 +463,7 @@
       anchorEl.setAttribute('aria-expanded', 'true');
       openTrigger = anchorEl;
     }
+    close.focus({ preventScroll: true });
   }
 
   // ---------------------------------------------------------------- inline name trigger
@@ -599,7 +611,7 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         const pop = document.getElementById(POP_ID);
-        if (pop && !pop.hidden) { e.stopPropagation(); closeReminder(true); }
+        if (pop && !pop.hidden) { e.preventDefault(); e.stopPropagation(); closeReminder(true); }
       }
     }, true);
     document.addEventListener('pointerdown', (e) => {

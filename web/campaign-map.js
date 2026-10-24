@@ -54,21 +54,11 @@
       if (!sheet) returnFocus = document.activeElement;
       else { sheet.close(); sheet.remove(); }
       const lv = levels[id], w = worldOf(id), st = state(id), missing = graph.missing(id, S.done);
-      const parents = graph.activeEdges.filter(e => e.to === id), children = graph.activeEdges.filter(e => e.from === id);
-      const relation = other => button('', () => brief(other), 'map-relation', { 'data-related-level': other });
-      const relationRows = (edges, parent) => h('div.map-relations', null, edges.map(e => {
-        const other = parent ? e.from : e.to, b = relation(other);
-        b.append(h('b', { text: levels[other].title }), h('span.small', { text: e.label + ' · ' + WORDS[state(other)] }));
-        return b;
-      }));
       const content = h('div.map-brief-body', null, [
         h('p.eyebrow', { text: 'World ' + (graph.worlds.indexOf(w) + 1) + ' · ' + w.name }),
         h('p.map-state', { text: WORDS[st] }),
+        h('p.map-learning-intro', { html: lv.intro + ' ' + C.learningPurpose[id] }),
         h('h3', { text: 'You will build' }), chips(id), methodLines(id),
-        h('h3', { text: parents.length ? 'Builds on' : 'A starting point' }),
-        parents.length ? relationRows(parents, true) : h('p', { text: 'Nothing comes before this level. It is open from the start.' }),
-        children.length ? h('h3', { text: 'Opens the way to' }) : null,
-        children.length ? relationRows(children, false) : null,
         st === 'locked' ? h('div.map-lock', null, [
           h('b', { text: 'Not ready yet' }),
           h('p', { text: 'It builds on ' + missing.map(p => levels[p].title).join(' and ') + ', not cleared yet. Clear ' + (missing.length > 1 ? 'them' : 'it') + ' first, or open this level anyway: locks only suggest an order.' }),
