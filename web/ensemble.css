@@ -1,0 +1,8 @@
+/* Ensemble-only scene, input geometry and measured sample cursor. */
+#ensemble-lesson, #ensemble-scene { min-width: 0; }
+#ensemble-lesson input { min-height: 44px; min-width: 44px; width: 100%; box-sizing: border-box; }
+#ensemble-lesson label { display: grid; gap: 4px; }
+#ensemble-lesson button, #ensemble-scene button { min-height: 44px; min-width: 44px; }
+#ensemble-lesson .opt { width: 100%; }
+#ensemble-chart tr[aria-current="true"] { outline: 2px solid var(--ink); outline-offset: -2px; }
+#ensemble-stage svg { max-width: 640px; }
