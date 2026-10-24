@@ -1,9 +1,9 @@
 (function () {
   'use strict';
   const X = globalThis.RLA.exact;
+  const HASH = typeof module === 'object' && module.exports ? require('./digest.js') : globalThis.BB_DIGEST;
   async function sha256(bytes) {
-    const sum = await globalThis.crypto.subtle.digest('SHA-256', typeof bytes === 'string' ? new TextEncoder().encode(bytes) : bytes);
-    return Array.from(new Uint8Array(sum), b => b.toString(16).padStart(2, '0')).join('');
+    return HASH.sha256(bytes);
   }
   async function unpack(bytes) {
     return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
