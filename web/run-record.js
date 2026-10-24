@@ -8,8 +8,7 @@
   const identity = (level, config) => RLA.exact.stringify({ version: VERSION, level, config });
   const digest = async value => {
     if (typeof require === 'function') return require('node:crypto').createHash('sha256').update(value).digest('hex');
-    const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-    return Array.from(new Uint8Array(bytes), x => x.toString(16).padStart(2, '0')).join('');
+    return globalThis.BB_DIGEST.sha256(value);
   };
   async function create({ level, config, results, source, label, name = 'current', comparison = null }) {
     if (!['live', 'server', 'local'].includes(source)) throw Error('Unknown run provenance');
