@@ -11,9 +11,13 @@ function cli(...args) {
   return execFileSync('chrome-devtools-axi', args, { encoding: 'utf8', env, timeout: 60000, maxBuffer: 2 ** 22 });
 }
 function evaluate(js) {
-  const text = cli('eval', js), match = text.match(/^result: (.+)$/m);
-  if (!match) throw Error(text);
-  const result = JSON.parse(match[1]);
+  // The CLI's human eval formatter truncates large measured records. The run
+  // transport prints complete JSON while retaining the same browser evaluation.
+  const text = execFileSync('chrome-devtools-axi', ['run'], {
+    input: `console.log(JSON.stringify(await page.eval(${JSON.stringify(js)})));`,
+    encoding: 'utf8', env, timeout: 60000, maxBuffer: 2 ** 22,
+  });
+  const result = JSON.parse(text.trim());
   return typeof result === 'string' ? JSON.parse(result) : result;
 }
 function check(ok, text) {
