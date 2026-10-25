@@ -44,7 +44,7 @@ if (want('canyon')) await shot('canyon', 1280, 860, async (p) => { await p.click
 // the broom: CartPole with too many cells falls fast
 if (want('broom')) await shot('broom', 1280, 860, async (p) => { await p.click('#run-btn'); await runDone(p); await p.locator('#scene-watch').click(); await p.locator('#stage').scrollIntoViewIfNeeded(); await p.waitForTimeout(1300); }, { state: Object.assign({ level: 'cells' }, seen), scene: 'broom' });
 if (want('workbench')) await shot('workbench', 1280, 860, async (p) => {
-  await p.click('#tabs button[data-mode="workbench"]'); await p.waitForTimeout(300);
+  await p.evaluate(() => bellman.mode('workbench')); await p.waitForTimeout(300);
   await p.click('#run-btn'); await runDone(p); await p.waitForTimeout(800);
 }, { state: Object.assign({ mode: 'workbench' }, seen) });
 if (want('settings')) await shot('settings', 1280, 860, async (p) => { await p.click('#settings-btn'); await p.selectOption('#ai-provider', 'anthropic'); await p.waitForTimeout(200); }, { state: seen });

@@ -447,6 +447,7 @@
     ]);
   }
   function renderCharts(partials, done, record = runState.record) {
+    queueMicrotask(() => { if (typeof syncPhonePanels === 'function') syncPhonePanels(); });
     if (done && record) partials = record.results.map(r => ({ evals: r.evals, diag: r.diag }));
     const box = $('#charts'); const steps = (S.lastCfg && S.lastCfg.steps) || 1;
     const ink = css('--ink'), acc = css('--accent'), val = css('--f-value'), pol = css('--f-policy'), muted = css('--muted');
@@ -967,6 +968,7 @@
     pauseScene(); runState.clear(); S.results = []; S.lastCfg = null; S.lastA = null;
     sceneTime = 0; scenePolicy = 0; adapter = null; linkRun();
     const cv = $('#stage'); cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
+    stageNeedsPaint = true;
     delete cv.dataset.world; delete cv.dataset.frame; delete cv.dataset.interactive; cv.onclick = null;
     $('#scene-policy').textContent = ''; $('#scene-seed').replaceChildren(); $('#run-source').textContent = '';
     $('#run-result').textContent = ''; $('#expert-card').hidden = true; $('#wonder').hidden = true;
@@ -975,21 +977,11 @@
     $('#symptoms').replaceChildren(h('p.small', { text: 'No run yet.' }));
   }
   function showEmptyCharts() {
-    const family = S.world === 'bandit' || S.world === 'mirage' ? S.world : C.famOf(S.parts);
-    const rows = window.BBPLAYER ? window.BBPLAYER.emptyCurves(S.world, family) : [{ title: 'Learning curve', status: 'No measurements yet.' }];
-    const loss = rows.length > 1 ? rows[rows.length - 1] : null;
-    const perf = rows.length > 1 ? rows.slice(0, -1) : rows;
     const metric = $('#training-metric');
     const box = $('#charts');
-    const recordsLoss = loss && !/does not record/.test(loss.status);
-    if (metric) {
-      metric.replaceChildren();
-      if (recordsLoss) metric.append(h('p.chart-empty', { role: 'status', text: loss.title + '. ' + loss.status }));
-    }
-    if (box) box.replaceChildren(...perf.map((row) => h('div.chart-wrap', null, [
-      h('div.chart-title', null, [h('b', { text: row.title })]),
-      h('p.chart-empty', { role: 'status', text: row.status }),
-    ])));
+    if (metric) metric.replaceChildren();
+    if (box) box.replaceChildren();
+    if (typeof syncPhonePanels === 'function') syncPhonePanels();
   }
   function showRunPending() {
     $('#run-result').textContent = 'New run in progress…';
@@ -1037,14 +1029,7 @@
     if (stage && stage.getBoundingClientRect().height > 2) stage.scrollIntoView({ block: 'nearest' });
     if (runState.record && !S.running && !watching) { playRecorded = true; watchScene(); }
   }
-  function settleEditor() {
-    const pair = $('#experiment-pair');
-    const card = $('#stage-card');
-    if (pair && card) pair.append(card, $('#learning-monitor'));
-    if (card) card.append($('#run-result'));
-    const progress = document.querySelector('#run-simulation .progress');
-    if (progress && card) card.append(progress);
-  }
+  function settleEditor() { placeEditor(); }
   async function run() {
     if (customActive()) return customApi().run();
     if (S.running) return null;
@@ -2930,6 +2915,14 @@
         chooseLevel(l.id);
         return levelInfo(l);
       },
+      mode: (name) => {
+        if (name == null) return S.mode;
+        if (name !== 'review' && !MODES_OK(name)) throw new Error('Unknown mode ' + name);
+        S.mode = name;
+        if (name !== 'campaign') mapOpen = false;
+        save(); render();
+        return S.mode;
+      },
       words: (ws) => (ws ? tool('set_words')(ws) : { words: S.parts, name: nameOf(S.parts, S.world) }),
       world: (name, knobs) => { const r = tool('set_world')({ world: name, knobs }); if (S.mode === 'workbench') render(); return r; },  // a Saboteur mission sets its own world on render
       run: (opts) => tool('run_experiment')(opts || {}),
@@ -3083,14 +3076,15 @@
     const dlg = h('dialog.intro', { 'aria-label': 'Welcome' }, [h('div.stack', null, [
       h('div.eyebrow', { text: 'A small game about reinforcement learning' }),
       h('h1', { text: 'Breaking Bellman' }),
-      h('p.lead', { text: 'Real RL algorithms train in this page and fail in front of you. You figure out why, then fix them by changing a word.' }),
+      h('p.lead', { text: 'This game goes from the most basic parts of reinforcement learning to the research frontier. It is not exhaustive. It picks the most relevant ideas in between.' }),
+      h('p', { text: 'Real algorithms train in this page and fail in front of you. You figure out why, then fix them by changing a word.' }),
       h('ol.steps', null, [
         step('1', 'Predict', 'Guess what the learner will do. Be honest.'),
         step('2', 'Run', 'Real training, in your browser, in seconds.'),
         step('3', 'Fix', 'Change one word of its update rule. Get it right and you have reinvented a published method.'),
       ]),
       h('p.small', { text: C.levels.length + ' levels, any order. Progress saves in this browser; Settings has a save file you can take anywhere. No account, no server. The AI tutor is optional.' }),
-      h('div.row', null, [h('button.btn', { type: 'button', onclick: () => close('campaign') }, 'Open the campaign map'), h('button.btn.ghost', { type: 'button', onclick: () => close('workbench') }, 'Open the workbench')]),
+      h('div.row', null, [h('button.btn', { type: 'button', onclick: () => close('campaign') }, 'Open the campaign map')]),
     ])]);
     dlg.addEventListener('cancel', () => { S.intro = 1; save(); });
     document.body.append(dlg); dlg.showModal();
@@ -3105,6 +3099,23 @@
     view.hidden = mapping || custom;
     const lv = S.mode === 'campaign' ? C.levels.find((l) => l.id === S.level) : null;
     title.textContent = lv && !mapping && !custom ? lv.title : (C.worldNames[S.world] || '');
+    if (!title.dataset.about) {
+      title.dataset.about = '1';
+      title.tabIndex = 0;
+      title.setAttribute('role', 'button');
+      const openAbout = () => {
+        const button = document.querySelector('[data-lesson-help]');
+        if (button) button.click();
+      };
+      title.addEventListener('click', openAbout);
+      title.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        openAbout();
+      });
+    }
+    if (lv && !mapping && !custom) title.setAttribute('aria-label', lv.title + '. About this experiment');
+    else title.removeAttribute('aria-label');
   }
   // ---------------------------------------------------------------- top level
   function render() {
@@ -3176,7 +3187,9 @@
     $('#algorithm-workspace').hidden = !workspace;
     $('#lesson-drawer').hidden = !workspace;
     if (workspace) {
-      layout.insertBefore($('#lab'), $('#algorithm-workspace'));
+      const anchor = $('#experiment-view');
+      if (anchor && anchor.parentElement === layout) layout.insertBefore($('#lab'), anchor);
+      else layout.insertBefore($('#lab'), $('#algorithm-workspace'));
       $('#lesson-drawer').append(pane);
       if (lessonOpen) $('#lesson-drawer').open = true;
       $('#notebook').classList.remove('supporting-lab');
@@ -3185,22 +3198,37 @@
       $('#notebook-rule').prepend($('#game-rules'));
     }
     syncLevelTitle();
-    const stageBox = $('#stage').getBoundingClientRect();
+    if (!S.running && !S.results.length && !customActive()) showEmptyCharts();
+    placeEditor();
+    const stageEl = $('#stage');
+    const stageBox = stageEl.getBoundingClientRect();
     const stageWidth = Math.round(stageBox.width), stageHeight = Math.round(stageBox.height);
-    if (stageWidth > 0 && stageHeight > 0 && (stageWidth !== stageW || stageHeight !== stageH)) {
+    const stageVisible = stageWidth > 1 && stageHeight > 1 && !stageEl.closest('[hidden]');
+    if (stageVisible && !S.running && (stageNeedsPaint || stageWidth !== stageW || stageHeight !== stageH)) {
       stageW = stageWidth; stageH = stageHeight;
-      if (!S.running) renderStage();
+      stageNeedsPaint = false;
+      renderStage();
     }
     refreshSentences();
     if (!customActive()) renderRules();
-    if (!S.running && !S.results.length && !customActive()) showEmptyCharts();
     updateScore();
   }
   $$('#tabs button[data-mode]').forEach((b) => b.addEventListener('click', () => {
     S.mode = b.dataset.mode; save();
+    const more = $('#more-tools');
+    if (more) more.open = false;
     if (S.mode === 'campaign' && !mapOpen) enterLevel(C.levels.find((l) => l.id === S.level));
     render();
   }));
+  const moreMenu = $('#more-tools');
+  if (moreMenu) {
+    moreMenu.addEventListener('click', (event) => {
+      if (event.target.closest('button')) moreMenu.open = false;
+    });
+    document.addEventListener('click', (event) => {
+      if (moreMenu.open && !moreMenu.contains(event.target)) moreMenu.open = false;
+    });
+  }
   // The header uses the same Rover+ as the simulations, without an animation clock.
   const logoCanvas = $('#logo-robot'), logoContext = logoCanvas.getContext('2d');
   logoContext.scale(2, 2);
@@ -3228,8 +3256,9 @@
   });
   $('#copy-page-btn').addEventListener('click', copyPage);
   // redraw on a real width change only: phones fire resize when the address bar hides, and a redraw restarts the replay
-  let stageW = 0, stageH = 0;
+  let stageW = 0, stageH = 0, stageNeedsPaint = false;
   window.addEventListener('resize', () => {
+    placeEditor();
     const w = Math.round($('#stage').getBoundingClientRect().width);
     if (w === stageW) return;
     stageW = w;
@@ -3248,23 +3277,83 @@
   for (const sel of ['#seeds', '#budget', '#run-mode']) $(sel).addEventListener('change', () => { cancelRun(); if (!G.running) drawGrid(); });
   document.addEventListener('change', () => { markRunStale(); if (activeRun && runIdentity() !== activeRun.identity) cancelRun(); });
 
+  function adopt(parent, node) {
+    if (parent && node && node.parentElement !== parent) parent.append(node);
+  }
+  function syncPhoneDots() {
+    const deck = $('#phone-deck');
+    if (!deck) return;
+    const slides = [...deck.querySelectorAll('.phone-slide')].filter((slide) => !slide.hidden);
+    let best = slides[0];
+    let bestDistance = Infinity;
+    for (const slide of slides) {
+      const distance = Math.abs(slide.offsetLeft - deck.scrollLeft);
+      if (distance < bestDistance) { best = slide; bestDistance = distance; }
+    }
+    const id = best && best.dataset.panel;
+    $$('#phone-dots .phone-dot').forEach((button) => {
+      const curveGone = button.dataset.panel === 'curve' && $('#phone-curve') && $('#phone-curve').hidden;
+      button.hidden = curveGone;
+      button.setAttribute('aria-selected', button.dataset.panel === id ? 'true' : 'false');
+    });
+  }
+  function syncPhonePanels() {
+    const curve = $('#phone-curve');
+    if (!curve) return;
+    const has = !!($('#charts') && $('#charts').childElementCount) || !!($('#training-metric') && $('#training-metric').childElementCount);
+    if (curve && curve.hidden !== !has) curve.hidden = !has;
+    const monitor = $('#learning-monitor');
+    if (monitor && monitor.hidden !== !has) monitor.hidden = !has;
+    syncPhoneDots();
+  }
   function placeEditor() {
     const pair = $('#experiment-pair');
     const card = $('#stage-card');
-    if (!pair || !card) return;
+    const view = $('#experiment-view');
+    if (!pair || !card || !view) return;
     card.append($('#run-result'), $('#stage-caption'), $('#scene-controls'));
     let bar = $('#stage-run');
     if (!bar) {
       bar = document.createElement('div');
       bar.id = 'stage-run';
-      card.insertBefore(bar, card.firstChild);
     }
     bar.append($('#run-btn'));
     const progress = document.querySelector('#run-settings .progress');
     if (progress) card.append(progress);
-    pair.append(card, $('#learning-monitor'));
     $('#editor-run').append($('#run-settings'));
+    const deck = $('#phone-deck');
+    const phone = window.matchMedia('(max-width: 700px)').matches && !view.hidden;
+    if (phone && deck) {
+      adopt($('#phone-world'), card);
+      adopt($('#phone-curve'), $('#learning-monitor'));
+      adopt($('#phone-math'), $('#algorithm-workspace'));
+      if (bar.parentElement !== view) view.insertBefore(bar, deck);
+      const header = document.querySelector('header.top');
+      bar.style.top = (header ? Math.ceil(header.getBoundingClientRect().height) : 0) + 'px';
+      deck.hidden = false;
+      if ($('#phone-dots')) $('#phone-dots').hidden = false;
+      pair.hidden = true;
+    } else {
+      bar.style.top = '';
+      if (bar.parentElement !== card) card.insertBefore(bar, card.firstChild);
+      adopt(pair, card);
+      adopt(pair, $('#learning-monitor'));
+      const layout = document.querySelector('main.layout');
+      const workspace = $('#algorithm-workspace');
+      if (layout && workspace && workspace.parentElement !== layout) layout.insertBefore(workspace, $('#lesson-drawer'));
+      pair.hidden = false;
+      if (deck) deck.hidden = true;
+      if ($('#phone-dots')) $('#phone-dots').hidden = true;
+    }
+    syncPhonePanels();
   }
+  $$('#phone-dots .phone-dot').forEach((button) => {
+    button.addEventListener('click', () => {
+      const slide = document.getElementById('phone-' + button.dataset.panel);
+      if (slide && !slide.hidden) slide.scrollIntoView({ inline: 'start', block: 'nearest', behavior: 'smooth' });
+    });
+  });
+  if ($('#phone-deck')) $('#phone-deck').addEventListener('scroll', () => syncPhoneDots(), { passive: true });
   const referenceNames = { rule: 'Rules', curve: 'Sources', autopsy: 'Autopsy', notes: 'Notes' };
   function openReference(name) {
     const dlg = $('#reference-dialog');

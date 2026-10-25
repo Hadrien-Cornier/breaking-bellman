@@ -82,12 +82,46 @@
     });
     return MJ;
   }
-  function texInto(el, tex) {
+  function texInto(el, tex, display) {
     el.textContent = tex; el.classList.add('tex-src'); el.setAttribute('data-tex', tex);
     loadMathJax().then((M) => {
       if (!M || !el.isConnected) return;
-      try { el.replaceChildren(M.tex2svg(tex, { display: true })); el.classList.remove('tex-src'); } catch (e) { /* keep the source */ }
+      try { el.replaceChildren(M.tex2svg(tex, { display: display !== false })); el.classList.remove('tex-src'); } catch (e) { /* keep the source */ }
     });
+  }
+  // Turn a glossary label into TeX plus an optional spoken name, so the symbol is the same
+  // renderer as the equations rather than a raw unicode string.
+  function symbolTex(label) {
+    const named = String(label).match(/^(.*?)(?:\s+\(([^)]*)\))\s*$/);
+    let math = (named ? named[1] : String(label)).trim();
+    const aside = named ? named[2] : '';
+    const reps = [
+      ['Q̄_j', '\\bar{Q}_j'], ['Q̄', '\\bar{Q}'],
+      ['μ_θ', '\\mu_\\theta'], ['σ_θ', '\\sigma_\\theta'], ['π_θ', '\\pi_\\theta'],
+      ['V_φ', 'V_\\phi'], ['V_ψ', 'V_\\psi'], ['∇_θ', '\\nabla_\\theta'], ['ρ_t', '\\rho_t'],
+      ['s′', "s'"], ['a′', "a'"],
+      ['π', '\\pi'], ['θ', '\\theta'], ['φ', '\\phi'], ['ψ', '\\psi'], ['τ', '\\tau'],
+      ['ρ', '\\rho'], ['γ', '\\gamma'], ['α', '\\alpha'], ['ε', '\\epsilon'], ['λ', '\\lambda'],
+      ['μ', '\\mu'], ['σ', '\\sigma'], ['∇', '\\nabla'], ['√', '\\sqrt'], ['∞', '\\infty'], ['−', '-'],
+    ];
+    for (const [from, to] of reps) math = math.split(from).join(to);
+    math = math.replace(/\b(tanh|max|min|log|exp)\b/g, '\\$1');
+    math = math.split(/(\\[a-zA-Z]+)/).map((part) => {
+      if (part.charAt(0) === '\\') return part;
+      return part.replace(/\b[A-Za-z]{3,}\b/g, (w) => '\\text{' + w + '}');
+    }).join('');
+    math = math.replace(/\|/g, '\\mid ');
+    return { tex: math, aside };
+  }
+  function glossTerm(sym) {
+    const parsed = symbolTex(sym);
+    const dt = h('dt');
+    const math = h('span.gloss-math');
+    math.setAttribute('data-symbol', sym);
+    texInto(math, parsed.tex, false);
+    dt.append(math);
+    if (parsed.aside) dt.append(document.createTextNode(' (' + parsed.aside + ')'));
+    return dt;
   }
 
   // ---------------------------------------------------------------- the derivation (source of truth)
@@ -368,7 +402,7 @@
     }
 
     const dl = h('dl.math-gloss');
-    for (const [sym, def] of glossary(parts, world)) { dl.append(h('dt', { text: sym })); dl.append(h('dd', { text: def })); }
+    for (const [sym, def] of glossary(parts, world)) { dl.append(glossTerm(sym)); dl.append(h('dd', { text: def })); }
     kids.push(h('details.math-defs', { open: defsOpen }, [
       h('summary', { text: 'Click for symbol definitions' }),
       h('p.math-legend', { text: legend(parts, world, opts.hyper) }),
@@ -596,7 +630,7 @@
       + '. b: ' + (factsNow.bonusTarget ? 'count bonus 1/√n(s′) inside the target' : '0 in this method, so the count bonus does not move the target')
       + '. Score: the number compared to choose an action. Q: the learned value of a state-action pair. y: the target of one update. α = ' + String(rareProto(opts.proto).alpha) + ': the step size. γ = ' + String(rareProto(opts.proto).gamma) + ': the discount. n(s), n(s, a): visit counts.';
     const gdl = h('dl.math-gloss');
-    for (const [sym, def] of rareGlossary(m)) { gdl.append(h('dt', { text: sym })); gdl.append(h('dd', { text: def })); }
+    for (const [sym, def] of rareGlossary(m)) { gdl.append(glossTerm(sym)); gdl.append(h('dd', { text: def })); }
     const defs = h('details.math-defs', { open: defsOpen }, [
       h('summary', { text: 'Click for symbol definitions' }),
       h('p.math-legend', { text: legend }),
@@ -648,7 +682,7 @@
   }
 
   root.ALGO_MATH = {
-    mount, render, explain, lines: texLines, legend, glossary,
+    mount, render, explain, lines: texLines, legend, glossary, symbolTex,
     idleWords, idlePg, idleAc, groupOf, texInto, wordText, optOf,
     rareLines, rareStepLines, rareExplain, rareGlossary, rareFacts, mountRare,
   };

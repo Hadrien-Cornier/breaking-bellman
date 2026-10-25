@@ -45,11 +45,11 @@ a { color: var(--accent); }
 .brand { display: grid; place-items: center; width: 48px; height: 48px; flex: 0 0 48px; border-radius: 8px; }
 .brand canvas { display: block; width: 48px; height: 48px; }
 .score { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
-.tabs { display: flex; gap: 4px; margin-top: 10px; overflow-x: auto; scrollbar-width: none; align-items: center; }
+.tabs { display: flex; gap: 4px; margin-top: 10px; overflow: visible; scrollbar-width: none; align-items: center; justify-content: flex-end; }
 .more-tabs { position: relative; }
 .more-tabs > summary { list-style: none; cursor: pointer; border: 1px solid var(--line); background: var(--surface); padding: 6px 12px; border-radius: 999px; white-space: nowrap; font-size: 0.9rem; }
 .more-tabs > summary::-webkit-details-marker { display: none; }
-.more-tabs > div { position: absolute; z-index: 8; right: 0; display: grid; gap: 4px; min-width: 180px; margin-top: 6px; padding: 8px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 40px rgb(0 0 0 / 0.28); }
+.more-tabs > div { position: absolute; z-index: 30; right: 0; display: grid; gap: 4px; min-width: 180px; margin-top: 6px; padding: 8px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 40px rgb(0 0 0 / 0.28); }
 .more-tabs button { text-align: left; }
 .tabs button { border: 1px solid var(--line); background: var(--surface); padding: 6px 12px; border-radius: 999px; white-space: nowrap; font-size: 0.9rem; }
 .tabs button[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
@@ -482,6 +482,7 @@ ul.preset-diff li { margin: 2px 0; }
 .campaign-strip { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
 .campaign-strip span { flex: 1; min-width: 160px; font-size: .85rem; }
 .campaign-strip button, .campaign-map button, .map-brief button { min-height: 44px; min-width: 44px; touch-action: manipulation; }
+button.algo-name { min-height: 0; min-width: 0; height: auto; padding: 0; display: inline; line-height: 1; vertical-align: baseline; border-bottom: 1px dotted var(--accent); }
 .layout.mapping { grid-template-columns: minmax(0, 1fr); }
 .layout.mapping > [hidden] { display: none; }
 .campaign-map { width: 100%; max-width: 820px; min-width: 0; margin: auto; }
@@ -580,6 +581,10 @@ ul.preset-diff li { margin: 2px 0; }
 .concept-sketch text { fill: var(--ink); font-family: 'Segoe Print', 'Bradley Hand', cursive; font-size: 13px; }
 .concept-sketch figcaption { color: var(--muted); font-size: .82rem; }
 .notebook :is(button, select, summary), .lesson-shell :is(button, select, summary), .lesson-shell input[type='range'] { min-height: 44px; min-width: 44px; }
+.lesson-shell button.algo-name, .notebook button.algo-name, .prediction-pop button.algo-name, dialog button.algo-name {
+  min-height: 0; min-width: 0; height: auto; width: auto; padding: 0;
+  display: inline; line-height: 1; vertical-align: baseline;
+}
 @media (min-width: 960px) {
   .lesson-shell > #lab, .lesson-shell > #vpo-lab { grid-column: 1; grid-row: 2; }
   .lesson-shell > #mode-pane { grid-column: 2; grid-row: 2; }
@@ -602,10 +607,10 @@ ul.preset-diff li { margin: 2px 0; }
 .run-advanced[hidden] { display: none !important; }
 .prediction-pop {
   position: fixed; top: auto; right: 12px; bottom: 12px; left: auto;
-  width: min(380px, calc(100vw - 24px)); max-width: none; height: fit-content;
-  max-height: 220px; margin: 0; overflow: auto; z-index: 45;
+  width: min(420px, calc(100vw - 24px)); max-width: none; height: fit-content;
+  max-height: min(70dvh, 640px); margin: 0; overflow: auto; z-index: 45;
   border: 1px solid var(--line); border-radius: 12px; padding: 12px;
-  background: color-mix(in srgb, var(--surface) 94%, transparent); color: var(--ink);
+  background: var(--surface); color: var(--ink);
   box-shadow: 0 12px 40px rgb(0 0 0 / 0.28);
 }
 .prediction-pop::backdrop { background: transparent; }
@@ -756,7 +761,9 @@ ul.preset-diff li { margin: 2px 0; }
 .drawer-workspace > #lesson-drawer { grid-column: 1 / -1; grid-row: 4; }
 #experiment-view[hidden] { display: none; }
 #level-title { margin: 0; font-size: 1.35rem; line-height: 1.2; grid-column: 1; grid-row: 1; }
+#level-title[role="button"] { cursor: pointer; text-align: left; }
 #experiment-pair { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: minmax(280px, 560px) minmax(260px, 1fr); gap: 12px; align-items: start; min-width: 0; }
+#experiment-pair:has(#learning-monitor[hidden]) { grid-template-columns: minmax(280px, 720px); }
 #experiment-pair .stage { display: block; width: 100%; max-width: none; max-height: none; height: auto; aspect-ratio: 640 / 280; }
 #experiment-pair #learning-monitor { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 #experiment-pair #charts { min-height: 220px; }
@@ -802,7 +809,49 @@ dialog.lesson-help .help-head button { margin-left: auto; }
   #experiment-pair .chart { height: 200px; }
 }
 @media (max-width: 800px) {
-  dialog.lesson-help { top: auto; bottom: 8px; left: 8px; right: 8px; width: auto; max-height: 40vh; }
+  dialog.lesson-help { top: 12px; bottom: auto; left: 8px; right: 8px; width: auto; max-height: calc(100dvh - 24px); }
+}
+#phone-deck, #phone-dots { display: none; }
+@media (max-width: 700px) {
+  .prediction-pop {
+    inset: 0; top: 0; right: 0; bottom: 0; left: 0;
+    width: 100%; max-width: none; height: 100%; max-height: none;
+    margin: 0; border-radius: 0; border: 0;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  }
+  .prediction-pop::backdrop { background: var(--bg); }
+  body:has(main.layout.lesson-shell) { height: 100dvh; overflow: hidden; display: flex; flex-direction: column; }
+  body:has(main.layout.lesson-shell) > header.top { flex: none; }
+  main.layout.lesson-shell { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+  main.layout.lesson-shell > #campaign-strip { flex: none; }
+  main.layout.lesson-shell > #experiment-view { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+  main.layout.lesson-shell > #lesson-drawer { flex: 0 0 auto; max-height: 22dvh; overflow: auto; }
+  .drawer-workspace > #experiment-view, #experiment-view { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+  #experiment-view #stage-run {
+    position: static; z-index: 1; flex: none; display: flex; justify-content: center;
+    margin: 0; padding: 0; background: var(--bg);
+  }
+  #phone-world { display: flex; flex-direction: column; justify-content: flex-start; }
+  #phone-deck {
+    display: flex; width: 100%; flex: 1 1 auto; min-height: 0; height: auto;
+    overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y;
+  }
+  #phone-deck[hidden] { display: none; }
+  .phone-slide {
+    flex: 0 0 100%; width: 100%; height: 100%; min-width: 100%;
+    overflow-x: hidden; overflow-y: auto; scroll-snap-align: start; scroll-snap-stop: always;
+  }
+  .phone-slide[hidden] { display: none; }
+  #phone-dots { display: flex; justify-content: center; gap: 6px; }
+  #phone-dots[hidden] { display: none; }
+  #phone-dots .phone-dot {
+    min-height: 32px; min-width: 0; padding: 4px 12px; border: 0; border-radius: 999px;
+    background: transparent; color: var(--muted); font-size: 0.82rem;
+  }
+  #phone-dots .phone-dot[aria-selected="true"] { background: var(--ink); color: var(--bg); }
+  #experiment-pair { display: none; }
+  .drawer-workspace #algorithm-workspace { grid-template-columns: 1fr; }
 }
 #run-simulation #learning-monitor { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 @media (max-width: 959px) {

@@ -104,7 +104,10 @@
     });
     dlg.addEventListener('cancel', (event) => { event.preventDefault(); back.click(); });
     anchor.append(dlg);
-    if (typeof dlg.show === 'function') dlg.show();
+    const phone = typeof matchMedia === 'function' && matchMedia('(max-width: 700px)').matches;
+    if (phone && typeof dlg.showModal === 'function') dlg.showModal();
+    else if (typeof dlg.show === 'function') dlg.show();
+    else dlg.showModal();
     h.focus();
     return dlg;
   }

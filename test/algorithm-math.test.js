@@ -332,6 +332,10 @@ test('the glossary follows the method, and definitions stay behind a click', () 
   const src = fs.readFileSync(path.join(__dirname, '..', 'web', 'algorithm-math.js'), 'utf8');
   const css = fs.readFileSync(path.join(__dirname, '..', 'web', 'algorithm-math.css'), 'utf8');
   assert.ok(src.includes('Click for symbol definitions'), 'definitions are a click, not a second always-open block');
+  assert.equal(AM.symbolTex('γ (gamma)').tex, '\\gamma');
+  assert.equal(AM.symbolTex('γ (gamma)').aside, 'gamma');
+  assert.equal(AM.symbolTex('Q̄').tex, '\\bar{Q}');
+  assert.match(AM.symbolTex('π_θ(a | s)').tex, /\\pi_\\theta\(a \\mid\s*s\)/);
   assert.ok(!css.includes('max-width: 100%'), 'wide formulas scroll at natural size instead of shrinking');
 });
 

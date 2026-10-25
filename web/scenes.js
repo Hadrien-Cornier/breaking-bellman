@@ -757,8 +757,6 @@
     const g = c.createLinearGradient(0, 0, 0, H);
     g.addColorStop(0, '#d9cdb8'); g.addColorStop(1, '#c4b498');
     c.fillStyle = g; c.fillRect(0, 0, W, H);
-    c.fillStyle = 'rgba(70, 50, 30, 0.22)';
-    for (let y = 14; y < benchY - 6; y += 18) for (let x = 12 + ((y / 18) % 2) * 9; x < W; x += 18) { c.beginPath(); c.arc(x, y, 1.6, 0, 7); c.fill(); }
     // tool outlines on the board
     c.strokeStyle = 'rgba(60, 45, 30, 0.28)'; c.lineWidth = 3; c.lineCap = 'round';
     const tools = [[0.07, 0.2], [0.12, 0.28], [0.88, 0.22], [0.93, 0.3]];

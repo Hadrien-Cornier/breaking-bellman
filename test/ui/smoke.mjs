@@ -681,7 +681,7 @@ await session(390, 844, 'rules', async (page) => {
           inspect('mission knob ' + input.id, CONTENT.missions[i].goalText);
         }
       }
-      document.querySelector('[data-mode="workbench"]').click();
+      bellman.mode('workbench');
       for (const [family, f] of Object.entries(CONTENT.families)) for (const world of f.worlds) {
         bellman.words({ family }); bellman.world(world);
         inspect('workbench ' + family + ':' + world);
@@ -714,7 +714,7 @@ await session(390, 844, 'rules', async (page) => {
   check(/0.05 × cos/.test(await page.locator('#game-rules').innerText()), 'Fetch reward reset restores facing bonus in rules');
   await dismissDialog(page, '#reference-dialog', '#reference-close');
   await page.evaluate(() => {
-    document.querySelector('[data-mode="workbench"]').click(); bellman.words({ family: 'ac' });
+    bellman.mode('workbench'); bellman.words({ family: 'ac' });
     bellman.world('pendulum', { maxSteps: 100, maxTorque: 0.5 });
   });
   await openNotebook(page, 'rule');

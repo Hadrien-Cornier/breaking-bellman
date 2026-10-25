@@ -105,9 +105,18 @@
 }
 .algorithm-math-panel .math-defs summary {
   cursor: pointer;
-  font-size: 0.7rem;
+  display: inline;
+  width: auto;
+  min-height: 0;
+  min-width: 0;
+  padding: 0;
+  font-size: 0.78rem;
+  line-height: 1.3;
   color: var(--muted, #6b7280);
 }
+.algorithm-math-panel .math-defs summary::-webkit-details-marker { display: none; }
+.algorithm-math-panel .gloss-math { display: inline; }
+.algorithm-math-panel .gloss-math svg { vertical-align: -0.15em; }
 .algorithm-math-panel .math-gloss {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);

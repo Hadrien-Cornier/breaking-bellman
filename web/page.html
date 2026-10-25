@@ -13,8 +13,6 @@
   </div>
   <div class="xpbar" aria-hidden="true"><i id="xp"></i></div>
   <nav class="tabs" role="tablist" id="tabs">
-    <button role="tab" data-mode="campaign" aria-selected="true">Campaign</button>
-    <button role="tab" data-mode="workbench" aria-selected="false">Workbench</button>
     <details class="more-tabs" id="more-tools"><summary>More</summary><div>
     <button role="tab" data-mode="saboteur" aria-selected="false">Saboteur</button>
     <button role="tab" data-mode="review" aria-selected="false">Review</button>
@@ -67,6 +65,16 @@
   </aside>
   <section id="experiment-view">
     <h1 id="level-title"></h1>
+    <div id="phone-deck" aria-label="Swipe between the world, the curve, and the math">
+      <div class="phone-slide" id="phone-world" data-panel="world" role="tabpanel" aria-label="World"></div>
+      <div class="phone-slide" id="phone-curve" data-panel="curve" role="tabpanel" aria-label="Curve"></div>
+      <div class="phone-slide" id="phone-math" data-panel="math" role="tabpanel" aria-label="Math"></div>
+    </div>
+    <div id="phone-dots" role="tablist" aria-label="World, curve, and math">
+      <button type="button" class="phone-dot" data-panel="world" role="tab">World</button>
+      <button type="button" class="phone-dot" data-panel="curve" role="tab">Curve</button>
+      <button type="button" class="phone-dot" data-panel="math" role="tab">Math</button>
+    </div>
     <div id="experiment-pair"></div>
     <button type="button" class="btn ghost tiny" id="open-sources">Sources and notes</button>
   </section>
