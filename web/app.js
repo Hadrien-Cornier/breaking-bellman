@@ -2868,6 +2868,9 @@
     const editor = $('#algorithm-workspace');
     const editorOnScreen = editor && !editor.hidden && getComputedStyle(editor).display !== 'none';
     const editorBody = editorOnScreen ? md(editor) : '';
+    const experiment = $('#experiment-view');
+    const experimentOnScreen = experiment && !experiment.hidden && getComputedStyle(experiment).display !== 'none';
+    const experimentBody = experimentOnScreen ? md(experiment) : '';
     const now = new Date(), stamp = now.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
     return [
       '# Breaking Bellman: the ' + tab + ' page',
@@ -2890,6 +2893,7 @@
       '',
       md($(customActive() ? '#vpo-lab' : '#lab')),
       '',
+      ...(experimentBody ? ['## Experiment (the world and the learning chart)', '', experimentBody, ''] : []),
       ...(editorBody ? ['## Editor (the sentence, the equations and the last learning curve)', '', editorBody, ''] : []),
       '## Notebook',
       '',
