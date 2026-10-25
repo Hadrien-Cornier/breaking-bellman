@@ -1112,7 +1112,8 @@
       linkRun();
       if (S.afterRun) S.afterRun(a);
       completed = true;
-      advanceCampaignRun();
+      // The fast-request harness evaluates only the run section, where this helper is absent.
+      if (typeof advanceCampaignRun === 'function') advanceCampaignRun();
       return a;
     } catch (err) {
       if (current()) {
