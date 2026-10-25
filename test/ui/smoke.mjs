@@ -29,6 +29,12 @@ const check = (cond, msg) => { if (!cond) fails.push(msg); console.log((cond ? '
 async function clickCampaignRun(page) {
   await page.locator('[data-campaign-run]').evaluate((button) => button.click());
 }
+async function closePrediction(page) {
+  const pop = page.locator('#prediction-pop');
+  if (await pop.count() && await pop.evaluate((el) => el.open).catch(() => false)) {
+    await pop.getByRole('button', { name: 'Back to the experiment' }).click();
+  }
+}
 async function dismissDialog(page, id, closeId) {
   const dlg = page.locator(id);
   if (await dlg.count() && await dlg.evaluate((el) => el.open).catch(() => false)) await page.locator(closeId).click();
@@ -180,6 +186,7 @@ await session(375, 812, 'phone', async (page) => {
   check(await page.locator('#mode-pane .step', { hasText: 'Diagnose' }).count() === 1, 'a successful campaign run advances to Diagnose');
   console.log('L1 run:', await page.locator('#run-result').innerText());
   await page.locator('#lesson-drawer').evaluate((el) => { el.open = true; });
+  await closePrediction(page);
   await page.getByRole('button', { name: 'Watch one update of this sentence', exact: true }).click();
   await page.locator('#replay-lab .replay button', { hasText: /Watch one update|Start again/ }).click();
   await page.waitForSelector('#replay-lab .rp-stage', { timeout: 60000 });
@@ -359,6 +366,7 @@ await session(1280, 900, 'phases', async (page) => {
   console.log('credit start run:', r1);
   check(/Not yet:/.test(r1), 'the simplest policy gradient does not reach the goal');
   await page.locator('#lesson-drawer').evaluate((el) => { el.open = true; });
+  await closePrediction(page);
   await page.getByRole('button', { name: 'Watch one update of this sentence', exact: true }).click();
   await page.locator('#replay-lab .replay button', { hasText: /Watch one update|Start again/ }).click();
   await page.waitForSelector('#replay-lab .rp-stage', { timeout: 60000 });
