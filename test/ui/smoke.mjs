@@ -129,15 +129,20 @@ async function enterSavedLesson(page) {
 async function openNotebook(page, section) {
   // One Sources control opens the notebook. The experiment does not show a tab strip.
   await dismissLessonHelp(page);
+  await closePrediction(page);
   await dismissDialog(page, '#run-simulation', '#run-simulation-close');
   const dlg = page.locator('#reference-dialog');
   const already = await dlg.count() && await dlg.evaluate((el) => el.open).catch(() => false);
   if (!already) {
     const opener = page.locator('#open-sources');
     if (await opener.count()) await opener.click();
+    await dlg.waitFor({ state: 'visible' });
   }
-  const tab = page.locator('#notebook-tab-' + section);
-  if (await tab.isVisible()) await tab.click();
+  // The diagnose popup can cover the tab for a frame, and a missed click leaves Notes hidden.
+  await page.evaluate((name) => {
+    const tab = document.querySelector('#notebook-tab-' + name);
+    if (tab) tab.click();
+  }, section);
 }
 // The sentence stays in the editor. Close the explanation, the notebook, and the simulation before changing a word.
 // Closing the simulation does not cancel a run; the word change does.
