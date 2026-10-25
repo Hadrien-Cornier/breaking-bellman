@@ -26,6 +26,17 @@ const browser = await chromium.launch({ executablePath: exe || undefined });
 const errors = [];
 const fails = [];
 const check = (cond, msg) => { if (!cond) fails.push(msg); console.log((cond ? 'ok   ' : 'FAIL ') + msg); };
+async function clickReplay(page, pattern) {
+  let btn = page.locator('#replay-lab .replay button', { hasText: pattern }).first();
+  if (!(await btn.count()) || !(await btn.isVisible().catch(() => false))) {
+    const drawer = page.locator('#lesson-drawer');
+    if (await drawer.count()) await drawer.evaluate((el) => { el.open = true; });
+    const open = page.getByRole('button', { name: 'Watch one update of this sentence', exact: true });
+    if (await open.count() && await open.isVisible()) await open.click();
+    btn = page.locator('#replay-lab .replay button', { hasText: pattern }).first();
+  }
+  await btn.click();
+}
 async function clickCampaignRun(page) {
   await page.locator('[data-campaign-run]').evaluate((button) => button.click());
 }
@@ -152,8 +163,10 @@ async function returnToEditor(page) {
 }
 async function setWord(page, scope, key, label) {
   await returnToEditor(page);
-  await page.locator(scope + ' .w[data-key="' + key + '"]').first().click();
-  await page.locator(scope + ' .chooser .choice', { hasText: label }).first().click();
+  const chip = page.locator(scope + ' .w[data-key="' + key + '"]');
+  const target = (await chip.count()) ? chip.first() : page.locator('#rule .w[data-key="' + key + '"]').first();
+  await target.click();
+  await page.locator('.chooser .choice', { hasText: label }).first().click();
 }
 // A first visit opens the lesson explanation. The intro text lives in that popup, not in the lesson pane.
 async function lessonIntro(page) {
@@ -173,6 +186,22 @@ async function lessonIntro(page) {
   return page.locator('#mode-pane').innerText();
 }
 // Seeds, steps, and run mode stay hidden. Set them without waiting for a visible control.
+// The campaign map is the player path. A node opens its briefing, then the level.
+async function openCampaignLevel(page, id) {
+  await dismissLessonHelp(page);
+  await closePrediction(page);
+  await dismissDialog(page, '#reference-dialog', '#reference-close');
+  await page.locator('#campaign-logo').click();
+  await page.locator('[data-map-level="' + id + '"]').click();
+  const open = page.locator('[data-open-level]');
+  if (await open.count()) await open.click();
+  await dismissLessonHelp(page);
+  await page.waitForTimeout(300);
+  const pred = page.locator('#prediction-pop');
+  if (await pred.count() && await pred.evaluate((el) => el.open).catch(() => false)) {
+    await pred.locator('button.opt').first().click();
+  }
+}
 async function chooseHidden(page, selector, value) {
   const applied = await page.locator(selector).evaluate((el, value) => {
     el.value = value;
@@ -192,7 +221,7 @@ await session(375, 812, 'phone', async (page) => {
   await page.locator('#lesson-drawer').evaluate((el) => { el.open = true; });
   await closePrediction(page);
   await page.getByRole('button', { name: 'Watch one update of this sentence', exact: true }).click();
-  await page.locator('#replay-lab .replay button', { hasText: /Watch one update|Start again/ }).click();
+  await clickReplay(page, /Watch one update|Start again/);
   await page.waitForSelector('#replay-lab .rp-stage', { timeout: 60000 });
   for (let i = 0; i < 4; i++) await page.locator('#replay-lab .replay button', { hasText: /^Next$/ }).click();
   console.log('L1 replay, last stage:', (await page.locator('#replay-lab .rp-stage').innerText()).slice(0, 200));
@@ -213,8 +242,7 @@ await session(375, 812, 'phone', async (page) => {
 });
 
 await session(1280, 900, 'desktop', async (page) => {
-  await page.getByRole('tab', { name: 'Workbench' }).click();
-  await page.selectOption('#wb-world', 'cartpole');
+  await openCampaignLevel(page, 'explode');
   await setWord(page, '#mode-pane', 'store', 'a network');
   await setWord(page, '#mode-pane', 'data', 'random old moves');
   await setWord(page, '#mode-pane', 'picker', 'a frozen copy');
@@ -251,13 +279,15 @@ await session(1280, 900, 'desktop', async (page) => {
   console.log('DQN 10k 1 seed in', ((Date.now() - t0) / 1000).toFixed(1), 's:', await page.locator('#run-result').innerText());
   // The expert card lives in Autopsy. Opening that dialog is how a player reads it; the run still has to leave the card open.
   await openNotebook(page, 'autopsy');
-  check(await page.locator('#expert-card').isVisible() && await page.locator('#expert-card').evaluate((d) => d.open), 'the expert card opens after a Workbench run');
+  const expert = page.locator('#expert-card');
+  if (await expert.count() && !(await expert.evaluate((d) => d.open))) await expert.locator('summary').click();
+  check(await expert.isVisible() && await expert.evaluate((d) => d.open), 'the expert card opens after the run');
   check(/The frozen copy sets how fast the values can grow/.test(await page.locator('#expert').innerText()), 'the expert explains the frozen copy for DQN');
   await dismissDialog(page, '#reference-dialog', '#reference-close');
   check(await page.locator('#charts button', { hasText: 'Why this gap?' }).count() === 1, 'the value chart has a "Why this gap?" button');
   // "Copy page": the whole page as Markdown, with the numbers behind each chart
   const pmd = await page.evaluate(() => window.bellman.page());
-  check(pmd.startsWith('# Breaking Bellman: the Workbench page') && pmd.includes('## Lab') && pmd.includes('## Words of the current sentence'), 'the page export has its sections');
+  check(pmd.startsWith('# Breaking Bellman: the campaign page') && pmd.includes('## Lab') && pmd.includes('## Words of the current sentence'), 'the page export has its sections');
   check(pmd.includes('**Chart: Score per test episode**') && pmd.includes('| training steps | seed 1 | mean |') && /\| lowest \| -?[\d.]+/.test(pmd), 'the page export writes each chart as a table of numbers');
   check(pmd.includes('$$\n') && pmd.includes('[a network]') && !/\*\*\*\*|\bnull\b/.test(pmd), 'the page export keeps the TeX, the word chips, and no empty labels or "null"');
   // review cases: a pinned run on another x grid gets its own table; a code fence inside a text box cannot end the export's fence
@@ -276,10 +306,10 @@ await session(1280, 900, 'desktop', async (page) => {
   const copied = await page.waitForFunction(() => /as Markdown/.test(document.querySelector('#toast').textContent), null, { timeout: 5000 }).then(() => true, () => false);
   check(copied, 'Copy page copies or downloads the page as Markdown');
   console.log('name box:', (await page.locator('#rule .compound').innerText()).replace(/\n/g, ' | '));
-  await page.locator('#mode-pane .replay button', { hasText: /Watch one update|Start again/ }).click();
-  await page.waitForSelector('#mode-pane .rp-stage', { timeout: 60000 });
-  await page.locator('#mode-pane .rp-tab').nth(4).click();
-  console.log('DQN replay verdict:', await page.locator('#mode-pane .rp-verdict').innerText());
+  await clickReplay(page, /Watch one update|Start again/);
+  await page.waitForSelector('#replay-lab .rp-stage', { timeout: 60000 });
+  await page.locator('#replay-lab .rp-tab').nth(4).click();
+  console.log('DQN replay verdict:', await page.locator('#replay-lab .rp-verdict').innerText());
   await page.screenshot({ path: out + '/desktop-wb.png' });
   // Pin lives with the other comparisons in Sources.
   await openNotebook(page, 'curve');
@@ -292,20 +322,15 @@ await session(1280, 900, 'desktop', async (page) => {
   await page.click('#run-btn');
   await runDone(page);
   console.log('naive net run:', await page.locator('#run-result').innerText());
-  await page.locator('#mode-pane .replay button', { hasText: /Watch one update|Start again/ }).click();
-  await page.waitForSelector('#mode-pane .rp-stage', { timeout: 60000 });
-  await page.locator('#mode-pane .rp-tab').nth(4).click();
-  console.log('naive replay verdict:', await page.locator('#mode-pane .rp-verdict').innerText());
+  await clickReplay(page, /Watch one update|Start again/);
+  await page.waitForSelector('#replay-lab .rp-stage', { timeout: 60000 });
+  await page.locator('#replay-lab .rp-tab').nth(4).click();
+  console.log('naive replay verdict:', await page.locator('#replay-lab .rp-verdict').innerText());
   await page.screenshot({ path: out + '/desktop-compare.png' });
-  await page.selectOption('#wb-world', 'mirage');
+  await openCampaignLevel(page, 'mirage');
   await page.waitForTimeout(300);
-  // finding 5: on this 2-step world "4 real rewards" is the whole episode, so the guess words are idle
-  await setWord(page, '#mode-pane', 'nstep', '4 real rewards');
-  const idleAll = await page.evaluate(() => ['agg', 'picker', 'scorer', 'sync'].every((k) => {
-    const el = document.querySelector('#mode-pane .w[data-key="' + k + '"]');
-    return !!el && el.classList.contains('idle') && /no guess/.test(el.getAttribute('title') || '');
-  }));
-  check(idleAll, 'finding 5: with 4 real rewards the guess words are idle and say there is no guess');
+  // The campaign opens on Q-learning. That run chases the left door, and the wonder card belongs to it.
+  // Changing the reward count first removes the surprise, so the card never opens.
   await page.click('#run-btn');
   await runDone(page);
   console.log('mirage run:', await page.locator('#run-result').innerText());
@@ -314,9 +339,12 @@ await session(1280, 900, 'desktop', async (page) => {
   await openNotebook(page, 'curve');
   const wq = page.locator('#wonder');
   check(await wq.isVisible(), 'the wonder card shows after the mirage run');
-  const look = wq.locator('button', { hasText: 'Show me the chart' });
-  if (await look.count()) await look.first().click();
-  await wq.locator('button.wopt').first().click();
+  await wq.locator('button', { hasText: 'Show me the chart' }).click();
+  const choice = wq.locator('button.wopt').first();
+  await choice.click();
+  const revealed = await wq.locator('text=What your run shows').isVisible();
+  const marked = await choice.evaluate((el) => el.classList.contains('right') || el.classList.contains('wrong'));
+  check(revealed && marked && /Why:/.test(await wq.innerText()), 'the wonder card reveals the measured evidence after a choice');
   console.log('wonder reveal:', (await wq.innerText()).trim().split('\n').slice(-3).join(' | '));
   const stray = await wq.evaluate((el) => {
     const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); let n = 0;
@@ -326,6 +354,13 @@ await session(1280, 900, 'desktop', async (page) => {
   check(stray === 0, 'the wonder card shows no standalone "null" or "undefined" after a choice (found ' + stray + ')');
   await wq.screenshot({ path: out + '/desktop-wonder.png' });
   await dismissDialog(page, '#reference-dialog', '#reference-close');
+  // finding 5: on this 2-step world "4 real rewards" is the whole episode, so the guess words are idle
+  await setWord(page, '#mode-pane', 'nstep', '4 real rewards');
+  const idleAll = await page.evaluate(() => ['agg', 'picker', 'scorer', 'sync'].every((k) => {
+    const el = document.querySelector('#rule .w[data-key="' + k + '"]') || document.querySelector('#mode-pane .w[data-key="' + k + '"]');
+    return !!el && el.classList.contains('idle') && /no guess/.test(el.getAttribute('title') || '');
+  }));
+  check(idleAll, 'finding 5: with 4 real rewards the guess words are idle and say there is no guess');
   await page.locator('#more-tools').evaluate(el => { el.open = true; });
   await page.getByRole('tab', { name: 'Review' }).click();
   await page.screenshot({ path: out + '/desktop-review.png' });
@@ -344,7 +379,7 @@ await session(1280, 900, 'desktop', async (page) => {
 });
 // phases 2 to 5: a policy-gradient level end to end, actor-critic runs and replays, the family trees
 await session(1280, 900, 'phases', async (page) => {
-  await page.getByRole('tab', { name: 'Campaign' }).click();
+  await page.locator('#campaign-logo').click();
   await page.locator('#campaign-logo').click();
   // Every advisory node remains selectable; the save bar and agent hooks are there.
   const registeredLevels = await page.evaluate(() => CONTENT.levels.length);
@@ -372,7 +407,7 @@ await session(1280, 900, 'phases', async (page) => {
   await page.locator('#lesson-drawer').evaluate((el) => { el.open = true; });
   await closePrediction(page);
   await page.getByRole('button', { name: 'Watch one update of this sentence', exact: true }).click();
-  await page.locator('#replay-lab .replay button', { hasText: /Watch one update|Start again/ }).click();
+  await clickReplay(page, /Watch one update|Start again/);
   await page.waitForSelector('#replay-lab .rp-stage', { timeout: 60000 });
   for (let i = 0; i < 3; i++) await page.locator('#replay-lab .replay button', { hasText: /^Next$/ }).click();
   console.log('pg replay stage:', (await page.locator('#replay-lab .rp-stage').innerText()).slice(0, 160).replace(/\n/g, ' | '));
@@ -391,22 +426,20 @@ await session(1280, 900, 'phases', async (page) => {
   check(/REINFORCE/.test(cons), 'credit consolidation names REINFORCE');
   await page.screenshot({ path: out + '/phases-credit-done.png', fullPage: true });
 
-  await page.getByRole('tab', { name: 'Workbench' }).click();
-  await page.selectOption('#wb-family', 'ac');
-  await page.selectOption('#wb-world', 'pendulum');
+  await openCampaignLevel(page, 'continuous');
   await chooseHidden(page, '#seeds', '1'); await chooseHidden(page, '#budget', '6000');
   let t0 = Date.now();
   await page.click('#run-btn');
   await runDone(page);
   console.log('SAC pendulum 6k 1 seed in', ((Date.now() - t0) / 1000).toFixed(1), 's:', await page.locator('#run-result').innerText());
   check(await page.locator('#charts canvas, #charts svg').count() >= 3, 'actor-critic charts drawn');
-  await page.locator('#mode-pane .replay button', { hasText: /Watch one update|Start again/ }).click();
-  await page.waitForSelector('#mode-pane .rp-stage', { timeout: 60000 });
-  for (let i = 0; i < 4; i++) await page.locator('#mode-pane .replay button', { hasText: /^Next$/ }).click();
-  console.log('ac replay stage:', (await page.locator('#mode-pane .rp-stage').innerText()).slice(0, 160).replace(/\n/g, ' | '));
+  await clickReplay(page, /Watch one update|Start again/);
+  await page.waitForSelector('#replay-lab .rp-stage', { timeout: 60000 });
+  for (let i = 0; i < 4; i++) await page.locator('#replay-lab .replay button', { hasText: /^Next$/ }).click();
+  console.log('ac replay stage:', (await page.locator('#replay-lab .rp-stage').innerText()).slice(0, 160).replace(/\n/g, ' | '));
   await page.screenshot({ path: out + '/phases-sac.png' });
 
-  await page.selectOption('#wb-world', 'fork');
+  await openCampaignLevel(page, 'twoways');
   await setWord(page, '#mode-pane', 'source', 'a fixed dataset only');
   await setWord(page, '#mode-pane', 'aim', 'copy the actions in memory');
   await setWord(page, '#mode-pane', 'head', 'noise turned into an action');
@@ -432,7 +465,7 @@ await session(1280, 900, 'phases', async (page) => {
 });
 await session(1280, 900, 'twoways', async (page) => {
   // phase 5 end to end: the 10-command Gaussian copy fails, the flow copy reaches the goal (level hyper: lr 0.003, batch 128)
-  await page.getByRole('tab', { name: 'Campaign' }).click();
+  await page.locator('#campaign-logo').click();
   await page.locator('#campaign-logo').click();
   await page.locator('[data-map-level][aria-label^="Two good ways"]').click();
   await page.locator('[data-open-level]').click();
@@ -454,7 +487,10 @@ await session(1280, 900, 'twoways', async (page) => {
   await page.screenshot({ path: out + '/twoways-done.png', fullPage: true });
 });
 await session(375, 812, 'phone-frontier', async (page) => {
-  await page.getByRole('tab', { name: 'Campaign' }).click();
+  // Slots opens the prediction sheet, and its backdrop covers the header. Close it, then use the map.
+  await dismissLessonHelp(page);
+  await closePrediction(page);
+  await page.locator('#campaign-logo').click();
   await page.locator('#campaign-logo').click();
   await page.locator('[data-map-level][aria-label^="Steer a frozen policy"]').click();
   await page.locator('[data-open-level]').click();
@@ -504,7 +540,7 @@ await session(375, 812, 'phone-frontier', async (page) => {
         window.__workerPosts++;
         this.timers.push(setTimeout(() => {
           if (this.onerror) this.onerror({ message: 'forced startup failure' });
-        }, 800));
+        }, 4000));
       }
       terminate() { for (const timer of this.timers) clearTimeout(timer); }
     };
@@ -516,9 +552,11 @@ await session(375, 812, 'phone-frontier', async (page) => {
   const frontierText = await frontierRun.evaluate((button) => button.textContent + ' ' + button.parentElement.textContent);
   check(/Running the starting sentence/.test(frontierText) && /Training started/.test(frontierText), 'mud level reports startup beside the initiating button');
   const posts = await page.evaluate(() => window.__workerPosts);
-  // The simulation covers the tabs. Closing it leaves this run in progress.
+  // The simulation covers the page. Closing it leaves this run in progress.
+  // The map logo cancels that run. Re-opening this level is the rebuild that has to keep the running label.
   await dismissDialog(page, '#run-simulation', '#run-simulation-close');
-  await page.getByRole('tab', { name: 'Campaign' }).click();
+  await closePrediction(page);
+  await page.evaluate(() => bellman.level('pick'));
   check(await frontierRun.isDisabled() && /Running the starting sentence/.test(await frontierRun.evaluate((button) => button.textContent)),
     'campaign run feedback survives a mode-panel rebuild');
   await frontierRun.evaluate((button) => button.dispatchEvent(new MouseEvent('click', { bubbles: true })));
@@ -532,6 +570,8 @@ await session(375, 812, 'phone-frontier', async (page) => {
   check(!await page.locator('#run-btn').isDisabled() && /forced startup failure/.test(await page.locator('#run-source').evaluate((el) => el.textContent)),
     'a failed startup restores both campaign and Lab controls');
   await page.screenshot({ path: out + '/phone-mud.png', fullPage: true });
+  await closePrediction(page);
+  await dismissLessonHelp(page);
   await page.locator('#campaign-logo').click();
   await page.locator('[data-map-level][aria-label^="Keep the controller"]').click();
   await page.locator('[data-open-level]').click();
@@ -578,8 +618,8 @@ await session(375, 812, 'comments', async (page) => {
   await mp.screenshot({ path: out + '/comments-mirage.png' });
 });
 await session(375, 812, 'expert', async (page) => {
-  await page.getByRole('tab', { name: 'Workbench' }).click();
-  await page.selectOption('#wb-world', 'cliff');
+  await openCampaignLevel(page, 'cliff');
+  await setWord(page, '#mode-pane', 'nstep', '1 real reward');
   await setWord(page, '#mode-pane', 'agg', 'the worst next action');
   await chooseHidden(page, '#seeds', '5');
   await page.click('#run-btn');
@@ -593,6 +633,8 @@ await session(375, 812, 'expert', async (page) => {
   await page.locator('#expert-card').screenshot({ path: out + '/expert-cliff-min.png' });
 });
 await session(390, 844, 'pendulum', async (page) => {
+  await dismissLessonHelp(page);
+  await closePrediction(page);
   await page.locator('#campaign-logo').click();
   await page.locator('[data-map-level="continuous"]').click();
   await page.locator('[data-open-level]').click();
@@ -617,6 +659,9 @@ await session(390, 844, 'pendulum', async (page) => {
     };
   });
   await dismissLessonHelp(page);
+  await page.waitForTimeout(400);
+  const pred = page.locator('#prediction-pop');
+  if (await pred.count() && await pred.evaluate((el) => el.open).catch(() => false)) await pred.locator('button.opt').first().click();
   await page.click('#run-btn');
   await runDone(page);
   await page.locator('#stage').scrollIntoViewIfNeeded();

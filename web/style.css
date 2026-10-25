@@ -832,9 +832,11 @@ dialog.lesson-help .help-head button { margin-left: auto; }
   main.layout.lesson-shell > #lesson-drawer { flex: 0 0 auto; max-height: 22dvh; overflow: auto; }
   .drawer-workspace > #experiment-view, #experiment-view { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
   #experiment-view #stage-run {
-    position: static; z-index: 1; flex: none; display: flex; justify-content: center;
-    margin: 0; padding: 0; background: var(--bg);
+    position: static; z-index: 1; flex: none; display: flex; justify-content: center; align-items: center;
+    gap: 8px; margin: 0; padding: 0; background: var(--bg);
   }
+  #experiment-view #stage-run:has(#run-result:not(:empty)) { justify-content: space-between; }
+  #experiment-view #stage-run #run-result { flex: 1 1 auto; min-width: 0; margin: 0; font-size: 0.95rem; line-height: 1.3; text-align: left; }
   #phone-world { display: flex; flex-direction: column; justify-content: flex-start; }
   #experiment-view > #algorithm-workspace { display: block; max-height: 28dvh; overflow: auto; }
   #phone-deck {

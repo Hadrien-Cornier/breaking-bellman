@@ -63,7 +63,7 @@
     answers: saved.answers || {},    // question id -> {choice, correct, ts}
     missions: saved.missions || [],
     saved: saved.saved || [],
-    level: (saved.level && C.levels.some((l) => l.id === saved.level) && saved.level) || (C.levels.some((l) => l.id === 'slots') ? 'slots' : C.levels[0].id),
+    level: saved.level === 'goals' ? (C.levels.some((l) => l.id === 'slots') ? 'slots' : C.levels[0].id) : (saved.level || (C.levels.some((l) => l.id === 'slots') ? 'slots' : C.levels[0].id)),
     lstep: saved.lstep || {},        // level id -> step reached
     made: saved.made || {},          // level id -> { parts, recipe }
     reviews: saved.reviews || {},    // card id -> { last, n, right }
@@ -611,7 +611,11 @@
   }
   // Watch advances a deterministic replay clock only while the stage is on screen.
   let stageSeen = !window.IntersectionObserver;
-  if (window.IntersectionObserver) new IntersectionObserver((es) => { stageSeen = es[es.length - 1].intersectionRatio >= 0.4; }, { threshold: [0, 0.4, 1] }).observe($('#stage'));
+  if (window.IntersectionObserver) new IntersectionObserver((es) => {
+    const hit = es[es.length - 1];
+    // A phone slide clips a tall canvas, so the visible fraction can be small while the world is on screen.
+    stageSeen = hit.intersectionRatio >= 0.4 || hit.intersectionRect.height >= 40;
+  }, { threshold: [0, 0.1, 0.4, 1] }).observe($('#stage'));
   let stageFrame = null;
   function playScene(cv, sc) {
     stageFrame.length = Math.max(1, Math.ceil((sc.duration || 0) / 40));
@@ -721,7 +725,10 @@
     let last = null;
     const tick = ts => {
       if (!watching) return;
-      const visible = customScene ? customScene.host.getBoundingClientRect().bottom > 0 && customScene.host.getBoundingClientRect().top < innerHeight : stageSeen;
+      const stageEl = $('#stage');
+      const stageBox = stageEl && typeof stageEl.getBoundingClientRect === 'function' ? stageEl.getBoundingClientRect() : null;
+      const stageLive = !!(stageBox && stageBox.height >= 20 && stageBox.width >= 20 && stageBox.bottom > 0 && stageBox.top < innerHeight && stageBox.right > 0 && stageBox.left < innerWidth);
+      const visible = customScene ? customScene.host.getBoundingClientRect().bottom > 0 && customScene.host.getBoundingClientRect().top < innerHeight : (stageSeen || stageLive);
       const interval = customScene ? 100 : 40;
       if (!visible) last = ts;
       else {
@@ -2007,7 +2014,7 @@
   function setParts(p) { const f0 = fam(S.parts); S.parts = C.cfg(p || {}); if (fam(S.parts) !== f0) budgetOptions(); onPartsChanged(); }
 
   function predictionMount(q, onAnswer, title, current, kind, preface) {
-    if (!window.BBPLAYER || typeof document === 'undefined') return mcBlock(q, onAnswer, kind);
+    if (kind !== 'predict' || !window.BBPLAYER || typeof document === 'undefined') return mcBlock(q, onAnswer, kind);
     const reopen = h('button.btn.ghost', { type: 'button', 'data-prediction': q.id }, S.answers[q.id] ? 'Review the prediction' : 'Show the prediction');
     const open = () => {
       const stage = $('#stage-card') || $('#lab');
@@ -2097,14 +2104,13 @@
         : 'Real training in your browser, ' + lv.seeds + ' runs.';
   }
   function advanceCampaignRun() {
-    if (S.mode !== 'campaign' || campaignRunLevel || customActive()) return;
+    if (S.mode !== 'campaign' || customActive()) return;
     const lv = C.levels.find((l) => l.id === S.level);
     if (!lv || (S.lstep[lv.id] || 0) !== 1) return;
+    if (S.lastA) S.baselineResult = Object.assign({}, S.baselineResult, { [lv.id]: headline(S.lastA, lv.world) });
+    if (campaignRunLevel) return;
     for (const id of [].concat(lv.reveal || [])) if (!S.given.includes(id)) {
       const alreadyKnown = S.found.includes(id); S.given.push(id); if (!alreadyKnown) queueCelebration(id);
-    }
-    if (S.lastA) {
-      S.baselineResult = Object.assign({}, S.baselineResult, { [lv.id]: headline(S.lastA, lv.world) });
     }
     setStep(lv, 2);
     playRecorded = true;
@@ -2116,22 +2122,22 @@
     const slide = document.getElementById('phone-' + name);
     if (slide && !slide.hidden) slide.scrollIntoView({ inline: 'start', block: 'nearest' });
   }
-  function lessonVerdict(lv, a) {
+  function lessonVerdict(lv, measured) {
     const q = lv && lv.predict;
     const ans = q && S.answers[q.id];
     if (!ans) return '';
     const opt = q.options[ans.choice];
     const said = opt ? String(opt.result).replace(/<[^>]+>/g, '') : 'a choice';
-    const measured = headline(a, lv.world);
+    const text = typeof measured === 'string' ? measured : headline(measured, lv.world);
     const cause = !ans.correct && opt && opt.why ? ' ' + String(opt.why).replace(/<[^>]+>/g, '') : '';
-    return ' You said: ' + said + ' Measured: ' + measured + '. ' + (ans.correct ? 'You were right.' : 'Not this time.' + cause);
+    return ' You said: ' + said + ' Measured: ' + text + '. ' + (ans.correct ? 'You were right.' : 'Not this time.' + cause);
   }
   function noteLessonRun(a) {
     if (S.mode !== 'campaign' || !a) return;
     const lv = C.levels.find((l) => l.id === S.level);
     if (!lv || lv.custom) return;
     const verdict = lessonVerdict(lv, a);
-    if (verdict && $('#run-result')) $('#run-result').textContent += verdict;
+    if (verdict && $('#run-result') && (S.lstep[lv.id] || 0) !== 3) $('#run-result').textContent += verdict;
     showPhonePanel('world');
     if ((S.lstep[lv.id] || 0) !== 3 || !lv.goal || !lv.goal.test(a, S.parts)) return;
     const before = (S.baselineResult || {})[lv.id];
@@ -2145,7 +2151,7 @@
     const notes = (lv.notes || []).filter((n) => n.when(a, S.parts, S.knobs)).map((n) => (typeof n.text === 'function' ? n.text(a, S.parts, S.knobs) : n.text.replace('{final}', fmt(a.summary.finalReturn))));
     S.made[lv.id] = { parts: Object.assign({}, S.parts), recipe: rec ? rec.id : null, notes, knobs: lv.repairKnobs ? Object.assign({}, S.knobs) : undefined, result: payoff };
     if (lv.id === 'cells') S.made[lv.id].outcome = { works: C.works[lv.world](a), triad: C.failures.find((f) => f.card === 'triad').when(a, S.lastCfg) };
-    S.payoff = { level: lv.id, text: payoff + verdict };
+    S.payoff = { level: lv.id, text: payoff };
     setStep(lv, lv.explain ? 4 : 5);
     save();
     queueMicrotask(() => {
@@ -3256,7 +3262,7 @@
     const campaign = S.mode === 'campaign' && !mapping;
     const layout = document.querySelector('main.layout');
     layout.classList.toggle('lesson-shell', campaign);
-    $('#run-btn').classList.remove('ghost');
+    if ($('#run-btn')) $('#run-btn').classList.remove('ghost');
     // DOM, visual and keyboard order agree: map, measured scene, teaching step, Notebook.
     if (campaign) layout.insertBefore(customActive() ? $('#vpo-lab') : $('#lab'), pane);
     else layout.prepend(pane);
@@ -3407,13 +3413,14 @@
     const card = $('#stage-card');
     const view = $('#experiment-view');
     if (!pair || !card || !view) return;
-    card.append($('#run-result'), $('#stage-caption'), $('#scene-controls'));
+    card.append($('#stage-caption'), $('#scene-controls'));
     let bar = $('#stage-run');
     if (!bar) {
       bar = document.createElement('div');
       bar.id = 'stage-run';
     }
-    bar.append($('#run-btn'));
+    const runBtn = $('#run-btn');
+    const result = $('#run-result');
     const progress = document.querySelector('#run-settings .progress');
     if (progress) card.append(progress);
     $('#editor-run').append($('#run-settings'));
@@ -3428,6 +3435,8 @@
       const dots = $('#phone-dots');
       if (workspace && dots) dots.after(workspace);
       if (bar.parentElement !== view) view.insertBefore(bar, deck);
+      if (result) bar.append(result);
+      if (runBtn) bar.append(runBtn);
       const header = document.querySelector('header.top');
       bar.style.top = (header ? Math.ceil(header.getBoundingClientRect().height) : 0) + 'px';
       deck.hidden = false;
@@ -3436,6 +3445,8 @@
     } else {
       bar.style.top = '';
       if (bar.parentElement !== card) card.insertBefore(bar, card.firstChild);
+      if (result) card.append(result);
+      if (runBtn) bar.append(runBtn);
       adopt(pair, card);
       adopt(pair, $('#learning-monitor'));
       if (workspace && mathSlot && mathSlot.parentElement !== workspace) {
