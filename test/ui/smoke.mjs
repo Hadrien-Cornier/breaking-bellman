@@ -138,11 +138,10 @@ async function openNotebook(page, section) {
     if (await opener.count()) await opener.click();
     await dlg.waitFor({ state: 'visible' });
   }
-  // The diagnose popup can cover the tab for a frame, and a missed click leaves Notes hidden.
-  await page.evaluate((name) => {
-    const tab = document.querySelector('#notebook-tab-' + name);
-    if (tab) tab.click();
-  }, section);
+  // A one-shot visibility check can miss the Notes tab while the dialog is opening, and then the picture stays hidden.
+  const tab = page.locator('#notebook-tab-' + section);
+  await tab.waitFor({ state: 'visible' });
+  await tab.click();
 }
 // The sentence stays in the editor. Close the explanation, the notebook, and the simulation before changing a word.
 // Closing the simulation does not cancel a run; the word change does.
