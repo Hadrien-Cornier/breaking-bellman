@@ -63,7 +63,7 @@
     answers: saved.answers || {},    // question id -> {choice, correct, ts}
     missions: saved.missions || [],
     saved: saved.saved || [],
-    level: saved.level || (C.levels.some((l) => l.id === 'slots') ? 'slots' : C.levels[0].id),
+    level: (saved.level && C.levels.some((l) => l.id === saved.level) && saved.level) || (C.levels.some((l) => l.id === 'slots') ? 'slots' : C.levels[0].id),
     lstep: saved.lstep || {},        // level id -> step reached
     made: saved.made || {},          // level id -> { parts, recipe }
     reviews: saved.reviews || {},    // card id -> { last, n, right }
@@ -260,9 +260,10 @@
       kids.push(o.compact && el.classList.contains('gloss') ? h('details.sentence-explanation', null, [h('summary', { text: 'Why use a guess?' }), el]) : el);
       if (m.open && keys.includes(m.open)) kids.push(chooser(m, m.open, p, idle));
     }
-    if (o.withName) kids.push(nameBox(p, world));
+    const name = o.withName ? nameBox(p, world) : null;
+    if (name) kids.push(name);
     if (o.withMath) kids.push(mathBox(m, p, world));
-    if (o.preset) kids.push(presetRow(p, world, m));
+    if (o.preset && S.mode !== 'campaign') kids.push(presetRow(p, world, m));
     m.el.replaceChildren(...kids);
   }
   function chooser(m, key, p, idle) {
@@ -327,6 +328,7 @@
     if (rec && rec.card && S.found.includes(rec.card)) { big = rec.name; small = rec.blurb; }
     else if (rec && rec.card && S.given.includes(rec.card)) { big = rec.name; small = 'Given by a level. ' + rec.blurb; }
     else if (rec && !rec.card && S.seen.includes(rec.id)) { big = rec.name; small = rec.blurb; }
+    else if (S.mode === 'campaign') return null;
     else { big = 'Unnamed sentence'; small = 'Run it. If it works, the codex names it.'; }
     return h('div.compound', null, [h('span.big', { text: big }), h('span.small', { text: small })]);
   }
@@ -1030,8 +1032,21 @@
     if (runState.record && !S.running && !watching) { playRecorded = true; watchScene(); }
   }
   function settleEditor() { placeEditor(); }
+  function unansweredPrediction() {
+    if (S.mode !== 'campaign') return null;
+    const lv = C.levels.find((l) => l.id === S.level);
+    const q = lv && lv.predict;
+    if (!q || !q.id || !S.answers || S.answers[q.id]) return null;
+    return q;
+  }
   async function run() {
     if (customActive()) return customApi().run();
+    const pending = unansweredPrediction();
+    if (pending) {
+      const launch = document.querySelector('[data-prediction="' + pending.id + '"]');
+      if (launch) launch.click();
+      return null;
+    }
     if (S.running) return null;
     S.running = true; $('#run-btn').disabled = true;
     const nSeeds = +$('#seeds').value, steps = +$('#budget').value;
@@ -1099,6 +1114,7 @@
       completed = true;
       // The fast-request harness evaluates only the run section, where this helper is absent.
       if (typeof advanceCampaignRun === 'function') advanceCampaignRun();
+      if (typeof noteLessonRun === 'function') noteLessonRun(a);
       return a;
     } catch (err) {
       if (current()) {
@@ -1919,18 +1935,26 @@
     const entries = q.options.map((o, i) => ({ o, i }));
     entries.push(...entries.splice(0, shift));
     const btns = entries.map(({ o, i }) => {
-      const b = h('button.opt', { type: 'button' }, [
-        h('ol', null, o.steps.map((s) => h('li', { html: s }))),
-        h('span.res', { html: '→ ' + o.result }),
+      const claim = h('button.opt', { type: 'button' }, [
+        kind === 'predict' ? null : h('ol', null, o.steps.map((s) => h('li', { html: s }))),
+        h('span.res', { html: (kind === 'predict' ? '' : '→ ') + o.result }),
         h('span.why', { hidden: true }),
       ]);
-      b.addEventListener('click', () => choose(i));
-      return b;
+      claim.addEventListener('click', () => choose(i));
+      if (kind !== 'predict') return claim;
+      const why = h('details.why-fold', null, [
+        h('summary', { text: 'Why?' }),
+        h('ol', null, o.steps.map((s) => h('li', { html: s }))),
+      ]);
+      const row = h('div.opt-row', null, [claim, why]);
+      row.claim = claim;
+      return row;
     });
     wrap.append(...btns);
     if (window.RLHELP) window.RLHELP.enhance(wrap, metricCtx());
     function show(i, live) {
-      btns.forEach((b, j) => {
+      btns.forEach((row, j) => {
+        const b = row.claim || row;
         const { o, i: source } = entries[j];
         const picked = source === i;
         b.classList.toggle('picked', picked);
@@ -1961,10 +1985,11 @@
   }
   function rulesPanel(world, knobs, objective) {
     const r = RLA.gameRules(world, knobs, objective);
+    const reward = String(r.reward).replace('Means drift by Gaussian steps of standard deviation 0 after each pull.', 'Means do not change.');
     const row = (label, text) => h('div.rules-row', null, [h('dt', { text: label }), h('dd', { text })]);
     return h('div', null, [
       h('h3', { text: 'Game rules · ' + C.worldNames[world] }),
-      h('dl', null, [row('Goal', r.goal), row('Reward each step', r.reward),
+      h('dl', null, [row('Goal', r.goal), row('Reward each step', reward),
         h('div.rules-row', null, [h('dt', { text: 'Equation' }), h('dd.rules-equation', { text: r.equation })]),
         row('Episode ends', r.end), row('Score', r.score), row('Pass this challenge', r.objective)])
     ]);
@@ -2033,8 +2058,11 @@
       h('button.btn.ghost', { type: 'button', onclick: downloadSave }, 'Download save file'),
       h('button.btn.ghost', { type: 'button', onclick: loadSave }, 'Load save file'),
       h('button.btn.ghost', { type: 'button', onclick: copyBrief }, 'Copy for your AI'),
+      h('button.btn.ghost', { type: 'button', onclick: () => { S.mode = 'review'; mapOpen = false; save(); render(); } }, 'Review'),
+      h('button.btn.ghost', { type: 'button', onclick: () => { S.mode = 'codex'; mapOpen = false; save(); render(); } }, 'Method tree'),
     ]) });
   function chooseLevel(id) {
+    if (id === 'goals') id = 'slots';
     const lv = C.levels.find(l => l.id === id);
     if (!lv) return;
     mapOpen = false; S.mode = 'campaign'; S.level = id; save(); enterLevel(lv); render();
@@ -2075,9 +2103,56 @@
     for (const id of [].concat(lv.reveal || [])) if (!S.given.includes(id)) {
       const alreadyKnown = S.found.includes(id); S.given.push(id); if (!alreadyKnown) queueCelebration(id);
     }
+    if (S.lastA) {
+      S.baselineResult = Object.assign({}, S.baselineResult, { [lv.id]: headline(S.lastA, lv.world) });
+    }
     setStep(lv, 2);
     playRecorded = true;
+    showPhonePanel('world');
     if (runState.record && adapter && !watching) watchScene();
+  }
+  function showPhonePanel(name) {
+    if (!window.matchMedia('(max-width: 700px)').matches) return;
+    const slide = document.getElementById('phone-' + name);
+    if (slide && !slide.hidden) slide.scrollIntoView({ inline: 'start', block: 'nearest' });
+  }
+  function lessonVerdict(lv, a) {
+    const q = lv && lv.predict;
+    const ans = q && S.answers[q.id];
+    if (!ans) return '';
+    const opt = q.options[ans.choice];
+    const said = opt ? String(opt.result).replace(/<[^>]+>/g, '') : 'a choice';
+    const measured = headline(a, lv.world);
+    const cause = !ans.correct && opt && opt.why ? ' ' + String(opt.why).replace(/<[^>]+>/g, '') : '';
+    return ' You said: ' + said + ' Measured: ' + measured + '. ' + (ans.correct ? 'You were right.' : 'Not this time.' + cause);
+  }
+  function noteLessonRun(a) {
+    if (S.mode !== 'campaign' || !a) return;
+    const lv = C.levels.find((l) => l.id === S.level);
+    if (!lv || lv.custom) return;
+    const verdict = lessonVerdict(lv, a);
+    if (verdict && $('#run-result')) $('#run-result').textContent += verdict;
+    showPhonePanel('world');
+    if ((S.lstep[lv.id] || 0) !== 3 || !lv.goal || !lv.goal.test(a, S.parts)) return;
+    const before = (S.baselineResult || {})[lv.id];
+    const after = headline(a, lv.world);
+    const payoff = (before ? before + ' → ' + after : 'Works: ' + after) + '.';
+    if (!S.done.includes(lv.id)) S.done.push(lv.id);
+    for (const id of [].concat(lv.revealOnDone || [])) if (!S.given.includes(id)) {
+      const alreadyKnown = S.found.includes(id); S.given.push(id); if (!alreadyKnown) queueCelebration(id);
+    }
+    const rec = recognize(S.parts, S.world);
+    const notes = (lv.notes || []).filter((n) => n.when(a, S.parts, S.knobs)).map((n) => (typeof n.text === 'function' ? n.text(a, S.parts, S.knobs) : n.text.replace('{final}', fmt(a.summary.finalReturn))));
+    S.made[lv.id] = { parts: Object.assign({}, S.parts), recipe: rec ? rec.id : null, notes, knobs: lv.repairKnobs ? Object.assign({}, S.knobs) : undefined, result: payoff };
+    if (lv.id === 'cells') S.made[lv.id].outcome = { works: C.works[lv.world](a), triad: C.failures.find((f) => f.card === 'triad').when(a, S.lastCfg) };
+    S.payoff = { level: lv.id, text: payoff + verdict };
+    setStep(lv, lv.explain ? 4 : 5);
+    save();
+    queueMicrotask(() => {
+      if ($('#run-result') && S.payoff && S.payoff.level === S.level) $('#run-result').textContent = S.payoff.text;
+      showPhonePanel('world');
+      if (runState.record && adapter && !watching) { playRecorded = true; watchScene(); }
+    });
   }
   async function runCampaignStart(lv) {
     if (campaignRunLevel) return;
@@ -2230,17 +2305,18 @@
         ? 'Your network shares estimates across similar states, but this run did not pass CartPole\'s test. Try another sentence, or continue to the next level.'
         : 'Your saved sentence uses a network. Run it again to see whether it passes CartPole\'s test or shows a failure.' }));
     } else if (rec && rec.card) {
-      box.append(h('p', { html: 'Your sentence is <b>' + rec.name + '</b>. Here are the words that define it, next to yours.' }), compareTable(made.parts, rec, lv.world));
+      box.append(h('p', { html: 'Your sentence is <b>' + rec.name + '</b>. Here are the words that define it, next to yours.' }), compareTable(made.parts, rec, lv.world, lv.start));
       box.append(cardView(rec.card, true));
     } else {
       const near = nearest(made.parts, lv.world);
       box.append(h('p', { html: 'Your sentence works, and the codex has no paper for exactly these words' + (rec ? ' (' + rec.name + ')' : '') + '.' + (near ? ' The closest published sentence is <b>' + near.rec.name + '</b>:' : '') }));
-      if (near) box.append(compareTable(made.parts, near.rec, lv.world));
+      if (near) box.append(compareTable(made.parts, near.rec, lv.world, lv.start));
     }
     for (const n of made.notes || []) box.append(h('p.small', { text: n }));
     box.append(discoveryMap(groupOf(triad ? 'triad' : rec && rec.card, lv.world, fam(made.parts))));
     if (['cells', 'explode', 'mirage'].includes(lv.id)) box.append(h('p', null, ['For the trade-offs behind these settings, read: ', h('a', { href: 'https://hadrien-cornier.github.io/robotics/recipes-for-choosing-a-learning-target/', target: '_blank', rel: 'noopener' }, 'Recipes for choosing a learning target')]));
-    box.append(h('p', { html: '<b>On a real robot:</b> ' + lv.soWhat }), h('p.small', { html: '<b>What this toy world cannot teach:</b> ' + lv.cannotTeach }), nextLevelButton(lv));
+    box.append(h('p', { html: '<b>On a real robot:</b> ' + lv.soWhat }), h('p.small', { html: '<b>What this toy world cannot teach:</b> ' + lv.cannotTeach }), nextLevelButton(lv),
+      h('button.btn.ghost', { type: 'button', onclick: () => { S.mode = 'saboteur'; mapOpen = false; save(); render(); } }, 'Optional challenge: Saboteur'));
     return box;
   }
   function nearest(p, world) {
@@ -2253,9 +2329,10 @@
     }
     return best;
   }
-  function compareTable(p, rec, world) {
+  function compareTable(p, rec, world, start) {
     const keys = Object.keys(rec.keys);
-    const extra = wordDiff(C.families[fam(p)].base, p, world).filter((d) => !keys.includes(d.key));
+    const baseline = start || C.families[fam(p)].base;
+    const extra = wordDiff(baseline, p, world).filter((d) => !keys.includes(d.key));
     return h('div.stack', null, [
       h('div.rp-scroll', null, [h('table.rp-table', null, [
         h('thead', null, h('tr', null, [h('th', { text: 'question' }), h('th', { text: 'your word' }), h('th', { text: rec.name })])),
@@ -2264,7 +2341,7 @@
           return h('tr' + (ok ? '' : '.miss'), null, [h('td', { text: W[k].q }), h('td', { text: (ok ? '✓ ' : '✗ ') + wordText(k, p[k]) }), h('td', { text: wordText(k, rec.keys[k]) })]);
         })),
       ])]),
-      extra.length ? h('p.small', { text: 'Your other changes from the plain sentence: ' + extra.map((d) => d.to).join(', ') + '. The published method does not need them.' }) : null,
+      extra.length ? h('p.small', { text: 'Your other changes from the level\'s starting sentence: ' + extra.map((d) => d.to).join(', ') + '. The published method does not need them.' }) : null,
     ]);
   }
   function nextLevelButton(lv) {
@@ -2428,7 +2505,17 @@
     ]);
     pane.append(intro);
     if (!q.length) { pane.append(h('div.card', null, [h('p', { text: 'Nothing to review yet. Each method you discover in the Campaign or the Workbench comes back here.' })])); return; }
-    const plain = (cid) => C.cfg({ family: (recipeOfCard(cid) || {}).family || 'value' });
+    const plain = (cid) => {
+      const rec = recipeOfCard(cid);
+      const parts = C.cfg({ family: (rec && rec.family) || 'value' });
+      if (!rec) return parts;
+      for (const [k, value] of Object.entries(rec.keys)) {
+        if (!keysMatch(parts, { [k]: value }) || !W[k]) continue;
+        const other = W[k].options.find((o) => !keysMatch({ [k]: o[0] }, { [k]: value }));
+        if (other) parts[k] = other[0];
+      }
+      return parts;
+    };
     if (!S.rv || !q.includes(S.rv.id)) S.rv = { id: q[0], parts: plain(q[0]), checked: null };
     const id = S.rv.id, c = C.cards[id], rec = recipeOfCard(id), world = c.review;
     const m = mountSentence({ getParts: () => S.rv.parts, setPart: (k, v) => { S.rv.parts[k] = v; S.rv.checked = null; refreshSentences(); fb.replaceChildren(); }, world: () => world, withMath: true });
@@ -2600,6 +2687,10 @@
     if (!known && !open) return h('div.entry.hidden-card', null, [h('div.eyebrow', { text: kindName }), h('h3', { text: '???' }), h('p.small', { text: c.kind === 'frontier' ? 'Opens in phase 5.' : 'Not discovered yet.' })]);
     const tag = c.status === 'checked' ? h('span.tag.checked', { text: 'Checked against the source' }) : h('span.tag.unchecked', { text: 'Not checked' });
     const rec = recipeOfCard(id);
+    const made = S.mode === 'campaign' ? S.made[S.level] : null;
+    const still = made && made.result && /78% best machine \(300 runs/.test(c.stillWrong || '')
+      ? c.stillWrong.replace('In this page: 78% best machine (300 runs, Simulation).', 'This lesson measured ' + made.result)
+      : c.stillWrong;
     return h('div.entry' + (open ? '.discovery' : ''), null, [
       h('div.row', { style: 'justify-content:space-between' }, [h('div.eyebrow', { text: c.kind ? kindName : S.found.includes(id) ? 'Method, built by you' : 'Method, given by a level' }), tag]),
       h('h3', { text: c.name }),
@@ -2608,7 +2699,7 @@
         h('dt', { text: 'Source' }), h('dd', null, [h('span', { html: c.paper }), paperLinks(id)]),
         rec ? h('dt', { text: 'Words' }) : null, rec ? h('dd', { text: Object.keys(rec.keys).map((k) => wordText(k, rec.keys[k])).join(' · ') }) : null,
         h('dt', { text: c.kind === 'failure' ? 'What' : c.kind === 'frontier' ? 'What it adds' : 'Fixes' }), h('dd', { html: c.fixes }),
-        h('dt', { text: c.kind === 'failure' ? 'Measured' : c.kind === 'frontier' ? 'Limits' : 'Still fails' }), h('dd', { html: c.stillWrong }),
+        h('dt', { text: c.kind === 'failure' ? 'Measured' : c.kind === 'frontier' ? 'Limits' : 'Still fails' }), h('dd', { html: still }),
       ]),
       peekFor(id),
       c.evidence ? h('details', null, [h('summary', { text: 'Evidence from the source' }), h('div', { html: c.evidence })]) : null,
@@ -2910,6 +3001,7 @@
         length: adapter && runState.record ? adapter.length(runState.record) : 0 }),
       levels: () => C.levels.map((l) => { const i = levelInfo(l); return { n: i.n, id: i.id, title: i.title, world: i.world, done: i.done, step: i.step }; }),
       level: (which) => {
+        if (which === 'goals') which = 'slots';
         const l = C.levels.find((x, i) => x.id === which || i + 1 === which);
         if (!l) throw new Error('No level ' + which + '. See bellman.levels().');
         chooseLevel(l.id);
@@ -3098,7 +3190,9 @@
     const custom = customActive();
     view.hidden = mapping || custom;
     const lv = S.mode === 'campaign' ? C.levels.find((l) => l.id === S.level) : null;
-    title.textContent = lv && !mapping && !custom ? lv.title : (C.worldNames[S.world] || '');
+    const shown = lv && !mapping && !custom;
+    title.replaceChildren(shown ? lv.title : (C.worldNames[S.world] || ''));
+    if (shown) title.append(h('span.about-hint', { text: 'About this level' }));
     if (!title.dataset.about) {
       title.dataset.about = '1';
       title.tabIndex = 0;
@@ -3114,7 +3208,7 @@
         openAbout();
       });
     }
-    if (lv && !mapping && !custom) title.setAttribute('aria-label', lv.title + '. About this experiment');
+    if (shown) title.setAttribute('aria-label', lv.title + '. About this level');
     else title.removeAttribute('aria-label');
   }
   // ---------------------------------------------------------------- top level
@@ -3233,6 +3327,8 @@
   const logoCanvas = $('#logo-robot'), logoContext = logoCanvas.getContext('2d');
   logoContext.scale(2, 2);
   BB.scenes.robot(logoContext, 24, 44, 39, { noShadow: true });
+  const chatBtn = $('#chat-btn');
+  if (chatBtn) chatBtn.addEventListener('click', () => { S.mode = 'chat'; mapOpen = false; save(); render(); });
   $('#campaign-logo').addEventListener('click', (event) => {
     event.preventDefault();
     showMap();
@@ -3323,10 +3419,14 @@
     $('#editor-run').append($('#run-settings'));
     const deck = $('#phone-deck');
     const phone = window.matchMedia('(max-width: 700px)').matches && !view.hidden;
+    const workspace = $('#algorithm-workspace');
+    const mathSlot = $('#algorithm-math-slot');
     if (phone && deck) {
       adopt($('#phone-world'), card);
       adopt($('#phone-curve'), $('#learning-monitor'));
-      adopt($('#phone-math'), $('#algorithm-workspace'));
+      adopt($('#phone-math'), mathSlot);
+      const dots = $('#phone-dots');
+      if (workspace && dots) dots.after(workspace);
       if (bar.parentElement !== view) view.insertBefore(bar, deck);
       const header = document.querySelector('header.top');
       bar.style.top = (header ? Math.ceil(header.getBoundingClientRect().height) : 0) + 'px';
@@ -3338,8 +3438,11 @@
       if (bar.parentElement !== card) card.insertBefore(bar, card.firstChild);
       adopt(pair, card);
       adopt(pair, $('#learning-monitor'));
+      if (workspace && mathSlot && mathSlot.parentElement !== workspace) {
+        const rule = $('#rule');
+        if (rule) rule.after(mathSlot); else workspace.prepend(mathSlot);
+      }
       const layout = document.querySelector('main.layout');
-      const workspace = $('#algorithm-workspace');
       if (layout && workspace && workspace.parentElement !== layout) layout.insertBefore(workspace, $('#lesson-drawer'));
       pair.hidden = false;
       if (deck) deck.hidden = true;

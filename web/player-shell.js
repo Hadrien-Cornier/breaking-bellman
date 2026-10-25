@@ -87,6 +87,17 @@
     const body = doc.createElement('div');
     body.className = 'prediction-body';
     body.append(node);
+    const phone = typeof matchMedia === 'function' && matchMedia('(max-width: 700px)').matches;
+    const stage = doc.querySelector('#stage');
+    if (phone && stage && stage.width > 2 && stage.height > 2) {
+      const copy = doc.createElement('canvas');
+      copy.className = 'prediction-world';
+      copy.width = stage.width;
+      copy.height = stage.height;
+      copy.setAttribute('aria-hidden', 'true');
+      copy.getContext('2d').drawImage(stage, 0, 0);
+      body.prepend(copy);
+    }
     dlg.append(head, body);
     dlg.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
@@ -104,7 +115,27 @@
     });
     dlg.addEventListener('cancel', (event) => { event.preventDefault(); back.click(); });
     anchor.append(dlg);
-    const phone = typeof matchMedia === 'function' && matchMedia('(max-width: 700px)').matches;
+    if (!phone) {
+      const view = doc.defaultView;
+      const stage = doc.querySelector('#stage');
+      const lesson = doc.querySelector('#lesson-drawer');
+      const stageBox = stage && stage.getBoundingClientRect();
+      const box = lesson && lesson.getBoundingClientRect();
+      const width = 440;
+      const viewW = view.innerWidth, viewH = view.innerHeight;
+      let left = box && box.width > 40 ? box.left : viewW - width - 16;
+      if (stageBox && left < stageBox.right) left = stageBox.right + 16;
+      left = Math.max(8, Math.min(left, viewW - width - 8));
+      const lessonVisible = box && box.top >= 8 && box.top < viewH - 180;
+      const top = lessonVisible ? box.top : Math.max(8, viewH - 420);
+      dlg.style.left = left + 'px';
+      dlg.style.top = top + 'px';
+      dlg.style.right = 'auto';
+      dlg.style.bottom = 'auto';
+      dlg.style.width = width + 'px';
+      dlg.style.maxHeight = Math.max(220, viewH - top - 12) + 'px';
+      dlg.style.overflow = 'auto';
+    }
     if (phone && typeof dlg.showModal === 'function') dlg.showModal();
     else if (typeof dlg.show === 'function') dlg.show();
     else dlg.showModal();

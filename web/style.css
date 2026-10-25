@@ -617,6 +617,9 @@ button.algo-name { min-height: 0; min-width: 0; height: auto; padding: 0; displa
 .prediction-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .prediction-head h3 { font-size: 1rem; }
 .prediction-body { display: grid; gap: 8px; margin-top: 8px; }
+.prediction-world { width: 100%; height: auto; max-height: 96px; object-fit: contain; border-radius: 8px; background: #14110e; }
+.opt-row { display: grid; gap: 4px; }
+.why-fold summary { cursor: pointer; color: var(--accent); }
 .prediction-launch { margin-top: 8px; }
 .chart-empty { min-height: 72px; margin: 0; }
 .dc-plain { margin: 0; font-size: 0.95rem; color: var(--ink); max-width: 46ch; }
@@ -760,8 +763,9 @@ button.algo-name { min-height: 0; min-width: 0; height: auto; padding: 0; displa
 .drawer-workspace > #algorithm-workspace { grid-column: 1 / -1; grid-row: 3; }
 .drawer-workspace > #lesson-drawer { grid-column: 1 / -1; grid-row: 4; }
 #experiment-view[hidden] { display: none; }
-#level-title { margin: 0; font-size: 1.35rem; line-height: 1.2; grid-column: 1; grid-row: 1; }
+#level-title { margin: 0; font-size: 1.35rem; line-height: 1.2; grid-column: 1; grid-row: 1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
 #level-title[role="button"] { cursor: pointer; text-align: left; }
+#level-title .about-hint { font-size: 0.78rem; font-weight: 600; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
 #experiment-pair { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: minmax(280px, 560px) minmax(260px, 1fr); gap: 12px; align-items: start; min-width: 0; }
 #experiment-pair:has(#learning-monitor[hidden]) { grid-template-columns: minmax(280px, 720px); }
 #experiment-pair .stage { display: block; width: 100%; max-width: none; max-height: none; height: auto; aspect-ratio: 640 / 280; }
@@ -814,12 +818,12 @@ dialog.lesson-help .help-head button { margin-left: auto; }
 #phone-deck, #phone-dots { display: none; }
 @media (max-width: 700px) {
   .prediction-pop {
-    inset: 0; top: 0; right: 0; bottom: 0; left: 0;
-    width: 100%; max-width: none; height: 100%; max-height: none;
-    margin: 0; border-radius: 0; border: 0;
-    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+    inset: auto 0 0 0; top: auto; right: 0; bottom: 0; left: 0;
+    width: 100%; max-width: none; height: auto; max-height: 70dvh;
+    margin: 0; border-radius: 16px 16px 0 0; border: 1px solid var(--line);
+    padding: 16px 16px max(16px, env(safe-area-inset-bottom));
   }
-  .prediction-pop::backdrop { background: var(--bg); }
+  .prediction-pop::backdrop { background: rgb(0 0 0 / 0.28); }
   body:has(main.layout.lesson-shell) { height: 100dvh; overflow: hidden; display: flex; flex-direction: column; }
   body:has(main.layout.lesson-shell) > header.top { flex: none; }
   main.layout.lesson-shell { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
@@ -832,6 +836,7 @@ dialog.lesson-help .help-head button { margin-left: auto; }
     margin: 0; padding: 0; background: var(--bg);
   }
   #phone-world { display: flex; flex-direction: column; justify-content: flex-start; }
+  #experiment-view > #algorithm-workspace { display: block; max-height: 28dvh; overflow: auto; }
   #phone-deck {
     display: flex; width: 100%; flex: 1 1 auto; min-height: 0; height: auto;
     overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory;

@@ -449,7 +449,8 @@
       const famChanged = state.prev && fam(state.prev) !== fam(p);
       const ex = famChanged ? null : explain(state.prev, p, w);
       if (famChanged) { state.ex = null; state.hl = null; }
-      if (ex && ex.changed && ex.changed.length) { state.ex = ex; state.hl = ex.changedLines; state.deadline = Date.now() + 2600; }
+      const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (ex && ex.changed && ex.changed.length) { state.ex = ex; state.hl = reduceMotion ? [] : ex.changedLines; state.deadline = Date.now() + (reduceMotion ? 0 : 1000); }
       const highlight = (state.hl && Date.now() < state.deadline) ? state.hl : [];
       render(el, p, w, { highlightLines: highlight, explain: state.ex, hyper: opts.hyper ? opts.hyper() : null });
       state.prev = Object.assign({}, p);
@@ -668,7 +669,8 @@
     function update(method, step) {
       if (!method) return el;
       const ex = state.prev ? rareExplain(state.prev, method, opts.proto) : null;
-      if (ex && ex.lines.length) { state.ex = ex; state.hl = ex.lines; state.deadline = Date.now() + 2600; }
+      const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (ex && ex.lines.length) { state.ex = ex; state.hl = reduceMotion ? [] : ex.lines; state.deadline = Date.now() + (reduceMotion ? 0 : 1000); }
       const highlight = (state.hl && Date.now() < state.deadline) ? state.hl : [];
       renderRare(el, method, step || null, opts, { highlight, explain: state.ex });
       state.prev = Object.assign({}, method);

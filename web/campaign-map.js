@@ -35,7 +35,7 @@
     };
     function playNext() {
       const id = graph.next(S.done);
-      return button(id ? 'Play next: ' + levels[id].title : 'Every level cleared', () => brief(id), 'btn', { disabled: !id, 'data-play-next': id });
+      return button(id ? 'Play next: ' + levels[id].title : 'Every level cleared', () => { if (id) choose(id); }, 'btn', { disabled: !id, 'data-play-next': id });
     }
     function strip() {
       const lv = levels[S.level], w = worldOf(lv.id);

@@ -1138,7 +1138,7 @@
       if (hold) { ctx.fillStyle = '#b07a45'; ctx.fillRect(w * 0.15, -w * 0.25, w * 0.5, w * 0.5); ctx.strokeStyle = '#6e4724'; ctx.lineWidth = 1; ctx.strokeRect(w * 0.15, -w * 0.25, w * 0.5, w * 0.5); }
       ctx.restore();
       const dist = Math.hypot(tip[0] - tx, tip[1] - ty), px = Math.max(10, Math.min(13, H * 0.034));
-      if (!n) hud(ctx, ['Press Run: the arm learns to put its gripper on the red dot.'], null, 6, px, fonts.mono, W);
+      if (!n) hud(ctx, ['Press Run: move the gripper to the red dot.'], null, 6, px, fonts.mono, W);
       else hud(ctx, ['Test run, ' + ((k + 1) * 0.05).toFixed(1) + ' s, ' + dist.toFixed(2) + ' m from the dot' + (hold ? ', holding the payload' : '')], 'replay', 6, px, fonts.mono, W);
     };
     return looping(draw, n > 0, n * STEP + 1500);

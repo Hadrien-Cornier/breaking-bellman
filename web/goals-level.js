@@ -1,13 +1,10 @@
 // Goal-conditioned cloning, restored from 53a5a83 and connected to measured hallway replay.
 (function (C, G, Records) {
   'use strict';
-  if (!C.phases.some(p => p.n === 0)) C.phases.unshift({ n: 0, title: 'Imitation before reward' });
+  // The hallway comparison stays available to its engine. It is not a campaign level.
   C.worldNames.goals = 'Two doors';
   const lesson = { id: 'goals', custom: true, phase: 0, world: 'goals', title: 'Tell it the goal', focus: [],
-    intro: 'Send a robot from the middle of the hall to the room you request. Both robots learn by copying the same recorded walks, but only one is told which room you want.',
-    introMore: 'Reach the requested room in a five-cell hall. Both policies copy the same four demonstration walks. One room appears three times, the other once. A policy is a rule for choosing an action. Hidden goal counts actions by location only. Named goal also uses the requested room.',
     goal: { text: 'Reach either requested room by keeping the goal in the action count.' } };
-  C.levels.unshift(lesson);
   const label = id => id.replaceAll('-', ' ');
   let settings = { goal: 'east-room', majority: 'west' }, record = null, stale = false, time = 0;
   let mediaCleanup = null;
