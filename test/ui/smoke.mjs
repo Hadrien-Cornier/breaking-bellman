@@ -179,6 +179,7 @@ await session(375, 812, 'phone', async (page) => {
   await runDone(page);
   check(await page.locator('#mode-pane .step', { hasText: 'Diagnose' }).count() === 1, 'a successful campaign run advances to Diagnose');
   console.log('L1 run:', await page.locator('#run-result').innerText());
+  await page.locator('#lesson-drawer').evaluate((el) => { el.open = true; });
   await page.getByRole('button', { name: 'Watch one update of this sentence', exact: true }).click();
   await page.locator('#replay-lab .replay button', { hasText: /Watch one update|Start again/ }).click();
   await page.waitForSelector('#replay-lab .rp-stage', { timeout: 60000 });
@@ -357,6 +358,7 @@ await session(1280, 900, 'phases', async (page) => {
   const r1 = await page.locator('#run-result').innerText();
   console.log('credit start run:', r1);
   check(/Not yet:/.test(r1), 'the simplest policy gradient does not reach the goal');
+  await page.locator('#lesson-drawer').evaluate((el) => { el.open = true; });
   await page.getByRole('button', { name: 'Watch one update of this sentence', exact: true }).click();
   await page.locator('#replay-lab .replay button', { hasText: /Watch one update|Start again/ }).click();
   await page.waitForSelector('#replay-lab .rp-stage', { timeout: 60000 });

@@ -3104,6 +3104,7 @@
   }
   // ---------------------------------------------------------------- top level
   function render() {
+    const lessonOpen = $('#lesson-drawer') && $('#lesson-drawer').open;
     if (window.BBPLAYER) window.BBPLAYER.closePrediction(false);
     $$('#stage-card .prediction-launch').forEach((el) => el.remove());
     const oldStrip = document.getElementById('campaign-strip');
@@ -3173,6 +3174,7 @@
     if (workspace) {
       layout.insertBefore($('#lab'), $('#algorithm-workspace'));
       $('#lesson-drawer').append(pane);
+      if (lessonOpen) $('#lesson-drawer').open = true;
       $('#notebook').classList.remove('supporting-lab');
       if (!layout.dataset.workspaceKey || layout.dataset.workspaceKey !== key) $('#notebook').open = false;
       layout.dataset.workspaceKey = key;
