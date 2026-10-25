@@ -361,9 +361,11 @@ ol.steps .num { display: grid; place-items: center; width: 30px; height: 30px; b
   clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
 
 /* discovery celebration: a short burst + name reveal (??? -> name) when a card is found */
-.dc { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px;
-  background: color-mix(in srgb, var(--ink) 22%, transparent); cursor: pointer; }
+.dc { position: fixed; left: 12px; right: auto; top: auto; bottom: 12px; z-index: 60;
+  width: min(420px, calc(100vw - 24px)); padding: 0; margin: 0;
+  background: transparent; cursor: pointer; }
 .dc-burst { position: absolute; width: min(72vw, 520px); aspect-ratio: 1; border-radius: 50%; pointer-events: none;
+  display: none;
   background: radial-gradient(circle, color-mix(in srgb, var(--accent) 45%, transparent) 0%, transparent 62%);
   animation: dcBurst 0.9s ease-out forwards; }
 .dc-card { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r);
@@ -599,8 +601,9 @@ ul.preset-diff li { margin: 2px 0; }
 #stage-card { position: relative; }
 .run-advanced[hidden] { display: none !important; }
 .prediction-pop {
-  position: absolute; inset: auto 10px 10px 10px; width: auto; max-width: none; height: fit-content;
-  max-height: min(58%, 300px); margin: 0; overflow: auto; z-index: 6;
+  position: fixed; top: auto; right: 12px; bottom: 12px; left: auto;
+  width: min(380px, calc(100vw - 24px)); max-width: none; height: fit-content;
+  max-height: 220px; margin: 0; overflow: auto; z-index: 45;
   border: 1px solid var(--line); border-radius: 12px; padding: 12px;
   background: color-mix(in srgb, var(--surface) 94%, transparent); color: var(--ink);
   box-shadow: 0 12px 40px rgb(0 0 0 / 0.28);
@@ -744,6 +747,63 @@ ul.preset-diff li { margin: 2px 0; }
 #run-simulation::backdrop, #reference-dialog::backdrop { background: rgb(0 0 0 / 0.55); }
 .run-simulation-head, .reference-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 #run-simulation .stage { width: min(100%, 720px); max-width: 100%; max-height: none; height: auto; aspect-ratio: 640 / 280; }
+#run-simulation-close {
+  position: absolute; top: 8px; right: 8px; z-index: 2;
+}
+.drawer-workspace > #campaign-strip { grid-column: 1 / -1; grid-row: 1; }
+.drawer-workspace > #experiment-view { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; min-width: 0; }
+.drawer-workspace > #algorithm-workspace { grid-column: 1 / -1; grid-row: 3; }
+.drawer-workspace > #lesson-drawer { grid-column: 1 / -1; grid-row: 4; }
+#experiment-view[hidden] { display: none; }
+#level-title { margin: 0; font-size: 1.35rem; line-height: 1.2; grid-column: 1; grid-row: 1; }
+#experiment-pair { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: minmax(280px, 560px) minmax(260px, 1fr); gap: 12px; align-items: start; min-width: 0; }
+#experiment-pair .stage { display: block; width: 100%; max-width: none; max-height: none; height: auto; aspect-ratio: 640 / 280; }
+#experiment-pair #learning-monitor { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+#experiment-pair #charts { min-height: 220px; }
+#experiment-pair .chart { width: 100%; height: 220px; }
+#stage-card { position: relative; }
+#stage-card > .row:has(#lab-world) { display: none; }
+#stage-run { position: static; display: flex; justify-content: flex-end; margin: 0 0 6px; }
+#stage-run #run-btn { min-width: 88px; min-height: 44px; }
+#lesson-drawer .row:has([data-campaign-run]) {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+#stage-card > #scene-controls,
+#stage-card > #stage-caption,
+#run-source,
+#reference-bar,
+#simulation-btn,
+#editor-run,
+#editor-result,
+#editor-curve,
+#replay-drawer,
+#stage-card .tag.sim { display: none; }
+#stage-card #run-result { margin: 8px 0 0; font-size: 1rem; line-height: 1.35; }
+#open-sources { grid-column: 2; grid-row: 1; justify-self: end; align-self: center; }
+#notebook { display: none; }
+#notebook[open],
+#reference-dialog #notebook { display: block; }
+dialog.lesson-help {
+  position: fixed; top: auto; right: 12px; left: auto; bottom: 12px; margin: 0;
+  width: min(420px, calc(100vw - 24px)); max-height: 240px; overflow: auto;
+  border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+  background: var(--surface); color: var(--ink); z-index: 40;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.28);
+}
+dialog.lesson-help::backdrop { background: transparent; }
+dialog.lesson-help .help-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+dialog.lesson-help .help-head h2 { margin: 0; font-size: 1.15rem; }
+dialog.lesson-help .help-head button { margin-left: auto; }
+.reference-head { position: relative; }
+#reference-close { margin-left: auto; }
+@media (max-width: 959px) {
+  #experiment-pair { grid-template-columns: 1fr; }
+  #experiment-pair .chart { height: 200px; }
+}
+@media (max-width: 800px) {
+  dialog.lesson-help { top: auto; bottom: 8px; left: 8px; right: 8px; width: auto; max-height: 40vh; }
+}
 #run-simulation #learning-monitor { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 @media (max-width: 959px) {
   .drawer-workspace #algorithm-workspace { grid-template-columns: 1fr; }

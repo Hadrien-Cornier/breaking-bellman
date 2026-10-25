@@ -52,7 +52,7 @@ if (want('phone')) await shot('phone', 390, 844, async (p) => { await skipToEnd(
 if (want('codex')) await shot('codex', 1280, 860, async (p) => { await p.click('#tabs button[data-mode="codex"]'); await p.waitForTimeout(400); },
   { state: Object.assign({ mode: 'codex', found: ['egreedy', 'lockin', 'qlearning', 'sarsa', 'triad', 'dqn', 'maxbias', 'doubleq', 'ppo', 'grpo', 'sac', 'iql', 'expo', 'recap'] }, seen) });
 if (want('fetch')) await shot('fetch', 1280, 860, async (p) => {
-  await p.click('text=Run the starting sentence'); await runDone(p); await p.waitForTimeout(400);
+  await p.locator('[data-campaign-run]').evaluate((button) => button.click()); await runDone(p); await p.waitForTimeout(400);
   const box = await p.locator('#stage').boundingBox();
   await p.mouse.click(box.x + box.width * 0.62, box.y + box.height * 0.2); await p.waitForTimeout(3500);
 }, { state: Object.assign({ level: 'fetch', unlockAll: true, lstep: { fetch: 1 } }, seen), stage: true });

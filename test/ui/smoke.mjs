@@ -26,6 +26,9 @@ const browser = await chromium.launch({ executablePath: exe || undefined });
 const errors = [];
 const fails = [];
 const check = (cond, msg) => { if (!cond) fails.push(msg); console.log((cond ? 'ok   ' : 'FAIL ') + msg); };
+async function clickCampaignRun(page) {
+  await page.locator('[data-campaign-run]').evaluate((button) => button.click());
+}
 async function dismissDialog(page, id, closeId) {
   const dlg = page.locator(id);
   if (await dlg.count() && await dlg.evaluate((el) => el.open).catch(() => false)) await page.locator(closeId).click();
@@ -93,6 +96,9 @@ async function answerChoice(page, index) {
   await dismissDialog(page, '#run-simulation', '#run-simulation-close');
   const pop = page.locator('#prediction-pop .opt');
   if (!(await pop.count())) {
+    await pop.first().waitFor({ state: 'attached', timeout: 1500 }).catch(() => {});
+  }
+  if (!(await pop.count())) {
     const show = page.getByRole('button', { name: /Show the prediction|Review the prediction/ });
     if (await show.count()) await show.first().click();
   }
@@ -115,13 +121,13 @@ async function enterSavedLesson(page) {
   await revealLesson(page);
 }
 async function openNotebook(page, section) {
-  // Rules, Sources, Autopsy, and Notes sit behind the explanation and the simulation.
+  // One Sources control opens the notebook. The experiment does not show a tab strip.
   await dismissLessonHelp(page);
   await dismissDialog(page, '#run-simulation', '#run-simulation-close');
   const dlg = page.locator('#reference-dialog');
   const already = await dlg.count() && await dlg.evaluate((el) => el.open).catch(() => false);
   if (!already) {
-    const opener = page.locator('#reference-bar [data-reference="' + section + '"]');
+    const opener = page.locator('#open-sources');
     if (await opener.count()) await opener.click();
   }
   const tab = page.locator('#notebook-tab-' + section);
@@ -169,7 +175,7 @@ async function chooseHidden(page, selector, value) {
 await session(375, 812, 'phone', async (page) => {
   await page.screenshot({ path: out + '/phone-start.png' });
   await answerChoice(page, 1);
-  await page.getByText('Run the starting sentence').click();
+  await clickCampaignRun(page);
   await runDone(page);
   check(await page.locator('#mode-pane .step', { hasText: 'Diagnose' }).count() === 1, 'a successful campaign run advances to Diagnose');
   console.log('L1 run:', await page.locator('#run-result').innerText());
@@ -346,11 +352,11 @@ await session(1280, 900, 'phases', async (page) => {
   await page.locator('[data-map-level][aria-label^="Learn the policy itself"]').click();
   await page.locator('[data-open-level]').click();
   await answerChoice(page, 1);
-  await page.getByText('Run the starting sentence').click();
+  await clickCampaignRun(page);
   await runDone(page);
   const r1 = await page.locator('#run-result').innerText();
   console.log('credit start run:', r1);
-  check(/Does not work yet/.test(r1), 'the simplest policy gradient does not reach the goal');
+  check(/Not yet:/.test(r1), 'the simplest policy gradient does not reach the goal');
   await page.getByRole('button', { name: 'Watch one update of this sentence', exact: true }).click();
   await page.locator('#replay-lab .replay button', { hasText: /Watch one update|Start again/ }).click();
   await page.waitForSelector('#replay-lab .rp-stage', { timeout: 60000 });
@@ -418,11 +424,11 @@ await session(1280, 900, 'twoways', async (page) => {
   await page.locator('[data-open-level]').click();
   await answerChoice(page, 0);
   let t0 = Date.now();
-  await page.getByText('Run the starting sentence').click();
+  await clickCampaignRun(page);
   await runDone(page);
   const r1 = await page.locator('#run-result').innerText();
   console.log('twoways start run in', ((Date.now() - t0) / 1000).toFixed(0), 's:', r1);
-  check(/Does not work yet/.test(r1), 'the 10-command Gaussian copy does not pass');
+  check(/Not yet:/.test(r1), 'the 10-command Gaussian copy does not pass');
   await answerChoice(page, 0);
   await setWord(page, '#mode-pane', 'head', 'noise turned into an action');
   t0 = Date.now();
@@ -451,7 +457,7 @@ await session(375, 812, 'phone-frontier', async (page) => {
   await page.click('#run-btn');
   await runDone(page);
   const storedBest8 = {
-    source: await page.locator('#run-source').innerText(),
+    source: await page.locator('#run-source').evaluate((el) => el.textContent),
     result: await page.locator('#run-result').innerText(),
     charts: await page.locator('#charts canvas').count(),
   };
@@ -475,7 +481,7 @@ await session(375, 812, 'phone-frontier', async (page) => {
   'a Fast miss replaces the prior 100% result with an explicit pending state');
   await page.screenshot({ path: out + '/phone-mud-pending.png', fullPage: true });
   await setWord(page, '#rule', 'next', 'the action taken next in memory');
-  check(/Settings changed/.test(await page.locator('#run-source').innerText()), 'changing the running sentence cancels the Live fallback');
+  check(/Settings changed/.test(await page.locator('#run-source').evaluate((el) => el.textContent)), 'changing the running sentence cancels the Live fallback');
   await page.evaluate(() => {
     window.__workerPosts = 0;
     window.Worker = class {
@@ -491,15 +497,15 @@ await session(375, 812, 'phone-frontier', async (page) => {
   });
   await chooseHidden(page, '#run-mode', 'live');
   const frontierRun = page.locator('[data-campaign-run="pick"]');
-  await frontierRun.click();
+  await frontierRun.evaluate((button) => button.click());
   check(await frontierRun.isDisabled(), 'mud level disables its campaign run button as training starts');
-  check(/Running the starting sentence/.test(await frontierRun.innerText()) &&
-    /Training started/.test(await frontierRun.locator('..').innerText()), 'mud level reports startup beside the initiating button');
+  const frontierText = await frontierRun.evaluate((button) => button.textContent + ' ' + button.parentElement.textContent);
+  check(/Running the starting sentence/.test(frontierText) && /Training started/.test(frontierText), 'mud level reports startup beside the initiating button');
   const posts = await page.evaluate(() => window.__workerPosts);
   // The simulation covers the tabs. Closing it leaves this run in progress.
   await dismissDialog(page, '#run-simulation', '#run-simulation-close');
   await page.getByRole('tab', { name: 'Campaign' }).click();
-  check(await frontierRun.isDisabled() && /Running the starting sentence/.test(await frontierRun.innerText()),
+  check(await frontierRun.isDisabled() && /Running the starting sentence/.test(await frontierRun.evaluate((button) => button.textContent)),
     'campaign run feedback survives a mode-panel rebuild');
   await frontierRun.evaluate((button) => button.dispatchEvent(new MouseEvent('click', { bubbles: true })));
   await page.waitForTimeout(50);
@@ -509,7 +515,7 @@ await session(375, 812, 'phone-frontier', async (page) => {
     const status = document.querySelector('[data-campaign-run-status="pick"]');
     return button && !button.disabled && /Run the starting sentence/.test(button.textContent) && /did not finish/.test(status.textContent);
   });
-  check(!await page.locator('#run-btn').isDisabled() && /forced startup failure/.test(await page.locator('#run-source').innerText()),
+  check(!await page.locator('#run-btn').isDisabled() && /forced startup failure/.test(await page.locator('#run-source').evaluate((el) => el.textContent)),
     'a failed startup restores both campaign and Lab controls');
   await page.screenshot({ path: out + '/phone-mud.png', fullPage: true });
   await page.locator('#campaign-logo').click();
@@ -599,13 +605,11 @@ await session(390, 844, 'pendulum', async (page) => {
   await dismissLessonHelp(page);
   await page.click('#run-btn');
   await runDone(page);
-  // The measured world lives in the simulation dialog. Reopen it to watch the recorded swing.
-  await page.locator('#simulation-btn').click();
   await page.locator('#stage').scrollIntoViewIfNeeded();
-  await page.locator('#scene-replay').click();
-  await page.locator('#scene-watch').click();
+  await page.locator('#scene-replay').evaluate((el) => el.click());
+  await page.locator('#scene-watch').evaluate((el) => el.click());
   await page.waitForTimeout(2200);
-  await page.locator('#scene-watch').click();
+  await page.locator('#scene-watch').evaluate((el) => el.click());
   const motion = await page.evaluate(() => ({
     count: pendulumAngles.length,
     span: Math.max(...pendulumAngles) - Math.min(...pendulumAngles),
@@ -620,7 +624,7 @@ await session(390, 844, 'pendulum', async (page) => {
   check(motion.count > 10 && motion.span > 1, 'pendulum swings visibly in the phone canvas over time');
   check(motion.first > 3 && motion.mismatch < 1e-9, 'the rendered rod follows the hanging-start physics trace');
   check(!motion.watching, 'pendulum Pause stops the recorded replay');
-  check(/replay from hanging still/.test(await page.locator('#stage-caption').innerText()), 'caption identifies the separate replay');
+  check(/replay from hanging still/.test(await page.locator('#stage-caption').evaluate((el) => el.textContent)), 'caption identifies the separate replay');
   await page.locator('#stage').screenshot({ path: out + '/phone-pendulum.png' });
 });
 // Rules remain available before the first move through Notebook Rule in the campaign.

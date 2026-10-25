@@ -6,20 +6,33 @@
     const open = () => {
       if (document.querySelector('dialog.lesson-help[open]')) return;
       const restore = button;
+      let dialog = null;
+      const onKey = (event) => {
+        if (event.key !== 'Escape' || !dialog || !dialog.open) return;
+        event.preventDefault();
+        close();
+      };
       const close = () => {
-        dialog.close(); dialog.remove();
+        document.removeEventListener('keydown', onKey);
+        if (dialog) { dialog.close(); dialog.remove(); }
         const drawer = restore?.closest('details');
         if (drawer && !drawer.open) drawer.open = true;
-        if (restore?.isConnected) restore.focus({ preventScroll: true });
+        if (!document.querySelector('#prediction-pop') && restore?.isConnected) restore.focus({ preventScroll: true });
       };
-      const dialog = h('dialog.lesson-help', { 'aria-labelledby': 'lesson-help-title' }, [
-        h('h2', { id: 'lesson-help-title', text: level.title }),
+      dialog = h('dialog.lesson-help', { 'aria-labelledby': 'lesson-help-title' }, [
+        h('div.help-head', null, [
+          h('h2', { id: 'lesson-help-title', text: level.title }),
+          h('button.btn.ghost', { type: 'button', onclick: close }, 'Back to the experiment'),
+        ]),
         h('p', { html: level.intro }),
         level.introMore ? h('details', null, [h('summary', { text: 'Rules, numbers and sources' }), h('div', { html: level.introMore })]) : null,
-        h('button.btn', { type: 'button', onclick: close }, 'Back to the experiment'),
       ]);
-      dialog.addEventListener('cancel', e => { e.preventDefault(); close(); });
-      document.body.append(dialog); dialog.showModal();
+      dialog.addEventListener('cancel', (event) => { event.preventDefault(); close(); });
+      document.addEventListener('keydown', onKey);
+      document.body.append(dialog);
+      if (typeof dialog.show === 'function') dialog.show();
+      else dialog.showModal();
+      dialog.querySelector('button').focus();
     };
     const button = h('button.btn.ghost', { type: 'button', 'data-lesson-help': level.id, onclick: open }, 'About this experiment');
     if (!seen.has(level.id)) {

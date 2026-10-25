@@ -361,7 +361,7 @@
   function lineChart(cv, series, o) {
     cv._md = { series: series.map((s) => ({ label: s.label, xs: s.xs, ys: s.ys })), o };
     const { ctx, w, h: H } = setupCanvas(cv);
-    const padL = 44, padR = 8, padT = 8, padB = 22;
+    const padL = 44, padR = 28, padT = 12, padB = 22;
     ctx.clearRect(0, 0, w, H);
     let xmax = o.xmax || 1, ymin = o.ymin, ymax = o.ymax;
     const ys = series.flatMap((s) => s.ys.filter(isFinite));
@@ -464,7 +464,7 @@
         const series = losses.map((d, i) => ({ xs: d.map(x => x.t), ys: d.map(x => x.loss), color: val, alpha: .65, width: 1.5, label: 'seed ' + (i + 1) }));
         lineChart($('#ch-loss'), series, { xmax: steps, ymin: 0, ymax: Math.max(.001, ...losses.flatMap(d => d.map(x => x.loss))), xlabel: 'training steps' });
       }
-    } else metric.replaceChildren(h('p.small', { text: 'This learner does not record a training-loss curve. Its measured performance is shown below.' }));
+    } else metric.replaceChildren();
     const prior = record && record.comparison;
     const A = S.pinA && prior ? { steps: prior.settings.steps, curves: curvesOf(prior.results, prior.world) } : null;
     const aLeg = A ? [[muted, 'A (pinned)', true]] : [];
@@ -617,7 +617,7 @@
     BB.scenes.atTime(0, () => sc.frame(0));
     BB.scenes.atTime(ms, () => sc.frame(ms));
   }
-  let adapter = null, sceneTime = 0, scenePolicy = 0, watching = false, replayAnimation = null;
+  let adapter = null, sceneTime = 0, scenePolicy = 0, watching = false, replayAnimation = null, playRecorded = false;
   // Original comparison lessons share the same replay clock and stable controls.
   const replayControls = $('#scene-controls'), replayNotice = $('#run-stale');
   let replayHome = replayControls.parentElement;
@@ -676,6 +676,11 @@
         } finally { stageFrame = previous; }
       } });
   }
+  function playRecordedScene() {
+    if (!playRecorded || !runState.record || runState.stale || !adapter) return;
+    if (customActive() && customScene) return;
+    watchScene();
+  }
   function renderStage() {
     markRunStale(); pauseScene();
     if (customActive() && customScene) {
@@ -698,6 +703,7 @@
     }
     $('#scene-controls').hidden = !record;
     scenePosition();
+    playRecordedScene();
   }
   function watchScene() {
     if (watching) { pauseScene(); return; }
@@ -810,7 +816,7 @@
     } else {
       // a casino: the robot replays run 1's training pulls, then the screens show the truth and its beliefs
       const f = r0 && r0.final, b = r0 && r0.bandit;
-      const sc = BB.scenes.casino(ctx, w, H, { means: f ? f.means : null, q: f ? f.q : null, arms: b && b.arm, rewards: b && b.reward, n: world.means.length, fonts, label });
+      const sc = BB.scenes.casino(ctx, w, H, { means: f ? f.means : null, q: f ? f.q : null, arms: b && b.arm, rewards: b && b.reward, n: world.means.length, fonts, label: null });
       playScene(cv, sc);
       $('#stage-caption').textContent = f ? 'Run 1, replayed: its ' + b.arm.length.toLocaleString('en-US') + ' training pulls. At the end, gold is each machine\'s true average payout and blue is what the robot believes. The crown marks the best machine. Simulation.'
         : 'Ten slot machines. Each one pays a hidden average plus noise.';
@@ -899,7 +905,7 @@
   }
   function headline(a, world) {
     const s = a.summary;
-    if (world === 'bandit') return 'best machine in ' + Math.round(100 * s.optimalLast20) + '% of late pulls';
+    if (world === 'bandit') return 'best machine chosen on ' + Math.round(100 * s.optimalLast20) + '% of late pulls';
     if (world === 'mirage') return 'left door in ' + Math.round(100 * s.leftPeak) + '% of episodes at the worst point';
     if (world === 'cliff') return 'score ' + fmt(s.finalReturn) + ', ' + fmt(s.fallsPerEpisode) + ' falls per episode while learning';
     if (world === 'pendulum') return 'test score ' + Math.round(isFinite(s.pendulumScore) ? s.pendulumScore : s.finalReturn) + (isFinite(s.worstSeed) ? ', worst seed ' + Math.round(s.worstSeed) : '') + ' (0 is perfect)';
@@ -949,12 +955,12 @@
   function markRunStale() {
     if (customActive() && customScene && runState.record) {
       runState.change(S.level, customScene.settings);
-      if (runState.stale) pauseScene();
+      if (runState.stale) { playRecorded = false; pauseScene(); }
       linkRun(); return;
     }
     if (!runState.record || !RLA.worlds[S.world]) return;
     runState.change(S.mode === 'campaign' ? S.level : S.mode, recordConfig());
-    if (runState.stale) { pauseScene(); $('#run-btn').disabled = false; }
+    if (runState.stale) { playRecorded = false; pauseScene(); $('#run-btn').disabled = false; }
     linkRun();
   }
   function dropRun() {
@@ -975,7 +981,11 @@
     const perf = rows.length > 1 ? rows.slice(0, -1) : rows;
     const metric = $('#training-metric');
     const box = $('#charts');
-    if (metric) metric.replaceChildren(loss ? h('p.chart-empty', { role: 'status', text: loss.title + '. ' + loss.status }) : null);
+    const recordsLoss = loss && !/does not record/.test(loss.status);
+    if (metric) {
+      metric.replaceChildren();
+      if (recordsLoss) metric.append(h('p.chart-empty', { role: 'status', text: loss.title + '. ' + loss.status }));
+    }
     if (box) box.replaceChildren(...perf.map((row) => h('div.chart-wrap', null, [
       h('div.chart-title', null, [h('b', { text: row.title })]),
       h('p.chart-empty', { role: 'status', text: row.status }),
@@ -1023,36 +1033,20 @@
   const customActive = () => replanActive() || ensembleActive() || metarlActive() || skewActive() || skillsActive() || goalExecutionActive() || inferenceActive() || rareActive() || vpoActive() || supermimicActive() || thawActive() || rewardfitActive() || goalsActive();
   const customApi = () => replanActive() ? BBREPLAN : ensembleActive() ? BBENSEMBLE_LEVEL : metarlActive() ? BBMETARL : skewActive() ? BBSKEW : skillsActive() ? BBSKILLS_LEVEL : S.level === 'hindsight' ? BBHINDSIGHT : S.level === 'hierarchy' ? BBHIERARCHY : S.level === 'elbo' ? BBELBO_LEVEL : S.level === 'messages' ? BBMESSAGES_LEVEL : rareActive() ? BBRARELESSON : goalsActive() ? BBGOALS_LEVEL : rewardfitActive() ? BBREWARDFIT : thawActive() ? BBTHAW : supermimicActive() ? BBSUPERMIMIC : BBVPO;
   function openSimulation() {
-    const dlg = $('#run-simulation');
-    const body = $('#run-simulation-body');
-    if (!dlg || !body || typeof dlg.showModal !== 'function') return;
-    const replay = $('#replay-drawer');
-    if (replay) {
-      replay.append($('#run-result'), $('#run-source'), $('#stage-caption'), $('#scene-controls'));
-      replay.open = true;
-    }
-    const progress = document.querySelector('#run-settings .progress');
-    if (progress) $('#run-simulation-head').append(progress);
-    body.append($('#stage-card'), replay, $('#learning-monitor'));
-    if (!dlg.open) dlg.showModal();
-    const rect = $('#stage').getBoundingClientRect();
-    if (rect.width > 2 && rect.height > 2) {
-      stageW = Math.round(rect.width);
-      stageH = Math.round(rect.height);
-      if (!S.running) renderStage();
-    }
+    const stage = $('#stage');
+    if (stage && stage.getBoundingClientRect().height > 2) stage.scrollIntoView({ block: 'nearest' });
+    if (runState.record && !S.running && !watching) { playRecorded = true; watchScene(); }
   }
   function settleEditor() {
-    const curve = $('#editor-curve');
-    const result = $('#editor-result');
-    if (curve) curve.append($('#learning-monitor'));
-    if (result) result.append($('#run-result'), $('#run-source'));
+    const pair = $('#experiment-pair');
+    const card = $('#stage-card');
+    if (pair && card) pair.append(card, $('#learning-monitor'));
+    if (card) card.append($('#run-result'));
     const progress = document.querySelector('#run-simulation .progress');
-    if (progress && $('#run-settings')) $('#run-settings').append(progress);
+    if (progress && card) card.append(progress);
   }
   async function run() {
     if (customActive()) return customApi().run();
-    openSimulation();
     if (S.running) return null;
     S.running = true; $('#run-btn').disabled = true;
     const nSeeds = +$('#seeds').value, steps = +$('#budget').value;
@@ -1101,6 +1095,7 @@
       $('#scene-policy').textContent = record.policies[0].label;
       $('#scene-seed').replaceChildren(...record.results.map((r, i) => h('option', { value: i, text: String(r.seed) })));
       renderCharts(results.map((r) => ({ evals: r.evals, diag: r.diag })), true);
+      playRecorded = true;
       renderStage();
       const a = renderAutopsy();
       S.lastA = a;
@@ -1112,12 +1107,12 @@
       if (rec && rec.card && works) discover(rec.card, cfg, a);
       for (const f of C.failures) if (!S.found.includes(f.card) && f.when(a, cfg)) discover(f.card, cfg, a);
       for (const f of C.knobFinds || []) if (!S.found.includes(f.card) && f.when(a, cfg)) discover(f.card, cfg, a);
-      $('#run-result').replaceChildren(h('b', { text: works ? 'Works on ' + C.worldNames[cfg.world] + ': ' : 'Does not work yet: ' }), headline(a, cfg.world) + '.');
-    if (window.RLHELP) window.RLHELP.enhance($('#run-result'), metricCtx());
+      $('#run-result').textContent = (works ? 'Works on ' + C.worldNames[cfg.world] + ': ' : 'Not yet: ') + headline(a, cfg.world) + '.';
       save(); refreshSentences(); drawCompare();
       linkRun();
       if (S.afterRun) S.afterRun(a);
       completed = true;
+      advanceCampaignRun();
       return a;
     } catch (err) {
       if (current()) {
@@ -2000,44 +1995,36 @@
   }
   function setParts(p) { const f0 = fam(S.parts); S.parts = C.cfg(p || {}); if (fam(S.parts) !== f0) budgetOptions(); onPartsChanged(); }
 
-  function predictionMount(q, onAnswer, title, current, kind) {
+  function predictionMount(q, onAnswer, title, current, kind, preface) {
     if (!window.BBPLAYER || typeof document === 'undefined') return mcBlock(q, onAnswer, kind);
-    const reopen = h('button.btn', { type: 'button', 'data-prediction': q.id }, S.answers[q.id] ? 'Review the prediction' : 'Show the prediction');
+    const reopen = h('button.btn.ghost', { type: 'button', 'data-prediction': q.id }, S.answers[q.id] ? 'Review the prediction' : 'Show the prediction');
     const open = () => {
       const stage = $('#stage-card') || $('#lab');
-      const sim = $('#run-simulation');
-      const openedForQuestion = !!(stage && sim && stage.closest('#run-simulation') && !sim.open);
-      if (openedForQuestion) openSimulation();
-      const node = mcBlock(q, (choice) => {
-        window.BBPLAYER.closePrediction(false);
-        onAnswer(choice);
-        const run = $('#run-btn');
-        if (run) run.focus();
-      }, kind);
-      const pop = window.BBPLAYER.openPrediction({
+      const node = h('div.stack', null, [
+        preface ? h('p', { html: preface }) : null,
+        mcBlock(q, (choice) => {
+          window.BBPLAYER.closePrediction(false);
+          onAnswer(choice);
+          const run = $('#run-btn');
+          if (run) run.focus();
+        }, kind),
+      ]);
+      window.BBPLAYER.openPrediction({
         title: title || 'Predict before you run',
         node,
         anchor: stage,
         returnLabel: 'Back to the experiment',
       });
-      if (pop && openedForQuestion) {
-        pop.addEventListener('close', () => {
-          if (sim.open && !S.running) sim.close();
-        }, { once: true });
-      }
     };
     reopen.addEventListener('click', open);
-    const launch = h('div.prediction-launch', null, [reopen]);
-    const stage = $('#stage-card');
-    const onScene = stage && !stage.closest('#run-simulation');
-    if (current && onScene && !S.answers[q.id] && window.BBPLAYER.claimPrediction(q.id)) queueMicrotask(open);
-    if (current && onScene) stage.append(launch);
-    return h('div.stack', null, [
-      h('p.small', { text: onScene
-        ? 'The question opens on the scene, so the world stays in view while you answer.'
-        : 'The question opens on the simulation, so the world stays in view while you answer.' }),
-      (current && onScene) ? null : launch,
-    ]);
+    if (current && !S.answers[q.id] && window.BBPLAYER.claimPrediction(q.id)) {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const help = document.querySelector('dialog.lesson-help[open]');
+        if (help) help.addEventListener('close', () => open(), { once: true });
+        else open();
+      }));
+    }
+    return reopen;
   }
 
   const replayDrawer = h('details.workspace-drawer', { id: 'replay-drawer' }, [h('summary', { text: 'Run readout and replay controls' })]);
@@ -2095,6 +2082,17 @@
       : state === 'failed' ? 'The run did not finish. Try again.'
         : 'Real training in your browser, ' + lv.seeds + ' runs.';
   }
+  function advanceCampaignRun() {
+    if (S.mode !== 'campaign' || campaignRunLevel || customActive()) return;
+    const lv = C.levels.find((l) => l.id === S.level);
+    if (!lv || (S.lstep[lv.id] || 0) !== 1) return;
+    for (const id of [].concat(lv.reveal || [])) if (!S.given.includes(id)) {
+      const alreadyKnown = S.found.includes(id); S.given.push(id); if (!alreadyKnown) queueCelebration(id);
+    }
+    setStep(lv, 2);
+    playRecorded = true;
+    if (runState.record && adapter && !watching) watchScene();
+  }
   async function runCampaignStart(lv) {
     if (campaignRunLevel) return;
     campaignRunLevel = lv.id;
@@ -2111,7 +2109,7 @@
   }
   function campaignRunRow(lv) {
     const busy = campaignRunLevel === lv.id;
-    return h('div.row', null, [
+    return h('div.row', { 'aria-hidden': 'true' }, [
       h('button.btn', { type: 'button', disabled: busy, 'aria-busy': busy ? 'true' : 'false', 'data-campaign-run': lv.id, onclick: () => runCampaignStart(lv) },
         busy ? 'Running the starting sentence…' : 'Run the starting sentence'),
       h('span.small', { role: 'status', 'data-campaign-run-status': lv.id,
@@ -2158,10 +2156,7 @@
     const mk = (i, title, body) => h('div.step' + (st === i ? '.active' : st > i ? '.done' : ''), null, [h('span.num', { text: 'Step ' + (i + 1) }), h('h3', { text: title }), body]);
 
     const ask = typeof predictionMount === 'function' ? predictionMount : (q, onAnswer, title, current, kind) => mcBlock(q, onAnswer, kind);
-    steps.append(mk(0, 'Predict before you run', h('div.stack', null, [
-      lv.learner ? h('p.small', { html: lv.learner }) : null,
-      ask(lv.predict, () => setStep(lv, 1), 'Predict before you run', st === 0, 'predict'),
-    ])));
+    steps.append(mk(0, 'Predict before you run', ask(lv.predict, () => setStep(lv, 1), 'Predict before you run', st === 0, 'predict', lv.learner || '')));
     if (st >= 1) steps.append(mk(1, 'Run it', h('div.stack', null, [
       h('p', { html: lv.runText }),
       campaignRunRow(lv),
@@ -3096,6 +3091,16 @@
     document.body.append(dlg); dlg.showModal();
   }
 
+  function syncLevelTitle() {
+    const title = $('#level-title');
+    const view = $('#experiment-view');
+    if (!title || !view) return;
+    const mapping = S.mode === 'campaign' && mapOpen;
+    const custom = customActive();
+    view.hidden = mapping || custom;
+    const lv = S.mode === 'campaign' ? C.levels.find((l) => l.id === S.level) : null;
+    title.textContent = lv && !mapping && !custom ? lv.title : (C.worldNames[S.world] || '');
+  }
   // ---------------------------------------------------------------- top level
   function render() {
     if (window.BBPLAYER) window.BBPLAYER.closePrediction(false);
@@ -3140,7 +3145,7 @@
     const campaign = S.mode === 'campaign' && !mapping;
     const layout = document.querySelector('main.layout');
     layout.classList.toggle('lesson-shell', campaign);
-    $('#run-btn').classList.toggle('ghost', campaign);
+    $('#run-btn').classList.remove('ghost');
     // DOM, visual and keyboard order agree: map, measured scene, teaching step, Notebook.
     if (campaign) layout.insertBefore(customActive() ? $('#vpo-lab') : $('#lab'), pane);
     else layout.prepend(pane);
@@ -3172,6 +3177,7 @@
       layout.dataset.workspaceKey = key;
       $('#notebook-rule').prepend($('#game-rules'));
     }
+    syncLevelTitle();
     const stageBox = $('#stage').getBoundingClientRect();
     const stageWidth = Math.round(stageBox.width), stageHeight = Math.round(stageBox.height);
     if (stageWidth > 0 && stageHeight > 0 && (stageWidth !== stageW || stageHeight !== stageH)) {
@@ -3236,13 +3242,21 @@
   document.addEventListener('change', () => { markRunStale(); if (activeRun && runIdentity() !== activeRun.identity) cancelRun(); });
 
   function placeEditor() {
-    const body = $('#run-simulation-body');
-    if (!body) return;
-    body.append($('#stage-card'), $('#replay-drawer'));
-    $('#editor-curve').append($('#learning-monitor'));
+    const pair = $('#experiment-pair');
+    const card = $('#stage-card');
+    if (!pair || !card) return;
+    card.append($('#run-result'), $('#stage-caption'), $('#scene-controls'));
+    let bar = $('#stage-run');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'stage-run';
+      card.insertBefore(bar, card.firstChild);
+    }
+    bar.append($('#run-btn'));
+    const progress = document.querySelector('#run-settings .progress');
+    if (progress) card.append(progress);
+    pair.append(card, $('#learning-monitor'));
     $('#editor-run').append($('#run-settings'));
-    $('#editor-result').append($('#run-result'), $('#run-source'));
-    $('#reference-park').append($('#notebook'));
   }
   const referenceNames = { rule: 'Rules', curve: 'Sources', autopsy: 'Autopsy', notes: 'Notes' };
   function openReference(name) {
@@ -3265,7 +3279,12 @@
     button.addEventListener('click', () => openReference(button.dataset.reference));
   });
   $('#reference-close').addEventListener('click', closeReferenceDialog);
-  $('#reference-dialog').addEventListener('close', () => { $('#reference-park').append($('#notebook')); });
+  $('#reference-dialog').addEventListener('close', () => {
+    $('#notebook').open = false;
+    document.querySelector('main.layout').append($('#notebook'));
+  });
+  const sources = $('#open-sources');
+  if (sources) sources.addEventListener('click', () => openReference('rule'));
   $('#simulation-btn').addEventListener('click', () => openSimulation());
   $('#run-simulation-close').addEventListener('click', () => {
     if (!$('#run-simulation').open) return;

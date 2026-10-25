@@ -65,6 +65,11 @@
     </div>
     <section class="card" id="learning-monitor" aria-label="Learning curves"><div id="training-metric"></div><div id="charts"></div></section>
   </aside>
+  <section id="experiment-view">
+    <h1 id="level-title"></h1>
+    <div id="experiment-pair"></div>
+    <button type="button" class="btn ghost tiny" id="open-sources">Sources and notes</button>
+  </section>
   <section class="card" id="algorithm-workspace" aria-label="Editable algorithm"><div class="eyebrow">The update rule: tap a word to change it</div><div id="rule"></div><div id="algorithm-math-slot"></div><div id="editor-run"></div><div id="editor-result"></div><div id="editor-curve"><p class="eyebrow">Last learning curve</p></div><div class="reference-bar" id="reference-bar"><button type="button" class="btn ghost" data-reference="rule">Rules</button><button type="button" class="btn ghost" data-reference="curve">Sources</button><button type="button" class="btn ghost" data-reference="autopsy">Autopsy</button><button type="button" class="btn ghost" data-reference="notes">Notes</button></div></section>
   <details id="lesson-drawer" class="workspace-drawer"><summary>Lesson and questions</summary></details>
   <aside class="pane lab" id="vpo-lab" aria-label="Comparison lesson lab" hidden></aside>
@@ -95,11 +100,8 @@
     </section>
   </details>
 </main>
-<dialog id="run-simulation" aria-labelledby="run-simulation-title">
-  <div class="run-simulation-head" id="run-simulation-head">
-    <h2 id="run-simulation-title">Simulation</h2>
-    <button class="btn ghost" id="run-simulation-close" type="button">Close</button>
-  </div>
+<dialog id="run-simulation" aria-labelledby="level-title">
+  <button class="btn ghost" id="run-simulation-close" type="button">Close</button>
   <div id="run-simulation-body"></div>
 </dialog>
 <dialog id="reference-dialog" aria-labelledby="reference-title">

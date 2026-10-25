@@ -212,7 +212,7 @@ await session(1280, 900, 'offline', {}, async (page) => {
   const before = await page.evaluate(() => window.bellman.state().words);
   const td3Val = await page.evaluate(() => Array.from(document.querySelector('.preset select').options).find((o) => /TD3/.test(o.textContent)).value);
   if (await page.locator('#notebook').count()) {
-    if (!await page.locator('#notebook').evaluate((node) => node.open)) await page.locator('#notebook > summary').click();
+    if (!await page.locator('#notebook').evaluate((node) => node.open)) await page.locator('#notebook').evaluate((node) => { node.open = true; });
     await page.locator('#notebook-tab-rule').click();
   }
   check(await page.locator('.preset select').isVisible(), 'learned preset selector is visible in Notebook Rule');

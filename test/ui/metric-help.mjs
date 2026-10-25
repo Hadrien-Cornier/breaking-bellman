@@ -142,7 +142,7 @@ await session(1280, 800, 'desktop-pg', async (page) => {
   check(a.n >= 1, 'the real autopsy prints help triggers (' + a.n + ')');
   check(a.hasKl, 'the real big-steps autopsy card carries a trigger');
   check(a.klVal && new RegExp('like a 50/50 choice becoming').test(a.anchor || '') && (a.anchor || '').indexOf('KL ' + a.klVal) === 0, 'the real KL card (' + a.klVal + ') opens a scale anchor: ' + a.anchor);
-  check(a.runTriggers >= 1, 'the run headline carries a trigger: "' + a.runResult.trim().slice(0, 60) + '"');
+  check(a.runTriggers === 0 && a.runResult.trim().length > 0, 'the compact result is readable without a help button: "' + a.runResult.trim().slice(0, 80) + '"');
   await page.screenshot({ path: out + '/desktop-autopsy.png' });
 
   // chart titles: the KL and entropy charts get the shared trigger
@@ -245,11 +245,13 @@ await session(1280, 800, 'desktop-pg', async (page) => {
 await session(390, 844, 'phone-campaign', async (page) => {
   await page.evaluate(() => window.bellman.level('slots'));
   check(await page.locator('#mode-pane').innerText().then((text) => /Ten slot machines/.test(text)), 'phone campaign metric flow opens the intended slot-machine lesson');
-  await page.locator('.mc .opt').nth(1).click();
-  await page.getByText('Run the starting sentence').click();
+  const help = page.locator('dialog.lesson-help[open]');
+  if (await help.count()) await help.getByRole('button', { name: 'Back to the experiment' }).click();
+  await page.locator('#prediction-pop .opt, .mc .opt').nth(1).click();
+  await page.locator('[data-campaign-run]').evaluate((button) => button.click());
   await runDone(page);
   await page.waitForTimeout(400);
-  await page.locator('#notebook > summary').click();
+  await page.locator('#open-sources').click();
   await page.locator('#notebook-tab-autopsy').click();
   await page.locator('#symptoms .metric-help-btn').first().click();
   const p = await page.evaluate(() => {
