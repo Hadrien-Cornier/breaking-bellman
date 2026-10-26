@@ -606,17 +606,16 @@ button.algo-name { min-height: 0; min-width: 0; height: auto; padding: 0; displa
 #stage-card { position: relative; }
 .run-advanced[hidden] { display: none !important; }
 .prediction-pop {
-  position: fixed; top: auto; right: 12px; bottom: 12px; left: auto;
-  width: min(420px, calc(100vw - 24px)); max-width: none; height: fit-content;
-  max-height: min(70dvh, 640px); margin: 0; overflow: auto; z-index: 45;
-  border: 1px solid var(--line); border-radius: 12px; padding: 12px;
-  background: var(--surface); color: var(--ink);
-  box-shadow: 0 12px 40px rgb(0 0 0 / 0.28);
+  position: fixed; inset: 0; width: 100%; height: 100%; max-width: 100%; max-height: none;
+  margin: 0; overflow: auto; z-index: 80; border: 0; border-radius: 0; padding: 28px 20px;
+  background: var(--bg); color: var(--ink);
 }
-.prediction-pop::backdrop { background: transparent; }
-.prediction-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.prediction-head h3 { font-size: 1rem; }
-.prediction-body { display: grid; gap: 8px; margin-top: 8px; }
+.prediction-pop::backdrop { background: rgb(0 0 0 / 0.45); }
+.prediction-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; max-width: 720px; margin: 0 auto; }
+.prediction-head h3 { margin: 0; font-family: var(--font-display); font-size: 1.8rem; line-height: 1.15; }
+.prediction-body { display: grid; gap: 12px; margin: 16px auto 0; max-width: 720px; }
+.prediction-pop .predict-title { font-size: 1.7rem; }
+.prediction-pop .opt { min-height: 48px; }
 .prediction-world { width: 100%; height: auto; max-height: 96px; object-fit: contain; border-radius: 8px; background: #14110e; }
 .opt-row { display: grid; gap: 4px; }
 .why-fold summary { cursor: pointer; color: var(--accent); }
@@ -812,6 +811,10 @@ button.algo-name { min-height: 0; min-width: 0; height: auto; padding: 0; displa
 #stage-card { position: relative; }
 #stage-card > .row:has(#lab-world) { display: none; }
 #stage-run { position: static; display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin: 0 0 6px; }
+#stage-card > #stage-run {
+  position: absolute; top: 8px; right: 8px; z-index: 6; margin: 0; padding: 4px;
+  border-radius: 12px; background: color-mix(in srgb, var(--bg) 88%, transparent);
+}
 #stage-run #run-btn { min-width: 128px; min-height: 44px; flex: none; white-space: nowrap; }
 #stage-run #run-result { flex: 0 1 auto; min-width: 0; margin: 0; text-align: right; }
 #lesson-drawer .row:has([data-campaign-run]) {
@@ -834,15 +837,14 @@ button.algo-name { min-height: 0; min-width: 0; height: auto; padding: 0; displa
 #notebook[open],
 #reference-dialog #notebook { display: block; }
 dialog.lesson-help {
-  position: fixed; top: auto; right: 12px; left: auto; bottom: 12px; margin: 0;
-  width: min(420px, calc(100vw - 24px)); max-height: 240px; overflow: auto;
-  border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
-  background: var(--surface); color: var(--ink); z-index: 40;
-  box-shadow: 0 12px 40px rgb(0 0 0 / 0.28);
+  position: fixed; inset: 0; width: 100%; height: 100%; max-width: 100%; max-height: none; margin: 0;
+  overflow: auto; border: 0; border-radius: 0; padding: 28px 22px;
+  background: var(--bg); color: var(--ink); z-index: 90;
 }
-dialog.lesson-help::backdrop { background: transparent; }
+dialog.lesson-help::backdrop { background: rgb(0 0 0 / 0.45); }
+dialog.lesson-help > * { max-width: 720px; margin-left: auto; margin-right: auto; }
 dialog.lesson-help .help-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-dialog.lesson-help .help-head h2 { margin: 0; font-size: 1.15rem; }
+dialog.lesson-help .help-head h2 { margin: 0; font-family: var(--font-display); font-size: 2rem; line-height: 1.15; }
 dialog.lesson-help .help-head button { margin-left: auto; }
 .reference-head { position: relative; }
 #reference-close { margin-left: auto; }
@@ -850,32 +852,30 @@ dialog.lesson-help .help-head button { margin-left: auto; }
   #experiment-pair { grid-template-columns: 1fr; }
   #experiment-pair .chart { height: 200px; }
 }
-@media (max-width: 800px) {
-  dialog.lesson-help { top: 12px; bottom: auto; left: 8px; right: 8px; width: auto; max-height: calc(100dvh - 24px); }
-}
+.curve-empty { margin: 12px; padding: 14px; border: 1px dashed var(--line); border-radius: 12px; color: var(--ink); }
 #phone-deck, #phone-dots { display: none; }
 @media (max-width: 700px) {
   .prediction-pop {
-    inset: auto 0 0 0; top: auto; right: 0; bottom: 0; left: 0;
-    width: 100%; max-width: none; height: auto; max-height: 70dvh;
-    margin: 0; border-radius: 16px 16px 0 0; border: 1px solid var(--line);
-    padding: 16px 16px max(16px, env(safe-area-inset-bottom));
+    inset: 0; width: 100%; max-width: 100%; height: 100%; max-height: none;
+    margin: 0; border: 0; border-radius: 0;
+    padding: 20px 16px max(20px, env(safe-area-inset-bottom));
   }
-  .prediction-pop::backdrop { background: rgb(0 0 0 / 0.28); }
   body:has(main.layout.lesson-shell) { height: 100dvh; overflow: hidden; display: flex; flex-direction: column; }
   body:has(main.layout.lesson-shell) > header.top { flex: none; }
   main.layout.lesson-shell { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
   main.layout.lesson-shell > #campaign-strip { flex: none; }
-  main.layout.lesson-shell > #experiment-view { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+  main.layout.lesson-shell > #experiment-view { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; }
   main.layout.lesson-shell > #lesson-drawer { flex: 0 0 auto; max-height: 16dvh; overflow: auto; }
-  .drawer-workspace > #experiment-view, #experiment-view { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
-  #experiment-view #stage-run {
-    position: static; z-index: 1; flex: none; display: flex; justify-content: center; align-items: center;
-    gap: 8px; margin: 0; padding: 0; background: var(--bg);
+  .drawer-workspace > #experiment-view, #experiment-view { position: relative; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+  #experiment-view > #stage-run {
+    position: sticky; bottom: 0; z-index: 3; flex: none; left: auto; right: auto; top: auto; width: auto;
+    margin: 0; padding: 4px 0; display: flex; justify-content: flex-end; align-items: center; gap: 8px;
+    background: var(--bg); pointer-events: auto;
   }
   #experiment-view #stage-run:has(#run-result:not(:empty):not(.quiet)) { justify-content: space-between; }
   #experiment-view > .predict-live { flex: none; max-height: 200px; overflow: auto; }
-  #experiment-view > #verdict-card:not([hidden]) { flex: none; max-height: 28dvh; overflow: auto; }
+  #experiment-view > #verdict-card:not([hidden]) { flex: none; max-height: none; overflow: visible; }
+  #experiment-view:has(> #verdict-card:not([hidden])) > #phone-deck { min-height: 160px; flex: 0 1 160px; }
   #experiment-view #stage-run #run-result { flex: 1 1 auto; min-width: 0; margin: 0; font-size: 0.95rem; line-height: 1.3; text-align: left; }
   #phone-world { display: flex; flex-direction: column; justify-content: flex-start; }
   #phone-world .stage { width: 100%; max-width: none; max-height: none; height: auto; aspect-ratio: 640 / 280; }
@@ -889,7 +889,7 @@ dialog.lesson-help .help-head button { margin-left: auto; }
   #phone-deck[hidden] { display: none; }
   .phone-slide {
     flex: 0 0 100%; width: 100%; height: 100%; min-width: 100%;
-    overflow-x: hidden; overflow-y: auto; scroll-snap-align: start; scroll-snap-stop: always;
+    overflow-x: clip; overflow-y: auto; scroll-snap-align: start; scroll-snap-stop: always;
   }
   .phone-slide[hidden] { display: none; }
   #phone-dots { display: flex; justify-content: center; gap: 6px; }

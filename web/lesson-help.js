@@ -12,9 +12,13 @@
         event.preventDefault();
         close();
       };
+      let closed = false;
       const close = () => {
+        if (closed) return;
+        closed = true;
         document.removeEventListener('keydown', onKey);
         if (dialog) { dialog.close(); dialog.remove(); }
+        document.dispatchEvent(new CustomEvent('bb-help-closed'));
         const drawer = restore?.closest('details');
         if (!document.querySelector('#prediction-pop') && restore?.isConnected && (!drawer || drawer.open)) restore.focus({ preventScroll: true });
       };
@@ -29,15 +33,16 @@
       dialog.addEventListener('cancel', (event) => { event.preventDefault(); close(); });
       document.addEventListener('keydown', onKey);
       document.body.append(dialog);
-      if (typeof dialog.show === 'function') dialog.show();
-      else dialog.showModal();
+      if (typeof dialog.showModal === 'function') dialog.showModal();
+      else dialog.show();
       dialog.querySelector('button').focus();
     };
     const button = h('button.btn.ghost', { type: 'button', 'data-lesson-help': level.id, onclick: open }, 'About this experiment');
     if (!seen.has(level.id)) {
       seen.add(level.id);
       requestAnimationFrame(() => {
-        if (button.isConnected && !document.querySelector('dialog[open]')) open();
+        const live = document.querySelector('[data-lesson-help="' + level.id + '"]');
+        if (live && !document.querySelector('dialog[open]')) live.click();
       });
     }
     return button;

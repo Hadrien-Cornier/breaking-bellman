@@ -3459,20 +3459,86 @@
     }
     const id = best && best.dataset.panel;
     $$('#phone-dots .phone-dot').forEach((button) => {
-      const curveGone = button.dataset.panel === 'curve' && $('#phone-curve') && $('#phone-curve').hidden;
-      button.hidden = curveGone;
+      button.hidden = false;
       button.setAttribute('aria-selected', button.dataset.panel === id ? 'true' : 'false');
     });
   }
   function syncPhonePanels() {
     const curve = $('#phone-curve');
-    if (!curve) return;
     const has = !!($('#charts') && $('#charts').childElementCount) || !!($('#training-metric') && $('#training-metric').childElementCount);
-    if (curve && curve.hidden !== !has) curve.hidden = !has;
     const monitor = $('#learning-monitor');
-    const showMonitor = has || !!(monitor && monitor.querySelector('.predict-live'));
-    if (monitor && monitor.hidden !== !showMonitor) monitor.hidden = !showMonitor;
+    if (monitor && monitor.hidden !== !has) monitor.hidden = !has;
+    if (curve) {
+      curve.hidden = false;
+      let note = curve.querySelector('.curve-empty');
+      if (!note) {
+        note = document.createElement('p');
+        note.className = 'curve-empty';
+        curve.prepend(note);
+      }
+      if (!has) {
+        const lines = window.BBPLAYER && typeof window.BBPLAYER.emptyCurves === 'function'
+          ? window.BBPLAYER.emptyCurves(S.world, typeof fam === 'function' ? fam(S.parts) : '')
+          : null;
+        const line = lines && lines[0];
+        note.textContent = line ? line.title + '. ' + line.status : 'No curve yet. Run the simulation to draw it.';
+      }
+      note.hidden = has;
+    }
     syncPhoneDots();
+  }
+  let predictionDismissedFor = null;
+  function predictionReopen() {
+    let button = $('#prediction-reopen');
+    if (!button) {
+      button = document.createElement('button');
+      button.type = 'button';
+      button.id = 'prediction-reopen';
+      button.className = 'btn ghost';
+      button.hidden = true;
+      button.textContent = 'Show the prediction';
+      button.addEventListener('click', () => presentPrediction(true));
+    }
+    return button;
+  }
+  function presentPrediction(force) {
+    const pending = (typeof customActive !== 'function' || !customActive()) && typeof unansweredPrediction === 'function' ? unansweredPrediction() : null;
+    const button = predictionReopen();
+    if (!pending) { predictionDismissedFor = null; button.hidden = true; return; }
+    if (!force && predictionDismissedFor === pending.id) {
+      const stray = document.querySelector('#mode-pane .predict-live');
+      if (stray) {
+        document.querySelectorAll('.predict-live').forEach((el) => { if (el !== stray) el.remove(); });
+        let park = document.getElementById('prediction-park');
+        if (!park) {
+          park = document.createElement('div');
+          park.id = 'prediction-park';
+          park.hidden = true;
+          document.body.append(park);
+        }
+        park.append(stray);
+      }
+      button.hidden = false;
+      return;
+    }
+    if (!force && document.querySelector('dialog.lesson-help[open]')) { button.hidden = true; return; }
+    if (document.querySelector('#prediction-pop[open]')) { button.hidden = true; return; }
+    const node = document.querySelector('#mode-pane .predict-live') || document.querySelector('#prediction-park .predict-live') || document.querySelector('.predict-live');
+    if (!node || !window.BBPLAYER || typeof window.BBPLAYER.openPrediction !== 'function') { button.hidden = false; return; }
+    document.querySelectorAll('.predict-live').forEach((el) => { if (el !== node) el.remove(); });
+    window.BBPLAYER.openPrediction({ title: 'Predict before you run', node, anchor: document.body, returnLabel: 'Back to the experiment' });
+    predictionDismissedFor = null;
+    button.hidden = true;
+  }
+  function placeRunOnSim() {
+    const bar = $('#stage-run');
+    const deck = $('#phone-deck');
+    const view = $('#experiment-view');
+    const phone = window.matchMedia('(max-width: 700px)').matches && view && !view.hidden;
+    if (!bar) return;
+    if (!(phone && deck && view)) { bar.style.top = ''; return; }
+    const top = deck.getBoundingClientRect().bottom - view.getBoundingClientRect().top - (bar.offsetHeight || 48) - 8;
+    bar.style.top = Math.max(0, Math.round(top)) + 'px';
   }
   function placeEditor() {
     const pair = $('#experiment-pair');
@@ -3500,19 +3566,19 @@
       adopt($('#phone-math'), mathSlot);
       const dots = $('#phone-dots');
       if (workspace && dots) dots.after(workspace);
-      if (bar.parentElement !== view) view.insertBefore(bar, deck);
+      if (bar.parentElement !== view) view.append(bar);
       if (result) bar.append(result);
       if (runBtn) bar.append(runBtn);
-      const header = document.querySelector('header.top');
-      bar.style.top = (header ? Math.ceil(header.getBoundingClientRect().height) : 0) + 'px';
+      bar.append(predictionReopen());
       deck.hidden = false;
       if ($('#phone-dots')) $('#phone-dots').hidden = false;
       pair.hidden = true;
     } else {
       bar.style.top = '';
-      if (pair) pair.before(bar);
+      card.append(bar);
       if (result) bar.append(result);
       if (runBtn) bar.append(runBtn);
+      bar.append(predictionReopen());
       adopt(pair, card);
       adopt(pair, $('#learning-monitor'));
       if (workspace && mathSlot && mathSlot.parentElement !== workspace) {
@@ -3526,30 +3592,36 @@
       if ($('#phone-dots')) $('#phone-dots').hidden = true;
     }
     const pendingPredict = (typeof customActive !== 'function' || !customActive()) && typeof unansweredPrediction === 'function' && unansweredPrediction();
-    const inPane = document.querySelector('#mode-pane .predict-live');
-    const placed = document.querySelector('#learning-monitor .predict-live, #experiment-view > .predict-live');
-    const live = pendingPredict ? (inPane || placed) : null;
-    document.querySelectorAll('.predict-live').forEach((node) => { if (node !== live && node !== inPane) node.remove(); });
+    if (!pendingPredict) document.querySelectorAll('.predict-live').forEach((node) => node.remove());
     const title = $('#level-title');
+    const dots = $('#phone-dots');
+    const verdict = $('#verdict-card');
     if (phone && deck && bar && view) {
-      const dots = $('#phone-dots');
       if (title && title.parentElement === view) title.after(deck);
-      if (dots) deck.after(dots);
-      const anchor = dots && dots.parentElement === view ? dots : deck;
-      anchor.after(bar);
-      if (live && pendingPredict) bar.before(live);
-      if (workspace && bar.parentElement === view) bar.after(workspace);
+      deck.after(bar);
+      if (dots) bar.after(dots);
+      const anchor = dots && dots.parentElement === view ? dots : bar;
+      if (verdict) anchor.after(verdict);
+      const after = (verdict && verdict.parentElement === view) ? verdict : anchor;
+      if (workspace && after.parentElement === view) after.after(workspace);
+      if (bar.parentElement !== view) view.append(bar);
       const drawer = $('#lesson-drawer');
       if (pendingPredict && drawer) drawer.open = false;
-    } else if (live && pendingPredict) {
-      const monitor = $('#learning-monitor');
-      if (monitor) monitor.prepend(live);
-      else if (bar) bar.before(live);
-    }
-    const verdict = $('#verdict-card');
-    if (verdict && bar) { if (phone) bar.after(verdict); else card.append(verdict); }
+    } else if (verdict && card) card.append(verdict);
     syncPhonePanels();
+    placeRunOnSim();
+    requestAnimationFrame(() => {
+      placeRunOnSim();
+      requestAnimationFrame(() => presentPrediction(false));
+    });
   }
+  document.addEventListener('bb-help-closed', () => presentPrediction(false));
+  document.addEventListener('bb-prediction-closed', () => {
+    const pending = (typeof customActive !== 'function' || !customActive()) && typeof unansweredPrediction === 'function' ? unansweredPrediction() : null;
+    if (pending) predictionDismissedFor = pending.id;
+    const button = $('#prediction-reopen');
+    if (button) button.hidden = !pending;
+  });
   $$('#phone-dots .phone-dot').forEach((button) => {
     button.addEventListener('click', () => {
       const slide = document.getElementById('phone-' + button.dataset.panel);

@@ -102,7 +102,9 @@ async function revealLesson(page) {
   await dismissLessonHelp(page);
   const lesson = page.locator('#lesson-drawer');
   if (await lesson.count() && await lesson.isVisible() && !(await lesson.evaluate(el => el.open))) {
-    await lesson.locator(':scope > summary').click();
+    const covered = await page.locator('#prediction-pop[open], dialog.lesson-help[open]').count();
+    if (covered) await lesson.evaluate((el) => { el.open = true; });
+    else await lesson.locator(':scope > summary').click();
   }
 }
 // Predict and diagnose open on the scene. Explain stays in the lesson step.
@@ -227,8 +229,30 @@ await session(375, 812, 'phone', async (page) => {
   const stageBox = await page.locator('#stage').boundingBox();
   const askBox = await page.locator('.predict-live').boundingBox();
   check(!!stageBox && stageBox.height > 80 && !!askBox && askBox.height > 40, 'the question and the world are both on screen');
+  const slides = await page.evaluate(() => {
+    const curve = document.querySelector('#phone-curve');
+    const note = curve && curve.querySelector('.curve-empty');
+    const dots = [...document.querySelectorAll('#phone-dots .phone-dot')].filter((b) => !b.hidden).map((b) => b.textContent);
+    return { curve: !!(curve && !curve.hidden && note && !note.hidden && /No pulls recorded yet/.test(note.textContent)), dots };
+  });
+  check(slides.curve && slides.dots.join(',') === 'World,Curve,Math', 'world, curve, and math are available before Run');
+  const deck = page.locator('#phone-deck');
+  await deck.evaluate((el) => { el.scrollTo({ left: el.clientWidth, behavior: 'instant' }); });
+  check(await page.waitForFunction(() => document.querySelector('#phone-dots [data-panel="curve"]').getAttribute('aria-selected') === 'true', null, { timeout: 2000 }).then(() => true, () => false), 'the curve slide can be selected before Run');
+  await deck.evaluate((el) => { el.scrollTo({ left: el.clientWidth * 2, behavior: 'instant' }); });
+  check(await page.waitForFunction(() => document.querySelector('#phone-dots [data-panel="math"]').getAttribute('aria-selected') === 'true', null, { timeout: 2000 }).then(() => true, () => false), 'the math slide can be selected before Run');
+  await deck.evaluate((el) => { el.scrollTo({ left: 0, behavior: 'instant' }); });
+  const runBox = await page.locator('#run-btn').boundingBox();
+  const deckBox = await deck.boundingBox();
+  const dotsBox = await page.locator('#phone-dots').boundingBox();
+  check(!!runBox && !!deckBox && !!dotsBox && runBox.y >= deckBox.y + deckBox.height - 8 && runBox.y + runBox.height <= dotsBox.y + 8, 'Run sits on the simulation, above the slide tabs');
   await page.keyboard.press('Escape');
   check(await page.locator('#run-btn').isDisabled() && (await page.locator('#run-btn').textContent()) === 'Predict first', 'dismissing does not unlock Run');
+  await page.locator('#level-title').click();
+  const helpBox = await page.locator('dialog.lesson-help').boundingBox();
+  const vp = page.viewportSize();
+  check(!!helpBox && helpBox.width >= vp.width - 8 && helpBox.height >= vp.height - 8, 'the level explanation fills the screen');
+  await page.locator('dialog.lesson-help').getByRole('button', { name: 'Back to the experiment' }).click();
   await answerChoice(page, 1);
   check((await page.locator('#run-btn').textContent()) === 'Run' && !(await page.locator('#run-btn').isDisabled()), 'an answer enables Run');
   await clickCampaignRun(page);
@@ -401,6 +425,7 @@ await session(1280, 900, 'desktop', async (page) => {
 });
 // phases 2 to 5: a policy-gradient level end to end, actor-critic runs and replays, the family trees
 await session(1280, 900, 'phases', async (page) => {
+  await closePrediction(page);
   await page.locator('#campaign-logo').click();
   await page.locator('#campaign-logo').click();
   // Every advisory node remains selectable; the save bar and agent hooks are there.
@@ -487,6 +512,7 @@ await session(1280, 900, 'phases', async (page) => {
 });
 await session(1280, 900, 'twoways', async (page) => {
   // phase 5 end to end: the 10-command Gaussian copy fails, the flow copy reaches the goal (level hyper: lr 0.003, batch 128)
+  await closePrediction(page);
   await page.locator('#campaign-logo').click();
   await page.locator('#campaign-logo').click();
   await page.locator('[data-map-level][aria-label^="Two good ways"]').click();

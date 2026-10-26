@@ -46,10 +46,32 @@
 
   let dlg = null, opener = null;
 
-  function closePrediction(restore) {
+  function parkPrediction(node) {
+    if (!node) return;
+    const doc = node.ownerDocument;
+    let park = doc.getElementById('prediction-park');
+    if (!park) {
+      park = doc.createElement('div');
+      park.id = 'prediction-park';
+      park.hidden = true;
+      doc.body.append(park);
+    }
+    park.append(node);
+  }
+
+  function closePrediction(restore, reason) {
+    const current = dlg;
+    if (!current) return;
+    dlg = null;
     const back = opener;
-    if (dlg) { dlg.close(); dlg.remove(); }
-    dlg = null; opener = null;
+    opener = null;
+    parkPrediction(current.querySelector('.predict-live'));
+    if (current.open) current.close();
+    current.remove();
+    if (reason === 'dismiss') {
+      const root = typeof document !== 'undefined' ? document : current.ownerDocument;
+      root.dispatchEvent(new CustomEvent('bb-prediction-closed'));
+    }
     if (restore && back && back.isConnected) back.focus();
   }
 
@@ -79,7 +101,7 @@
     back.textContent = returnLabel || 'Back to the experiment';
     back.addEventListener('click', () => {
       const launch = doc.querySelector('[data-prediction]');
-      closePrediction(false);
+      closePrediction(false, 'dismiss');
       if (launch && launch.isConnected) launch.focus();
       else if (opener && opener.isConnected) opener.focus();
     });
@@ -87,17 +109,6 @@
     const body = doc.createElement('div');
     body.className = 'prediction-body';
     body.append(node);
-    const phone = typeof matchMedia === 'function' && matchMedia('(max-width: 700px)').matches;
-    const stage = doc.querySelector('#stage');
-    if (phone && stage && stage.width > 2 && stage.height > 2) {
-      const copy = doc.createElement('canvas');
-      copy.className = 'prediction-world';
-      copy.width = stage.width;
-      copy.height = stage.height;
-      copy.setAttribute('aria-hidden', 'true');
-      copy.getContext('2d').drawImage(stage, 0, 0);
-      body.prepend(copy);
-    }
     dlg.append(head, body);
     dlg.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
@@ -115,30 +126,8 @@
     });
     dlg.addEventListener('cancel', (event) => { event.preventDefault(); back.click(); });
     anchor.append(dlg);
-    if (!phone) {
-      const view = doc.defaultView;
-      const stage = doc.querySelector('#stage');
-      const lesson = doc.querySelector('#lesson-drawer');
-      const stageBox = stage && stage.getBoundingClientRect();
-      const box = lesson && lesson.getBoundingClientRect();
-      const width = 440;
-      const viewW = view.innerWidth, viewH = view.innerHeight;
-      let left = box && box.width > 40 ? box.left : viewW - width - 16;
-      if (stageBox && left < stageBox.right) left = stageBox.right + 16;
-      left = Math.max(8, Math.min(left, viewW - width - 8));
-      const lessonVisible = box && box.top >= 8 && box.top < viewH - 180;
-      const top = lessonVisible ? box.top : Math.max(8, viewH - 420);
-      dlg.style.left = left + 'px';
-      dlg.style.top = top + 'px';
-      dlg.style.right = 'auto';
-      dlg.style.bottom = 'auto';
-      dlg.style.width = width + 'px';
-      dlg.style.maxHeight = Math.max(220, viewH - top - 12) + 'px';
-      dlg.style.overflow = 'auto';
-    }
-    if (phone && typeof dlg.showModal === 'function') dlg.showModal();
-    else if (typeof dlg.show === 'function') dlg.show();
-    else dlg.showModal();
+    if (typeof dlg.showModal === 'function') dlg.showModal();
+    else dlg.show();
     h.focus();
     return dlg;
   }
