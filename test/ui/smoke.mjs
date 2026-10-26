@@ -233,7 +233,7 @@ await session(375, 812, 'phone', async (page) => {
     const curve = document.querySelector('#phone-curve');
     const note = curve && curve.querySelector('.curve-empty');
     const dots = [...document.querySelectorAll('#phone-dots .phone-dot')].filter((b) => !b.hidden).map((b) => b.textContent);
-    return { curve: !!(curve && !curve.hidden && note && !note.hidden && /No pulls recorded yet/.test(note.textContent)), dots };
+    return { curve: !!(curve && !curve.hidden && note && !note.hidden && note.textContent === 'No pulls yet.'), dots };
   });
   check(slides.curve && slides.dots.join(',') === 'World,Curve,Math', 'world, curve, and math are available before Run');
   const deck = page.locator('#phone-deck');
@@ -242,10 +242,18 @@ await session(375, 812, 'phone', async (page) => {
   await deck.evaluate((el) => { el.scrollTo({ left: el.clientWidth * 2, behavior: 'instant' }); });
   check(await page.waitForFunction(() => document.querySelector('#phone-dots [data-panel="math"]').getAttribute('aria-selected') === 'true', null, { timeout: 2000 }).then(() => true, () => false), 'the math slide can be selected before Run');
   await deck.evaluate((el) => { el.scrollTo({ left: 0, behavior: 'instant' }); });
-  const runBox = await page.locator('#run-btn').boundingBox();
-  const deckBox = await deck.boundingBox();
-  const dotsBox = await page.locator('#phone-dots').boundingBox();
-  check(!!runBox && !!deckBox && !!dotsBox && runBox.y >= deckBox.y + deckBox.height - 8 && runBox.y + runBox.height <= dotsBox.y + 8, 'Run sits on the simulation, above the slide tabs');
+  const landed = await page.waitForFunction(() => {
+    const stage = document.querySelector('#stage');
+    const run = document.querySelector('#run-btn');
+    const world = document.querySelector('#phone-dots [data-panel="world"]');
+    if (!stage || !run || !world || world.getAttribute('aria-selected') !== 'true') return false;
+    const s = stage.getBoundingClientRect();
+    const r = run.getBoundingClientRect();
+    const cx = r.x + r.width / 2;
+    const cy = r.y + r.height / 2;
+    return cx >= s.x && cx <= s.x + s.width && cy >= s.y && cy <= s.y + s.height;
+  }, null, { timeout: 2000 }).then(() => true, () => false);
+  check(landed, 'Run sits on the simulation');
   await page.keyboard.press('Escape');
   check(await page.locator('#run-btn').isDisabled() && (await page.locator('#run-btn').textContent()) === 'Predict first', 'dismissing does not unlock Run');
   await page.locator('#level-title').click();

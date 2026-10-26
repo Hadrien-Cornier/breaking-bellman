@@ -2183,6 +2183,7 @@
       marks.length ? h('p.verdict-key', { text: marks.join('   ') }) : null,
       h('p.verdict-next', { text: 'Next: Diagnose' }),
     ].filter((node) => node));
+    requestAnimationFrame(() => placeRunOnSim());
   }
   function noteLessonRun(a) {
     if (S.mode !== 'campaign' || !a) return;
@@ -3476,13 +3477,7 @@
         note.className = 'curve-empty';
         curve.prepend(note);
       }
-      if (!has) {
-        const lines = window.BBPLAYER && typeof window.BBPLAYER.emptyCurves === 'function'
-          ? window.BBPLAYER.emptyCurves(S.world, typeof fam === 'function' ? fam(S.parts) : '')
-          : null;
-        const line = lines && lines[0];
-        note.textContent = line ? line.title + '. ' + line.status : 'No curve yet. Run the simulation to draw it.';
-      }
+      if (!has) note.textContent = 'No pulls yet.';
       note.hidden = has;
     }
     syncPhoneDots();
@@ -3532,13 +3527,34 @@
   }
   function placeRunOnSim() {
     const bar = $('#stage-run');
-    const deck = $('#phone-deck');
+    const stage = $('#stage');
     const view = $('#experiment-view');
+    const card = $('#stage-card');
+    if (!bar || !stage) return;
+    const stageBox = stage.getBoundingClientRect();
+    if (!(stageBox.height > 40)) return;
     const phone = window.matchMedia('(max-width: 700px)').matches && view && !view.hidden;
-    if (!bar) return;
-    if (!(phone && deck && view)) { bar.style.top = ''; return; }
-    const top = deck.getBoundingClientRect().bottom - view.getBoundingClientRect().top - (bar.offsetHeight || 48) - 8;
-    bar.style.top = Math.max(0, Math.round(top)) + 'px';
+    const height = bar.offsetHeight || 48;
+    if (phone && view) {
+      const deck = $('#phone-deck');
+      const deckBox = deck ? deck.getBoundingClientRect() : stageBox;
+      const viewBox = view.getBoundingClientRect();
+      const panel = ($('#phone-dots .phone-dot[aria-selected="true"]') || {}).dataset?.panel;
+      const onWorld = panel !== 'curve' && panel !== 'math';
+      const dots = $('#phone-dots');
+      const dotsTop = dots && !dots.hidden ? dots.getBoundingClientRect().top : Infinity;
+      const visibleBottom = Math.min(onWorld ? stageBox.bottom : deckBox.bottom, deckBox.bottom, dotsTop);
+      const visibleRight = Math.min(onWorld ? stageBox.right : deckBox.right, deckBox.right);
+      const top = visibleBottom - viewBox.top - height - 8;
+      bar.style.top = Math.max(0, Math.round(top)) + 'px';
+      bar.style.right = Math.max(0, Math.round(viewBox.right - visibleRight + 8)) + 'px';
+      bar.style.left = 'auto';
+    } else if (card) {
+      const cardBox = card.getBoundingClientRect();
+      const top = stageBox.bottom - cardBox.top - height - 8;
+      bar.style.top = Math.max(0, Math.round(top)) + 'px';
+      bar.style.right = Math.max(8, Math.round(cardBox.right - stageBox.right + 8)) + 'px';
+    }
   }
   function placeEditor() {
     const pair = $('#experiment-pair');
@@ -3569,16 +3585,20 @@
       if (bar.parentElement !== view) view.append(bar);
       if (result) bar.append(result);
       if (runBtn) bar.append(runBtn);
-      bar.append(predictionReopen());
+      const reopen = predictionReopen();
+      if (reopen.parentElement === bar) reopen.remove();
       deck.hidden = false;
       if ($('#phone-dots')) $('#phone-dots').hidden = false;
       pair.hidden = true;
     } else {
       bar.style.top = '';
+      bar.style.right = '';
+      bar.style.left = '';
       card.append(bar);
       if (result) bar.append(result);
       if (runBtn) bar.append(runBtn);
-      bar.append(predictionReopen());
+      const reopen = predictionReopen();
+      if (reopen.parentElement !== card) card.append(reopen);
       adopt(pair, card);
       adopt(pair, $('#learning-monitor'));
       if (workspace && mathSlot && mathSlot.parentElement !== workspace) {
@@ -3598,8 +3618,9 @@
     const verdict = $('#verdict-card');
     if (phone && deck && bar && view) {
       if (title && title.parentElement === view) title.after(deck);
-      deck.after(bar);
-      if (dots) bar.after(dots);
+      const reopen = predictionReopen();
+      deck.after(reopen);
+      if (dots) reopen.after(dots);
       const anchor = dots && dots.parentElement === view ? dots : bar;
       if (verdict) anchor.after(verdict);
       const after = (verdict && verdict.parentElement === view) ? verdict : anchor;
@@ -3628,7 +3649,7 @@
       if (slide && !slide.hidden) slide.scrollIntoView({ inline: 'start', block: 'nearest', behavior: 'smooth' });
     });
   });
-  if ($('#phone-deck')) $('#phone-deck').addEventListener('scroll', () => syncPhoneDots(), { passive: true });
+  if ($('#phone-deck')) $('#phone-deck').addEventListener('scroll', () => { syncPhoneDots(); placeRunOnSim(); }, { passive: true });
   const referenceNames = { rule: 'Rules', curve: 'Sources', autopsy: 'Autopsy', notes: 'Notes' };
   function openReference(name) {
     const dlg = $('#reference-dialog');

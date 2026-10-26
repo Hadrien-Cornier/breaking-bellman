@@ -804,16 +804,17 @@ button.algo-name { min-height: 0; min-width: 0; height: auto; padding: 0; displa
   .predict-live .mc > p { flex: 1 0 100%; }
   .predict-live .opt-row { flex: 1 1 180px; }
   #stage-card > #verdict-card:not([hidden]) {
-    position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 4;
+    position: absolute; left: 10px; right: 150px; bottom: 10px; z-index: 4;
     max-height: none; overflow: visible; box-shadow: 0 10px 28px rgb(0 0 0 / .2);
   }
 }
 #stage-card { position: relative; }
+#stage-card > #prediction-reopen { position: static; display: inline-block; margin: 8px 0 0; }
 #stage-card > .row:has(#lab-world) { display: none; }
 #stage-run { position: static; display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin: 0 0 6px; }
 #stage-card > #stage-run {
-  position: absolute; top: 8px; right: 8px; z-index: 6; margin: 0; padding: 4px;
-  border-radius: 12px; background: color-mix(in srgb, var(--bg) 88%, transparent);
+  position: absolute; top: 8px; right: 8px; z-index: 6; margin: 0; padding: 0;
+  border-radius: 12px; background: transparent;
 }
 #stage-run #run-btn { min-width: 128px; min-height: 44px; flex: none; white-space: nowrap; }
 #stage-run #run-result { flex: 0 1 auto; min-width: 0; margin: 0; text-align: right; }
@@ -868,10 +869,12 @@ dialog.lesson-help .help-head button { margin-left: auto; }
   main.layout.lesson-shell > #lesson-drawer { flex: 0 0 auto; max-height: 16dvh; overflow: auto; }
   .drawer-workspace > #experiment-view, #experiment-view { position: relative; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
   #experiment-view > #stage-run {
-    position: sticky; bottom: 0; z-index: 3; flex: none; left: auto; right: auto; top: auto; width: auto;
-    margin: 0; padding: 4px 0; display: flex; justify-content: flex-end; align-items: center; gap: 8px;
-    background: var(--bg); pointer-events: auto;
+    position: absolute; z-index: 6; width: max-content; max-width: 46%; margin: 0; padding: 0;
+    display: flex; justify-content: flex-end; align-items: center; gap: 8px;
+    background: transparent; pointer-events: none;
   }
+  #prediction-reopen { align-self: center; }
+  #experiment-view > #stage-run > * { pointer-events: auto; }
   #experiment-view #stage-run:has(#run-result:not(:empty):not(.quiet)) { justify-content: space-between; }
   #experiment-view > .predict-live { flex: none; max-height: 200px; overflow: auto; }
   #experiment-view > #verdict-card:not([hidden]) { flex: none; max-height: none; overflow: visible; }
@@ -881,6 +884,7 @@ dialog.lesson-help .help-head button { margin-left: auto; }
   #phone-world .stage { width: 100%; max-width: none; max-height: none; height: auto; aspect-ratio: 640 / 280; }
   #experiment-view > #algorithm-workspace { display: block; flex: 0 1 auto; min-height: 0; max-height: 14dvh; overflow: auto; }
   #phone-curve .chart { height: 112px; }
+  #phone-curve > *, #phone-math > * { max-height: calc(100% - 76px); overflow: auto; }
   #phone-deck {
     display: flex; width: 100%; flex: 1 1 auto; min-height: 196px; height: auto;
     overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory;
