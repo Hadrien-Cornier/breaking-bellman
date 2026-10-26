@@ -527,7 +527,8 @@ button.algo-name { min-height: 0; min-width: 0; height: auto; padding: 0; displa
 .map-world:nth-child(odd) .map-medal { transform: translateX(-20px); }
 .map-playdock { position: sticky; bottom: 0; z-index: 3; display: flex; justify-content: center; padding: 18px 4px; background: linear-gradient(transparent, var(--bg) 45%); }
 .campaign-map .savebar { justify-content: center; padding: 14px 0; }
-.map-brief { position: fixed; inset: 0 0 0 auto; margin: 0; width: min(480px, 100%); max-width: 100%; height: 100dvh; max-height: 100dvh; padding: 22px; border: 1px solid var(--line); border-radius: 20px 0 0 20px; background: var(--surface); color: var(--ink); overflow-y: auto; }
+.map-brief { position: fixed; inset: 0; margin: 0; width: 100%; max-width: 100%; height: 100%; max-height: none; padding: 28px 22px; border: 0; border-radius: 0; background: var(--bg); color: var(--ink); overflow-y: auto; }
+.map-brief > * { max-width: 720px; margin-left: auto; margin-right: auto; }
 .map-brief::backdrop { background: rgb(0 0 0 / .5); }
 .map-brief-head { display: flex; align-items: start; gap: 12px; justify-content: space-between; margin-bottom: 20px; }
 .map-brief-body { display: grid; gap: 14px; }

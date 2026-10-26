@@ -329,6 +329,12 @@ await session(375, 812, 'phone', async (page) => {
 });
 
 await session(1280, 900, 'desktop', async (page) => {
+  await page.locator('#campaign-logo').click();
+  await page.locator('[data-map-level="slots"]').click();
+  const deskBrief = await page.locator('.map-brief').boundingBox();
+  const deskVp = page.viewportSize();
+  check(!!deskBrief && deskBrief.width >= deskVp.width - 8 && deskBrief.height >= deskVp.height - 8, 'desktop map explanation fills the screen');
+  await page.locator('.map-brief').getByRole('button', { name: 'Close briefing' }).click();
   await openCampaignLevel(page, 'explode');
   await setWord(page, '#mode-pane', 'store', 'a network');
   await setWord(page, '#mode-pane', 'data', 'random old moves');
