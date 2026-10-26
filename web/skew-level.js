@@ -85,7 +85,7 @@
   K.state = () => ({ world: 'skew', sentenceName: 'Goal requests on three rooms', mode: 'campaign', level: lesson.title,
     knobs: clone(state.controls), lastRun: state.record ? { steps: state.record.data.fresh.steps, summary: state.record.metrics } : null });
   K.run = async function () {
-    if (!mounted) return null;
+    if (!mounted || state.pred == null) return null;
     stop(); const token = ++generation; state.busy = true; state.error = ''; redraw?.();
     try {
       const record = await K.records.create(clone(state.controls));
@@ -163,7 +163,7 @@
     function answer(q, key, next) { return choice(h, q, state[key], i => { state[key] = i; api.recordAnswer?.(q.id, i, !!q.options[i].correct); if (next != null) advance(next); else redraw(); }); }
     function setControls(values) { state.controls = { ...clone(state.controls), ...clone(values) }; change(); }
     function runButton(id = 'skew-run', label = 'Run') {
-      return h('button.btn', { id, type: 'button', disabled: state.busy, onclick: () => K.run() }, state.busy ? 'Running…' : label);
+      return h('button.btn', { id, type: 'button', disabled: state.busy || state.pred == null, onclick: () => K.run() }, state.busy ? 'Running…' : label);
     }
     function number(key, label, min, max) {
       const value = K.ROOMS.includes(key) ? state.controls.visits[key] : state.controls[key];

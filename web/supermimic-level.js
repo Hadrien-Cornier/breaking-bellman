@@ -60,7 +60,7 @@
     comparison: state.result, version: window.BB_SUPERMIMIC_VERSION,
   });
   M.run = async () => {
-    if (state.busy) return null;
+    if (state.busy || !state.answer) return null;
     const ticket = { worker: null, resolve: null };
     if (replay) replay.clear(); record = null;
     currentRun = ticket; state.busy = true; state.error = null; state.result = null; state.answer = ''; state.inspected = false;
@@ -186,17 +186,18 @@
         h('div.eyebrow', { text: 'Level ' + C.levels.length + ' · SuperMimic-inspired' }),
         h('h2', { text: lesson.title }), h('p', { text: lesson.intro }), sourceContext(h),
         h('p', { text: 'The learned model is fitted once from 2,400 true-physics transitions. Both model-based learners receive that exact model object. PPO in physics never trains on model rollouts.' }),
+        quiz(h),
         h('div.row', null, [
           select('supermimic-seed', 'Seed', [[178, '178'], [279, '279'], [380, '380']], state.seed, v => { state.seed = v; }),
           select('supermimic-budget', 'Browser budget', [[0.4, 'Compact'], [1, 'Full']], state.scale, v => { state.scale = v; }),
-          h('button.btn', { id: 'supermimic-run', type: 'button', disabled: state.busy, onclick: () => M.run().catch(() => redraw()) }, state.busy ? 'Training three policies…' : 'Run all three methods'),
+          h('button.btn', { id: 'supermimic-run', type: 'button', disabled: state.busy || !state.answer, onclick: () => M.run().catch(() => redraw()) }, state.busy ? 'Training three policies…' : 'Run all three methods'),
         ]),
         h('p.small', { id: 'supermimic-status', role: 'status', text: state.error || (state.result
           ? 'Live seeded run complete. Model fit: ' + state.result.model.fitTransitions + ' physics transitions, ' + state.result.model.fitMs + ' ms. Policy training costs are reported separately.'
           : 'Live computation in a worker. Results are measured, not canned. Full uses one seed and bounded toy budgets.') }),
       );
       if (state.result) {
-        body.append(rolloutSection(h, state.result), gradientSection(h, state.result), exploitSection(h, state.result), shortHorizon(h), quiz(h),
+        body.append(rolloutSection(h, state.result), gradientSection(h, state.result), exploitSection(h, state.result), shortHorizon(h),
           h('p.small', { text: 'The paper’s headline is not a matched version of this three-way game. It compares 3 hours on one H100 with SONIC’s reported 7 days on 128 L40 GPUs, with different data sizes and unknown utilization.' }),
           h('button.btn', {
             id: 'supermimic-complete', type: 'button',

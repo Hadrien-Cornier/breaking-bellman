@@ -94,6 +94,7 @@
     let sweeps = playback?.setting || '2';
     const advance = n => api.markStep?.(n);
     H.run = () => {
+      if (state.pred == null) return null;
       state.report = H.compare({ sweeps: Number(sweeps) });
       const record = BB.goalExecution.record('hindsight', { sweeps: Number(sweeps) }, state.report);
       view.accept(record); advance(2); redraw(); return record;
@@ -101,7 +102,7 @@
     view = BB.goalExecution.mount(lab, api, {
       id: 'hindsight', sceneTitle: 'Replay a missed goal', sceneLabel: 'Start connects to Mid, then West or East. Far has no cell.',
       before: 'The stored actions aimed at Far. Far has no reachable cell. Run to replay the recorded failures and the learned goal requests.',
-      value: sweeps, settingLabel: 'Replay sweeps', choices: [['2', 'Two sweeps'], ['1', 'One sweep']], change: value => { sweeps = value; redraw(); }, run: H.run,
+      value: sweeps, settingLabel: 'Replay sweeps', choices: [['2', 'Two sweeps'], ['1', 'One sweep']], change: value => { sweeps = value; redraw(); }, ready: () => state.pred != null, run: H.run,
       metric: m => m.solved + ' of 2 held-out goals solved; Far ' + (m.far ? 'solved' : 'unsolved') + '; ' + m.updates + ' Q updates; ' + m.evaluationSteps + ' check steps',
       accounting: r => 'Earlier data: ' + r.data.prior.steps + ' stored steps in ' + r.data.prior.attempts + ' episodes, shared by all methods. No fresh training interactions. Evaluation: ' + r.data.fresh.steps + ' actual moves in ' + r.data.fresh.attempts + ' goal checks across the five methods. Rewriting a goal adds Q updates, not environment steps.',
     });
@@ -133,6 +134,7 @@
         api.shell.notebook('notes').replaceChildren(h('p', { text: lesson.intro }), h('details', null, [h('summary', { text: 'Rules and method' }), h('p', { text: lesson.introMore })]), h('p', { text: 'Prediction: ' + PREDICT.prompt }), h('p', { text: 'Diagnosis: ' + DIAGNOSE.prompt }));
         api.shell.notebook('autopsy').replaceChildren(...(report ? [h('h3', { text: 'Stored and relabeled transitions' }), ...report.original.map(tr => h('p.small', { text: tupleText(tr) })), ...report.rewritten.map(tr => h('p.small', { text: tupleText(tr) }))] : [h('p', { text: 'Run to inspect the measured transitions.' })]));
       }
+      view.gate();
     };
     if (retained) view.accept(retained, playback);
     redraw();

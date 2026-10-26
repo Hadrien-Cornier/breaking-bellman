@@ -16,6 +16,7 @@
   const stop = () => { clearInterval(timer); timer = null; };
   function cancel() { stop(); dispose(); request++; record = null; stale = false; time = 0; adapter = null; render = null; stage = null; }
   async function run() {
+    if (answers['rare-predict'] == null) return null;
     stop(); const token = ++request;
     const result = await window.BBRARE_RECORD.create({ ...settings });
     if (token !== request) return null;
@@ -98,7 +99,7 @@
         h('div.row', null, [
           h('label.field', null, ['Step budget', h('select', { id: 'rare-budget', onchange: e => change('steps', +e.target.value) }, [28, 80].map(n => h('option', { value: n, selected: n === settings.steps, text: n + ' steps per sample' })))]),
           h('label.field', null, ['Random-action chance', h('select', { id: 'rare-epsilon', onchange: e => change('eps', +e.target.value) }, [0.05, 0.2].map(n => h('option', { value: n, selected: n === settings.eps, text: n * 100 + '%' })))]),
-          h('button.btn', { id: 'rare-run', type: 'button', onclick: run }, record ? 'Run again' : 'Run'),
+          h('button.btn', { id: 'rare-run', type: 'button', disabled: answers['rare-predict'] == null, onclick: run }, record ? 'Run again' : 'Run'),
         ]),
         h('p.small', { id: 'rare-stale', role: 'status', text: stale ? 'Settings changed. The scene and results show the previous run. Run again to measure these settings.' : 'Six named methods, five internal samples each. No earlier training data. The map is supplied to every method.' }),
         h('label.field', null, ['Watch method', h('select', { id: 'rare-policy', onchange: e => { selected = e.target.value; paint(); } }, window.BBRARE_RECORD.policies.map(p => h('option', { value: p.name, selected: selected === p.name, text: p.label })))]),

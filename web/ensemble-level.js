@@ -155,7 +155,10 @@
     record: () => current,
     replay: () => ({ time, world: 'ensemble', length: current ? current.series.mean.length : 0, watching: !!timer, stale }),
     state: () => ({ world: 'ensemble', level: ensembleLevel.title, knobs: { coefficient: state.coefficient }, lastRun: current }),
-    run() { const record = runLesson(); accept(record); if (redraw) redraw(); return record; },
+    run() {
+      if (redraw && state.picks[QUESTIONS.predict.id] !== QUESTIONS.predict.correct) return null;
+      const record = runLesson(); accept(record); if (redraw) redraw(); return record;
+    },
     mount(pane, lab, apiHooks) {
       pause();
       hooks = apiHooks || {};

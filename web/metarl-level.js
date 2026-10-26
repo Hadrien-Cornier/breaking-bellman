@@ -103,6 +103,7 @@
   M.replay = () => ({ time, watching: timer != null, stale, world: view?.isConnected ? 'metarl' : null, length: length(record) });
   M.state = () => ({ world: 'metarl', level: lesson.title, sentenceName: 'Tabular cross-task adaptation', mode: 'campaign', knobs: { ...settings }, lastRun: record ? { steps: record.data.fresh.steps, summary: record.metrics } : null });
   M.run = () => {
+    if (redraw && answers[0] == null) return null;
     stop(); record = M.runRecord(settings); stale = false; time = 0; repaired = false;
     stage = answers[1] == null ? 2 : 3; ctx?.markStep?.(2); redraw?.(); sync(); return record;
   };

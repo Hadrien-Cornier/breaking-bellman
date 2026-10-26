@@ -35,7 +35,9 @@
         return h('label.inference-setting', null, [h('span', { text: c.label }), select]);
       }));
     }
+    function predicted() { return picks[spec.questions[0].id] != null; }
     async function run() {
+      if (ctx && !predicted()) return null;
       const request = ++generation;
       stop(); running = true; draw();
       const next = await R.create(id, settings);
@@ -173,7 +175,7 @@
         nodes[key].dataset.world = id; nodes[key].dataset.stale = String(stale);
         if (record) nodes[key].dataset.run = record.id; else delete nodes[key].dataset.run;
       }
-      nodes.run.disabled = running; nodes.run.textContent = running ? 'Computing…' : stale ? 'Run again' : 'Run';
+      nodes.run.disabled = running || !predicted(); nodes.run.textContent = running ? 'Computing…' : stale ? 'Run again' : 'Run';
       nodes.watch.disabled = nodes.step.disabled = nodes.replay.disabled = !record || stale;
       nodes.watch.textContent = timer ? 'Pause' : 'Watch';
       nodes.notice.textContent = stale ? 'Settings changed. Run again to measure them; the scene and results below still show the previous settings.' : '';
@@ -199,6 +201,7 @@
             id: o.id || question.id + '-' + i, type: 'button', disabled: (stage === 2 || stage >= 4) && (!record || stale), onclick: () => {
               picks[question.id] = i; ctx.record?.(question.id, i, !!o.correct);
               if (o.correct) { if (stage === 0) mark(1); else if (stage === 2) mark(3); }
+              if (nodes.run) nodes.run.disabled = running || !predicted();
               teaching();
             },
           }, [h('span', { text: o.text }), picks[question.id] === i ? h('span.why', { text: o.why }) : null]))));

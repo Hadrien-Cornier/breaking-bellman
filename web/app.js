@@ -392,6 +392,13 @@
       if (s.end) { const i = s.xs.length - 1; ctx.fillStyle = s.color; ctx.beginPath(); ctx.arc(X(s.xs[i]), Y(s.ys[i]), 3, 0, 7); ctx.fill(); }
       ctx.globalAlpha = 1; ctx.setLineDash([]);
     }
+    const box = cv.getBoundingClientRect();
+    const off = box.width < 2 || (box.width > 2 && Math.abs(box.width - w) > 2) || (box.height > 2 && Math.abs(box.height - H) > 2);
+    if (off && (cv._fitTries || 0) < 2) {
+      cv._fitTries = (cv._fitTries || 0) + 1;
+      const again = series, opts = o;
+      requestAnimationFrame(() => { if (cv.isConnected) lineChart(cv, again, opts); });
+    } else cv._fitTries = 0;
   }
   function range(a, b) { const o = []; for (let i = a; i <= b; i++) o.push(i); return o; }
   function niceTicks(a, b, n) {
@@ -2112,6 +2119,7 @@
     for (const id of [].concat(lv.reveal || [])) if (!S.given.includes(id)) {
       const alreadyKnown = S.found.includes(id); S.given.push(id); if (!alreadyKnown) queueCelebration(id);
     }
+    S.predictShown = lv.id;
     setStep(lv, 2);
     playRecorded = true;
     showPhonePanel('world');
@@ -2129,15 +2137,16 @@
     const opt = q.options[ans.choice];
     const said = opt ? String(opt.result).replace(/<[^>]+>/g, '') : 'a choice';
     const text = typeof measured === 'string' ? measured : headline(measured, lv.world);
-    const cause = !ans.correct && opt && opt.why ? ' ' + String(opt.why).replace(/<[^>]+>/g, '') : '';
-    return ' You said: ' + said + ' Measured: ' + text + '. ' + (ans.correct ? 'You were right.' : 'Not this time.' + cause);
+    return ' You said: ' + said + ' Measured: ' + text + '. ' + (ans.correct ? 'You were right.' : 'Not this time.');
   }
   function noteLessonRun(a) {
     if (S.mode !== 'campaign' || !a) return;
     const lv = C.levels.find((l) => l.id === S.level);
     if (!lv || lv.custom) return;
     const verdict = lessonVerdict(lv, a);
-    if (verdict && $('#run-result') && (S.lstep[lv.id] || 0) !== 3) $('#run-result').textContent += verdict;
+    const showVerdict = S.predictShown === lv.id;
+    if (showVerdict) S.predictShown = null;
+    if (verdict && $('#run-result') && showVerdict) $('#run-result').textContent += verdict;
     showPhonePanel('world');
     if ((S.lstep[lv.id] || 0) !== 3 || !lv.goal || !lv.goal.test(a, S.parts)) return;
     const before = (S.baselineResult || {})[lv.id];
@@ -2162,6 +2171,8 @@
   }
   async function runCampaignStart(lv) {
     if (campaignRunLevel) return;
+    const existing = $('[data-campaign-run="' + lv.id + '"]');
+    if (existing && existing.disabled) return;
     campaignRunLevel = lv.id;
     setCampaignRunView(lv, 'running');
     enterLevel(lv, true);
@@ -3444,8 +3455,8 @@
       pair.hidden = true;
     } else {
       bar.style.top = '';
-      if (bar.parentElement !== card) card.insertBefore(bar, card.firstChild);
-      if (result) card.append(result);
+      if (pair) pair.before(bar);
+      if (result) bar.append(result);
       if (runBtn) bar.append(runBtn);
       adopt(pair, card);
       adopt(pair, $('#learning-monitor'));

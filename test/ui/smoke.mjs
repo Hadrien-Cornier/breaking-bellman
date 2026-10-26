@@ -149,10 +149,10 @@ async function openNotebook(page, section) {
     if (await opener.count()) await opener.click();
     await dlg.waitFor({ state: 'visible' });
   }
-  // A one-shot visibility check can miss the Notes tab while the dialog is opening, and then the picture stays hidden.
-  const tab = page.locator('#notebook-tab-' + section);
-  await tab.waitFor({ state: 'visible' });
-  await tab.click();
+  // The Sources dialog stacks every notebook section. The tab strip is not the way in.
+  const panel = page.locator('#notebook-' + section);
+  await panel.waitFor({ state: 'visible' });
+  await panel.scrollIntoViewIfNeeded();
 }
 // The sentence stays in the editor. Close the explanation, the notebook, and the simulation before changing a word.
 // Closing the simulation does not cancel a run; the word change does.
@@ -551,6 +551,8 @@ await session(375, 812, 'phone-frontier', async (page) => {
   check(await frontierRun.isDisabled(), 'mud level disables its campaign run button as training starts');
   const frontierText = await frontierRun.evaluate((button) => button.textContent + ' ' + button.parentElement.textContent);
   check(/Running the starting sentence/.test(frontierText) && /Training started/.test(frontierText), 'mud level reports startup beside the initiating button');
+  // Fast lookup yields before the workers exist. Count posts only after that first start.
+  await page.waitForFunction(() => window.__workerPosts > 0);
   const posts = await page.evaluate(() => window.__workerPosts);
   // The simulation covers the page. Closing it leaves this run in progress.
   // The map logo cancels that run. Re-opening this level is the rebuild that has to keep the running label.

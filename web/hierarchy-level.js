@@ -120,6 +120,7 @@
     const advance = n => api.markStep?.(n);
     const variants = { lesson: {}, pit: { dynamics: 'pit' }, absolute: { representation: 'absolute' }, far: { subgoals: [H.DOOR, H.FAR] }, short: { budget: 4 }, long: { budget: 24 }, extra: { pretrain: 6 } };
     H.run = () => {
+      if (state.pred == null) return null;
       const report = H.compare(variants[variant]);
       const r = BB.goalExecution.record('hierarchy', { variant, ...report.opts }, report);
       view.accept(r); state.ran = true; advance(2);
@@ -131,7 +132,7 @@
     view = BB.goalExecution.mount(lab, api, {
       id: 'hierarchy', sceneTitle: 'Call Door, then Prize', sceneLabel: 'Six cells from Start through Door to Prize and Far.',
       before: 'The robot starts at Start. Train a table to reach Door, then call the same table with the next subgoal. Calls and resets will appear as separate measured events.',
-      value: variant, settingLabel: 'Room and training setup', choices: [['lesson', 'Repeated rooms'], ['pit', 'Pit after Door'], ['absolute', 'Absolute cells'], ['far', 'Farther goal'], ['short', 'Budget 4'], ['long', 'Budget 24'], ['extra', '6 earlier interactions']], change: value => { variant = value; redraw(); }, run: H.run,
+      value: variant, settingLabel: 'Room and training setup', choices: [['lesson', 'Repeated rooms'], ['pit', 'Pit after Door'], ['absolute', 'Absolute cells'], ['far', 'Farther goal'], ['short', 'Budget 4'], ['long', 'Budget 24'], ['extra', '6 earlier interactions']], change: value => { variant = value; redraw(); }, ready: () => state.pred != null, run: H.run,
       metric: m => (m.reached ? 'Final goal reached' : 'Final goal missed') + '; ' + (m.trainingSteps || 0) + ' training moves; ' + (m.resets || 0) + ' resets; ' + m.evaluationSteps + ' execution/check moves; ' + m.calls + ' option calls',
       accounting: r => 'Earlier Door practice: ' + r.data.prior.steps + ' moves and ' + r.data.prior.resets + ' resets. Fresh across all five measured methods: ' + r.data.fresh.steps + ' moves and ' + r.data.fresh.resets + ' resets, with ' + r.data.optionCalls + ' option calls counted separately. S = ' + r.report.S + ' training interactions. H = ' + r.report.H + ' primitive moves plus calls. Each flat table receives S + H = ' + r.report.total + ' training interactions. Greedy check moves are additional evaluation, not training. No high-level updates.',
     });
@@ -158,6 +159,7 @@
         api.shell.notebook('notes').replaceChildren(h('p', { text: lesson.intro }), h('details', null, [h('summary', { text: 'Rules and method' }), h('p', { text: lesson.introMore })]), h('p', { text: PREDICT.prompt }));
         api.shell.notebook('autopsy').replaceChildren(...(report ? [h('p.small', { text: measureText(report) }), h('p.small', { text: qLines(report.skill.q) }), ...report.execution.options.map((op, i) => h('p.small', { text: 'Call ' + (i + 1) + ', goal ' + name(op.goal) + ': ' + op.moves.map(moveText).join(' ') }))] : [h('p', { text: 'Run to inspect the table and option calls.' })]));
       }
+      view.gate();
     };
     if (retained) view.accept(retained, playback);
     redraw();

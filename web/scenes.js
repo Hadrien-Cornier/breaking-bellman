@@ -1083,7 +1083,7 @@
       const up = Math.abs(((th + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI) < 0.3;
       robot(ctx, W * 0.16, benchY + H * 0.02, Math.min(H * 0.3, W * 0.1), { mood: up ? 'happy' : 'normal', wave: up && n > 0, blink: blinkAt(t), look: 1 });
       const px = Math.max(10, Math.min(13, H * 0.034));
-      if (!n) hud(ctx, ['Press Run: a weak motor learns to swing the weight up.'], null, 6, px, fonts.mono, W);
+      if (!n) hud(ctx, ['Swing the weight up.'], null, 6, px, fonts.mono, W);
       else hud(ctx, ['Replay, ' + ((k + 1) * 0.05).toFixed(1) + ' s' + (up ? ', up!' : '') + (end ? ' (end)' : '')], 'replay', 6, px, fonts.mono, W);
     };
     return looping(draw, n > 0, n * STEP + 1500);
@@ -1138,7 +1138,7 @@
       if (hold) { ctx.fillStyle = '#b07a45'; ctx.fillRect(w * 0.15, -w * 0.25, w * 0.5, w * 0.5); ctx.strokeStyle = '#6e4724'; ctx.lineWidth = 1; ctx.strokeRect(w * 0.15, -w * 0.25, w * 0.5, w * 0.5); }
       ctx.restore();
       const dist = Math.hypot(tip[0] - tx, tip[1] - ty), px = Math.max(10, Math.min(13, H * 0.034));
-      if (!n) hud(ctx, ['Press Run: move the gripper to the red dot.'], null, 6, px, fonts.mono, W);
+      if (!n) hud(ctx, ['Gripper to the red dot.'], null, 6, px, fonts.mono, W);
       else hud(ctx, ['Test run, ' + ((k + 1) * 0.05).toFixed(1) + ' s, ' + dist.toFixed(2) + ' m from the dot' + (hold ? ', holding the payload' : '')], 'replay', 6, px, fonts.mono, W);
     };
     return looping(draw, n > 0, n * STEP + 1500);
@@ -1189,7 +1189,7 @@
       });
       if (!np) { const [hx, hy] = P(0, -0.8); gripper(hx, hy, '#ffffff'); }
       const px = Math.max(10, Math.min(13, H * 0.034));
-      if (!np) hud(ctx, ['Press Run: get the gripper to the target. Do not hit the mug.'], null, 6, px, fonts.mono, W);
+      if (!np) hud(ctx, ['Reach the target.', 'Do not hit the mug.'], null, 6, px, fonts.mono, W);
       else hud(ctx, [np + ' test runs. Blue: around the left. Orange: around the right.'], 'replay', 6, px, fonts.mono, W);
     };
     return looping(draw, np > 0, len * STEP + 1800);

@@ -335,6 +335,21 @@ test('the glossary follows the method, and definitions stay behind a click', () 
   assert.equal(AM.symbolTex('γ (gamma)').tex, '\\gamma');
   assert.equal(AM.symbolTex('γ (gamma)').aside, 'gamma');
   assert.equal(AM.symbolTex('Q̄').tex, '\\bar{Q}');
+  const glossNames = (p, world) => AM.visibleGlossary(p, world).map(([s]) => s);
+  const slotsGloss = glossNames(val({ eps: false, step: 'avg', ucb: false, optimistic: false }), 'bandit');
+  assert.deepEqual(slotsGloss.filter((s) => s !== 'r_t').sort(), ['N(a)', 'Q(a)', 'max'].sort());
+  assert.ok(slotsGloss.includes('r_t'), 'the slot-machine payout is defined');
+  for (const absent of ['Q(s, a)', 'N(s, a)', 'min', 'a′', 'Q̄', 'Q_A, Q_B', 'α (alpha)', 'ε (epsilon)', 'π(a′ | s′)', 'n']) {
+    assert.ok(!slotsGloss.some((s) => s.includes(absent)), absent + ' is not in the slot-machine equation');
+  }
+  const exploreGloss = glossNames(val({ eps: true, step: 'alpha', ucb: false }), 'bandit');
+  assert.ok(exploreGloss.includes('α (alpha)') && exploreGloss.includes('ε (epsilon)'), 'a step size and exploration bring those symbols back');
+  const fixedStep = glossNames(val({ eps: false, step: 'const', ucb: false }), 'bandit');
+  assert.ok(fixedStep.includes('α (alpha)') && !fixedStep.some((s) => s.startsWith('N(')), 'the fixed-share update names alpha and drops the visit count');
+  const gridGloss = glossNames(val({ eps: false, step: 'alpha', agg: 'max', ucb: false }), 'cliff');
+  assert.ok(gridGloss.includes('α (alpha)'), 'a grid update with a step size names alpha');
+  assert.ok(!gridGloss.includes('ε (epsilon)'), 'a greedy grid equation does not name epsilon');
+  assert.ok(gridGloss.some((s) => String(s).includes('r_')), 'the reward after the action is defined');
   assert.match(AM.symbolTex('π_θ(a | s)').tex, /\\pi_\\theta\(a \\mid\s*s\)/);
   assert.ok(!css.includes('max-width: 100%'), 'wide formulas scroll at natural size instead of shrinking');
 });

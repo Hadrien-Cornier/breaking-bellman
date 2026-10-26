@@ -327,6 +327,80 @@
       ['n', 'how many real rewards are used before the guess'],
     ];
   }
+  function splitAlts(sym) {
+    const parts = [];
+    let cur = '', depth = 0;
+    for (const c of String(sym)) {
+      if (c === '{' || c === '(') depth++;
+      else if (c === '}' || c === ')') depth--;
+      else if (depth === 0 && (c === ',' || c === '/')) { if (cur.trim()) parts.push(cur.trim()); cur = ''; continue; }
+      cur += c;
+    }
+    if (cur.trim()) parts.push(cur.trim());
+    return parts.length ? parts : [String(sym)];
+  }
+  const GLOSS_KEYS = ['\\bar{Q}_j', '\\bar{Q}', '\\bar{G}', 'Q_A', 'Q_B', 'Q_j', 'Q(', 'N(', '\\varepsilon', '\\epsilon', '\\alpha', '\\gamma', '\\pi_\\theta', '\\pi', '\\nabla_\\theta', '\\theta', '\\tau', '\\rho_t', '\\rho', '\\lambda', '\\mu_\\theta', '\\mu', '\\sigma_\\theta', '\\sigma', '\\nabla', 'V_\\phi', 'V_\\psi', 'r_t', 'r_{', 'G_t', 'A_t', 'R(', '\\tanh', '\\max', '\\min', '\\log'];
+  function altInEquation(alt, tex) {
+    const parsed = symbolTex(alt).tex.trim();
+    if (parsed === 'n') return /(^|[^A-Za-z\\])n([^A-Za-z_]|$)/.test(tex);
+    if (parsed === 'H') return /(^|[^A-Za-z\\])H([^A-Za-z_]|$)/.test(tex);
+    if (parsed === 'y') return /(^|[^A-Za-z\\])y([^A-Za-z_]|$)/.test(tex);
+    const hit = GLOSS_KEYS.filter((k) => parsed.includes(k));
+    if (!hit.length) return tex.includes(parsed);
+    return hit.every((k) => {
+      if (k === '\\epsilon' || k === '\\varepsilon') return /\\epsilon|\\varepsilon/.test(tex);
+      if (k === 'Q(') return /Q\(/.test(tex);
+      if (k === 'N(') return /N\(/.test(tex);
+      if (k === 'r_{') return /r_\{/.test(tex);
+      if (k === '\\pi' && hit.includes('\\pi_\\theta')) return tex.includes('\\pi_\\theta');
+      if (k === '\\theta' && hit.some((h) => h.includes('\\theta') && h !== '\\theta')) return tex.includes('\\theta');
+      if (k === '\\mu' && hit.includes('\\mu_\\theta')) return tex.includes('\\mu_\\theta');
+      if (k === '\\sigma' && hit.includes('\\sigma_\\theta')) return tex.includes('\\sigma_\\theta');
+      if (k === '\\rho' && hit.includes('\\rho_t')) return tex.includes('\\rho_t');
+      if (k === '\\nabla' && hit.includes('\\nabla_\\theta')) return tex.includes('\\nabla_\\theta');
+      if (k === '\\bar{Q}' && hit.includes('\\bar{Q}_j')) return tex.includes('\\bar{Q}_j');
+      return tex.includes(k);
+    });
+  }
+  function piecesOf(sym) {
+    if (sym === 'max / min over a′') return ['max', 'min', 'a′'];
+    return splitAlts(sym);
+  }
+  function pieceInEquation(piece, tex) {
+    if (piece === 'Q(s, a)') return /Q\(s/.test(tex);
+    if (piece === 'Q(a)') return /Q\(a/.test(tex);
+    if (piece === 'N(s, a)') return /N\(s/.test(tex);
+    if (piece === 'N(a)') return /N\(a/.test(tex);
+    if (piece === 'max') return tex.includes('\\max');
+    if (piece === 'min') return tex.includes('\\min');
+    if (piece === 'a′') return tex.includes("a'");
+    return altInEquation(piece, tex);
+  }
+  const pieceDef = {
+    'Q(a)': 'the estimate of machine a',
+    'Q(s, a)': 'the estimate of taking action a in state s',
+    'N(a)': 'how many times this machine has been tried',
+    'N(s, a)': 'how many times this action has been tried in this state',
+    max: 'the best action according to the estimate',
+    min: 'the worst action according to the estimate',
+    'a′': 'a next action',
+  };
+  function visibleGlossary(parts, world) {
+    const tex = texLines(parts, world).map((row) => row[1]).join(' ');
+    const rows = [];
+    for (const [sym, def] of glossary(parts, world)) {
+      const pieces = piecesOf(sym);
+      const hit = pieces.filter((piece) => pieceInEquation(piece, tex));
+      if (!hit.length) continue;
+      if (hit.length === pieces.length) rows.push([sym, def]);
+      else if (hit.length === 1) rows.push([hit[0], pieceDef[hit[0]] || def]);
+      else rows.push([hit.join(', '), def]);
+    }
+    if (tex.includes('r_t') && !rows.some(([sym]) => String(sym).includes('r_t'))) rows.push(['r_t', 'the payout received for the action just taken']);
+    else if (/r_\{/.test(tex) && !rows.some(([sym]) => sym === 'r' || String(sym).includes('r_'))) rows.push(['r_{t+1}', 'the reward that follows the action']);
+    if (/(^|[^A-Za-z\\])y([^A-Za-z_]|$)/.test(tex) && !rows.some(([sym]) => sym === 'y')) rows.push(['y', 'the target: the value this update moves the estimate toward']);
+    return rows;
+  }
 
   // ---------------------------------------------------------------- what changed (plain language)
   // Compare two configurations. Returns the changed words plus the labels of the equation lines whose
@@ -402,10 +476,9 @@
     }
 
     const dl = h('dl.math-gloss');
-    for (const [sym, def] of glossary(parts, world)) { dl.append(glossTerm(sym)); dl.append(h('dd', { text: def })); }
+    for (const [sym, def] of visibleGlossary(parts, world)) { dl.append(glossTerm(sym)); dl.append(h('dd', { text: def })); }
     kids.push(h('details.math-defs', { open: defsOpen }, [
       h('summary', { text: 'Click for symbol definitions' }),
-      h('p.math-legend', { text: legend(parts, world, opts.hyper) }),
       dl,
     ]));
 
@@ -684,7 +757,7 @@
   }
 
   root.ALGO_MATH = {
-    mount, render, explain, lines: texLines, legend, glossary, symbolTex,
+    mount, render, explain, lines: texLines, legend, glossary, visibleGlossary, symbolTex,
     idleWords, idlePg, idleAc, groupOf, texInto, wordText, optOf,
     rareLines, rareStepLines, rareExplain, rareGlossary, rareFacts, mountRare,
   };

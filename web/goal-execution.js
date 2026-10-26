@@ -101,7 +101,8 @@
     const settings = h('select', { id: id + '-setting', 'aria-label': spec.settingLabel });
     spec.choices.forEach(([value, label]) => settings.append(h('option', { value, text: label })));
     if (spec.value != null) settings.value = spec.value;
-    const run = h('button.btn', { id: id + '-run', type: 'button', onclick: () => spec.run(settings.value) }, 'Run');
+    const allowed = () => typeof spec.ready !== 'function' || !!spec.ready();
+    const run = h('button.btn', { id: id + '-run', type: 'button', disabled: !allowed(), onclick: () => { if (!allowed()) return; spec.run(settings.value); } }, 'Run');
     const watch = h('button.btn.ghost', { id: id + '-watch', type: 'button' }, 'Watch');
     const step = h('button.btn.ghost', { id: id + '-step', type: 'button' }, 'Step');
     const replay = h('button.btn.ghost', { id: id + '-replay', type: 'button' }, 'Replay');
@@ -153,7 +154,7 @@
     function draw() {
       if (current) adapter.draw(current, time); else render(canvas, null, 0);
       for (const el of [canvas, chart, result, evidence]) { if (current) el.dataset.run = current.id; else delete el.dataset.run; el.dataset.stale = String(stale); }
-      canvas.dataset.world = id; selector.disabled = !current; watch.disabled = step.disabled = replay.disabled = !current || stale;
+      canvas.dataset.world = id; selector.disabled = !current; run.disabled = !allowed(); watch.disabled = step.disabled = replay.disabled = !current || stale;
       status.textContent = stale ? 'Settings changed. Run again to update the measured replay.' : current ? 'Measured run ready.' : 'Scene ready. Predict, then Run.';
       if (current) {
         const strip = events(current).map((e, i) => h('span', { text: (i === time ? '▶ ' : '') + i + ': ' + e.kind + ' ' + name(e.to) + (e.goal != null ? ' → ' + name(e.goal) : '') + '; ' }));
@@ -178,6 +179,7 @@
     return {
       adapter, cancel: () => { stop(); theme.removeEventListener('change', draw); window.removeEventListener('resize', resize); }, record: () => current,
       replay: () => ({ time, watching: !!timer, stale, world: id, length: current ? events(current).length : 0, policy, setting: settings.value }),
+      gate() { run.disabled = !allowed(); },
       accept(r, saved) {
         stop(); current = r; stale = saved?.stale || false; time = saved?.time || 0;
         if (saved) { policy = saved.policy; settings.value = saved.setting; }

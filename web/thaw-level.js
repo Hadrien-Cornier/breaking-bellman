@@ -43,18 +43,19 @@
   C.paperLinks = C.paperLinks || {};
   C.paperLinks.thaw = [{ t: 'Idea adapted from Berkeley CS 285', u: 'https://rail.eecs.berkeley.edu/deeprlcourse/' }];
   const settings = { inertia: 2, updates: 5 };
-  let recordState, clock = 0, timer = null, drawUI = () => {}, generation = 0, adapter = null, selected = null;
+  let recordState, clock = 0, timer = null, drawUI = () => {}, generation = 0, adapter = null, selected = null, allowRun = null;
   const store = () => recordState || (recordState = RLA.runRecord.state());
   const labels = [['frozen', 'Frozen'], ['finetune', 'Fine-tune'], ['scratch', 'From scratch']];
   const number = n => Number(n).toFixed(3);
   function pause() { if (timer !== null) clearInterval(timer); timer = null; }
   M.cancel = pause;
-  M.clear = () => { pause(); generation++; if (recordState) recordState.clear(); clock = 0; adapter = null; drawUI = () => {}; };
+  M.clear = () => { pause(); generation++; if (recordState) recordState.clear(); clock = 0; adapter = null; drawUI = () => {}; allowRun = null; };
   M.record = () => store().record;
   M.replay = () => ({ time: clock, watching: timer !== null, stale: store().stale, world: 'thaw', length: store().record ? 51 : 0 });
   M.state = () => ({ world: 'thaw', mode: 'campaign', level: 'A few fresh steps', knobs: { ...settings }, comparison: store().record,
     lastRun: store().record ? { steps: store().record.data.fresh.steps, summary: store().record.metrics } : null });
   M.run = async () => {
+    if (allowRun && !allowRun()) return null;
     pause(); const token = ++generation, chosen = { ...settings };
     const record = await M.createRecord(chosen);
     if (token !== generation) return null;
@@ -127,7 +128,9 @@
     };
     const move = t => { pause(); clock = Math.max(0, Math.min(50, t)); frame(); };
     const change = (key, value) => { pause(); generation++; settings[key] = Number(value); store().change('thaw', settings); redraw(); };
+    allowRun = () => stepOf() >= 1;
     const run = async () => {
+      if (stepOf() < 1) return;
       const button = lab.querySelector('#thaw-run'); button.disabled = true;
       try {
         const record = await M.run(); if (!record) return;
@@ -162,7 +165,7 @@
           h('button.btn.secondary', { id: 'thaw-step', type: 'button', disabled: !record || stale, onclick: () => move(clock + 1) }, 'Step'),
           h('button.btn.secondary', { id: 'thaw-replay', type: 'button', disabled: !record || stale, onclick: () => move(0) }, 'Replay'), scrub]),
         h('p.small', { id: 'thaw-stale', hidden: !stale, text: 'Settings changed. The scene, curve and results show the previous run. Run again to measure these settings.' }),
-        h('button.btn', { id: 'thaw-run', type: 'button', onclick: run }, record ? 'Run again' : 'Run the three policies'),
+        h('button.btn', { id: 'thaw-run', type: 'button', disabled: stepOf() < 1, onclick: run }, record ? 'Run again' : 'Run the three policies'),
       ]);
       lab.replaceChildren(sceneCard);
       notebook('rule').id = 'thaw-rules';

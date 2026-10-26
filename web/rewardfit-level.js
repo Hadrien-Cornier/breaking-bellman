@@ -68,7 +68,7 @@
     lastRun: state.record ? { summary: state.record.metrics, data: state.record.data } : null });
   function advance(step) { state.step = Math.max(state.step, step); hooks.setProgress?.(state.step); }
   RF.run = async () => {
-    if (state.busy || !ui) return null;
+    if (state.busy || !ui || state.picked[level.predict.id] == null) return null;
     stop(); state.busy = true; const token = ++state.token; redraw();
     await new Promise(resolve => setTimeout(resolve, 20));
     try {
@@ -164,7 +164,7 @@
       const lesson = h('section.card', { id: 'rewardfit-step-card' }, [
         h('h3', { text: current ? 'Compare, then change the demonstrations' : 'Predict before Run' }),
         !current ? quiz(h, level.predict) : state.seen.size === 2 ? quiz(h, level.explain) : state.step === 2 ? quiz(h, level.diagnose) : null,
-        h('button.btn' + (current ? '.ghost' : ''), { id: 'rewardfit-run', type: 'button', disabled: state.busy, onclick: () => RF.run().catch(error => { ui.position.textContent = error.message; }) }, state.busy ? 'Fitting…' : state.stale ? 'Run again' : 'Run'),
+        h('button.btn' + (current ? '.ghost' : ''), { id: 'rewardfit-run', type: 'button', disabled: state.busy || state.picked[level.predict.id] == null, onclick: () => RF.run().catch(error => { ui.position.textContent = error.message; }) }, state.busy ? 'Fitting…' : state.stale ? 'Run again' : 'Run'),
         current ? h('p', { text: 'Now change North detours to South detours (or back), Run again, and watch Fit from demonstrations. Compare the lane weight and route. You can also fix the hazard weight at zero and fit the other terms.' }) : null,
         current && state.seen.size === 2 ? h('button.btn', { id: 'rewardfit-finish', type: 'button', disabled: !level.explain.options[state.picked[level.explain.id]]?.correct,
           onclick: () => { hooks.reveal?.('maxentirl'); hooks.complete?.(); advance(5); redraw(); } }, hooks.done?.() ? 'Lesson complete' : 'Finish lesson') : null,

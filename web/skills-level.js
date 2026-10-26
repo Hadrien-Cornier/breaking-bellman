@@ -84,17 +84,18 @@
 
   const settings = { bias: 0.25, alpha: 1, updates: 4, budgetPerSkill: 8 };
   let record = null, stale = false, time = 0, timer = null, method = 'discriminator';
-  let render = null, paint = null, adapter = null, mediaBound = false;
+  let render = null, paint = null, adapter = null, mediaBound = false, allowRun = null;
   const pause = () => { if (timer) clearInterval(timer); timer = null; };
   const api = {
     cancel: pause,
-    clear() { pause(); record = null; stale = false; time = 0; adapter = null; render = null; paint = null; },
+    clear() { pause(); record = null; stale = false; time = 0; adapter = null; render = null; paint = null; allowRun = null; },
     record: () => record,
     replay: () => ({ time, watching: !!timer, stale, world: 'skills', length: record ? adapter.length(record) : 0 }),
     state: () => ({ world: 'skills', level: lesson.title, mode: 'campaign', knobs: { ...settings },
       sentenceName: 'Sample visits, fit rewards, update policies', words: {}, idleWords: {}, discovered: [],
       lastRun: record ? { steps: record.data.fresh.steps, symptoms: [], summary: record.metrics[method] } : null }),
     run() {
+      if (allowRun && !allowRun()) return null;
       pause(); record = window.BBSKILLS_RECORD.create(settings); stale = false; time = 0;
       if (render) render();
       return record;
@@ -124,6 +125,7 @@
       pane.append(scene, body); lab.replaceChildren(evidence);
     }
     let pred = hooks.answer?.('skills-p')?.choice ?? null;
+    allowRun = () => pred != null;
     let diag = hooks.answer?.('skills-d')?.choice ?? null;
     let explain = hooks.answer?.('skills-x')?.choice ?? null;
     const choose = (q, value, setter) => choice(h, q, value, i => {
@@ -212,7 +214,7 @@
         h('p', { text: 'Each trial resets at Start. Red and Blue are skill labels, written on the robot. One action reaches West or East and ends the trial.' }), canvas,
         h('p', { id: 'skills-event', 'aria-live': 'polite' }),
         h('div.row', null, [
-          h('button.btn', { id: 'skills-run', type: 'button', onclick: () => { hooks.markStep?.(2); api.run(); } }, stale ? 'Run again' : 'Run'), watch,
+          h('button.btn', { id: 'skills-run', type: 'button', disabled: pred == null, onclick: () => { if (pred == null) return; hooks.markStep?.(2); api.run(); } }, stale ? 'Run again' : 'Run'), watch,
           h('button.btn.ghost', { id: 'skills-step', type: 'button', disabled: !record || stale, onclick: () => { pause(); time = Math.min(time + 1, adapter.length(record) - 1); paint(); } }, 'Step'),
           h('button.btn.ghost', { id: 'skills-replay', type: 'button', disabled: !record || stale, onclick: () => { pause(); time = 0; paint(); } }, 'Replay'),
         ]),
