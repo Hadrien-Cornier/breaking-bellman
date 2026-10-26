@@ -52,7 +52,12 @@ async function dismissDialog(page, id, closeId) {
 }
 // Run opens the simulation. The lesson continues after that dialog is dismissed.
 async function runDone(page) {
-  await page.waitForFunction(() => !document.querySelector('#run-btn').disabled && document.querySelector('#run-result').textContent.length > 0, null, { timeout: Number(process.env.BB_UI_RUN_TIMEOUT_MS) || 3600000 });
+  await page.waitForFunction(() => {
+    const result = document.querySelector('#run-result');
+    const text = result ? result.textContent.trim() : '';
+    const prog = document.querySelector('#prog');
+    return text.length > 0 && text !== 'New run in progress…' && prog && (prog.style.width === '100%' || prog.style.width === '0%');
+  }, null, { timeout: Number(process.env.BB_UI_RUN_TIMEOUT_MS) || 3600000 });
   await dismissDialog(page, '#run-simulation', '#run-simulation-close');
 }
 const fastRoot = new URL('../../fast/', import.meta.url);
@@ -236,6 +241,24 @@ await session(375, 812, 'phone', async (page) => {
     return { curve: !!(curve && !curve.hidden && note && !note.hidden && note.textContent === 'No pulls yet.'), dots };
   });
   check(slides.curve && slides.dots.join(',') === 'World,Curve,Math', 'world, curve, and math are available before Run');
+  const titles = await page.locator('#prediction-pop').evaluate((el) => [...el.querySelectorAll('h3, .predict-title')].filter((node) => getComputedStyle(node).display !== 'none' && node.getClientRects().length).map((node) => node.textContent.trim()));
+  check(titles.filter((text) => text === 'Predict before you run').length === 1, 'the prediction heading appears once');
+  const chipFit = await page.locator('#rule .w[data-key="optimistic"]').evaluate((chip) => {
+    chip.scrollIntoView({ block: 'center', inline: 'nearest' });
+    const rect = chip.getBoundingClientRect();
+    const view = document.querySelector('#experiment-view').getBoundingClientRect();
+    const workspace = document.querySelector('#algorithm-workspace').getBoundingClientRect();
+    const inWorkspace = rect.top >= workspace.top - 1 && rect.bottom <= workspace.bottom + 1 && rect.left >= workspace.left - 1 && rect.right <= workspace.right + 1;
+    const inView = rect.top >= view.top - 1 && rect.bottom <= view.bottom + 1 && rect.left >= -1 && rect.right <= window.innerWidth + 1;
+    return rect.width >= 20 && rect.height >= 20 && inWorkspace && inView;
+  });
+  check(chipFit, 'the update rule chip 0 is fully reachable');
+  const gap = await page.evaluate(() => {
+    const stage = document.querySelector('#stage').getBoundingClientRect();
+    const dots = document.querySelector('#phone-dots').getBoundingClientRect();
+    return Math.round(dots.top - stage.bottom);
+  });
+  check(gap >= 0 && gap < 72, 'the world sits just above the World, Curve and Math tabs (' + gap + 'px)');
   const deck = page.locator('#phone-deck');
   await deck.evaluate((el) => { el.scrollTo({ left: el.clientWidth, behavior: 'instant' }); });
   check(await page.waitForFunction(() => document.querySelector('#phone-dots [data-panel="curve"]').getAttribute('aria-selected') === 'true', null, { timeout: 2000 }).then(() => true, () => false), 'the curve slide can be selected before Run');
@@ -245,15 +268,17 @@ await session(375, 812, 'phone', async (page) => {
   const landed = await page.waitForFunction(() => {
     const stage = document.querySelector('#stage');
     const run = document.querySelector('#run-btn');
+    const card = document.querySelector('#stage-card');
     const world = document.querySelector('#phone-dots [data-panel="world"]');
-    if (!stage || !run || !world || world.getAttribute('aria-selected') !== 'true') return false;
+    if (!stage || !run || !card || !world || world.getAttribute('aria-selected') !== 'true' || run.hidden) return false;
     const s = stage.getBoundingClientRect();
     const r = run.getBoundingClientRect();
-    const cx = r.x + r.width / 2;
-    const cy = r.y + r.height / 2;
-    return cx >= s.x && cx <= s.x + s.width && cy >= s.y && cy <= s.y + s.height;
+    const c = card.getBoundingClientRect();
+    const overlaps = r.bottom > s.top + 1 && r.top < s.bottom - 1 && r.right > s.left + 1 && r.left < s.right - 1;
+    const inCard = r.top >= c.top - 1 && r.bottom <= c.bottom + 1 && r.left >= c.left - 1 && r.right <= c.right + 1;
+    return inCard && !overlaps && r.height >= 40;
   }, null, { timeout: 2000 }).then(() => true, () => false);
-  check(landed, 'Run sits on the simulation');
+  check(landed, 'Run sits on the simulation without covering the world');
   await page.keyboard.press('Escape');
   check(await page.locator('#run-btn').isDisabled() && (await page.locator('#run-btn').textContent()) === 'Predict first', 'dismissing does not unlock Run');
   await page.locator('#level-title').click();
@@ -268,6 +293,7 @@ await session(375, 812, 'phone', async (page) => {
   const card = page.locator('#verdict-card');
   check(await card.isVisible() && /You predicted/.test(await card.innerText()) && /Measured/.test(await card.innerText()), 'the run shows a prediction result card');
   check(await card.evaluate((el) => el.classList.contains('right') || el.classList.contains('wrong')), 'the result card says whether the prediction was right');
+  check(await page.locator('#run-btn').evaluate((el) => el.hidden), 'Run hides while the measured result shows');
   check(await page.locator('#mode-pane .step', { hasText: 'Diagnose' }).count() === 1, 'a successful campaign run advances to Diagnose');
   console.log('L1 run:', await page.locator('#run-result').innerText());
   await page.locator('#lesson-drawer').evaluate((el) => { el.open = true; });
@@ -279,6 +305,7 @@ await session(375, 812, 'phone', async (page) => {
   console.log('L1 replay, last stage:', (await page.locator('#replay-lab .rp-stage').innerText()).slice(0, 200));
   await answerChoice(page, 1);
   await setWord(page, '#mode-pane', 'eps', 'sometimes at random');
+  check(await page.locator('#run-btn').evaluate((el) => !el.hidden && !el.disabled && el.textContent === 'Run'), 'an edit brings Run back');
   const mjx = await page.locator('#mode-pane .algorithm-math-panel mjx-container').count();
   console.log('MathJax containers in the repair step:', mjx);
   await page.screenshot({ path: out + '/phone-repair.png', fullPage: false });
@@ -293,6 +320,12 @@ await session(375, 812, 'phone', async (page) => {
   const cons = await page.locator('#mode-pane .step').last().innerText();
   check(/ε-greedy/.test(cons), 'level 1 consolidation names ε-greedy');
   await page.screenshot({ path: out + '/phone-l1-done.png', fullPage: true });
+  await page.locator('#campaign-logo').click();
+  await page.locator('[data-map-level="slots"]').click();
+  const briefBox = await page.locator('.map-brief').boundingBox();
+  const mapVp = page.viewportSize();
+  check(!!briefBox && briefBox.width >= mapVp.width - 8 && briefBox.height >= mapVp.height - 8, 'the map explanation fills the screen');
+  await page.locator('.map-brief').getByRole('button', { name: 'Close briefing' }).click();
 });
 
 await session(1280, 900, 'desktop', async (page) => {

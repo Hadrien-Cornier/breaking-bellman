@@ -18,7 +18,12 @@ fs.copyFileSync(new URL('../../dist/breaking-bellman.html', import.meta.url), ou
 const browser = await chromium.launch({ executablePath: fs.existsSync(exe) ? exe : undefined });
 const errors = [], fails = [];
 const check = (cond, msg) => { if (!cond) fails.push(msg); console.log((cond ? 'ok   ' : 'FAIL ') + msg); };
-const runDone = (page) => page.waitForFunction(() => !document.querySelector('#run-btn').disabled && document.querySelector('#run-result').textContent.length > 0, null, { timeout: 300000 });
+const runDone = (page) => page.waitForFunction(() => {
+  const result = document.querySelector('#run-result');
+  const text = result ? result.textContent.trim() : '';
+  const prog = document.querySelector('#prog');
+  return text.length > 0 && text !== 'New run in progress…' && prog && (prog.style.width === '100%' || prog.style.width === '0%');
+}, null, { timeout: 300000 });
 const pickBudget = (page, near) => page.evaluate((near) => {
   const opts = Array.from(document.querySelector('#budget').options).map((o) => +o.value);
   opts.sort((a, b) => Math.abs(a - near) - Math.abs(b - near));

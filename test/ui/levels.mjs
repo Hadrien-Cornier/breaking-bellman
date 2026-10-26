@@ -74,8 +74,9 @@ async function replayContract(page, proof, verify) {
   fs.writeFileSync(path.join(out, proof.name + '-run.json.gz'), gzipSync(exactBefore));
   if (!await page.locator('#notebook').evaluate(e => e.open)) await page.locator('#notebook').evaluate((e) => { e.open = true; });
   await page.locator('#notebook-tab-rule').click();
-  const dimensions = await page.locator('#run-btn, #rule .w').evaluateAll(es => es.map(e => ({ id: e.id, w: e.getBoundingClientRect().width, h: e.getBoundingClientRect().height })));
-  verify(dimensions.length > 0 && dimensions.every(d => d.w >= 44 && d.h >= 44), 'Run and the sentence words have 44px touch targets');
+  const dimensions = await page.locator('#rule .w').evaluateAll(es => es.map(e => ({ id: e.id, w: e.getBoundingClientRect().width, h: e.getBoundingClientRect().height })));
+  verify(dimensions.length > 0 && dimensions.every(d => d.w >= 44 && d.h >= 44), 'the sentence words have 44px touch targets');
+  verify(await page.locator('#run-btn').evaluate((el) => el.hidden), 'Run stays hidden while the measured result shows');
   const replayShown = await page.locator('#scene-controls').evaluate((el) => el.getClientRects().length > 0 && getComputedStyle(el).display !== 'none');
   verify(!replayShown, 'seed and replay controls stay off the experiment');
   await page.locator('#notebook').evaluate((e) => { e.open = false; });
@@ -111,7 +112,11 @@ async function replayContract(page, proof, verify) {
   proof.staleWording = await page.locator('#run-stale').innerText();
   await page.screenshot({ path: path.join(out, proof.name + '-stale.png'), fullPage: true });
   await page.locator('#run-btn').click();
-  await page.waitForFunction(() => bellman.record() && !document.querySelector('#run-btn').disabled, null, { timeout: runTimeout });
+  await page.waitForFunction((oldId) => {
+    const rec = bellman.record();
+    const text = document.querySelector('#run-result')?.textContent.trim() || '';
+    return rec && rec.id !== oldId && text && text !== 'New run in progress…';
+  }, first.id, { timeout: runTimeout });
   const fresh = await status(); proof.rerun = fresh;
   verify(fresh.id !== first.id && !fresh.state.stale && fresh.linked, 'rerun replaces stale measurements everywhere with the new settings');
   await page.locator('#notebook').evaluate((e) => { e.open = true; });
@@ -326,7 +331,10 @@ try {
             record.result = await page.locator('#supermimic-gradients').innerText();
             verify(await page.locator('#supermimic-rollout table').count() > 0, 'baseline rollout and gradient tables exist');
           } else {
-            await page.waitForFunction(() => !document.querySelector('#run-btn').disabled && document.querySelector('#run-result').textContent.trim().length > 0, null, { timeout: runTimeout });
+            await page.waitForFunction(() => {
+              const text = document.querySelector('#run-result')?.textContent.trim() || '';
+              return !!bellman.record() && text && text !== 'New run in progress…';
+            }, null, { timeout: runTimeout });
             record.result = await page.locator('#run-result').innerText();
             record.source = await page.locator('#run-source').innerText();
             verify(await page.locator('#charts canvas').count() > 0, 'record charts appear');

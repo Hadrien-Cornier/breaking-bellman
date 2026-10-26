@@ -545,7 +545,7 @@ button.algo-name { min-height: 0; min-width: 0; height: auto; padding: 0; displa
   .map-rover { left: calc(50% - 96px); }
   .map-world:nth-child(n) .map-medal { transform: none; gap: 18px; padding: 8px; }
   .map-disc { flex-basis: 80px; height: 80px; }
-  .map-brief { inset: auto 0 0; width: 100%; height: auto; max-height: 85dvh; border-radius: 20px 20px 0 0; padding: 20px 16px max(20px, env(safe-area-inset-bottom)); }
+  .map-brief { inset: 0; width: 100%; height: 100%; max-height: none; border: 0; border-radius: 0; padding: 28px 16px max(20px, env(safe-area-inset-bottom)); }
 }
 .map-disc { border-color: transparent; background: linear-gradient(var(--world-color), var(--world-color)) padding-box, conic-gradient(var(--accent) var(--progress), var(--line) 0) border-box; }
 
@@ -614,7 +614,7 @@ button.algo-name { min-height: 0; min-width: 0; height: auto; padding: 0; displa
 .prediction-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; max-width: 720px; margin: 0 auto; }
 .prediction-head h3 { margin: 0; font-family: var(--font-display); font-size: 1.8rem; line-height: 1.15; }
 .prediction-body { display: grid; gap: 12px; margin: 16px auto 0; max-width: 720px; }
-.prediction-pop .predict-title { font-size: 1.7rem; }
+.prediction-pop .predict-title { display: none; }
 .prediction-pop .opt { min-height: 48px; }
 .prediction-world { width: 100%; height: auto; max-height: 96px; object-fit: contain; border-radius: 8px; background: #14110e; }
 .opt-row { display: grid; gap: 4px; }
@@ -811,10 +811,10 @@ button.algo-name { min-height: 0; min-width: 0; height: auto; padding: 0; displa
 #stage-card { position: relative; }
 #stage-card > #prediction-reopen { position: static; display: inline-block; margin: 8px 0 0; }
 #stage-card > .row:has(#lab-world) { display: none; }
-#stage-run { position: static; display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin: 0 0 6px; }
+#stage-run { position: static; display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin: 0 0 8px; }
 #stage-card > #stage-run {
-  position: absolute; top: 8px; right: 8px; z-index: 6; margin: 0; padding: 0;
-  border-radius: 12px; background: transparent;
+  position: static; top: auto; right: auto; z-index: 1; margin: 0 0 8px; padding: 0;
+  border-radius: 0; background: transparent;
 }
 #stage-run #run-btn { min-width: 128px; min-height: 44px; flex: none; white-space: nowrap; }
 #stage-run #run-result { flex: 0 1 auto; min-width: 0; margin: 0; text-align: right; }
@@ -868,32 +868,27 @@ dialog.lesson-help .help-head button { margin-left: auto; }
   main.layout.lesson-shell > #experiment-view { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; }
   main.layout.lesson-shell > #lesson-drawer { flex: 0 0 auto; max-height: 16dvh; overflow: auto; }
   .drawer-workspace > #experiment-view, #experiment-view { position: relative; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
-  #experiment-view > #stage-run {
-    position: absolute; z-index: 6; width: max-content; max-width: 46%; margin: 0; padding: 0;
-    display: flex; justify-content: flex-end; align-items: center; gap: 8px;
-    background: transparent; pointer-events: none;
-  }
+  #stage-card > #stage-run { width: 100%; max-width: none; pointer-events: auto; }
   #prediction-reopen { align-self: center; }
-  #experiment-view > #stage-run > * { pointer-events: auto; }
   #experiment-view #stage-run:has(#run-result:not(:empty):not(.quiet)) { justify-content: space-between; }
   #experiment-view > .predict-live { flex: none; max-height: 200px; overflow: auto; }
   #experiment-view > #verdict-card:not([hidden]) { flex: none; max-height: none; overflow: visible; }
-  #experiment-view:has(> #verdict-card:not([hidden])) > #phone-deck { min-height: 160px; flex: 0 1 160px; }
   #experiment-view #stage-run #run-result { flex: 1 1 auto; min-width: 0; margin: 0; font-size: 0.95rem; line-height: 1.3; text-align: left; }
   #phone-world { display: flex; flex-direction: column; justify-content: flex-start; }
   #phone-world .stage { width: 100%; max-width: none; max-height: none; height: auto; aspect-ratio: 640 / 280; }
-  #experiment-view > #algorithm-workspace { display: block; flex: 0 1 auto; min-height: 0; max-height: 14dvh; overflow: auto; }
-  #phone-curve .chart { height: 112px; }
-  #phone-curve > *, #phone-math > * { max-height: calc(100% - 76px); overflow: auto; }
+  #experiment-view > #algorithm-workspace { display: block; flex: 0 0 auto; min-height: 0; max-height: none; overflow: visible; }
+  #algorithm-workspace .sentence .sl { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; line-height: 1.35; overflow: visible; }
+  #phone-curve .chart { height: 180px; }
+  #phone-curve > *, #phone-math > * { max-height: none; overflow: visible; }
   #phone-deck {
-    display: flex; width: 100%; flex: 1 1 auto; min-height: 196px; height: auto;
+    display: flex; width: 100%; flex: 0 0 auto; min-height: 0; height: auto; align-items: flex-start;
     overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y;
   }
   #phone-deck[hidden] { display: none; }
   .phone-slide {
-    flex: 0 0 100%; width: 100%; height: 100%; min-width: 100%;
-    overflow-x: clip; overflow-y: auto; scroll-snap-align: start; scroll-snap-stop: always;
+    flex: 0 0 100%; width: 100%; height: auto; min-width: 100%; align-self: flex-start;
+    overflow-x: clip; overflow-y: visible; scroll-snap-align: start; scroll-snap-stop: always;
   }
   .phone-slide[hidden] { display: none; }
   #phone-dots { display: flex; justify-content: center; gap: 6px; }

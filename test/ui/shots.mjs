@@ -30,7 +30,12 @@ async function shot(name, w, h, fn, opts = {}) {
   console.log('shot', name);
   await ctx.close();
 }
-const runDone = (page) => page.waitForFunction(() => !document.querySelector('#run-btn').disabled && document.querySelector('#run-result').textContent.length > 0, null, { timeout: 240000 });
+const runDone = (page) => page.waitForFunction(() => {
+  const result = document.querySelector('#run-result');
+  const text = result ? result.textContent.trim() : '';
+  const prog = document.querySelector('#prog');
+  return text.length > 0 && text !== 'New run in progress…' && prog && (prog.style.width === '100%' || prog.style.width === '0%');
+}, null, { timeout: 240000 });
 const only = process.env.SHOTS ? process.env.SHOTS.split(',') : null;
 const want = (n) => !only || only.includes(n);
 const seen = { intro: 1 };

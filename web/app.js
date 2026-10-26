@@ -654,6 +654,7 @@
   function pauseScene() {
     watching = false; cancelAnimationFrame(replayAnimation); cancelAnimationFrame(anim);
     $('#scene-watch').textContent = 'Watch';
+    if (typeof syncRunGate === 'function') syncRunGate();
   }
   function scenePosition() {
     const n = adapter && runState.record ? adapter.length(runState.record) : 0;
@@ -728,9 +729,12 @@
     if (sceneTime >= n - 1) sceneTime = 0;
     // Reduced motion uses explicit steps; Watch reveals the last recorded frame without autoplay.
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      sceneTime = n - 1; adapter.draw(runState.record, sceneTime); scenePosition(); return;
+      sceneTime = n - 1; adapter.draw(runState.record, sceneTime); scenePosition();
+      if (typeof syncRunGate === 'function') syncRunGate();
+      return;
     }
     watching = true; $('#scene-watch').textContent = 'Pause';
+    if (typeof syncRunGate === 'function') syncRunGate();
     let last = null;
     const tick = ts => {
       if (!watching) return;
@@ -975,11 +979,12 @@
     if (customActive() && customScene && runState.record) {
       runState.change(S.level, customScene.settings);
       if (runState.stale) { playRecorded = false; pauseScene(); }
-      linkRun(); return;
+      linkRun(); if (typeof syncRunGate === 'function') syncRunGate(); return;
     }
     if (!runState.record || !RLA.worlds[S.world]) return;
     runState.change(S.mode === 'campaign' ? S.level : S.mode, recordConfig());
-    if (runState.stale) { playRecorded = false; pauseScene(); if (typeof syncRunGate === 'function') syncRunGate(); else $('#run-btn').disabled = false; }
+    if (runState.stale) { playRecorded = false; pauseScene(); }
+    if (typeof syncRunGate === 'function') syncRunGate();
     linkRun();
   }
   function dropRun() {
@@ -1056,13 +1061,40 @@
     if (!q || !q.id || !S.answers || S.answers[q.id]) return null;
     return q;
   }
+  function textOf(el) {
+    return el && typeof el.textContent === 'string' ? el.textContent.trim() : '';
+  }
+  function measuredResultHolding() {
+    const verdict = $('#verdict-card');
+    if (verdict && verdict.hidden === false) return true;
+    const text = textOf($('#run-result'));
+    if (!text || text === 'New run in progress…') return false;
+    if (/did not finish|Run failed|canceled after the settings/i.test(text)) return false;
+    return true;
+  }
+  // The simulation Run control stays out of the way while a run plays and while its measurement is on screen.
+  // An edit that makes that measurement stale, or a new level with nothing measured, brings it back.
+  function offerRunControl() {
+    const playing = typeof watching !== 'undefined' && watching;
+    if (S.running || playing) return false;
+    if (runState.stale) return true;
+    if (measuredResultHolding()) return false;
+    return true;
+  }
   function syncRunGate() {
     const btn = $('#run-btn');
     if (!btn) return;
     const pending = (typeof customActive !== 'function' || !customActive()) && !!unansweredPrediction();
     const stage = $('#stage');
     if (stage) stage.dataset.predictFirst = pending ? '1' : '';
-    if (S.running) { btn.disabled = true; return; }
+    const show = offerRunControl();
+    btn.hidden = !show;
+    const bar = $('#stage-run');
+    const result = $('#run-result');
+    const quiet = !!(result && result.classList && typeof result.classList.contains === 'function' && result.classList.contains('quiet'));
+    const resultVisible = !!(textOf(result) && !quiet);
+    if (bar) bar.hidden = !show && !resultVisible;
+    if (!show) { btn.disabled = true; return; }
     if (pending) {
       btn.disabled = true;
       btn.textContent = 'Predict first';
@@ -1070,6 +1102,7 @@
       btn.disabled = false;
       if (btn.textContent === 'Predict first') btn.textContent = 'Run';
     }
+    if (typeof fitPhoneDeck === 'function') fitPhoneDeck();
   }
   async function run() {
     if (customActive()) return customApi().run();
@@ -1080,7 +1113,7 @@
       return null;
     }
     if (S.running) return null;
-    S.running = true; $('#run-btn').disabled = true;
+    S.running = true; if (typeof syncRunGate === 'function') syncRunGate(); else $('#run-btn').disabled = true;
     const nSeeds = +$('#seeds').value, steps = +$('#budget').value;
     const cfg = { world: S.world, knobs: Object.assign({}, S.knobs), parts: Object.assign({}, S.parts), hyper: hyperNow(), steps };
     const ticket = { controller: new AbortController(), identity: runIdentity() }; activeRun = ticket;
@@ -2220,6 +2253,7 @@
       }
       clearVerdict();
       showPhonePanel('world');
+      if (typeof syncRunGate === 'function') syncRunGate();
       if (runState.record && adapter && !watching) { playRecorded = true; watchScene(); }
     });
   }
@@ -3525,36 +3559,35 @@
     predictionDismissedFor = null;
     button.hidden = true;
   }
+  function fitPhoneDeck() {
+    const deck = $('#phone-deck');
+    if (!deck) return;
+    const phone = window.matchMedia('(max-width: 700px)').matches && !deck.hidden;
+    if (!phone) { deck.style.height = ''; return; }
+    const slides = [...deck.querySelectorAll('.phone-slide')].filter((slide) => !slide.hidden);
+    let best = slides[0];
+    let bestDistance = Infinity;
+    for (const slide of slides) {
+      const distance = Math.abs(slide.offsetLeft - deck.scrollLeft);
+      if (distance < bestDistance) { best = slide; bestDistance = distance; }
+    }
+    if (!best) return;
+    const height = best.scrollHeight;
+    if (!(height > 0)) return;
+    const next = height + 'px';
+    if (deck.style.height !== next) deck.style.height = next;
+  }
   function placeRunOnSim() {
     const bar = $('#stage-run');
     const stage = $('#stage');
-    const view = $('#experiment-view');
     const card = $('#stage-card');
-    if (!bar || !stage) return;
-    const stageBox = stage.getBoundingClientRect();
-    if (!(stageBox.height > 40)) return;
-    const phone = window.matchMedia('(max-width: 700px)').matches && view && !view.hidden;
-    const height = bar.offsetHeight || 48;
-    if (phone && view) {
-      const deck = $('#phone-deck');
-      const deckBox = deck ? deck.getBoundingClientRect() : stageBox;
-      const viewBox = view.getBoundingClientRect();
-      const panel = ($('#phone-dots .phone-dot[aria-selected="true"]') || {}).dataset?.panel;
-      const onWorld = panel !== 'curve' && panel !== 'math';
-      const dots = $('#phone-dots');
-      const dotsTop = dots && !dots.hidden ? dots.getBoundingClientRect().top : Infinity;
-      const visibleBottom = Math.min(onWorld ? stageBox.bottom : deckBox.bottom, deckBox.bottom, dotsTop);
-      const visibleRight = Math.min(onWorld ? stageBox.right : deckBox.right, deckBox.right);
-      const top = visibleBottom - viewBox.top - height - 8;
-      bar.style.top = Math.max(0, Math.round(top)) + 'px';
-      bar.style.right = Math.max(0, Math.round(viewBox.right - visibleRight + 8)) + 'px';
-      bar.style.left = 'auto';
-    } else if (card) {
-      const cardBox = card.getBoundingClientRect();
-      const top = stageBox.bottom - cardBox.top - height - 8;
-      bar.style.top = Math.max(0, Math.round(top)) + 'px';
-      bar.style.right = Math.max(8, Math.round(cardBox.right - stageBox.right + 8)) + 'px';
-    }
+    if (!bar || !stage || !card) return;
+    bar.style.top = '';
+    bar.style.right = '';
+    bar.style.left = '';
+    if (bar.parentElement !== card) stage.before(bar);
+    else if (bar.nextElementSibling !== stage) stage.before(bar);
+    fitPhoneDeck();
   }
   function placeEditor() {
     const pair = $('#experiment-pair');
@@ -3567,6 +3600,8 @@
       bar = document.createElement('div');
       bar.id = 'stage-run';
     }
+    const stage = $('#stage');
+    if (stage && bar.nextElementSibling !== stage) stage.before(bar);
     const runBtn = $('#run-btn');
     const result = $('#run-result');
     const progress = document.querySelector('#run-settings .progress');
@@ -3582,7 +3617,6 @@
       adopt($('#phone-math'), mathSlot);
       const dots = $('#phone-dots');
       if (workspace && dots) dots.after(workspace);
-      if (bar.parentElement !== view) view.append(bar);
       if (result) bar.append(result);
       if (runBtn) bar.append(runBtn);
       const reopen = predictionReopen();
@@ -3591,10 +3625,6 @@
       if ($('#phone-dots')) $('#phone-dots').hidden = false;
       pair.hidden = true;
     } else {
-      bar.style.top = '';
-      bar.style.right = '';
-      bar.style.left = '';
-      card.append(bar);
       if (result) bar.append(result);
       if (runBtn) bar.append(runBtn);
       const reopen = predictionReopen();
@@ -3625,7 +3655,6 @@
       if (verdict) anchor.after(verdict);
       const after = (verdict && verdict.parentElement === view) ? verdict : anchor;
       if (workspace && after.parentElement === view) after.after(workspace);
-      if (bar.parentElement !== view) view.append(bar);
       const drawer = $('#lesson-drawer');
       if (pendingPredict && drawer) drawer.open = false;
     } else if (verdict && card) card.append(verdict);
@@ -3719,7 +3748,7 @@
     const dpr = window.devicePixelRatio || 1;
     if (Math.abs(cv.width - Math.round(rect.width * dpr)) < 2 && Math.abs(cv.height - Math.round(rect.height * dpr)) < 2) return;
     stageFitting = true;
-    try { if (!S.running) renderStage(); } finally { stageFitting = false; }
+    try { if (!S.running) renderStage(); } finally { stageFitting = false; fitPhoneDeck(); }
   }).observe($('#stage'));
   if (!S.intro && S.mode === 'campaign') showIntro();
 })();
