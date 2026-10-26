@@ -45,7 +45,7 @@
     </div>
     <div class="card" id="run-settings">
       <button class="btn" id="run-btn">Run</button>
-      <details id="optional-run-settings"><summary>Optional settings: Seeds, Steps, Fast / Live</summary><div class="row">
+      <div hidden>
         <label class="small" for="seeds">Seeds</label>
         <select id="seeds"><option>1</option><option selected>3</option><option>5</option></select>
         <label class="small" for="budget">Steps</label>
@@ -53,12 +53,11 @@
         <label class="small" for="run-mode">Run mode</label>
         <select id="run-mode"><option value="fast" selected>Fast (reuse exact results)</option><option value="live">Live (train fresh)</option></select>
       </div>
-      </details>
       <p class="small muted" id="run-source" aria-live="polite">Live simulation: trains in this page.</p>
       <div class="progress"><i id="prog"></i></div>
       <p class="small" id="run-result" aria-live="polite"></p>
     </div>
-    <section class="card" id="learning-strip" aria-label="Learning metric"><div id="learning-metric"><p class="small">Run to measure learning.</p></div></section>
+    <section class="card" id="learning-strip" aria-label="Learning metric"><div id="learning-metric"><p class="small">No measurements yet.</p></div></section>
   </aside>
   <section class="card" id="algorithm-editor" aria-label="Editable algorithm"><div class="eyebrow">Edit the algorithm: tap a word</div><div id="rule"></div></section>
   <aside class="pane lab" id="vpo-lab" aria-label="Comparison lesson lab" hidden></aside>

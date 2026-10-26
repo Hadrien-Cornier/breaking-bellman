@@ -437,27 +437,47 @@
     ]);
   }
   // A measured curve stays beside the world; the full performance charts remain in Notebook.
-  function renderLearningMetric(partials, record) {
-    const parts = S.lastCfg ? S.lastCfg.parts : S.parts;
+  // Loss is only the fitted critic or value error. Return and bandit share keep their own names.
+  function metricSpec(parts, world) {
     const family = fam(parts);
-    const hasLoss = !['bandit', 'mirage'].includes(S.world) &&
+    const hasLoss = !['bandit', 'mirage'].includes(world) &&
       (family === 'value' || (family === 'ac' && parts.critics !== 'none') ||
        (family === 'pg' && parts.baseline === 'critic'));
+    const title = hasLoss
+      ? (family === 'pg' ? 'Value fitting loss (mean squared error)'
+        : family === 'value' ? 'Action-value training loss (mean squared TD error)'
+        : 'Critic training loss (mean squared TD error)')
+      : world === 'bandit' ? 'Best machine chosen (share of pulls)'
+      : world === 'mirage' ? 'Left door chosen (share of episodes)'
+      : 'Test episode return';
+    const empty = hasLoss
+      ? 'No measurements yet. Run to record this training loss.'
+      : 'This method has no fitted value loss. No measurements yet. Run to record this learning metric.';
+    return { hasLoss, title, empty };
+  }
+  function paintMetricPlaceholder() {
+    const spec = metricSpec(S.parts, S.world);
+    const box = $('#learning-metric');
+    box.replaceChildren(h('div.chart-title', null, [h('b', { text: spec.title })]), h('p.small', { text: spec.empty }));
+    delete box.dataset.run;
+  }
+  function renderLearningMetric(partials, record) {
+    const parts = S.lastCfg ? S.lastCfg.parts : S.parts;
+    const spec = metricSpec(parts, S.world);
     const series = (partials || []).filter(Boolean).map((p, i) => {
-      const points = hasLoss ? (p.diag || []).filter(d => Number.isFinite(d.loss)) : (p.evals || []).filter(d => Number.isFinite(d.ret));
-      return { xs: points.map(d => d.t), ys: points.map(d => hasLoss ? d.loss : d.ret), color: css('--accent'), alpha: 0.7, label: 'seed ' + (i + 1) };
+      const points = spec.hasLoss ? (p.diag || []).filter(d => Number.isFinite(d.loss)) : (p.evals || []).filter(d => Number.isFinite(d.ret));
+      return { xs: points.map(d => d.t), ys: points.map(d => spec.hasLoss ? d.loss : d.ret), color: css('--accent'), alpha: 0.7, label: 'seed ' + (i + 1) };
     });
     // Bandits record every pull rather than evaluation episodes.
-    if (!hasLoss && ['bandit', 'mirage'].includes(S.world) && S.results.length) {
+    if (!spec.hasLoss && ['bandit', 'mirage'].includes(S.world) && S.results.length) {
       const c = curvesOf(S.results, S.world).main;
       series.splice(0, series.length, { xs: c.xs, ys: c.ys, color: css('--accent'), label: 'mean of seeds' });
     }
-    const title = hasLoss ? (family === 'pg' ? 'Value fitting loss (mean squared error)' : 'Critic training loss (mean squared TD error)') : S.world === 'bandit' ? 'Best machine chosen (share of pulls)' : S.world === 'mirage' ? 'Left door chosen (share of episodes)' : 'Test episode return';
     const box = $('#learning-metric');
-    box.replaceChildren(chartBox('ch-learning', title, [[css('--accent'), 'recorded training']]));
-    if (!hasLoss) box.append(h('p.small', { text: 'This method has no fitted value loss. Showing its measured learning metric.' }));
+    box.replaceChildren(chartBox('ch-learning', spec.title, [[css('--accent'), spec.hasLoss ? 'recorded training loss' : 'measured metric']]));
+    if (!spec.hasLoss) box.append(h('p.small', { text: 'This method has no fitted value loss. Showing its measured learning metric.' }));
     const count = series.reduce((n, s) => n + s.xs.length, 0);
-    if (count) lineChart($('#ch-learning'), series, { xmax: Math.max(1, ...series.flatMap(s => s.xs)), xlabel: hasLoss ? 'training steps' : 'steps / pulls' });
+    if (count) lineChart($('#ch-learning'), series, { xmax: Math.max(1, ...series.flatMap(s => s.xs)), xlabel: spec.hasLoss ? 'training steps' : 'steps / pulls' });
     else box.append(h('p.small', { text: 'Waiting for recorded training measurements.' }));
     if (record) { box.dataset.run = record.id; $('#ch-learning').dataset.run = record.id; }
   }
@@ -946,7 +966,6 @@
     linkRun();
   }
   function dropRun() {
-    $('#learning-metric').replaceChildren(h('p.small', { text: 'Run to measure learning.' }));
     pauseScene(); runState.clear(); S.results = []; S.lastCfg = null; S.lastA = null;
     sceneTime = 0; scenePolicy = 0; adapter = null; linkRun();
     const cv = $('#stage'); cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
@@ -955,9 +974,14 @@
     $('#run-result').textContent = ''; $('#expert-card').hidden = true; $('#wonder').hidden = true;
     $('#charts').replaceChildren(h('p.small', { text: 'Curves appear here while a run trains.' }));
     $('#symptoms').replaceChildren(h('p.small', { text: 'No run yet.' }));
+    paintMetricPlaceholder();
   }
   function showRunPending() {
-    $('#learning-metric').replaceChildren(h('p.small', { text: 'Preparing recorded training measurements.' }));
+    const spec = metricSpec(S.parts, S.world);
+    $('#learning-metric').replaceChildren(
+      h('div.chart-title', null, [h('b', { text: spec.title })]),
+      h('p.small', { text: spec.hasLoss ? 'Preparing recorded training loss.' : 'Preparing the measured learning metric. This method has no fitted value loss.' }),
+    );
     $('#run-result').textContent = 'New run in progress…';
     $('#charts').replaceChildren(h('p.small', { role: 'status', text: 'Preparing this run. Curves appear when training reports progress.' }));
     $('#symptoms').replaceChildren(h('p.small', { role: 'status', text: 'New run in progress. The autopsy appears when it finishes.' }));
@@ -966,7 +990,11 @@
     drawCompare();
   }
   function showRunStopped(message) {
-    $('#learning-metric').replaceChildren(h('p.small', { text: 'No curve: this run did not finish.' }));
+    const spec = metricSpec(S.lastCfg ? S.lastCfg.parts : S.parts, S.world);
+    $('#learning-metric').replaceChildren(
+      h('div.chart-title', null, [h('b', { text: spec.title })]),
+      h('p.small', { text: 'No measurements from this run. ' + message }),
+    );
     $('#run-result').textContent = message;
     $('#charts').replaceChildren(h('p.small', { text: 'No curves are available because this run did not finish.' }));
     $('#symptoms').replaceChildren(h('p.small', { text: 'No autopsy is available because this run did not finish.' }));
@@ -3005,7 +3033,7 @@
     const campaign = S.mode === 'campaign' && !mapping;
     const layout = document.querySelector('main.layout');
     layout.classList.toggle('lesson-shell', campaign);
-    $('#run-btn').classList.toggle('ghost', campaign);
+    $('#run-btn').classList.remove('ghost');
     // DOM, visual and keyboard order agree: map, measured scene, teaching step, Notebook.
     if (campaign) layout.insertBefore(customActive() ? $('#vpo-lab') : $('#lab'), pane);
     else layout.prepend(pane);
@@ -3038,6 +3066,17 @@
       lessonFlow.append(pane);
     }
     updateScore();
+    if (!mapping && !customActive() && !runState.record && !activeRun) paintMetricPlaceholder();
+    if (!mapping && !customActive()) requestAnimationFrame(() => {
+      const cv = $('#stage');
+      const r = cv.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      if (r.width < 2 || r.height < 2) return;
+      if (Math.abs(cv.width / dpr - r.width) > 2 || Math.abs(cv.height / dpr - r.height) > 2) {
+        stageW = Math.round(r.width);
+        renderStage();
+      }
+    });
   }
   $$('#tabs button').forEach((b) => b.addEventListener('click', () => {
     S.mode = b.dataset.mode; save();
@@ -3084,7 +3123,9 @@
   // so the sticky strip can keep the world, Run, the curve and this editor on one screen.
   $('#rule').append(mountSentence({ getParts: () => S.parts, setPart: setMainPart, world: () => S.world, focus: () => (S.mode === 'campaign' ? S.focus || [] : []), withName: true, permanent: true, preset: true }));
   algorithmMath = window.ALGO_MATH.mount({ id: 'algorithm-math-panel', getParts: () => S.parts, world: () => S.world, hyper: () => hyperNow() });
-  $('#algorithm-editor').append(algorithmMath.el);
+  const mathSlot = h('div', { id: 'algorithm-math-slot' });
+  mathSlot.append(algorithmMath.el);
+  $('#algorithm-editor').append(mathSlot);
   $('#replay-lab').append(replayView());
   $('#grid-lab').append(gridView());
   $('#grid-card').addEventListener('toggle', () => { if ($('#grid-card').open) drawGrid(); });
