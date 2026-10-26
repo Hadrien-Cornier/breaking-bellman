@@ -318,6 +318,7 @@
   // ---------------------------------------------------------------- the component
   function render(container, parts, world, opts) {
     opts = opts || {};
+    const defsOpen = !!(container.querySelector && container.querySelector('details.math-defs') && container.querySelector('details.math-defs').open);
     const lines = texLines(parts, world);
     const f = fam(parts);
     const idle = idleWords(parts, world);
@@ -366,11 +367,13 @@
       kids.push(ul);
     }
 
-    kids.push(h('p.math-group', { text: 'Symbols' }));
-    kids.push(h('p.math-legend', { text: legend(parts, world, opts.hyper) }));
     const dl = h('dl.math-gloss');
     for (const [sym, def] of glossary(parts, world)) { dl.append(h('dt', { text: sym })); dl.append(h('dd', { text: def })); }
-    kids.push(h('details.math-defs', null, [h('summary', { text: 'Click for one-line definitions' }), dl]));
+    kids.push(h('details.math-defs', { open: defsOpen }, [
+      h('summary', { text: 'Click for symbol definitions' }),
+      h('p.math-legend', { text: legend(parts, world, opts.hyper) }),
+      dl,
+    ]));
 
     container.replaceChildren(...kids);
     // re-render any TeX that MathJax has not touched yet (replaceChildren above reset them)
@@ -542,13 +545,24 @@
     return { lines: out, notes };
   }
   function rareGlossary(m) {
+    const f = rareFacts(m);
     return [
-      ['r', 'the environment reward: 1 only for Open at the door, 0 otherwise'],
-      ['b', 'the count bonus 1/√n(s′) paid inside the target for arriving at a rarely visited cell'],
-      ['Score(s, a)', 'the number the learner compares to choose an action at s'],
+      ['r', f.withheld
+        ? 'the environment reward. This method forces r to 0. The visit bonus is not r.'
+        : 'the environment reward: 1 only for Open at the door, otherwise 0. The visit bonus is not r.'],
+      ['b', f.bonusTarget
+        ? 'the count bonus inside the target: 1/√n(s′) using the destination count after this visit'
+        : 'the count-bonus slot in the target. This method sets b to 0, so that bonus does not move y'],
+      ['Score(s, a)', f.bonusScore
+        ? 'the number compared to choose an action. Here it is Q(s, a) plus 1/√n(s′) before the visit, or +∞ if that cell is unseen'
+        : f.optimistic
+          ? 'the number compared to choose an action. An untried action scores 1/(1 − γ) until it is tried'
+          : 'the number compared to choose an action. Here it is plain Q(s, a)'],
       ['Q(s, a)', 'the learned value of taking action a at s; starts at 0'],
       ['y', 'the target: the number Q(s, a) moves toward in one update'],
-      ['boot', 'the guess for everything after this step: the best next-action value at s′'],
+      ['boot', f.optimistic
+        ? 'the guess for everything after this step. An untried next action counts as 1/(1 − γ); a tried one counts as its Q'
+        : 'the guess for everything after this step: the best next-action value at s′'],
       ['n(s), n(s, a)', 'how often s was visited, and how often a was taken at s'],
       ['α (alpha)', 'the step size of one update: Q moves α of the way to y'],
       ['γ (gamma)', 'the discount: how much a later value counts compared with a reward now'],
@@ -557,8 +571,9 @@
   }
   function renderRare(container, m, step, opts, state) {
     opts = opts || {}; state = state || {};
+    const defsOpen = !!(container.querySelector && container.querySelector('details.math-defs') && container.querySelector('details.math-defs').open);
     const highlight = state.highlight || [];
-    const groups = { 'Choosing an action': [], 'The target and the update': [], 'This recorded step': [], 'No effect in this method': [], 'Symbols': [] };
+    const groups = { 'Choosing an action': [], 'The target and the update': [], 'This recorded step': [], 'No effect in this method': [] };
     const gOf = (label) => (['act', 'choose'].includes(label) ? 'Choosing an action'
       : ['target', 'r', 'b', 'boot', 'update', 'counts'].includes(label) ? 'The target and the update'
         : label.startsWith('step') ? 'This recorded step' : 'No effect in this method');
@@ -576,16 +591,20 @@
     if (rarePlace(m) !== 'backup' || rareWithheld(m)) groups['No effect in this method'].push(['note', methodNotes[rarePlace(m)]]);
     if (rareWithheld(m)) groups['No effect in this method'].push(['note', 'The environment reward is forced to 0: only the count bonus moves the target.']);
     if (stepInfo.notes) for (const n of stepInfo.notes) groups['No effect in this method'].push(['note', n]);
-    const legend = 'r: environment reward (Open at the door). b: count bonus 1/√n(s′). Score: the number compared to choose an action. Q: the learned value of a state-action pair. y: the target of one update. α = ' + String(rareProto(opts.proto).alpha) + ': the step size. γ = ' + String(rareProto(opts.proto).gamma) + ': the discount. n(s), n(s, a): visit counts.';
-    groups['Symbols'].push(['legend', legend]);
-    const dl = h('details.math-defs', null, [h('summary', { text: 'Click for one-line definitions' })]);
+    const factsNow = rareFacts(m, opts.proto);
+    const legend = 'r: environment reward (Open at the door)' + (factsNow.withheld ? ', forced to 0 in this method' : '')
+      + '. b: ' + (factsNow.bonusTarget ? 'count bonus 1/√n(s′) inside the target' : '0 in this method, so the count bonus does not move the target')
+      + '. Score: the number compared to choose an action. Q: the learned value of a state-action pair. y: the target of one update. α = ' + String(rareProto(opts.proto).alpha) + ': the step size. γ = ' + String(rareProto(opts.proto).gamma) + ': the discount. n(s), n(s, a): visit counts.';
     const gdl = h('dl.math-gloss');
     for (const [sym, def] of rareGlossary(m)) { gdl.append(h('dt', { text: sym })); gdl.append(h('dd', { text: def })); }
-    dl.append(gdl);
-    groups['Symbols'].push(['defs', dl]);
+    const defs = h('details.math-defs', { open: defsOpen }, [
+      h('summary', { text: 'Click for symbol definitions' }),
+      h('p.math-legend', { text: legend }),
+      gdl,
+    ]);
     const kids = [];
     kids.push(h('p.math-title', { text: 'The math this method runs' }));
-    for (const [g, title] of [['Choosing an action', 'Choosing an action'], ['The target and the update', 'The target and the update'], ['This recorded step', 'This recorded step'], ['No effect in this method', 'No effect in this method'], ['Symbols', 'Symbols']]) {
+    for (const [g, title] of [['Choosing an action', 'Choosing an action'], ['The target and the update', 'The target and the update'], ['This recorded step', 'This recorded step'], ['No effect in this method', 'No effect in this method']]) {
       const rows = groups[g];
       if (!rows.length) continue;
       kids.push(h('p.math-group', { text: title }));
@@ -601,6 +620,7 @@
       for (const c of state.explain.changed) box.append(h('p.math-explain-line', { text: c }));
       kids.splice(1, 0, box);
     }
+    kids.push(defs);
     container.replaceChildren(...kids);
     return container;
   }

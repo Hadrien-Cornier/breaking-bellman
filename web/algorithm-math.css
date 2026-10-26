@@ -53,13 +53,10 @@
   font-size: 0.78rem;
   line-height: 1.35;
 }
-/* MathJax display mode adds 1em margins per line; inside the panel the rows already space out */
+/* MathJax display mode adds 1em margins per line; inside the panel the rows already space out.
+   Wide formulas keep their natural size and scroll sideways. Do not scale the SVG. */
 .algorithm-math-panel .tex mjx-container[jax][display="true"] {
   margin: 0 !important;
-}
-.algorithm-math-panel .tex svg {
-  max-width: 100%;
-  height: auto;
 }
 .algorithm-math-panel .tex-src {
   font-family: var(--font-mono, ui-monospace, monospace);
