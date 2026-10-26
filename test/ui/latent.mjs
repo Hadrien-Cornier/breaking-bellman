@@ -237,7 +237,7 @@ for (const width of [1280, 390]) {
 }
 
 const peers = evaluate(`() => {
-  const ids = ['goals', 'replan', 'messages', 'skills', 'hierarchy', 'rare', 'elbo', 'hindsight', 'rewardfit', 'thaw', 'vpo', 'supermimic', 'latent'];
+  const ids = ['goals', 'replan', 'messages', 'skills', 'hierarchy', 'rare', 'elbo', 'hindsight', 'rewardfit', 'thaw', 'vpo', 'supermimic', 'metarl', 'ensemble', 'skew', 'latent'];
   const out = {};
   for (const id of ids) {
     bellman.level(id);
@@ -248,7 +248,7 @@ const peers = evaluate(`() => {
   out.routed = !!document.querySelector('#latent-lesson') && !document.querySelector('#vpo-lesson') && !document.querySelector('#supermimic-lesson') && bellman.state().world === 'latent';
   return out;
 }`);
-for (const id of ['goals', 'replan', 'messages', 'skills', 'hierarchy', 'rare', 'elbo', 'hindsight', 'rewardfit', 'thaw', 'vpo', 'supermimic', 'latent']) {
+for (const id of ['goals', 'replan', 'messages', 'skills', 'hierarchy', 'rare', 'elbo', 'hindsight', 'rewardfit', 'thaw', 'vpo', 'supermimic', 'metarl', 'ensemble', 'skew', 'latent']) {
   check(peers[id], id + ' still mounts');
 }
 check(peers.routed, 'set_world latent opens this lesson and does not fall through');
