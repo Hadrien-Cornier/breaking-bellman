@@ -102,7 +102,7 @@ async function revealLesson(page) {
   await dismissLessonHelp(page);
   const lesson = page.locator('#lesson-drawer');
   if (await lesson.count() && await lesson.isVisible() && !(await lesson.evaluate(el => el.open))) {
-    await lesson.locator('summary').click();
+    await lesson.locator(':scope > summary').click();
   }
 }
 // Predict and diagnose open on the scene. Explain stays in the lesson step.
@@ -124,7 +124,12 @@ async function answerChoice(page, index) {
     await choice.nth(index).click();
     return;
   }
-  await page.locator('#mode-pane .step.active .mc .opt, #mode-pane .mc .opt').nth(index).click();
+  const active = page.locator('#mode-pane .step.active .mc .opt');
+  if (await active.count()) {
+    await active.nth(index).click();
+    return;
+  }
+  await page.locator('.predict-live .opt, #mode-pane .mc .opt').nth(index).click();
 }
 // A campaign reload opens the map. The saved lesson, including its notebook, is behind Play.
 async function enterSavedLesson(page) {
@@ -176,7 +181,7 @@ async function lessonIntro(page) {
   if (!open) {
     const drawer = page.locator('#lesson-drawer');
     if (await drawer.count() && await drawer.isVisible() && !(await drawer.evaluate((el) => el.open))) {
-      await drawer.locator('summary').click();
+      await drawer.locator(':scope > summary').click();
     }
     const about = page.getByRole('button', { name: 'About this experiment' });
     if (await about.count()) await about.click();
@@ -200,6 +205,8 @@ async function openCampaignLevel(page, id) {
   const pred = page.locator('#prediction-pop');
   if (await pred.count() && await pred.evaluate((el) => el.open).catch(() => false)) {
     await pred.locator('button.opt').first().click();
+  } else if (await page.locator('#run-btn').evaluate((el) => el.textContent === 'Predict first').catch(() => false)) {
+    await page.locator('.predict-live .opt').first().click();
   }
 }
 async function chooseHidden(page, selector, value) {
@@ -213,9 +220,22 @@ async function chooseHidden(page, selector, value) {
 
 await session(375, 812, 'phone', async (page) => {
   await page.screenshot({ path: out + '/phone-start.png' });
+  check((await page.locator('#run-btn').textContent()) === 'Predict first', 'level entry locks Run as Predict first');
+  check(await page.locator('#run-btn').isDisabled(), 'Run stays disabled until a prediction');
+  check(await page.locator('.predict-live .opt').count() >= 2, 'the prediction question is on screen before Run');
+  check(await page.evaluate(() => document.querySelector('#stage') && document.querySelector('#stage').dataset.predictFirst === '1'), 'the world caption waits for a prediction');
+  const stageBox = await page.locator('#stage').boundingBox();
+  const askBox = await page.locator('.predict-live').boundingBox();
+  check(!!stageBox && stageBox.height > 80 && !!askBox && askBox.height > 40, 'the question and the world are both on screen');
+  await page.keyboard.press('Escape');
+  check(await page.locator('#run-btn').isDisabled() && (await page.locator('#run-btn').textContent()) === 'Predict first', 'dismissing does not unlock Run');
   await answerChoice(page, 1);
+  check((await page.locator('#run-btn').textContent()) === 'Run' && !(await page.locator('#run-btn').isDisabled()), 'an answer enables Run');
   await clickCampaignRun(page);
   await runDone(page);
+  const card = page.locator('#verdict-card');
+  check(await card.isVisible() && /You predicted/.test(await card.innerText()) && /Measured/.test(await card.innerText()), 'the run shows a prediction result card');
+  check(await card.evaluate((el) => el.classList.contains('right') || el.classList.contains('wrong')), 'the result card says whether the prediction was right');
   check(await page.locator('#mode-pane .step', { hasText: 'Diagnose' }).count() === 1, 'a successful campaign run advances to Diagnose');
   console.log('L1 run:', await page.locator('#run-result').innerText());
   await page.locator('#lesson-drawer').evaluate((el) => { el.open = true; });
@@ -233,6 +253,8 @@ await session(375, 812, 'phone', async (page) => {
   await page.getByText('Run this sentence').click();
   await runDone(page);
   console.log('L1 repair run:', await page.locator('#run-result').innerText());
+  check(await page.locator('#verdict-card').isHidden(), 'a repair shows the new measurement without the old prediction card');
+  check(/→|Works:/.test(await page.locator('#run-result').innerText()), 'a repair pairs the old measurement with the new one');
   await page.waitForSelector('text=Explain why it works', { timeout: 10000 });
   await page.locator('#mode-pane .mc').last().locator('.opt').nth(0).click();
   await page.waitForSelector('text=Your sentence and the published one');
@@ -664,6 +686,7 @@ await session(390, 844, 'pendulum', async (page) => {
   await page.waitForTimeout(400);
   const pred = page.locator('#prediction-pop');
   if (await pred.count() && await pred.evaluate((el) => el.open).catch(() => false)) await pred.locator('button.opt').first().click();
+  else if (await page.locator('#run-btn').evaluate((el) => el.textContent === 'Predict first').catch(() => false)) await page.locator('.predict-live .opt').first().click();
   await page.click('#run-btn');
   await runDone(page);
   await page.locator('#stage').scrollIntoViewIfNeeded();

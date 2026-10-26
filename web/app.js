@@ -696,6 +696,8 @@
     watchScene();
   }
   function renderStage() {
+    const stageEl = $('#stage');
+    if (stageEl) stageEl.dataset.predictFirst = (typeof customActive !== 'function' || !customActive()) && typeof unansweredPrediction === 'function' && unansweredPrediction() ? '1' : '';
     markRunStale(); pauseScene();
     if (customActive() && customScene) {
       adapter = BB.customScenes.create(S.world, scenePolicy, customScene.host);
@@ -977,7 +979,7 @@
     }
     if (!runState.record || !RLA.worlds[S.world]) return;
     runState.change(S.mode === 'campaign' ? S.level : S.mode, recordConfig());
-    if (runState.stale) { playRecorded = false; pauseScene(); $('#run-btn').disabled = false; }
+    if (runState.stale) { playRecorded = false; pauseScene(); if (typeof syncRunGate === 'function') syncRunGate(); else $('#run-btn').disabled = false; }
     linkRun();
   }
   function dropRun() {
@@ -1000,6 +1002,7 @@
     if (typeof syncPhonePanels === 'function') syncPhonePanels();
   }
   function showRunPending() {
+    if (typeof clearVerdict === 'function') clearVerdict();
     $('#run-result').textContent = 'New run in progress…';
     $('#training-metric').replaceChildren();
     $('#charts').replaceChildren(h('p.small', { role: 'status', text: 'Preparing this run. Curves appear when training reports progress.' }));
@@ -1020,7 +1023,7 @@
     if (!activeRun) return;
     activeRun.controller.abort(); activeRun = null;
     stopAll(new Error('cancelled'));
-    S.running = false; $('#run-btn').disabled = false;
+    S.running = false; if (typeof syncRunGate === 'function') syncRunGate(); else $('#run-btn').disabled = false;
     $('#prog').style.width = '0%';
     $('#run-source').textContent = 'Settings changed. Run this sentence to measure it.';
     showRunStopped('Run canceled after the settings changed.');
@@ -1052,6 +1055,21 @@
     const q = lv && lv.predict;
     if (!q || !q.id || !S.answers || S.answers[q.id]) return null;
     return q;
+  }
+  function syncRunGate() {
+    const btn = $('#run-btn');
+    if (!btn) return;
+    const pending = (typeof customActive !== 'function' || !customActive()) && !!unansweredPrediction();
+    const stage = $('#stage');
+    if (stage) stage.dataset.predictFirst = pending ? '1' : '';
+    if (S.running) { btn.disabled = true; return; }
+    if (pending) {
+      btn.disabled = true;
+      btn.textContent = 'Predict first';
+    } else {
+      btn.disabled = false;
+      if (btn.textContent === 'Predict first') btn.textContent = 'Run';
+    }
   }
   async function run() {
     if (customActive()) return customApi().run();
@@ -1139,7 +1157,7 @@
       }
       return null;
     } finally {
-      if (activeRun === ticket) { activeRun = null; S.running = false; $('#run-btn').disabled = false; prog.style.width = completed ? '100%' : '0%'; }
+      if (activeRun === ticket) { activeRun = null; S.running = false; if (typeof syncRunGate === 'function') syncRunGate(); else $('#run-btn').disabled = false; prog.style.width = completed ? '100%' : '0%'; }
     }
   }
   // ---------------------------------------------------------------- discovery celebration
@@ -1439,7 +1457,7 @@
     } catch (err) {
       G.status = 'A combination failed: ' + err.message;
     } finally {
-      S.running = false; G.running = false; $('#run-btn').disabled = false; drawGrid();
+      S.running = false; G.running = false; if (typeof syncRunGate === 'function') syncRunGate(); else $('#run-btn').disabled = false; drawGrid();
     }
   }
   const gfmt = (x) => (isFinite(x) && Math.abs(x) >= 1 ? x.toFixed(1) : fmt(x));
@@ -2021,35 +2039,18 @@
   function setParts(p) { const f0 = fam(S.parts); S.parts = C.cfg(p || {}); if (fam(S.parts) !== f0) budgetOptions(); onPartsChanged(); }
 
   function predictionMount(q, onAnswer, title, current, kind, preface) {
-    if (kind !== 'predict' || !window.BBPLAYER || typeof document === 'undefined') return mcBlock(q, onAnswer, kind);
-    const reopen = h('button.btn.ghost', { type: 'button', 'data-prediction': q.id }, S.answers[q.id] ? 'Review the prediction' : 'Show the prediction');
-    const open = () => {
-      const stage = $('#stage-card') || $('#lab');
-      const node = h('div.stack', null, [
-        preface ? h('p', { html: preface }) : null,
-        mcBlock(q, (choice) => {
-          window.BBPLAYER.closePrediction(false);
-          onAnswer(choice);
-          const run = $('#run-btn');
-          if (run) run.focus();
-        }, kind),
-      ]);
-      window.BBPLAYER.openPrediction({
-        title: title || 'Predict before you run',
-        node,
-        anchor: stage,
-        returnLabel: 'Back to the experiment',
-      });
-    };
-    reopen.addEventListener('click', open);
-    if (current && !S.answers[q.id] && window.BBPLAYER.claimPrediction(q.id)) {
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        const help = document.querySelector('dialog.lesson-help[open]');
-        if (help) help.addEventListener('close', () => open(), { once: true });
-        else open();
-      }));
-    }
-    return reopen;
+    if (kind !== 'predict' || typeof document === 'undefined') return mcBlock(q, onAnswer, kind);
+    return h('div.predict-live', { 'data-prediction': q.id }, [
+      h('p.predict-title', { text: title || 'Predict before you run' }),
+      mcBlock(q, (choice) => {
+        if (window.BBPLAYER && window.BBPLAYER.closePrediction) window.BBPLAYER.closePrediction(false);
+        onAnswer(choice);
+        if (typeof syncRunGate === 'function') syncRunGate();
+        if (!S.running) renderStage();
+        const run = $('#run-btn');
+        if (run && !run.disabled) run.focus();
+      }, kind),
+    ]);
   }
 
   const replayDrawer = h('details.workspace-drawer', { id: 'replay-drawer' }, [h('summary', { text: 'Run readout and replay controls' })]);
@@ -2115,11 +2116,11 @@
     const lv = C.levels.find((l) => l.id === S.level);
     if (!lv || (S.lstep[lv.id] || 0) !== 1) return;
     if (S.lastA) S.baselineResult = Object.assign({}, S.baselineResult, { [lv.id]: headline(S.lastA, lv.world) });
+    S.predictShown = lv.id;
     if (campaignRunLevel) return;
     for (const id of [].concat(lv.reveal || [])) if (!S.given.includes(id)) {
       const alreadyKnown = S.found.includes(id); S.given.push(id); if (!alreadyKnown) queueCelebration(id);
     }
-    S.predictShown = lv.id;
     setStep(lv, 2);
     playRecorded = true;
     showPhonePanel('world');
@@ -2137,7 +2138,51 @@
     const opt = q.options[ans.choice];
     const said = opt ? String(opt.result).replace(/<[^>]+>/g, '') : 'a choice';
     const text = typeof measured === 'string' ? measured : headline(measured, lv.world);
-    return ' You said: ' + said + ' Measured: ' + text + '. ' + (ans.correct ? 'You were right.' : 'Not this time.');
+    return ' You predicted: ' + said + ' Measured: ' + text + '. ' + (ans.correct ? 'You were right.' : 'Not this time.');
+  }
+  function percentIn(text) {
+    const s = String(text || '').replace(/<[^>]+>/g, '');
+    const pct = s.match(/(\d+(?:\.\d+)?)\s*%/);
+    if (pct) return Math.max(0, Math.min(100, Number(pct[1])));
+    if (/one\s+\w+\s+in\s+three|1\s+in\s+3/i.test(s)) return 33;
+    const inn = s.match(/\b1\s+in\s+(\d+)\b/i);
+    if (inn) return Math.max(0, Math.min(100, Math.round(100 / Number(inn[1]))));
+    return null;
+  }
+  function clearVerdict() {
+    const host = $('#verdict-card');
+    if (host) { host.replaceChildren(); host.hidden = true; }
+    const result = $('#run-result');
+    if (result) result.classList.remove('quiet');
+  }
+  function paintVerdict(lv, measured) {
+    const host = $('#verdict-card');
+    if (!host || !lv) return;
+    const q = lv.predict;
+    const ans = q && S.answers[q.id];
+    if (!ans) { clearVerdict(); return; }
+    const opt = q.options[ans.choice];
+    const said = opt ? String(opt.result).replace(/<[^>]+>/g, '') : 'a choice';
+    const text = typeof measured === 'string' ? measured : headline(measured, lv.world);
+    const right = !!ans.correct;
+    const saidN = percentIn(said);
+    const gotN = percentIn(text);
+    host.hidden = false;
+    host.className = 'verdict-card ' + (right ? 'right' : 'wrong');
+    const scale = h('div.verdict-scale');
+    if (saidN != null) scale.append(h('i.you', { style: 'left:' + saidN + '%' }));
+    if (gotN != null) scale.append(h('i.measured', { style: 'left:' + gotN + '%' }));
+    const marks = [];
+    if (saidN != null) marks.push('You ' + saidN);
+    if (gotN != null) marks.push('Measured ' + gotN);
+    host.replaceChildren(...[
+      h('p.verdict-mark', { text: right ? '✓ You were right' : '✗ Not this time' }),
+      h('p', { text: 'You predicted ' + said }),
+      h('p', { text: 'Measured ' + text }),
+      saidN != null || gotN != null ? scale : null,
+      marks.length ? h('p.verdict-key', { text: marks.join('   ') }) : null,
+      h('p.verdict-next', { text: 'Next: Diagnose' }),
+    ].filter((node) => node));
   }
   function noteLessonRun(a) {
     if (S.mode !== 'campaign' || !a) return;
@@ -2146,7 +2191,11 @@
     const verdict = lessonVerdict(lv, a);
     const showVerdict = S.predictShown === lv.id;
     if (showVerdict) S.predictShown = null;
-    if (verdict && $('#run-result') && showVerdict) $('#run-result').textContent += verdict;
+    if (verdict && $('#run-result') && showVerdict) {
+      $('#run-result').textContent += verdict;
+      paintVerdict(lv, a);
+      $('#run-result').classList.add('quiet');
+    } else if (!showVerdict) clearVerdict();
     showPhonePanel('world');
     if ((S.lstep[lv.id] || 0) !== 3 || !lv.goal || !lv.goal.test(a, S.parts)) return;
     const before = (S.baselineResult || {})[lv.id];
@@ -2164,7 +2213,11 @@
     setStep(lv, lv.explain ? 4 : 5);
     save();
     queueMicrotask(() => {
-      if ($('#run-result') && S.payoff && S.payoff.level === S.level) $('#run-result').textContent = S.payoff.text;
+      if ($('#run-result') && S.payoff && S.payoff.level === S.level) {
+        $('#run-result').textContent = S.payoff.text;
+        $('#run-result').classList.remove('quiet');
+      }
+      clearVerdict();
       showPhonePanel('world');
       if (runState.record && adapter && !watching) { playRecorded = true; watchScene(); }
     });
@@ -3311,6 +3364,7 @@
     syncLevelTitle();
     if (!S.running && !S.results.length && !customActive()) showEmptyCharts();
     placeEditor();
+    if (typeof syncRunGate === 'function') syncRunGate();
     const stageEl = $('#stage');
     const stageBox = stageEl.getBoundingClientRect();
     const stageWidth = Math.round(stageBox.width), stageHeight = Math.round(stageBox.height);
@@ -3416,7 +3470,8 @@
     const has = !!($('#charts') && $('#charts').childElementCount) || !!($('#training-metric') && $('#training-metric').childElementCount);
     if (curve && curve.hidden !== !has) curve.hidden = !has;
     const monitor = $('#learning-monitor');
-    if (monitor && monitor.hidden !== !has) monitor.hidden = !has;
+    const showMonitor = has || !!(monitor && monitor.querySelector('.predict-live'));
+    if (monitor && monitor.hidden !== !showMonitor) monitor.hidden = !showMonitor;
     syncPhoneDots();
   }
   function placeEditor() {
@@ -3470,6 +3525,29 @@
       if (deck) deck.hidden = true;
       if ($('#phone-dots')) $('#phone-dots').hidden = true;
     }
+    const pendingPredict = (typeof customActive !== 'function' || !customActive()) && typeof unansweredPrediction === 'function' && unansweredPrediction();
+    const inPane = document.querySelector('#mode-pane .predict-live');
+    const placed = document.querySelector('#learning-monitor .predict-live, #experiment-view > .predict-live');
+    const live = pendingPredict ? (inPane || placed) : null;
+    document.querySelectorAll('.predict-live').forEach((node) => { if (node !== live && node !== inPane) node.remove(); });
+    const title = $('#level-title');
+    if (phone && deck && bar && view) {
+      const dots = $('#phone-dots');
+      if (title && title.parentElement === view) title.after(deck);
+      if (dots) deck.after(dots);
+      const anchor = dots && dots.parentElement === view ? dots : deck;
+      anchor.after(bar);
+      if (live && pendingPredict) bar.before(live);
+      if (workspace && bar.parentElement === view) bar.after(workspace);
+      const drawer = $('#lesson-drawer');
+      if (pendingPredict && drawer) drawer.open = false;
+    } else if (live && pendingPredict) {
+      const monitor = $('#learning-monitor');
+      if (monitor) monitor.prepend(live);
+      else if (bar) bar.before(live);
+    }
+    const verdict = $('#verdict-card');
+    if (verdict && bar) { if (phone) bar.after(verdict); else card.append(verdict); }
     syncPhonePanels();
   }
   $$('#phone-dots .phone-dot').forEach((button) => {

@@ -15,6 +15,9 @@
   const now = () => replayClock == null ? (typeof performance === 'object' ? performance.now() : Date.now()) : replayClock;
   // The same renderer and decorative clock are used for replay, screenshots and reduced motion.
   SC.atTime = (t, draw) => { const previous = replayClock; replayClock = t; try { return draw(); } finally { replayClock = previous; } };
+  function beforeRun(ctx, press) {
+    return ctx && ctx.canvas && ctx.canvas.dataset && ctx.canvas.dataset.predictFirst === '1' ? 'Predict first.' : press;
+  }
 
   function rr(ctx, x, y, w, h, r) {
     const R = Array.isArray(r) ? r : [r, r, r, r];
@@ -451,7 +454,7 @@
       }
       // the label strip
       const px = Math.max(10, Math.min(13, H * 0.034)), narrow = W < 480;
-      if (!replay) hud(ctx, [narrow ? 'Press Run: a robot plays.' : 'Hidden average payouts. Press Run: a robot plays.'], null, 6, px, fonts.mono, W);
+      if (!replay) hud(ctx, [beforeRun(ctx, narrow ? 'Press Run: a robot plays.' : 'Hidden average payouts. Press Run: a robot plays.')], null, 6, px, fonts.mono, W);
       else if (!done) {
         const sp = cur < SLOW ? '' : cur < MID ? ' ▶▶' : ' ▶▶▶';
         hud(ctx, [(narrow ? 'Pull ' : (d.label || 'Run 1') + ', training pull ') + (cur + 1).toLocaleString('en-US') + ' of ' + N.toLocaleString('en-US') + sp + (narrow || cur < SLOW ? '' : cur < MID ? ' faster' : ' fast-forward')], 'skip ▶', 6, px, fonts.mono, W);
@@ -701,7 +704,7 @@
       }
       // labels in the canyon
       const px = Math.max(10, Math.min(13, below * 0.17)), ly = H - px * 1.75 - 6;
-      if (!segs.length) pill(ctx, 'Press Run: the robot learns this map.', 8, ly, px, fonts.mono);
+      if (!segs.length) pill(ctx, beforeRun(ctx, 'Press Run: the robot learns this map.'), 8, ly, px, fonts.mono);
       else if (seg) {
         const lab = seg.kind === 'test' ? seg.title + ' ' + (e >= seg.t2 ? seg.sub : '') : 'Episode ' + seg.ep + ' of ' + lastEp.toLocaleString('en-US') + (e >= seg.t2 ? '. ' + seg.sub : '');
         hud(ctx, [lab.trim()], ended ? 'replay' : 'next ▶', ly, px, fonts.mono, W);
@@ -858,7 +861,7 @@
       robot(ctx, rx, floorY, rs, { mood, blink: blinkAt(t), arms: 'out', tilt: clamp(s[2] * 2.5, -0.5, 0.5), look: clamp(Math.sin(s[2]) * 6, -1, 1) });
       broom(rx, floorY - rs * 0.95, s[2]);
       const px = Math.max(10, Math.min(13, H * 0.034)), secs = (k + 1) * 0.02;
-      if (!n) hud(ctx, ['Press Run: the robot learns to balance a broom.'], null, H * 0.05, px, fonts.mono, W);
+      if (!n) hud(ctx, [beforeRun(ctx, 'Press Run: the robot learns to balance a broom.')], null, H * 0.05, px, fonts.mono, W);
       else hud(ctx, [end ? (fell ? 'Fell after ' + secs.toFixed(1) + ' s.' : 'Still up after ' + secs.toFixed(1) + ' s, the end of the test.') : 'Test run, ' + secs.toFixed(1) + ' s'], 'replay', H * 0.05, px, fonts.mono, W);
       if (!n) bubbleSide(ctx, 'Hold my broom.', rx - rs * 0.32, rx + rs * 0.32, floorY - rs * 0.6, Math.max(10, Math.min(14, rs * 0.16)), fonts.display, W);
     };
@@ -957,7 +960,7 @@
         lines(leftDoor.x, doorTop + doorH * 0.04 + px * 2.3, signed(d.mean), d.qA[1]);
         lines(exitDoor.x, floorY - doorH * 0.86 + doorH * 0.04 + px * 2.3, '+0.00', d.qA[0]);
       }
-      if (!N) hud(ctx, ['Press Run: the robot picks a door, many times.'], null, 6, px, fonts.mono, W);
+      if (!N) hud(ctx, [beforeRun(ctx, 'Press Run: the robot picks a door, many times.')], null, 6, px, fonts.mono, W);
       else if (!done) hud(ctx, [(d.label || 'Run 1') + ', training episode ' + (cur + 1).toLocaleString('en-US') + ' of ' + N.toLocaleString('en-US') + (cur < SLOW ? '' : cur < MID ? ' ▶▶' : ' ▶▶▶')], 'skip ▶', 6, px, fonts.mono, W);
       else hud(ctx, ['After training. Behind the left door, every machine pays ' + signed(d.mean) + ' on average.'], 'replay', 6, px, fonts.mono, W);
       if (done && d.qA) bubbleSide(ctx, d.qA[1] > d.qA[0] ? 'Left door. Feeling lucky!' : 'Exit. Not falling for it.', rx - rs * 0.32, rx + rs * 0.32, floorY - rs * 0.6, Math.max(10, Math.min(14, rs * 0.16)), fonts.display, W);
@@ -1033,7 +1036,7 @@
       const mood = end ? (reached ? 'happy' : 'sad') : 'normal';
       robot(ctx, lerp(ax, bx, q), lerp(ay, by, q) + cell * 0.3, cell * 0.85, { mood, blink: blinkAt(t), wave: end && reached, look: clamp(bx - ax, -1, 1) });
       const px = Math.max(10, Math.min(13, H * 0.034));
-      if (!n) hud(ctx, ['Press Run: new start, new charger, every attempt.'], null, 6, px, fonts.mono, W);
+      if (!n) hud(ctx, [beforeRun(ctx, 'Press Run: new start, new charger, every attempt.')], null, 6, px, fonts.mono, W);
       else hud(ctx, [end ? (reached ? 'Test: charger reached in ' + n + ' steps.' : 'Test: out of time after ' + n + ' steps.') : 'Test run, step ' + Math.max(0, k + 1) + ' of ' + n], 'replay', 6, px, fonts.mono, W);
     };
     return looping(draw, n > 0, (n + 1) * 230 + 1600);

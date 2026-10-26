@@ -16,8 +16,7 @@
         document.removeEventListener('keydown', onKey);
         if (dialog) { dialog.close(); dialog.remove(); }
         const drawer = restore?.closest('details');
-        if (drawer && !drawer.open) drawer.open = true;
-        if (!document.querySelector('#prediction-pop') && restore?.isConnected) restore.focus({ preventScroll: true });
+        if (!document.querySelector('#prediction-pop') && restore?.isConnected && (!drawer || drawer.open)) restore.focus({ preventScroll: true });
       };
       dialog = h('dialog.lesson-help', { 'aria-labelledby': 'lesson-help-title' }, [
         h('div.help-head', null, [

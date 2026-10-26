@@ -771,7 +771,26 @@ button.algo-name { min-height: 0; min-width: 0; height: auto; padding: 0; displa
 #experiment-pair { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: minmax(280px, 560px) minmax(260px, 1fr); gap: 12px; align-items: start; min-width: 0; }
 #experiment-view:has(> #stage-run) > #experiment-pair { grid-row: 3; }
 #experiment-view > #stage-run { grid-column: 1 / -1; grid-row: 2; }
-#experiment-pair:has(#learning-monitor[hidden]) { grid-template-columns: minmax(280px, 720px); }
+.predict-live { margin: 0; padding: 10px 12px; border: 2px solid var(--accent); border-radius: 14px; background: var(--surface); }
+.predict-live .predict-title { margin: 0 0 4px; font-family: var(--font-display); font-size: 1.15rem; font-weight: 800; }
+.predict-live .mc > p { margin: 0 0 8px; }
+.predict-live .opt { min-height: 44px; text-align: left; }
+#verdict-card { margin: 0; padding: 14px 16px 12px; border-radius: 16px; border: 3px solid var(--line); background: var(--surface); color: var(--ink); }
+#verdict-card[hidden] { display: none; }
+#verdict-card.right { border-color: var(--good); background: color-mix(in srgb, var(--good) 16%, var(--surface)); }
+#verdict-card.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, var(--surface)); }
+#verdict-card .verdict-mark { margin: 0 0 6px; font-family: var(--font-display); font-size: 1.7rem; font-weight: 800; line-height: 1.1; }
+#verdict-card.right .verdict-mark { color: var(--good); }
+#verdict-card.wrong .verdict-mark { color: var(--bad); }
+#verdict-card p { margin: 0 0 4px; font-size: 1.05rem; line-height: 1.3; }
+#verdict-card .verdict-scale { position: relative; height: 10px; margin: 16px 8px 18px; background: var(--sunk); border-radius: 99px; }
+#verdict-card .verdict-scale i { position: absolute; top: -7px; width: 4px; height: 24px; border-radius: 2px; }
+#verdict-card .verdict-scale i.you { background: var(--ink); }
+#verdict-card .verdict-scale i.measured { background: var(--warn); }
+#verdict-card .verdict-key, #verdict-card .verdict-next { font-size: 0.95rem; }
+#verdict-card .verdict-next { margin-top: 6px; font-weight: 700; }
+#run-result.quiet { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+#experiment-pair:has(#learning-monitor[hidden]) { grid-template-columns: minmax(280px, 560px); }
 #experiment-pair .stage { display: block; width: 100%; max-width: none; max-height: none; height: auto; aspect-ratio: 640 / 280; }
 #experiment-pair #learning-monitor { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 #experiment-pair #charts { min-height: 220px; }
@@ -780,11 +799,20 @@ button.algo-name { min-height: 0; min-width: 0; height: auto; padding: 0; displa
   body:has(.drawer-workspace) .layout { gap: 8px; margin-top: 4px; }
   #experiment-pair #charts { min-height: 176px; }
   #experiment-pair .chart { height: 176px; }
+  #learning-monitor:has(.predict-live) #charts,
+  #learning-monitor:has(.predict-live) #training-metric { display: none; }
+  .predict-live .mc { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+  .predict-live .mc > p { flex: 1 0 100%; }
+  .predict-live .opt-row { flex: 1 1 180px; }
+  #stage-card > #verdict-card:not([hidden]) {
+    position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 4;
+    max-height: none; overflow: visible; box-shadow: 0 10px 28px rgb(0 0 0 / .2);
+  }
 }
 #stage-card { position: relative; }
 #stage-card > .row:has(#lab-world) { display: none; }
 #stage-run { position: static; display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin: 0 0 6px; }
-#stage-run #run-btn { min-width: 88px; min-height: 44px; flex: none; }
+#stage-run #run-btn { min-width: 128px; min-height: 44px; flex: none; white-space: nowrap; }
 #stage-run #run-result { flex: 0 1 auto; min-width: 0; margin: 0; text-align: right; }
 #lesson-drawer .row:has([data-campaign-run]) {
   position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
@@ -845,7 +873,9 @@ dialog.lesson-help .help-head button { margin-left: auto; }
     position: static; z-index: 1; flex: none; display: flex; justify-content: center; align-items: center;
     gap: 8px; margin: 0; padding: 0; background: var(--bg);
   }
-  #experiment-view #stage-run:has(#run-result:not(:empty)) { justify-content: space-between; }
+  #experiment-view #stage-run:has(#run-result:not(:empty):not(.quiet)) { justify-content: space-between; }
+  #experiment-view > .predict-live { flex: none; max-height: 200px; overflow: auto; }
+  #experiment-view > #verdict-card:not([hidden]) { flex: none; max-height: 28dvh; overflow: auto; }
   #experiment-view #stage-run #run-result { flex: 1 1 auto; min-width: 0; margin: 0; font-size: 0.95rem; line-height: 1.3; text-align: left; }
   #phone-world { display: flex; flex-direction: column; justify-content: flex-start; }
   #phone-world .stage { width: 100%; max-width: none; max-height: none; height: auto; aspect-ratio: 640 / 280; }
