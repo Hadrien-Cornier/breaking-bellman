@@ -329,6 +329,8 @@ await session(375, 812, 'phone', async (page) => {
 });
 
 await session(1280, 900, 'desktop', async (page) => {
+  await closePrediction(page);
+  await dismissLessonHelp(page);
   await page.locator('#campaign-logo').click();
   await page.locator('[data-map-level="slots"]').click();
   const deskBrief = await page.locator('.map-brief').boundingBox();
