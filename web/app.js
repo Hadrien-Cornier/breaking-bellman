@@ -995,9 +995,11 @@
     delete cv.dataset.world; delete cv.dataset.frame; delete cv.dataset.interactive; cv.onclick = null;
     $('#scene-policy').textContent = ''; $('#scene-seed').replaceChildren(); $('#run-source').textContent = '';
     $('#run-result').textContent = ''; $('#expert-card').hidden = true; $('#wonder').hidden = true;
+    if (typeof clearVerdict === 'function') clearVerdict();
     $('#training-metric').replaceChildren();
     showEmptyCharts();
     $('#symptoms').replaceChildren(h('p.small', { text: 'No run yet.' }));
+    if (typeof syncRunGate === 'function') syncRunGate();
   }
   function showEmptyCharts() {
     const metric = $('#training-metric');
