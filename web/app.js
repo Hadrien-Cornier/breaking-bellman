@@ -63,7 +63,7 @@
     answers: saved.answers || {},    // question id -> {choice, correct, ts}
     missions: saved.missions || [],
     saved: saved.saved || [],
-    level: saved.level || C.levels[0].id,
+    level: saved.level === 'goals' ? (C.levels.some((l) => l.id === 'slots') ? 'slots' : C.levels[0].id) : (saved.level || (C.levels.some((l) => l.id === 'slots') ? 'slots' : C.levels[0].id)),
     lstep: saved.lstep || {},        // level id -> step reached
     made: saved.made || {},          // level id -> { parts, recipe }
     reviews: saved.reviews || {},    // card id -> { last, n, right }
@@ -105,6 +105,7 @@
     return p.label + ', ' + (AI.model || p.defaultModel);
   }
   function recordAnswer(qid, choice, correct) {
+    armPrediction(qid);
     if (S.answers[qid]) return; // first attempt only
     S.answers[qid] = { choice, correct, ts: new Date().toISOString() };
     save(); updateScore();
@@ -199,47 +200,9 @@
     return null;
   }
   const recipeOfCard = (id) => C.recipes.find((r) => r.card === id);
-  // words that do nothing in this sentence, with the reason
-  function idleWords(p, world) {
-    const o = {};
-    if (fam(p) === 'pg') return idlePg(p, world);
-    if (fam(p) === 'ac') return idleAc(p, world);
-    if (world === 'bandit') return o;
-    if (p.data !== 'replay') o.memory = 'the memory is used only with "random old moves from memory".';
-    if (p.store === 'net') o.step = 'a network always moves by small gradient steps (Adam, learning rate 0.001).';
-    // a row keeps a guess only when nstep leaves room for one before the episode ends
-    const maxSteps = (RLA.knobDefaults(world) || {}).maxSteps || 1;
-    const noGuess = p.nstep === 0 || p.nstep >= maxSteps;
-    if (noGuess) {
-      const r = p.nstep === 0 ? 'with all rewards to the end there is no guess.' : p.nstep + ' real rewards is the whole episode here, so there is no guess.';
-      o.agg = o.picker = o.scorer = o.sync = r;
-    } else {
-      if (p.agg === 'taken') o.picker = 'the action really taken next is not chosen by any estimate.';
-      if (p.picker !== 'frozen' && p.scorer !== 'frozen') o.sync = 'no frozen copy is used in this sentence.';
-    }
-    return o;
-  }
-  function idlePg(p) {
-    const o = {};
-    if (p.baseline !== 'critic') o.adv = 'only a critic judges actions this way.';
-    if (p.baseline === 'group') o.credit = 'the group baseline compares whole episodes, so every action gets its episode\'s return.';
-    if (p.epochs === 1) o.ratio = 'with 1 pass the policy has not moved yet when it computes the step, so the ratio is 1 and the limit never acts.';
-    if (p.group === 'same' && p.baseline !== 'group') o.group = 'the shared start matters only for "the mean of its group".';
-    return o;
-  }
-  function idleAc(p, world) {
-    const o = {};
-    const crit = p.critics !== 'none';
-    if (p.source === 'own') o.demos = 'there is no dataset: it learns from its own tries.';
-    if (!crit) { const r = 'there is no critic.'; o.target = o.next = o.penalty = o.delay = r; if (p.pick !== 'one') o.pick = 'choosing among samples needs a critic.'; }
-    if (p.head !== 'gauss' || !['q', 'qclose'].includes(p.aim)) o.entropy = p.head !== 'gauss' ? 'only the bell-curve policy has an entropy bonus here.' : 'the bonus acts only when the policy climbs the critic.';
-    if (p.base === 'classical' && !RLA.worlds[world].base) o.base = 'this world has no classical controller.';
-    if (p.chunk > 1 && (['q', 'qclose'].includes(p.aim) || p.base !== 'none' || p.pick !== 'one')) o.chunk = 'this lab plays chunks only for a policy that copies, acts alone and takes one sample.';
-    if (p.aim === 'none' && p.source !== 'both') o.delay = 'the policy does not learn.';
-    if (p.source === 'fixed') o.wait = 'with a fixed dataset there are no own tries to wait for.';
-    else if (!['q', 'qclose'].includes(p.aim) && p.pick !== 'edit') o.wait = 'the policy does not climb the critic.';
-    return o;
-  }
+  // words that do nothing in this sentence, with the reason (single source of truth: web/algorithm-math.js)
+  const idleWords = (p, world) => ALGO_MATH.idleWords(p, world);
+
   // the words that differ between two sentences (only words that matter in either)
   function wordDiff(a, b, world) {
     if (fam(a) !== fam(b)) return [{ key: 'family', from: C.families[fam(a)].name, to: C.families[fam(b)].name }];
@@ -255,13 +218,14 @@
   }
 
   // ---------------------------------------------------------------- sentence component
+  let algorithmMath = null;
   let mounts = [];   // { el, opts, open, permanent }
   function mountSentence(opts) {
     const m = { el: h('div.sentence'), opts, open: null, permanent: !!opts.permanent };
     mounts.push(m); drawSentence(m);
     return m.el;
   }
-  function refreshSentences() { if (!RLA.worlds[S.world]) return; for (const m of mounts) drawSentence(m); }
+  function refreshSentences() { if (!RLA.worlds[S.world]) return; for (const m of mounts) drawSentence(m); if (algorithmMath) algorithmMath.update(); }
   function drawSentence(m) {
     const o = m.opts, p = o.getParts(), world = o.world(), focus = o.focus ? o.focus() : [];
     const idle = idleWords(p, world);
@@ -294,12 +258,13 @@
     ]);
     const kids = [];
     for (const [keys, el] of L) {
-      kids.push(el);
+      kids.push(o.compact && el.classList.contains('gloss') ? h('details.sentence-explanation', null, [h('summary', { text: 'Why use a guess?' }), el]) : el);
       if (m.open && keys.includes(m.open)) kids.push(chooser(m, m.open, p, idle));
     }
-    if (o.withName) kids.push(nameBox(p, world));
-    if (o.withMath) kids.push(mathBox(p, world));
-    if (o.preset) kids.push(presetRow(p, world, m));
+    const name = o.withName ? nameBox(p, world) : null;
+    if (name) kids.push(name);
+    if (o.withMath) kids.push(mathBox(m, p, world));
+    if (o.preset && S.mode !== 'campaign') kids.push(presetRow(p, world, m));
     m.el.replaceChildren(...kids);
   }
   function chooser(m, key, p, idle) {
@@ -313,7 +278,7 @@
     ]);
   }
   function setMainPart(key, v) { S.parts[key] = v; onPartsChanged(); }
-  function onPartsChanged() { cancelRun(); markRunStale(); refreshSentences(); drawCompare(); drawGrid(); if (S.onPartsChange) S.onPartsChange(); }
+  function onPartsChanged() { cancelRun(); markRunStale(); refreshSentences(); drawCompare(); drawGrid(); if (S.onPartsChange) S.onPartsChange(); if (typeof syncRunGate === 'function') syncRunGate(); }
   const mainSentence = (extra) => mountSentence(Object.assign({ getParts: () => S.parts, setPart: setMainPart, world: () => S.world, preset: true }, extra || {}));
 
   // ---------------------------------------------------------------- unlocked-technique preset loader (scope 175)
@@ -364,174 +329,32 @@
     if (rec && rec.card && S.found.includes(rec.card)) { big = rec.name; small = rec.blurb; }
     else if (rec && rec.card && S.given.includes(rec.card)) { big = rec.name; small = 'Given by a level. ' + rec.blurb; }
     else if (rec && !rec.card && S.seen.includes(rec.id)) { big = rec.name; small = rec.blurb; }
+    else if (S.mode === 'campaign') return null;
     else { big = 'Unnamed sentence'; small = 'Run it. If it works, the codex names it.'; }
     return h('div.compound', null, [h('span.big', { text: big }), h('span.small', { text: small })]);
   }
 
-  // ---------------------------------------------------------------- math (MathJax 3, inlined by the build; else from cdnjs; falls back to the TeX source)
-  let MJ = null;
-  function loadMathJax() {
-    if (MJ) return MJ;
-    MJ = new Promise((resolve) => {
-      const done = (v) => { resolve(v); };
-      window.MathJax = { tex: { inlineMath: [] }, svg: { fontCache: 'local' }, startup: { typeset: false, ready() { window.MathJax.startup.defaultReady(); window.MathJax.startup.promise.then(() => { try { document.head.append(window.MathJax.svgStylesheet()); } catch (e) { /* older build */ } done(window.MathJax); }); } } };
-      const s = document.createElement('script');
-      const local = document.getElementById('mathjax-src');
-      s.src = local && local.textContent.length > 1000 ? URL.createObjectURL(new Blob([local.textContent], { type: 'text/javascript' }))
-        : 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js';
-      s.async = true;
-      s.onerror = () => done(null);
-      document.head.append(s);
-      setTimeout(() => done(null), 15000);
-    });
-    return MJ;
-  }
-  function texInto(el, tex) {
-    el.textContent = tex; el.classList.add('tex-src'); el.setAttribute('data-tex', tex);
-    loadMathJax().then((M) => {
-      if (!M || !el.isConnected) return;
-      try { el.replaceChildren(M.tex2svg(tex, { display: true })); el.classList.remove('tex-src'); } catch (e) { /* keep the source */ }
-    });
-  }
-  function texPg(p) {
-    const out = [];
-    const grp = p.group === 'same';
-    out.push(['collect', `\\tau_1, \\dots, \\tau_{${p.batch}} \\sim \\pi_\\theta${grp ? '\\ \\text{ from one prompt}' : ''}`]);
-    const G = p.baseline === 'group' || p.credit === 'total' ? 'R(\\tau)' : 'G_t';
-    if (p.baseline === 'group' || p.credit === 'total') out.push(['credit', 'R(\\tau) = \\textstyle\\sum_{k} \\gamma^{k} r_{k+1} \\quad \\text{(the whole episode, for every step)}']);
-    else out.push(['credit', 'G_t = \\textstyle\\sum_{k \\ge t} \\gamma^{k-t} r_{k+1} \\quad \\text{(only the rewards after step } t)']);
-    let A;
-    if (p.baseline === 'none') A = `A_t = ${G}`;
-    else if (p.baseline === 'avg') A = `A_t = ${G} - \\bar{G}, \\quad \\bar{G} \\leftarrow \\bar{G} + 0.05\\,(G - \\bar{G})`;
-    else if (p.baseline === 'group') A = 'A_i = R(\\tau_i) - \\operatorname{mean}_j R(\\tau_j)';
-    else if (p.adv === 'mc') A = 'A_t = G_t - V_\\phi(s_t)';
-    else if (p.adv === 'td') A = 'A_t = r_{t+1} + \\gamma V_\\phi(s_{t+1}) - V_\\phi(s_t)';
-    else A = 'A_t = \\textstyle\\sum_k (\\gamma\\lambda)^k \\delta_{t+k},\\ \\ \\delta_t = r_{t+1} + \\gamma V_\\phi(s_{t+1}) - V_\\phi(s_t),\\ \\lambda = 0.95';
-    out.push(['weight', A]);
-    if (p.scale === 'std') out.push(['spread', p.baseline === 'group' ? 'A_i \\leftarrow A_i \\,/\\, \\operatorname{std}_j R(\\tau_j)' : 'A_t \\leftarrow (A_t - \\operatorname{mean} A) \\,/\\, \\operatorname{std} A']);
-    const r = '\\rho_t = \\frac{\\pi_\\theta(a_t \\mid s_t)}{\\pi_{\\text{old}}(a_t \\mid s_t)}';
-    const obj = p.ratio === 'clip' ? '\\min\\big(\\rho_t A_t,\\ \\operatorname{clip}(\\rho_t, 0.8, 1.2)\\, A_t\\big)' : '\\rho_t A_t';
-    out.push(['update', `\\theta \\leftarrow \\theta + ${p.lr}\\, \\nabla_\\theta \\textstyle\\frac{1}{N}\\sum_t ${obj}${p.bonus ? ' + 0.01\\, H(\\pi_\\theta(\\cdot \\mid s_t))' : ''} \\quad \\times ${p.epochs} \\text{ pass${p.epochs > 1 ? 'es' : ''} (Adam)}`]);
-    out.push(['ratio', `${r}${p.epochs === 1 ? ' = 1 \\text{ at the only pass, so } \\nabla \\rho_t = \\nabla \\log \\pi_\\theta(a_t \\mid s_t)' : ''}`]);
-    if (p.baseline === 'critic') out.push(['critic', `V_\\phi(s_t) \\leftarrow \\text{regress to } ${p.adv === 'mc' ? 'G_t' : 'A_t + V_\\phi(s_t)'}`]);
-    return out;
-  }
-  function texAc(p, world) {
-    const out = [];
-    const crit = p.critics !== 'none', two = p.critics === 'two';
-    const Qmin = (s, a, bar) => (two ? `\\min_{j=1,2} ${bar ? '\\bar{Q}' : 'Q'}_j(${s}, ${a})` : `${bar ? '\\bar{Q}' : 'Q'}(${s}, ${a})`);
-    const K = p.chunk > 1 ? p.chunk : 1;
-    const aT = K > 1 ? `a_{t:t+${K - 1}}` : 'a_t';
-    let act;
-    if (p.head === 'det') act = `${aT} = \\tanh f_\\theta(s_t) + \\epsilon,\\ \\epsilon \\sim \\mathcal{N}(0, 0.1^2) \\text{ while learning}`;
-    else if (p.head === 'gauss') act = ['q', 'qclose'].includes(p.aim) ? `${aT} = \\tanh\\big(\\mu_\\theta(s_t) + \\sigma_\\theta(s_t)\\,\\epsilon\\big),\\ \\epsilon \\sim \\mathcal{N}(0, 1)` : `${aT} = \\tanh \\mu_\\theta(s_t) + \\sigma_\\theta(s_t)\\,\\epsilon`;
-    else act = `x_0 \\sim \\mathcal{N}(0, I),\\ \\ x_{k+1} = x_k + \\tfrac{1}{10} v_\\theta(s_t, x_k, \\tfrac{k}{10}),\\ \\ ${aT} = x_{10}`;
-    out.push(['act', act]);
-    if (K > 1) out.push(['chunk', `\\text{play } a_t, \\dots, a_{t+${K - 1}} \\text{ in order, then decide again}`]);
-    if (p.base === 'classical') out.push(['base', 'a = a_{\\text{classical}}(s) + 0.5\\, a_\\theta(s, a_{\\text{classical}})']);
-    if (crit && p.pick === 'best') out.push(['pick', `a^* = \\arg\\max_{a_i} ${Qmin('s', 'a_i')},\\ \\ a_1, \\dots, a_8 \\sim \\pi_\\theta(\\cdot \\mid s)`]);
-    if (crit && p.pick === 'qavg') out.push(['pick', `\\bar{a} = \\textstyle\\sum_i w_i a_i,\\ \\ w_i \\propto \\exp ${Qmin('s', 'a_i')},\\ \\ a_1, \\dots, a_8 \\sim \\pi_\\theta`]);
-    if (crit && p.pick === 'edit') out.push(['pick', `a^* = \\arg\\max_{a \\in \\{a_i,\\, a_i + \\hat a_i\\}} ${Qmin('s', 'a')},\\ \\ \\hat a_i \\sim \\pi_{\\text{edit}}(\\cdot \\mid s, a_i),\\ |\\hat a| \\le 0.3`]);
-    if (crit) {
-      const ent = p.head === 'gauss' && p.entropy !== 'none' && ['q', 'qclose'].includes(p.aim) && p.pick === 'one' ? ' - \\alpha \\log \\pi_\\theta(a\' \\mid s\')' : '';
-      const bar = p.target === 'slow';
-      if (p.next === 'expectile') out.push(['target', 'y = r + \\gamma\\, V_\\psi(s\')']);
-      else out.push(['target', `y = r + \\gamma \\big( ${Qmin("s'", "a'", bar)}${ent} \\big),\\ \\ a' ${p.pick !== 'one' ? '= \\text{the chosen action at } s\'' : '\\sim \\pi_\\theta(s\')'}${p.next === 'smooth' ? ' + \\operatorname{clip}(\\mathcal{N}(0, 0.2^2), \\pm 0.5)' : ''}`]);
-      out.push(['critic', `Q_j \\leftarrow \\text{min } \\big(Q_j(s, a) - y\\big)^2${p.penalty === 'cql' ? ' + \\big(\\log \\textstyle\\sum_{a\' \\in \\text{random, policy}} e^{Q_j(s, a\')} - Q_j(s, a)\\big)' : ''}`]);
-      if (p.next === 'expectile' || p.aim === 'weighted' || p.aim === 'cond') out.push(['value', `V_\\psi(s) \\leftarrow \\text{expectile } \\tau = ${p.next === 'expectile' ? '0.7' : '0.5'} \\text{ of } ${Qmin('s', 'a', bar)},\\ (s, a) \\text{ from the data}`]);
-      if (bar) out.push(['slow copy', '\\bar{Q}_j \\leftarrow \\bar{Q}_j + 0.005\\,(Q_j - \\bar{Q}_j)']);
-    } else if (p.aim === 'weighted' || p.aim === 'cond') out.push(['value', 'V_\\psi(s_t) \\leftarrow \\text{regress to } G_t \\text{ (the real discounted return that followed)}']);
-    const Adv = crit ? `${Qmin('s', 'a', p.target === 'slow')} - V_\\psi(s)` : 'G_t - V_\\psi(s_t)';
-    const like = p.head === 'flow' ? (w) => `\\min ${w}\\, \\big\\| v_\\theta(s, x_\\tau, \\tau) - (a - x_0) \\big\\|^2,\\ x_\\tau = (1-\\tau) x_0 + \\tau a` : (w) => `\\max ${w}\\log \\pi_\\theta(a \\mid s)`;
-    let pol = null;
-    if (p.aim === 'q') pol = p.head === 'det' ? `\\max_\\theta Q_1\\big(s, \\pi_\\theta(s)\\big)` : `\\max_\\theta ${Qmin('s', '\\tilde a')} - \\alpha \\log \\pi_\\theta(\\tilde a \\mid s),\\ \\tilde a \\sim \\pi_\\theta(s)`;
-    else if (p.aim === 'qclose') pol = '\\max_\\theta \\lambda\\, Q\\big(s, \\pi_\\theta(s)\\big) - \\big(\\pi_\\theta(s) - a\\big)^2,\\ \\lambda = 2.5 / \\operatorname{mean}|Q|';
-    else if (p.aim === 'copy') pol = like('');
-    else if (p.aim === 'copybest') pol = like('') + '\\ \\text{ on the top 25\\% of episodes}';
-    else if (p.aim === 'weighted') pol = like('e^{A / \\sigma_A}') + `,\\ A = ${Adv}`;
-    else if (p.aim === 'cond') pol = like('').replace('\\mid s)', '\\mid s, I)') + `,\\ I = \\mathbb{1}[A > \\text{top-30\\% cut}],\\ A = ${Adv}`;
-    else pol = '\\theta \\text{ frozen}';
-    out.push(['policy', pol]);
-    if (p.aim === 'cond') out.push(['acting', 'I = 1 \\text{ ("better than usual") whenever it acts}']);
-    if (p.pick === 'edit' && crit) out.push(['edit', '\\max\\ Q(s, a_i + \\hat a_i) - \\alpha \\log \\pi_{\\text{edit}}(\\hat a_i \\mid s, a_i)']);
-    return out;
-  }
-  // the exploration rate of a value learner in this world, as the engine uses it (src/agents/value.js epsilon())
-  function epsText(world) {
-    const H = C.hyper[world] || {}, a = H.epsStart !== undefined ? H.epsStart : 1, b = H.epsEnd !== undefined ? H.epsEnd : 0.05;
-    return a === b ? String(a) : `${a} \\to ${b} \\text{ over the first } ${H.epsDecaySteps || 5000} \\text{ steps}`;
-  }
-  function texLines(p, world) {
-    if (fam(p) === 'pg') return texPg(p, world);
-    if (fam(p) === 'ac') return texAc(p, world);
-    const out = [];
-    if (world === 'bandit') {
-      const bonus = p.ucb ? ' + c\\sqrt{\\ln t \\,/\\, N(a)}' : '';
-      out.push(['act', `a_t = \\arg\\max_a \\big[\\, Q(a)${bonus} \\,\\big]${p.ucb ? '\\quad \\text{(a machine never pulled goes first)}' : ''}`]);
-      if (p.eps) out.push(['explore', `\\text{with prob. } \\varepsilon = ${epsText(world)}\\text{: a random machine instead}`]);
-      if (p.optimistic) out.push(['start', 'Q_0(a) = 5']);
-      const st = p.step === 'avg' ? '\\tfrac{1}{N(a_t)}' : '\\alpha';
-      out.push(['update', `Q(a_t) \\leftarrow Q(a_t) + ${st}\\,\\big[\\, r_t - Q(a_t) \\,\\big]`]);
-      return out;
-    }
-    const n = p.nstep;
-    const twins = n !== 0 && (p.picker === 'second' || p.scorer === 'second' || p.scorer === 'minpair');
-    const live = twins ? 'Q_A' : 'Q', frozen = twins ? '\\bar{Q}_A' : '\\bar{Q}';
-    const E = (k) => (k === 'live' ? live : k === 'frozen' ? frozen : 'Q_B');
-    const qa = twins ? '\\tfrac12(Q_A+Q_B)' : 'Q';
-    out.push(['act', `a_t = \\arg\\max_a \\big[\\, ${qa}(s_t,a)${p.ucb ? ' + c\\sqrt{\\ln N(s_t) / N(s_t,a)}' : ''} \\,\\big]`]);
-    if (p.eps) out.push(['explore', `\\text{with prob. } \\varepsilon = ${epsText(world)}\\text{: a random action instead}`]);
-    if (p.optimistic) out.push(['start', 'Q_0(s,a) = 5']);
-    let rewards;
-    if (n === 0) rewards = 'r_{t+1} + \\gamma\\, r_{t+2} + \\dots + \\gamma^{T-t-1} r_T';
-    else if (n === 1) rewards = 'r_{t+1}';
-    else if (n === 2) rewards = 'r_{t+1} + \\gamma\\, r_{t+2}';
-    else rewards = `r_{t+1} + \\gamma\\, r_{t+2} + \\dots + \\gamma^{${n - 1}} r_{t+${n}}`;
-    if (n === 0) out.push(['target', `y = ${rewards} \\quad \\text{(no guess)}`]);
-    else {
-      const sN = `s_{t+${n}}`, aN = `a_{t+${n}}`, g = n === 1 ? '\\gamma' : `\\gamma^{${n}}`;
-      const score = (arg) => (p.scorer === 'minpair' ? `\\min\\big(Q_A(${sN},${arg}),\\, Q_B(${sN},${arg})\\big)` : `${E(p.scorer)}(${sN},${arg})`);
-      let G;
-      if (p.agg === 'taken') G = score(aN);
-      else if (p.agg === 'mean') G = `\\sum_{a'} \\pi(a' \\mid ${sN})\\, ${score("a'")}`;
-      else {
-        const op = p.agg === 'min' ? 'min' : 'max';
-        G = p.scorer !== 'minpair' && p.picker === p.scorer ? `\\${op}_{a'} ${E(p.scorer)}(${sN},a')` : score(`\\arg\\${op}_{a'} ${E(p.picker)}(${sN},a')`);
-      }
-      out.push(['target', `y = ${rewards} + ${g}\\, ${G}`]);
-      if (p.agg === 'mean') out.push(['policy', p.eps
-        ? `\\pi = 1-\\varepsilon+\\tfrac{\\varepsilon}{|A|} \\text{ on } \\arg\\max_{a'} ${E(p.picker)},\\ \\ \\tfrac{\\varepsilon}{|A|} \\text{ on each other action}\\ \\ (\\varepsilon = ${epsText(world)}, \\text{ as when it acts})`
-        : `\\pi = 1 \\text{ on } \\arg\\max_{a'} ${E(p.picker)},\\ 0 \\text{ on the others: it never acts at random, so the average is the best action (as in Q-learning)}`]);
-    }
-    const Lq = twins ? 'Q_A' : 'Q';
-    // each twin is its own network: Q_A has weights theta_A (Q_A_theta would be a double subscript, a TeX error)
-    if (p.store === 'net') out.push(['update', twins
-      ? `\\theta_A \\leftarrow \\theta_A - \\eta\\, \\nabla_{\\theta_A} \\big(Q_A(s_t,a_t) - y\\big)^2 \\quad \\text{(Adam; } \\theta_A \\text{: the weights of } Q_A \\text{)}`
-      : `\\theta \\leftarrow \\theta - \\eta\\, \\nabla_\\theta \\big(Q_\\theta(s_t,a_t) - y\\big)^2 \\quad \\text{(Adam)}`]);
-    else { const st = p.step === 'avg' ? '\\tfrac{1}{N(s_t,a_t)}' : '\\alpha'; out.push(['update', `${Lq}(s_t,a_t) \\leftarrow ${Lq}(s_t,a_t) + ${st}\\,\\big[\\, y - ${Lq}(s_t,a_t) \\,\\big]`]); }
-    if (twins) out.push(['twins', '\\text{each update, a coin flip picks which twin is } Q_A \\text{ (it learns); the other is } Q_B']);
-    if (p.data === 'replay') {
-      const rs = n === 1 ? 'r_{t+1}' : n === 0 ? 'r_{t+1}, \\dots, r_T' : `r_{t+1}, \\dots, r_{t+${n}}`;
-      out.push(['data', `(s_t, a_t, ${rs}${n === 0 ? '' : `, s_{t+${n}}`}) \\text{ sampled from the last } ${p.memory} \\text{ moves, 32 at a time}`]);
-    }
-    if (n !== 0 && (p.picker === 'frozen' || p.scorer === 'frozen')) out.push(['frozen', `${twins ? '\\bar{Q}_A \\leftarrow Q_A,\\ \\bar{Q}_B \\leftarrow Q_B' : '\\bar{Q} \\leftarrow Q'} \\text{ every } ${p.sync} \\text{ updates}`]);
-    return out;
-  }
-  function mathBox(p, world) {
-    const lines = texLines(p, world);
-    const legend = fam(p) === 'pg' ? 'π_θ: the policy (a network θ). τ: one episode. A: the weight of each action. ρ: how much more likely the action is now than when it was tried. H: entropy. V_φ: the critic. γ = ' + (RLA.worlds[world] ? (world === 'goalgrid' ? '1' : '0.99') : '0.99') + '.'
-      : fam(p) === 'ac' ? 'Q: a critic, the value of action a in state s. Q̄: its slow copy. V_ψ: the value of a state. π_θ: the policy. y: the target. γ = ' + (world === 'pendulum' ? '0.99' : '0.97') + '. α: the entropy weight. All networks learn with Adam, step size ' + (hyperNow().lr || 0.001) + ', batches of ' + (hyperNow().batch || 64) + '.'
-      : world === 'bandit' ? 't: the pull number, counting the pulls of all machines (1, 2, 3, ...). a_t: the machine pulled at pull t; r_t: its payout. Q(a): the estimate of machine a. N(a): how many times machine a was pulled so far. c = 2: the weight of the bonus for few pulls. α = 0.1: the step size.'
-      : 't: the step number inside the episode (0, 1, 2, ...). T: the last step of the episode. s_t, a_t: the state and the action at step t; r_{t+1}: the reward that follows. Q: live estimate. Q̄: frozen copy. Q_A, Q_B: the two twins. N(s), N(s,a): visits of state s, and tries of action a in it. c = 2. γ = ' + (world === 'mirage' ? '1' : '0.99') + ': discount. α = ' + ((C.hyper[world] || {}).lrTable || 0.1) + ': step size. y: target.';
-    return h('div.math', { 'aria-label': 'The update rule as equations' }, [
-      ...lines.map(([label, tex]) => { const t = h('div.tex'); texInto(t, tex); return h('div.mrow', null, [h('span.ml', { text: label }), t]); }),
-      h('p.small', { text: legend }),
-    ]);
+  // ---------------------------------------------------------------- math (the equation derivation lives in web/algorithm-math.js, the single source of truth)
+  const texLines = (p, world) => ALGO_MATH.lines(p, world);
+  function mathBox(m, p, world) {
+    if (!m._math) m._math = ALGO_MATH.mount({ id: m.opts.mathId, hyper: hyperNow });
+    m._math.update(p, world);
+    return m._math.el;
   }
 
   // ---------------------------------------------------------------- charts (canvas, own scales)
   function setupCanvas(cv) {
     const dpr = window.devicePixelRatio || 1, r = cv.getBoundingClientRect();
+    if (cv.classList.contains('stage') && window.BBPLAYER) {
+      const hidden = !!(cv.closest('[hidden]') || r.width < 2 || r.height < 2);
+      const ratio = window.BBPLAYER.aspectRatio(getComputedStyle(cv).aspectRatio, cv.width, cv.height);
+      const box = window.BBPLAYER.stageBitmap(r.width, r.height, ratio, hidden);
+      const ctx = cv.getContext('2d');
+      if (!box) { ctx.setTransform(1, 0, 0, 1, 0, 0); return { ctx, w: cv.width, h: cv.height, held: true }; }
+      cv.width = Math.round(box.w * dpr); cv.height = Math.round(box.h * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { ctx, w: box.w, h: box.h };
+    }
     const w = Math.max(200, r.width), hgt = r.height || 180;
     cv.width = Math.round(w * dpr); cv.height = Math.round(hgt * dpr);
     const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -541,7 +364,7 @@
   function lineChart(cv, series, o) {
     cv._md = { series: series.map((s) => ({ label: s.label, xs: s.xs, ys: s.ys })), o };
     const { ctx, w, h: H } = setupCanvas(cv);
-    const padL = 44, padR = 8, padT = 8, padB = 22;
+    const padL = 44, padR = 28, padT = 12, padB = 22;
     ctx.clearRect(0, 0, w, H);
     let xmax = o.xmax || 1, ymin = o.ymin, ymax = o.ymax;
     const ys = series.flatMap((s) => s.ys.filter(isFinite));
@@ -570,6 +393,13 @@
       if (s.end) { const i = s.xs.length - 1; ctx.fillStyle = s.color; ctx.beginPath(); ctx.arc(X(s.xs[i]), Y(s.ys[i]), 3, 0, 7); ctx.fill(); }
       ctx.globalAlpha = 1; ctx.setLineDash([]);
     }
+    const box = cv.getBoundingClientRect();
+    const off = box.width < 2 || (box.width > 2 && Math.abs(box.width - w) > 2) || (box.height > 2 && Math.abs(box.height - H) > 2);
+    if (off && (cv._fitTries || 0) < 2) {
+      cv._fitTries = (cv._fitTries || 0) + 1;
+      const again = series, opts = o;
+      requestAnimationFrame(() => { if (cv.isConnected) lineChart(cv, again, opts); });
+    } else cv._fitTries = 0;
   }
   function range(a, b) { const o = []; for (let i = a; i <= b; i++) o.push(i); return o; }
   function niceTicks(a, b, n) {
@@ -627,9 +457,25 @@
     ]);
   }
   function renderCharts(partials, done, record = runState.record) {
+    queueMicrotask(() => { if (typeof syncPhonePanels === 'function') syncPhonePanels(); });
     if (done && record) partials = record.results.map(r => ({ evals: r.evals, diag: r.diag }));
     const box = $('#charts'); const steps = (S.lastCfg && S.lastCfg.steps) || 1;
     const ink = css('--ink'), acc = css('--accent'), val = css('--f-value'), pol = css('--f-policy'), muted = css('--muted');
+    const metric = $('#training-metric');
+    const parts = S.lastCfg ? S.lastCfg.parts : S.parts;
+    const family = fam(parts);
+    const fitsLoss = S.world !== 'bandit' &&
+      (family === 'value' ||
+       (family === 'pg' && parts.baseline === 'critic') ||
+       (family === 'ac' && parts.critics !== 'none'));
+    const losses = partials.map(p => (p.diag || []).filter(d => Number.isFinite(d.loss) && d.updates > 0));
+    if (fitsLoss) {
+      if (!$('#ch-loss')) metric.replaceChildren(chartBox('ch-loss', family === 'value' && parts.store === 'table' ? 'Squared TD update error' : 'Training loss · critic squared error', [[val, 'recorded per seed']]));
+      if (losses.some(d => d.length)) {
+        const series = losses.map((d, i) => ({ xs: d.map(x => x.t), ys: d.map(x => x.loss), color: val, alpha: .65, width: 1.5, label: 'seed ' + (i + 1) }));
+        lineChart($('#ch-loss'), series, { xmax: steps, ymin: 0, ymax: Math.max(.001, ...losses.flatMap(d => d.map(x => x.loss))), xlabel: 'training steps' });
+      }
+    } else metric.replaceChildren();
     const prior = record && record.comparison;
     const A = S.pinA && prior ? { steps: prior.settings.steps, curves: curvesOf(prior.results, prior.world) } : null;
     const aLeg = A ? [[muted, 'A (pinned)', true]] : [];
@@ -669,6 +515,14 @@
       const eT = $('#ch-ent');
       if (eT) { const t = eT.parentNode.querySelector('.chart-title'); if (t) t.append(window.RLHELP.trigger('entropy', undefined, metricCtx())); }
     }
+    }
+    if (!box.querySelector('.more-curves')) {
+      const extra = [...box.querySelectorAll('.chart-wrap')].filter(el => !el.querySelector('#ch-ret'));
+      if (extra.length) {
+        const more = h('details.more-curves', null, [h('summary', { text: 'More performance curves' }), ...extra]);
+        more.addEventListener('toggle', () => { if (more.open && runState.record) renderCharts(null, true); });
+        box.append(more);
+      }
     }
     const maxSteps = (S.lastCfg && S.lastCfg.knobs && S.lastCfg.knobs.maxSteps) || RLA.knobDefaults(S.world).maxSteps;
     const per = partials.map((p) => p.evals);
@@ -765,7 +619,11 @@
   }
   // Watch advances a deterministic replay clock only while the stage is on screen.
   let stageSeen = !window.IntersectionObserver;
-  if (window.IntersectionObserver) new IntersectionObserver((es) => { stageSeen = es[es.length - 1].intersectionRatio >= 0.4; }, { threshold: [0, 0.4, 1] }).observe($('#stage'));
+  if (window.IntersectionObserver) new IntersectionObserver((es) => {
+    const hit = es[es.length - 1];
+    // A phone slide clips a tall canvas, so the visible fraction can be small while the world is on screen.
+    stageSeen = hit.intersectionRatio >= 0.4 || hit.intersectionRect.height >= 40;
+  }, { threshold: [0, 0.1, 0.4, 1] }).observe($('#stage'));
   let stageFrame = null;
   function playScene(cv, sc) {
     stageFrame.length = Math.max(1, Math.ceil((sc.duration || 0) / 40));
@@ -774,13 +632,14 @@
     BB.scenes.atTime(0, () => sc.frame(0));
     BB.scenes.atTime(ms, () => sc.frame(ms));
   }
-  let adapter = null, sceneTime = 0, scenePolicy = 0, watching = false, replayAnimation = null;
+  let adapter = null, sceneTime = 0, scenePolicy = 0, watching = false, replayAnimation = null, playRecorded = false;
   // Original comparison lessons share the same replay clock and stable controls.
   const replayControls = $('#scene-controls'), replayNotice = $('#run-stale');
-  const replayHome = replayControls.parentElement;
+  let replayHome = replayControls.parentElement;
+  const replayNoticeHome = replayNotice.parentElement;
   let customScene = null;
   const comparisonReplay = {
-    park() { replayHome.append(replayControls, replayNotice); },
+    park() { replayHome.append(replayControls); replayNoticeHome.append(replayNotice); },
     mount(host, record, settings) {
       comparisonReplay.park();
       host.querySelector('[data-replay-controls]').append(replayControls, replayNotice);
@@ -796,6 +655,7 @@
   function pauseScene() {
     watching = false; cancelAnimationFrame(replayAnimation); cancelAnimationFrame(anim);
     $('#scene-watch').textContent = 'Watch';
+    if (typeof syncRunGate === 'function') syncRunGate();
   }
   function scenePosition() {
     const n = adapter && runState.record ? adapter.length(runState.record) : 0;
@@ -832,7 +692,14 @@
         } finally { stageFrame = previous; }
       } });
   }
+  function playRecordedScene() {
+    if (!playRecorded || !runState.record || runState.stale || !adapter) return;
+    if (customActive() && customScene) return;
+    watchScene();
+  }
   function renderStage() {
+    const stageEl = $('#stage');
+    if (stageEl) stageEl.dataset.predictFirst = typeof unansweredPrediction === 'function' && unansweredPrediction() ? '1' : '';
     markRunStale(); pauseScene();
     if (customActive() && customScene) {
       adapter = BB.customScenes.create(S.world, scenePolicy, customScene.host);
@@ -854,6 +721,7 @@
     }
     $('#scene-controls').hidden = !record;
     scenePosition();
+    playRecordedScene();
   }
   function watchScene() {
     if (watching) { pauseScene(); return; }
@@ -862,13 +730,19 @@
     if (sceneTime >= n - 1) sceneTime = 0;
     // Reduced motion uses explicit steps; Watch reveals the last recorded frame without autoplay.
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      sceneTime = n - 1; adapter.draw(runState.record, sceneTime); scenePosition(); return;
+      sceneTime = n - 1; adapter.draw(runState.record, sceneTime); scenePosition();
+      if (typeof syncRunGate === 'function') syncRunGate();
+      return;
     }
     watching = true; $('#scene-watch').textContent = 'Pause';
+    if (typeof syncRunGate === 'function') syncRunGate();
     let last = null;
     const tick = ts => {
       if (!watching) return;
-      const visible = customScene ? customScene.host.getBoundingClientRect().bottom > 0 && customScene.host.getBoundingClientRect().top < innerHeight : stageSeen;
+      const stageEl = $('#stage');
+      const stageBox = stageEl && typeof stageEl.getBoundingClientRect === 'function' ? stageEl.getBoundingClientRect() : null;
+      const stageLive = !!(stageBox && stageBox.height >= 20 && stageBox.width >= 20 && stageBox.bottom > 0 && stageBox.top < innerHeight && stageBox.right > 0 && stageBox.left < innerWidth);
+      const visible = customScene ? customScene.host.getBoundingClientRect().bottom > 0 && customScene.host.getBoundingClientRect().top < innerHeight : (stageSeen || stageLive);
       const interval = customScene ? 100 : 40;
       if (!visible) last = ts;
       else {
@@ -893,8 +767,10 @@
     if (!RLA.worlds[viewWorld]) return 0;
     const viewKnobs = record ? record.settings.knobs : S.knobs;
     if (!measure) { $('#stage').onclick = null; $('#stage').style.cursor = ''; }
-    const cv = $('#stage'); const { ctx, w, h: H } = measure
+    const cv = $('#stage'); const sized = measure
       ? { ctx: cv.getContext('2d'), w: cv.getBoundingClientRect().width, h: cv.getBoundingClientRect().height } : setupCanvas(cv);
+    if (sized.held) return 0;
+    const { ctx, w, h: H } = sized;
     const colors = { fg: css('--ink'), accent: css('--accent'), muted: css('--muted'), bad: css('--bad'), bg: css('--sunk') };
     const knobs = Object.assign(RLA.knobDefaults(viewWorld), viewKnobs);
     const world = RLA.worlds[viewWorld].make(knobs, RLA.rng.make(5));
@@ -964,7 +840,7 @@
     } else {
       // a casino: the robot replays run 1's training pulls, then the screens show the truth and its beliefs
       const f = r0 && r0.final, b = r0 && r0.bandit;
-      const sc = BB.scenes.casino(ctx, w, H, { means: f ? f.means : null, q: f ? f.q : null, arms: b && b.arm, rewards: b && b.reward, n: world.means.length, fonts, label });
+      const sc = BB.scenes.casino(ctx, w, H, { means: f ? f.means : null, q: f ? f.q : null, arms: b && b.arm, rewards: b && b.reward, n: world.means.length, fonts, label: null });
       playScene(cv, sc);
       $('#stage-caption').textContent = f ? 'Run 1, replayed: its ' + b.arm.length.toLocaleString('en-US') + ' training pulls. At the end, gold is each machine\'s true average payout and blue is what the robot believes. The crown marks the best machine. Simulation.'
         : 'Ten slot machines. Each one pays a hidden average plus noise.';
@@ -1053,7 +929,7 @@
   }
   function headline(a, world) {
     const s = a.summary;
-    if (world === 'bandit') return 'best machine in ' + Math.round(100 * s.optimalLast20) + '% of late pulls';
+    if (world === 'bandit') return 'best machine chosen on ' + Math.round(100 * s.optimalLast20) + '% of late pulls';
     if (world === 'mirage') return 'left door in ' + Math.round(100 * s.leftPeak) + '% of episodes at the worst point';
     if (world === 'cliff') return 'score ' + fmt(s.finalReturn) + ', ' + fmt(s.fallsPerEpisode) + ' falls per episode while learning';
     if (world === 'pendulum') return 'test score ' + Math.round(isFinite(s.pendulumScore) ? s.pendulumScore : s.finalReturn) + (isFinite(s.worstSeed) ? ', worst seed ' + Math.round(s.worstSeed) : '') + ' (0 is perfect)';
@@ -1091,36 +967,52 @@
   }
   function linkRun() {
     const record = runState.record;
-    for (const el of $$('#stage, #charts, #charts canvas, #run-result, #symptoms, #expert, #wonder, #run-source, [data-custom-scene], [data-custom-scene] canvas, [data-caption], [data-readout], [data-accounting], [data-custom-result]')) {
+    for (const el of $$('#stage, #charts, #charts canvas, #training-metric, #training-metric canvas, #run-result, #symptoms, #expert, #wonder, #run-source, [data-custom-scene], [data-custom-scene] canvas, [data-caption], [data-readout], [data-accounting], [data-custom-result]')) {
       if (record) { if (!el.dataset.interactive) el.dataset.run = record.id; el.dataset.stale = String(runState.stale); }
       else { delete el.dataset.run; delete el.dataset.stale; }
     }
     $('#run-stale').hidden = !runState.stale;
     $('#scene-controls').hidden = !record;
+    const replay = $('#replay-drawer');
+    if (replay) replay.open = !!record;
   }
   function markRunStale() {
     if (customActive() && customScene && runState.record) {
       runState.change(S.level, customScene.settings);
-      if (runState.stale) pauseScene();
-      linkRun(); return;
+      if (runState.stale) { playRecorded = false; pauseScene(); }
+      linkRun(); if (typeof syncRunGate === 'function') syncRunGate(); return;
     }
     if (!runState.record || !RLA.worlds[S.world]) return;
     runState.change(S.mode === 'campaign' ? S.level : S.mode, recordConfig());
-    if (runState.stale) { pauseScene(); $('#run-btn').disabled = false; }
+    if (runState.stale) { playRecorded = false; pauseScene(); }
+    if (typeof syncRunGate === 'function') syncRunGate();
     linkRun();
   }
   function dropRun() {
     pauseScene(); runState.clear(); S.results = []; S.lastCfg = null; S.lastA = null;
     sceneTime = 0; scenePolicy = 0; adapter = null; linkRun();
     const cv = $('#stage'); cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
+    stageNeedsPaint = true;
     delete cv.dataset.world; delete cv.dataset.frame; delete cv.dataset.interactive; cv.onclick = null;
     $('#scene-policy').textContent = ''; $('#scene-seed').replaceChildren(); $('#run-source').textContent = '';
     $('#run-result').textContent = ''; $('#expert-card').hidden = true; $('#wonder').hidden = true;
-    $('#charts').replaceChildren(h('p.small', { text: 'Curves appear here while a run trains.' }));
+    if (typeof clearVerdict === 'function') clearVerdict();
+    $('#training-metric').replaceChildren();
+    showEmptyCharts();
     $('#symptoms').replaceChildren(h('p.small', { text: 'No run yet.' }));
+    if (typeof syncRunGate === 'function') syncRunGate();
+  }
+  function showEmptyCharts() {
+    const metric = $('#training-metric');
+    const box = $('#charts');
+    if (metric) metric.replaceChildren();
+    if (box) box.replaceChildren();
+    if (typeof syncPhonePanels === 'function') syncPhonePanels();
   }
   function showRunPending() {
+    if (typeof clearVerdict === 'function') clearVerdict();
     $('#run-result').textContent = 'New run in progress…';
+    $('#training-metric').replaceChildren();
     $('#charts').replaceChildren(h('p.small', { role: 'status', text: 'Preparing this run. Curves appear when training reports progress.' }));
     $('#symptoms').replaceChildren(h('p.small', { role: 'status', text: 'New run in progress. The autopsy appears when it finishes.' }));
     renderStage();
@@ -1129,6 +1021,7 @@
   }
   function showRunStopped(message) {
     $('#run-result').textContent = message;
+    $('#training-metric').replaceChildren();
     $('#charts').replaceChildren(h('p.small', { text: 'No curves are available because this run did not finish.' }));
     $('#symptoms').replaceChildren(h('p.small', { text: 'No autopsy is available because this run did not finish.' }));
     $('#stage-caption').textContent = message + ' Run the sentence again to see a replay.';
@@ -1138,7 +1031,7 @@
     if (!activeRun) return;
     activeRun.controller.abort(); activeRun = null;
     stopAll(new Error('cancelled'));
-    S.running = false; $('#run-btn').disabled = false;
+    S.running = false; if (typeof syncRunGate === 'function') syncRunGate(); else $('#run-btn').disabled = false;
     $('#prog').style.width = '0%';
     $('#run-source').textContent = 'Settings changed. Run this sentence to measure it.';
     showRunStopped('Run canceled after the settings changed.');
@@ -1158,10 +1051,156 @@
   const thawActive = () => S.mode === 'campaign' && S.level === 'thaw';
   const customActive = () => replanActive() || ensembleActive() || metarlActive() || skewActive() || skillsActive() || goalExecutionActive() || inferenceActive() || rareActive() || vpoActive() || supermimicActive() || thawActive() || rewardfitActive() || goalsActive();
   const customApi = () => replanActive() ? BBREPLAN : ensembleActive() ? BBENSEMBLE_LEVEL : metarlActive() ? BBMETARL : skewActive() ? BBSKEW : skillsActive() ? BBSKILLS_LEVEL : S.level === 'hindsight' ? BBHINDSIGHT : S.level === 'hierarchy' ? BBHIERARCHY : S.level === 'elbo' ? BBELBO_LEVEL : S.level === 'messages' ? BBMESSAGES_LEVEL : rareActive() ? BBRARELESSON : goalsActive() ? BBGOALS_LEVEL : rewardfitActive() ? BBREWARDFIT : thawActive() ? BBTHAW : supermimicActive() ? BBSUPERMIMIC : BBVPO;
+  function openSimulation() {
+    const stage = $('#stage');
+    if (stage && stage.getBoundingClientRect().height > 2) stage.scrollIntoView({ block: 'nearest' });
+    if (runState.record && !S.running && !watching) { playRecorded = true; watchScene(); }
+  }
+  function settleEditor() { placeEditor(); }
+  let predictionGrant = null;
+  let predictionClickReady = false;
+  function predictQuestion() {
+    if (S.mode !== 'campaign') return null;
+    const lv = C.levels.find((l) => l.id === S.level);
+    const q = lv && lv.predict;
+    if (!q || !q.id) return null;
+    return q;
+  }
+  function liveSettingSignature() {
+    if (typeof customActive !== 'function' || !customActive()) return '';
+    const root = document.getElementById('vpo-lab');
+    if (!root) return '';
+    return [...root.querySelectorAll('select, input')].filter((el) => {
+      if (!el.id || el.type === 'range' || el.type === 'hidden') return false;
+      if (/policy|scrub/.test(el.id)) return false;
+      return true;
+    }).map((el) => el.id + '=' + el.value).join('&');
+  }
+  function experimentSignature() {
+    return RLA.exact.stringify({ mode: S.mode, level: S.level, world: S.world, parts: S.parts, knobs: S.knobs, hyper: hyperNow() }) + '\n' + liveSettingSignature();
+  }
+  function unansweredPrediction() {
+    const q = predictQuestion();
+    if (!q || !window.BBPLAYER || typeof window.BBPLAYER.blocksFreshRun !== 'function') return null;
+    return window.BBPLAYER.blocksFreshRun(q.id, predictionGrant, experimentSignature()) ? q : null;
+  }
+  function armPrediction(qid) {
+    const q = predictQuestion();
+    if (!q || q.id !== qid) return;
+    predictionGrant = { id: qid, signature: experimentSignature(), used: false };
+  }
+  function consumePrediction() {
+    const q = predictQuestion();
+    if (!predictionGrant || !q || predictionGrant.id !== q.id) return;
+    predictionGrant = { id: predictionGrant.id, signature: predictionGrant.signature, used: true };
+  }
+  function guardRun(api) {
+    if (!api || typeof api.run !== 'function' || api.run.guarded) return;
+    const inner = api.run;
+    function wrapped(...args) {
+      if (predictionClickReady) {
+        predictionClickReady = false;
+        if (!unansweredPrediction()) consumePrediction();
+        if (typeof syncRunGate === 'function') syncRunGate();
+        return inner.apply(this, args);
+      }
+      if (unansweredPrediction()) {
+        if (typeof presentPrediction === 'function') presentPrediction(true);
+        return null;
+      }
+      consumePrediction();
+      if (typeof syncRunGate === 'function') syncRunGate();
+      return inner.apply(this, args);
+    }
+    wrapped.guarded = true;
+    wrapped.inner = inner;
+    api.run = wrapped;
+  }
+  function simulationRunButton(button) {
+    if (!button || button.tagName !== 'BUTTON') return false;
+    if (button.id === 'run-btn' || button.hasAttribute('data-campaign-run') || /-run$/.test(button.id)) return true;
+    return (button.textContent || '').trim() === 'Run this sentence';
+  }
+  function lockSimulationButtons(pending) {
+    $$('button').forEach((button) => {
+      if (!simulationRunButton(button) || button.id === 'run-btn') return;
+      if (pending) {
+        if (!button.disabled) button.dataset.predictLock = '1';
+        button.disabled = true;
+      } else if (button.dataset.predictLock) {
+        button.disabled = false;
+        delete button.dataset.predictLock;
+      }
+    });
+  }
+  function textOf(el) {
+    return el && typeof el.textContent === 'string' ? el.textContent.trim() : '';
+  }
+  function measuredResultHolding() {
+    const verdict = $('#verdict-card');
+    if (verdict && verdict.hidden === false) return true;
+    const text = textOf($('#run-result'));
+    if (!text || text === 'New run in progress…') return false;
+    if (/did not finish|Run failed|canceled after the settings/i.test(text)) return false;
+    return true;
+  }
+  // The simulation Run control stays out of the way while a run plays and while its measurement is on screen.
+  // An edit that makes that measurement stale, or a new level with nothing measured, brings it back.
+  function offerRunControl() {
+    const playing = typeof watching !== 'undefined' && watching;
+    if (S.running || playing) return false;
+    if (runState.stale) return true;
+    if (measuredResultHolding()) return false;
+    return true;
+  }
+  function syncRunGate() {
+    const btn = $('#run-btn');
+    if (!btn) return;
+    const pending = !!unansweredPrediction();
+    const stage = $('#stage');
+    if (stage) stage.dataset.predictFirst = pending ? '1' : '';
+    lockSimulationButtons(pending);
+    const reopen = typeof predictionReopen === 'function' ? predictionReopen() : null;
+    if (reopen) {
+      const customRun = [...document.querySelectorAll('button')].find((button) => simulationRunButton(button) && button.id !== 'run-btn');
+      if (typeof customActive === 'function' && customActive() && customRun && customRun.parentElement && reopen.parentElement !== customRun.parentElement) customRun.before(reopen);
+      const inline = typeof lessonPredictionVisible === 'function' && lessonPredictionVisible();
+      const customReady = typeof customActive === 'function' && customActive() && !!customRun;
+      reopen.hidden = !pending || !!document.querySelector('#prediction-pop[open]') || inline || (!offerRunControl() && !customReady);
+    }
+    const show = offerRunControl();
+    btn.hidden = !show;
+    const bar = $('#stage-run');
+    const result = $('#run-result');
+    const quiet = !!(result && result.classList && typeof result.classList.contains === 'function' && result.classList.contains('quiet'));
+    const resultVisible = !!(textOf(result) && !quiet);
+    if (bar) bar.hidden = !show && !resultVisible;
+    if (!show) { btn.disabled = true; return; }
+    if (pending) {
+      btn.disabled = true;
+      btn.textContent = 'Predict first';
+    } else {
+      btn.disabled = false;
+      if (btn.textContent === 'Predict first') btn.textContent = 'Run';
+    }
+    if (typeof fitPhoneDeck === 'function') fitPhoneDeck();
+  }
   async function run() {
-    if (customActive()) return customApi().run();
+    if (predictionClickReady) {
+      predictionClickReady = false;
+      if (!unansweredPrediction()) consumePrediction();
+    } else if (unansweredPrediction()) {
+      if (typeof presentPrediction === 'function') presentPrediction(true);
+      return null;
+    } else consumePrediction();
+    if (typeof syncRunGate === 'function') syncRunGate();
+    if (customActive()) {
+      const api = customApi();
+      const inner = api.run && api.run.inner ? api.run.inner : api.run;
+      return inner.call(api);
+    }
     if (S.running) return null;
-    S.running = true; $('#run-btn').disabled = true;
+    S.running = true; if (typeof syncRunGate === 'function') syncRunGate(); else $('#run-btn').disabled = true;
     const nSeeds = +$('#seeds').value, steps = +$('#budget').value;
     const cfg = { world: S.world, knobs: Object.assign({}, S.knobs), parts: Object.assign({}, S.parts), hyper: hyperNow(), steps };
     const ticket = { controller: new AbortController(), identity: runIdentity() }; activeRun = ticket;
@@ -1208,6 +1247,7 @@
       $('#scene-policy').textContent = record.policies[0].label;
       $('#scene-seed').replaceChildren(...record.results.map((r, i) => h('option', { value: i, text: String(r.seed) })));
       renderCharts(results.map((r) => ({ evals: r.evals, diag: r.diag })), true);
+      playRecorded = true;
       renderStage();
       const a = renderAutopsy();
       S.lastA = a;
@@ -1219,12 +1259,14 @@
       if (rec && rec.card && works) discover(rec.card, cfg, a);
       for (const f of C.failures) if (!S.found.includes(f.card) && f.when(a, cfg)) discover(f.card, cfg, a);
       for (const f of C.knobFinds || []) if (!S.found.includes(f.card) && f.when(a, cfg)) discover(f.card, cfg, a);
-      $('#run-result').replaceChildren(h('b', { text: works ? 'Works on ' + C.worldNames[cfg.world] + ': ' : 'Does not work yet: ' }), headline(a, cfg.world) + '.');
-    if (window.RLHELP) window.RLHELP.enhance($('#run-result'), metricCtx());
+      $('#run-result').textContent = (works ? 'Works on ' + C.worldNames[cfg.world] + ': ' : 'Not yet: ') + headline(a, cfg.world) + '.';
       save(); refreshSentences(); drawCompare();
       linkRun();
       if (S.afterRun) S.afterRun(a);
       completed = true;
+      // The fast-request harness evaluates only the run section, where this helper is absent.
+      if (typeof advanceCampaignRun === 'function') advanceCampaignRun();
+      if (typeof noteLessonRun === 'function') noteLessonRun(a);
       return a;
     } catch (err) {
       if (current()) {
@@ -1235,7 +1277,8 @@
       }
       return null;
     } finally {
-      if (activeRun === ticket) { activeRun = null; S.running = false; $('#run-btn').disabled = false; prog.style.width = completed ? '100%' : '0%'; }
+      if (!completed && predictionGrant && predictionGrant.used) predictionGrant = { id: predictionGrant.id, signature: predictionGrant.signature, used: false };
+      if (activeRun === ticket) { activeRun = null; S.running = false; if (typeof syncRunGate === 'function') syncRunGate(); else $('#run-btn').disabled = false; prog.style.width = completed ? '100%' : '0%'; }
     }
   }
   // ---------------------------------------------------------------- discovery celebration
@@ -1264,6 +1307,7 @@
     return h('div.dc-item', null, [
       h('div.dc-kind', { text: kind }),
       h('div.dc-name', null, [h('span.dc-q', { 'aria-hidden': 'true', text: '???' }), h('span.dc-real', { text: c.name })]),
+      c.plain ? h('p.dc-plain', { text: c.plain }) : null,
       h('div.dc-node', { 'aria-hidden': 'true' }, [h('span', { text: c.short || c.name })]),
     ]);
   }
@@ -1293,7 +1337,7 @@
     document.body.append(overlay);
     overlay.addEventListener('click', dismiss);
     window.addEventListener('keydown', onKey);
-    setTimeout(dismiss, 1900); // short: the reveal plays, then it gets out of the way
+    setTimeout(dismiss, ids.some((id) => (C.cards[id] || {}).plain) ? 3200 : 1900); // short: the reveal plays (with its plain line, if any), then it gets out of the way
   }
   function discover(cardId, cfg, a) {
     if (S.found.includes(cardId)) return;
@@ -1534,7 +1578,7 @@
     } catch (err) {
       G.status = 'A combination failed: ' + err.message;
     } finally {
-      S.running = false; G.running = false; $('#run-btn').disabled = false; drawGrid();
+      S.running = false; G.running = false; if (typeof syncRunGate === 'function') syncRunGate(); else $('#run-btn').disabled = false; drawGrid();
     }
   }
   const gfmt = (x) => (isFinite(x) && Math.abs(x) >= 1 ? x.toFixed(1) : fmt(x));
@@ -2035,7 +2079,7 @@
 
   // ---------------------------------------------------------------- multiple choice with derivations
   // q = { id, prompt, options: [{ steps: [..], result, correct, why }] }
-  function mcBlock(q, onAnswer) {
+  function mcBlock(q, onAnswer, kind) {
     const prev = S.answers[q.id];
     const wrap = h('div.mc');
     wrap.append(h('p', { html: q.prompt }));
@@ -2044,28 +2088,42 @@
     const entries = q.options.map((o, i) => ({ o, i }));
     entries.push(...entries.splice(0, shift));
     const btns = entries.map(({ o, i }) => {
-      const b = h('button.opt', { type: 'button' }, [
-        h('ol', null, o.steps.map((s) => h('li', { html: s }))),
-        h('span.res', { html: '→ ' + o.result }),
+      const claim = h('button.opt', { type: 'button' }, [
+        kind === 'predict' ? null : h('ol', null, o.steps.map((s) => h('li', { html: s }))),
+        h('span.res', { html: (kind === 'predict' ? '' : '→ ') + o.result }),
         h('span.why', { hidden: true }),
       ]);
-      b.addEventListener('click', () => choose(i));
-      return b;
+      claim.addEventListener('click', () => choose(i));
+      if (kind !== 'predict') return claim;
+      const why = h('details.why-fold', null, [
+        h('summary', { text: 'Why?' }),
+        h('ol', null, o.steps.map((s) => h('li', { html: s }))),
+      ]);
+      const row = h('div.opt-row', null, [claim, why]);
+      row.claim = claim;
+      return row;
     });
     wrap.append(...btns);
     if (window.RLHELP) window.RLHELP.enhance(wrap, metricCtx());
-    function show(i) {
-      btns.forEach((b, j) => {
+    function show(i, live) {
+      btns.forEach((row, j) => {
+        const b = row.claim || row;
         const { o, i: source } = entries[j];
-        b.classList.toggle('picked', source === i);
+        const picked = source === i;
+        b.classList.toggle('picked', picked);
         b.classList.toggle(o.correct ? 'right' : 'wrong', true);
-        const why = b.querySelector('.why'); why.hidden = false; why.innerHTML = (o.correct ? '<b>Sound chain.</b> ' : '') + o.why;
+        const why = b.querySelector('.why'); why.hidden = false;
+        if (picked && live) why.setAttribute('role', 'status');
+        else why.removeAttribute('role');
+        const head = o.correct ? (picked ? '<b>' + (kind === 'predict' ? 'You predicted it right.' : 'You were right.') + '</b> ' : '<b>Sound chain.</b> ') : '';
+        why.innerHTML = head + o.why;
       });
       if (window.RLHELP) window.RLHELP.enhance(wrap, metricCtx());
     }
     function choose(i) {
       if (!S.answers[q.id]) recordAnswer(q.id, i, !!q.options[i].correct);
-      show(i);
+      else if (typeof armPrediction === 'function') armPrediction(q.id);
+      show(i, true);
       if (onAnswer) onAnswer(i);
     }
     if (prev) show(prev.choice);
@@ -2081,10 +2139,11 @@
   }
   function rulesPanel(world, knobs, objective) {
     const r = RLA.gameRules(world, knobs, objective);
+    const reward = String(r.reward).replace('Means drift by Gaussian steps of standard deviation 0 after each pull.', 'Means do not change.');
     const row = (label, text) => h('div.rules-row', null, [h('dt', { text: label }), h('dd', { text })]);
     return h('div', null, [
       h('h3', { text: 'Game rules · ' + C.worldNames[world] }),
-      h('dl', null, [row('Goal', r.goal), row('Reward each step', r.reward),
+      h('dl', null, [row('Goal', r.goal), row('Reward each step', reward),
         h('div.rules-row', null, [h('dt', { text: 'Equation' }), h('dd.rules-equation', { text: r.equation })]),
         row('Episode ends', r.end), row('Score', r.score), row('Pass this challenge', r.objective)])
     ]);
@@ -2096,10 +2155,30 @@
     dropRun(); S.world = w; S.knobs = Object.assign({}, knobs || {});
     budgetOptions(); renderStage(); renderAutopsy(); refreshSentences(); drawCompare(); drawGrid();
     $('#run-result').textContent = '';
-    $('#charts').replaceChildren(h('p.small', { text: 'Curves appear here while a run trains.' }));
+    $('#training-metric').replaceChildren();
+    showEmptyCharts();
   }
   function setParts(p) { const f0 = fam(S.parts); S.parts = C.cfg(p || {}); if (fam(S.parts) !== f0) budgetOptions(); onPartsChanged(); }
 
+  function predictionMount(q, onAnswer, title, current, kind, preface) {
+    if (kind !== 'predict' || typeof document === 'undefined') return mcBlock(q, onAnswer, kind);
+    return h('div.predict-live', { 'data-prediction': q.id }, [
+      h('p.predict-title', { text: title || 'Predict before you run' }),
+      mcBlock(q, (choice) => {
+        if (window.BBPLAYER && window.BBPLAYER.closePrediction) window.BBPLAYER.closePrediction(false);
+        onAnswer(choice);
+        if (typeof syncRunGate === 'function') syncRunGate();
+        if (!S.running) renderStage();
+        const run = $('#run-btn');
+        if (run && !run.disabled) run.focus();
+      }, kind),
+    ]);
+  }
+
+  const replayDrawer = h('details.workspace-drawer', { id: 'replay-drawer' }, [h('summary', { text: 'Run readout and replay controls' })]);
+  replayDrawer.append($('#run-result'), $('#run-source'), $('#stage-caption'), $('#scene-controls'));
+  $('#lab').append(replayDrawer);
+  replayHome = replayDrawer;
   const MODES = {};
   const shell = BB.shell.notebook($('#notebook'), section => {
     if (section === 'curve' && S.results.length) { renderCharts(null, true); linkRun(); }
@@ -2109,16 +2188,18 @@
   const customShell = BB.shell.notebook(customNotebook);
   let notebookLevel = null;
 
-  let mapOpen = !C.levels.some(l => l.id === S.level);
-  if (mapOpen) S.mode = 'campaign';
+  let mapOpen = window.BBPLAYER ? window.BBPLAYER.mapOnEntry(S.mode) : S.mode === 'campaign';
   const campaignMap = BBCAMPAIGN.create({ h, C, S, choose: chooseLevel, show: showMap,
     saveActions: () => h('div.row.savebar', null, [
       h('span.small', { text: 'Progress saves in this browser.' }),
       h('button.btn.ghost', { type: 'button', onclick: downloadSave }, 'Download save file'),
       h('button.btn.ghost', { type: 'button', onclick: loadSave }, 'Load save file'),
       h('button.btn.ghost', { type: 'button', onclick: copyBrief }, 'Copy for your AI'),
+      h('button.btn.ghost', { type: 'button', onclick: () => { S.mode = 'review'; mapOpen = false; save(); render(); } }, 'Review'),
+      h('button.btn.ghost', { type: 'button', onclick: () => { S.mode = 'codex'; mapOpen = false; save(); render(); } }, 'Method tree'),
     ]) });
   function chooseLevel(id) {
+    if (id === 'goals') id = 'slots';
     const lv = C.levels.find(l => l.id === id);
     if (!lv) return;
     mapOpen = false; S.mode = 'campaign'; S.level = id; save(); enterLevel(lv); render();
@@ -2152,8 +2233,123 @@
       : state === 'failed' ? 'The run did not finish. Try again.'
         : 'Real training in your browser, ' + lv.seeds + ' runs.';
   }
+  function advanceCampaignRun() {
+    if (S.mode !== 'campaign' || customActive()) return;
+    const lv = C.levels.find((l) => l.id === S.level);
+    if (!lv || (S.lstep[lv.id] || 0) !== 1) return;
+    if (S.lastA) S.baselineResult = Object.assign({}, S.baselineResult, { [lv.id]: headline(S.lastA, lv.world) });
+    S.predictShown = lv.id;
+    if (campaignRunLevel) return;
+    for (const id of [].concat(lv.reveal || [])) if (!S.given.includes(id)) {
+      const alreadyKnown = S.found.includes(id); S.given.push(id); if (!alreadyKnown) queueCelebration(id);
+    }
+    setStep(lv, 2);
+    playRecorded = true;
+    showPhonePanel('world');
+    if (runState.record && adapter && !watching) watchScene();
+  }
+  function showPhonePanel(name) {
+    if (!window.matchMedia('(max-width: 700px)').matches) return;
+    const slide = document.getElementById('phone-' + name);
+    if (slide && !slide.hidden) slide.scrollIntoView({ inline: 'start', block: 'nearest' });
+  }
+  function lessonVerdict(lv, measured) {
+    const q = lv && lv.predict;
+    const ans = q && S.answers[q.id];
+    if (!ans) return '';
+    const opt = q.options[ans.choice];
+    const said = opt ? String(opt.result).replace(/<[^>]+>/g, '') : 'a choice';
+    const text = typeof measured === 'string' ? measured : headline(measured, lv.world);
+    return ' You predicted: ' + said + ' Measured: ' + text + '. ' + (ans.correct ? 'You were right.' : 'Not this time.');
+  }
+  function percentIn(text) {
+    const s = String(text || '').replace(/<[^>]+>/g, '');
+    const pct = s.match(/(\d+(?:\.\d+)?)\s*%/);
+    if (pct) return Math.max(0, Math.min(100, Number(pct[1])));
+    if (/one\s+\w+\s+in\s+three|1\s+in\s+3/i.test(s)) return 33;
+    const inn = s.match(/\b1\s+in\s+(\d+)\b/i);
+    if (inn) return Math.max(0, Math.min(100, Math.round(100 / Number(inn[1]))));
+    return null;
+  }
+  function clearVerdict() {
+    const host = $('#verdict-card');
+    if (host) { host.replaceChildren(); host.hidden = true; }
+    const result = $('#run-result');
+    if (result) result.classList.remove('quiet');
+  }
+  function paintVerdict(lv, measured) {
+    const host = $('#verdict-card');
+    if (!host || !lv) return;
+    const q = lv.predict;
+    const ans = q && S.answers[q.id];
+    if (!ans) { clearVerdict(); return; }
+    const opt = q.options[ans.choice];
+    const said = opt ? String(opt.result).replace(/<[^>]+>/g, '') : 'a choice';
+    const text = typeof measured === 'string' ? measured : headline(measured, lv.world);
+    const right = !!ans.correct;
+    const saidN = percentIn(said);
+    const gotN = percentIn(text);
+    host.hidden = false;
+    host.className = 'verdict-card ' + (right ? 'right' : 'wrong');
+    const scale = h('div.verdict-scale');
+    if (saidN != null) scale.append(h('i.you', { style: 'left:' + saidN + '%' }));
+    if (gotN != null) scale.append(h('i.measured', { style: 'left:' + gotN + '%' }));
+    const marks = [];
+    if (saidN != null) marks.push('You ' + saidN);
+    if (gotN != null) marks.push('Measured ' + gotN);
+    host.replaceChildren(...[
+      h('p.verdict-mark', { text: right ? '✓ You were right' : '✗ Not this time' }),
+      h('p', { text: 'You predicted ' + said }),
+      h('p', { text: 'Measured ' + text }),
+      saidN != null || gotN != null ? scale : null,
+      marks.length ? h('p.verdict-key', { text: marks.join('   ') }) : null,
+      h('p.verdict-next', { text: 'Next: Diagnose' }),
+    ].filter((node) => node));
+    requestAnimationFrame(() => placeRunOnSim());
+  }
+  function noteLessonRun(a) {
+    if (S.mode !== 'campaign' || !a) return;
+    const lv = C.levels.find((l) => l.id === S.level);
+    if (!lv || lv.custom) return;
+    const verdict = lessonVerdict(lv, a);
+    const showVerdict = S.predictShown === lv.id;
+    if (showVerdict) S.predictShown = null;
+    if (verdict && $('#run-result') && showVerdict) {
+      $('#run-result').textContent += verdict;
+      paintVerdict(lv, a);
+      $('#run-result').classList.add('quiet');
+    } else if (!showVerdict) clearVerdict();
+    showPhonePanel('world');
+    if ((S.lstep[lv.id] || 0) !== 3 || !lv.goal || !lv.goal.test(a, S.parts)) return;
+    const before = (S.baselineResult || {})[lv.id];
+    const after = headline(a, lv.world);
+    const payoff = (before ? before + ' → ' + after : 'Works: ' + after) + '.';
+    if (!S.done.includes(lv.id)) S.done.push(lv.id);
+    for (const id of [].concat(lv.revealOnDone || [])) if (!S.given.includes(id)) {
+      const alreadyKnown = S.found.includes(id); S.given.push(id); if (!alreadyKnown) queueCelebration(id);
+    }
+    const rec = recognize(S.parts, S.world);
+    const notes = (lv.notes || []).filter((n) => n.when(a, S.parts, S.knobs)).map((n) => (typeof n.text === 'function' ? n.text(a, S.parts, S.knobs) : n.text.replace('{final}', fmt(a.summary.finalReturn))));
+    S.made[lv.id] = { parts: Object.assign({}, S.parts), recipe: rec ? rec.id : null, notes, knobs: lv.repairKnobs ? Object.assign({}, S.knobs) : undefined, result: payoff };
+    if (lv.id === 'cells') S.made[lv.id].outcome = { works: C.works[lv.world](a), triad: C.failures.find((f) => f.card === 'triad').when(a, S.lastCfg) };
+    S.payoff = { level: lv.id, text: payoff };
+    setStep(lv, lv.explain ? 4 : 5);
+    save();
+    queueMicrotask(() => {
+      if ($('#run-result') && S.payoff && S.payoff.level === S.level) {
+        $('#run-result').textContent = S.payoff.text;
+        $('#run-result').classList.remove('quiet');
+      }
+      clearVerdict();
+      showPhonePanel('world');
+      if (typeof syncRunGate === 'function') syncRunGate();
+      if (runState.record && adapter && !watching) { playRecorded = true; watchScene(); }
+    });
+  }
   async function runCampaignStart(lv) {
     if (campaignRunLevel) return;
+    const existing = $('[data-campaign-run="' + lv.id + '"]');
+    if (existing && existing.disabled) return;
     campaignRunLevel = lv.id;
     setCampaignRunView(lv, 'running');
     enterLevel(lv, true);
@@ -2168,7 +2364,7 @@
   }
   function campaignRunRow(lv) {
     const busy = campaignRunLevel === lv.id;
-    return h('div.row', null, [
+    return h('div.row', { 'aria-hidden': 'true' }, [
       h('button.btn', { type: 'button', disabled: busy, 'aria-busy': busy ? 'true' : 'false', 'data-campaign-run': lv.id, onclick: () => runCampaignStart(lv) },
         busy ? 'Running the starting sentence…' : 'Run the starting sentence'),
       h('span.small', { role: 'status', 'data-campaign-run-status': lv.id,
@@ -2209,18 +2405,20 @@
       return;
     }
     const st = S.lstep[lv.id] || 0;
-    const card = h('div.card.teaching-card', null, [h('div.eyebrow', { text: C.worldNames[lv.world] }), h('h2', { text: lv.title }), h('p', { html: lv.intro })]);
+    const card = h('div.card.teaching-card', null, [h('div.eyebrow', { text: C.worldNames[lv.world] }), h('h2', { text: lv.title }),
+      window.BBLESSON_HELP ? window.BBLESSON_HELP.mount(h, lv) : h('p', { html: lv.intro })]);
     const steps = h('div.steps');
     const mk = (i, title, body) => h('div.step' + (st === i ? '.active' : st > i ? '.done' : ''), null, [h('span.num', { text: 'Step ' + (i + 1) }), h('h3', { text: title }), body]);
 
-    steps.append(mk(0, 'Predict before you run', mcBlock(lv.predict, () => setStep(lv, 1))));
+    const ask = typeof predictionMount === 'function' ? predictionMount : (q, onAnswer, title, current, kind) => mcBlock(q, onAnswer, kind);
+    steps.append(mk(0, 'Predict before you run', ask(lv.predict, () => setStep(lv, 1), 'Predict before you run', st === 0, 'predict', lv.learner || '')));
     if (st >= 1) steps.append(mk(1, 'Run it', h('div.stack', null, [
       h('p', { html: lv.runText }),
       campaignRunRow(lv),
     ])));
     if (st >= 2) steps.append(mk(2, 'Diagnose', h('div.stack', null, [
-      h('button.btn.ghost', { type: 'button', onclick: () => { $('#replay-lab').closest('details').open = true; shell.open('autopsy'); } }, 'Watch one update of this sentence'),
-      mcBlock(lv.diagnose, () => setStep(lv, 3)),
+      h('button.btn.ghost', { type: 'button', onclick: () => openReference('autopsy') }, 'Watch one update of this sentence'),
+      ask(lv.diagnose, () => setStep(lv, 3), 'Diagnose what happened', st === 2, 'diagnose'),
     ])));
     if (st >= 3) {
       const status = h('p.small', { text: 'Tap a word to see the choices. Words in a dashed box do nothing in this sentence.' });
@@ -2248,7 +2446,7 @@
         h('details', null, [h('summary', { text: 'Hint' }), h('p', { html: lv.hint })]),
       ])));
     }
-    if (st >= 4 && lv.explain) steps.append(mk(4, 'Explain why it works', mcBlock(lv.explain, () => setStep(lv, 5))));
+    if (st >= 4 && lv.explain) steps.append(mk(4, 'Explain why it works', mcBlock(lv.explain, () => setStep(lv, 5), 'explain')));
     if (st >= 5) steps.append(mk(5, 'Your sentence and the published one', consolidation(lv)));
     arrangeLessonSteps(lv, steps);
     card.append(steps);
@@ -2301,17 +2499,18 @@
         ? 'Your network shares estimates across similar states, but this run did not pass CartPole\'s test. Try another sentence, or continue to the next level.'
         : 'Your saved sentence uses a network. Run it again to see whether it passes CartPole\'s test or shows a failure.' }));
     } else if (rec && rec.card) {
-      box.append(h('p', { html: 'Your sentence is <b>' + rec.name + '</b>. Here are the words that define it, next to yours.' }), compareTable(made.parts, rec, lv.world));
+      box.append(h('p', { html: 'Your sentence is <b>' + rec.name + '</b>. Here are the words that define it, next to yours.' }), compareTable(made.parts, rec, lv.world, lv.start));
       box.append(cardView(rec.card, true));
     } else {
       const near = nearest(made.parts, lv.world);
       box.append(h('p', { html: 'Your sentence works, and the codex has no paper for exactly these words' + (rec ? ' (' + rec.name + ')' : '') + '.' + (near ? ' The closest published sentence is <b>' + near.rec.name + '</b>:' : '') }));
-      if (near) box.append(compareTable(made.parts, near.rec, lv.world));
+      if (near) box.append(compareTable(made.parts, near.rec, lv.world, lv.start));
     }
     for (const n of made.notes || []) box.append(h('p.small', { text: n }));
     box.append(discoveryMap(groupOf(triad ? 'triad' : rec && rec.card, lv.world, fam(made.parts))));
     if (['cells', 'explode', 'mirage'].includes(lv.id)) box.append(h('p', null, ['For the trade-offs behind these settings, read: ', h('a', { href: 'https://hadrien-cornier.github.io/robotics/recipes-for-choosing-a-learning-target/', target: '_blank', rel: 'noopener' }, 'Recipes for choosing a learning target')]));
-    box.append(h('p', { html: '<b>On a real robot:</b> ' + lv.soWhat }), h('p.small', { html: '<b>What this toy world cannot teach:</b> ' + lv.cannotTeach }), nextLevelButton(lv));
+    box.append(h('p', { html: '<b>On a real robot:</b> ' + lv.soWhat }), h('p.small', { html: '<b>What this toy world cannot teach:</b> ' + lv.cannotTeach }), nextLevelButton(lv),
+      h('button.btn.ghost', { type: 'button', onclick: () => { S.mode = 'saboteur'; mapOpen = false; save(); render(); } }, 'Optional challenge: Saboteur'));
     return box;
   }
   function nearest(p, world) {
@@ -2324,9 +2523,10 @@
     }
     return best;
   }
-  function compareTable(p, rec, world) {
+  function compareTable(p, rec, world, start) {
     const keys = Object.keys(rec.keys);
-    const extra = wordDiff(C.families[fam(p)].base, p, world).filter((d) => !keys.includes(d.key));
+    const baseline = start || C.families[fam(p)].base;
+    const extra = wordDiff(baseline, p, world).filter((d) => !keys.includes(d.key));
     return h('div.stack', null, [
       h('div.rp-scroll', null, [h('table.rp-table', null, [
         h('thead', null, h('tr', null, [h('th', { text: 'question' }), h('th', { text: 'your word' }), h('th', { text: rec.name })])),
@@ -2335,7 +2535,7 @@
           return h('tr' + (ok ? '' : '.miss'), null, [h('td', { text: W[k].q }), h('td', { text: (ok ? '✓ ' : '✗ ') + wordText(k, p[k]) }), h('td', { text: wordText(k, rec.keys[k]) })]);
         })),
       ])]),
-      extra.length ? h('p.small', { text: 'Your other changes from the plain sentence: ' + extra.map((d) => d.to).join(', ') + '. The published method does not need them.' }) : null,
+      extra.length ? h('p.small', { text: 'Your other changes from the level\'s starting sentence: ' + extra.map((d) => d.to).join(', ') + '. The published method does not need them.' }) : null,
     ]);
   }
   function nextLevelButton(lv) {
@@ -2357,7 +2557,7 @@
     }
     if (lv.custom) { cancelRun(); return; }
     if (!forceStart && campaignRunLevel === lv.id && S.running) {
-      $('#seeds').value = String(lv.seeds); if (lv.steps) $('#budget').value = String(lv.steps);
+      applyLessonDefaults(lv);
       return;
     }
     if (S.world !== lv.world || JSON.stringify(S.knobs) !== JSON.stringify(lv.knobs || {})) setWorld(lv.world, lv.knobs || {});
@@ -2365,8 +2565,17 @@
     // a repair in progress keeps the player's words, unless they belong to another kind of learner (a reload, another level)
     if (forceStart || step < 3 || (!S.made[lv.id] && fam(S.parts) !== fam(lv.start))) setParts(lv.start);
     else if (S.made[lv.id]) { setParts(S.made[lv.id].parts); if (lv.repairKnobs && S.made[lv.id].knobs) { S.knobs = Object.assign({}, S.made[lv.id].knobs); renderStage(); } }
-    $('#seeds').value = String(lv.seeds); if (lv.steps) $('#budget').value = String(lv.steps);
+    applyLessonDefaults(lv);
     markRunStale();
+  }
+  function applyLessonDefaults(lv) {
+    const seeds = $('#seeds');
+    if (lv.seeds != null && ![...seeds.options].some((o) => o.value === String(lv.seeds))) seeds.append(h('option', { value: lv.seeds, text: String(lv.seeds) }));
+    if (lv.seeds != null) seeds.value = String(lv.seeds);
+    const budget = $('#budget');
+    if (lv.steps != null && ![...budget.options].some((o) => o.value === String(lv.steps))) budget.append(h('option', { value: lv.steps, text: String(lv.steps) }));
+    if (lv.steps != null) budget.value = String(lv.steps);
+    if ($('#run-mode').value !== 'fast') $('#run-mode').value = 'fast';
   }
 
   // --- Workbench: any sentence, any world
@@ -2387,7 +2596,7 @@
       h('div.row', null, [h('label', { for: 'wb-family', text: 'Kind of learner' }), famSel, h('label', { for: 'wb-world', text: 'World' }), worldSel]),
       h('p.small', { html: '<b>This world teaches:</b> ' + RLA.worlds[S.world].info.teaches + ' <b>It cannot teach:</b> ' + RLA.worlds[S.world].info.cannotTeach }),
     ]));
-    pane.append(h('div.card', null, [h('div.eyebrow', { text: 'The update rule' }), mainSentence({ withName: true, withMath: true })]));
+    pane.append(h('div.card', null, [h('div.eyebrow', { text: 'The update rule' }), mainSentence({ withName: true })]));
     pane.append(h('div.card', null, [h('div.eyebrow', { text: 'Watch one update' }), replayView()]));
     pane.append(h('details', null, [h('summary', { text: 'Save, export and import sentences' }), savePanel()]));
   };
@@ -2490,7 +2699,17 @@
     ]);
     pane.append(intro);
     if (!q.length) { pane.append(h('div.card', null, [h('p', { text: 'Nothing to review yet. Each method you discover in the Campaign or the Workbench comes back here.' })])); return; }
-    const plain = (cid) => C.cfg({ family: (recipeOfCard(cid) || {}).family || 'value' });
+    const plain = (cid) => {
+      const rec = recipeOfCard(cid);
+      const parts = C.cfg({ family: (rec && rec.family) || 'value' });
+      if (!rec) return parts;
+      for (const [k, value] of Object.entries(rec.keys)) {
+        if (!keysMatch(parts, { [k]: value }) || !W[k]) continue;
+        const other = W[k].options.find((o) => !keysMatch({ [k]: o[0] }, { [k]: value }));
+        if (other) parts[k] = other[0];
+      }
+      return parts;
+    };
     if (!S.rv || !q.includes(S.rv.id)) S.rv = { id: q[0], parts: plain(q[0]), checked: null };
     const id = S.rv.id, c = C.cards[id], rec = recipeOfCard(id), world = c.review;
     const m = mountSentence({ getParts: () => S.rv.parts, setPart: (k, v) => { S.rv.parts[k] = v; S.rv.checked = null; refreshSentences(); fb.replaceChildren(); }, world: () => world, withMath: true });
@@ -2662,14 +2881,19 @@
     if (!known && !open) return h('div.entry.hidden-card', null, [h('div.eyebrow', { text: kindName }), h('h3', { text: '???' }), h('p.small', { text: c.kind === 'frontier' ? 'Opens in phase 5.' : 'Not discovered yet.' })]);
     const tag = c.status === 'checked' ? h('span.tag.checked', { text: 'Checked against the source' }) : h('span.tag.unchecked', { text: 'Not checked' });
     const rec = recipeOfCard(id);
+    const made = S.mode === 'campaign' ? S.made[S.level] : null;
+    const still = made && made.result && /78% best machine \(300 runs/.test(c.stillWrong || '')
+      ? c.stillWrong.replace('In this page: 78% best machine (300 runs, Simulation).', 'This lesson measured ' + made.result)
+      : c.stillWrong;
     return h('div.entry' + (open ? '.discovery' : ''), null, [
       h('div.row', { style: 'justify-content:space-between' }, [h('div.eyebrow', { text: c.kind ? kindName : S.found.includes(id) ? 'Method, built by you' : 'Method, given by a level' }), tag]),
       h('h3', { text: c.name }),
+      c.plain ? h('p', { text: c.plain }) : null,
       h('dl', null, [
         h('dt', { text: 'Source' }), h('dd', null, [h('span', { html: c.paper }), paperLinks(id)]),
         rec ? h('dt', { text: 'Words' }) : null, rec ? h('dd', { text: Object.keys(rec.keys).map((k) => wordText(k, rec.keys[k])).join(' · ') }) : null,
         h('dt', { text: c.kind === 'failure' ? 'What' : c.kind === 'frontier' ? 'What it adds' : 'Fixes' }), h('dd', { html: c.fixes }),
-        h('dt', { text: c.kind === 'failure' ? 'Measured' : c.kind === 'frontier' ? 'Limits' : 'Still fails' }), h('dd', { html: c.stillWrong }),
+        h('dt', { text: c.kind === 'failure' ? 'Measured' : c.kind === 'frontier' ? 'Limits' : 'Still fails' }), h('dd', { html: still }),
       ]),
       peekFor(id),
       c.evidence ? h('details', null, [h('summary', { text: 'Evidence from the source' }), h('div', { html: c.evidence })]) : null,
@@ -2905,11 +3129,18 @@
     try { await navigator.clipboard.writeText(t); toast('Copied. Paste it into your AI chat.'); }
     catch (e) { download('breaking-bellman-brief.md', t, 'text/markdown'); toast('Clipboard blocked: downloaded the brief instead.'); }
   }
-  // the whole page as Markdown (window.BB.pageMd walks what is on screen): the open tab, the lab, an open dialog, the words
+  // the whole page as Markdown (window.BB.pageMd walks what is on screen): the open tab, the lab, the editor
+  // that stays up after Run closes, an open dialog, the words
   function pageMarkdown() {
     const md = (el) => window.BB.pageMd.fromNode(el, { depth: 2 });
     const tab = ($('#tabs button[data-mode="' + S.mode + '"]') || {}).textContent || S.mode;
     const dialogs = $$('dialog[open]').map((d) => md(d)).filter(Boolean);
+    const editor = $('#algorithm-workspace');
+    const editorOnScreen = editor && !editor.hidden && getComputedStyle(editor).display !== 'none';
+    const editorBody = editorOnScreen ? md(editor) : '';
+    const experiment = $('#experiment-view');
+    const experimentOnScreen = experiment && !experiment.hidden && getComputedStyle(experiment).display !== 'none';
+    const experimentBody = experimentOnScreen ? md(experiment) : '';
     const now = new Date(), stamp = now.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
     return [
       '# Breaking Bellman: the ' + tab + ' page',
@@ -2932,6 +3163,8 @@
       '',
       md($(customActive() ? '#vpo-lab' : '#lab')),
       '',
+      ...(experimentBody ? ['## Experiment (the world and the learning chart)', '', experimentBody, ''] : []),
+      ...(editorBody ? ['## Editor (the sentence, the equations and the last learning curve)', '', editorBody, ''] : []),
       '## Notebook',
       '',
       md($(customActive() ? '#custom-notebook' : '#notebook')),
@@ -2962,10 +3195,19 @@
         length: adapter && runState.record ? adapter.length(runState.record) : 0 }),
       levels: () => C.levels.map((l) => { const i = levelInfo(l); return { n: i.n, id: i.id, title: i.title, world: i.world, done: i.done, step: i.step }; }),
       level: (which) => {
+        if (which === 'goals') which = 'slots';
         const l = C.levels.find((x, i) => x.id === which || i + 1 === which);
         if (!l) throw new Error('No level ' + which + '. See bellman.levels().');
         chooseLevel(l.id);
         return levelInfo(l);
+      },
+      mode: (name) => {
+        if (name == null) return S.mode;
+        if (name !== 'review' && !MODES_OK(name)) throw new Error('Unknown mode ' + name);
+        S.mode = name;
+        if (name !== 'campaign') mapOpen = false;
+        save(); render();
+        return S.mode;
       },
       words: (ws) => (ws ? tool('set_words')(ws) : { words: S.parts, name: nameOf(S.parts, S.world) }),
       world: (name, knobs) => { const r = tool('set_world')({ world: name, knobs }); if (S.mode === 'workbench') render(); return r; },  // a Saboteur mission sets its own world on render
@@ -3111,35 +3353,79 @@
 
   // first visit: what this is, in four lines
   function showIntro() {
-    const close = (mode) => { S.intro = 1; save(); dlg.close(); dlg.remove(); if (mode && mode !== S.mode) { S.mode = mode; save(); if (mode === 'campaign') enterLevel(C.levels.find((l) => l.id === S.level) || C.levels[0]); render(); } };
+    const close = (mode) => {
+      S.intro = 1; save(); dlg.close(); dlg.remove();
+      if (mode === 'campaign') { mapOpen = true; S.mode = 'campaign'; save(); render(); return; }
+      if (mode && mode !== S.mode) { S.mode = mode; save(); render(); }
+    };
     const step = (n, t, d) => h('li', null, [h('span.num', { text: n }), h('div', null, [h('b', { text: t }), h('p.small', { text: d })])]);
     const dlg = h('dialog.intro', { 'aria-label': 'Welcome' }, [h('div.stack', null, [
       h('div.eyebrow', { text: 'A small game about reinforcement learning' }),
       h('h1', { text: 'Breaking Bellman' }),
-      h('p.lead', { text: 'Real RL algorithms train in this page and fail in front of you. You figure out why, then fix them by changing a word.' }),
+      h('p.lead', { text: 'This game goes from the most basic parts of reinforcement learning to the research frontier. It is not exhaustive. It picks the most relevant ideas in between.' }),
+      h('p', { text: 'Real algorithms train in this page and fail in front of you. You figure out why, then fix them by changing a word.' }),
       h('ol.steps', null, [
         step('1', 'Predict', 'Guess what the learner will do. Be honest.'),
         step('2', 'Run', 'Real training, in your browser, in seconds.'),
         step('3', 'Fix', 'Change one word of its update rule. Get it right and you have reinvented a published method.'),
       ]),
       h('p.small', { text: C.levels.length + ' levels, any order. Progress saves in this browser; Settings has a save file you can take anywhere. No account, no server. The AI tutor is optional.' }),
-      h('div.row', null, [h('button.btn', { type: 'button', onclick: () => close('campaign') }, 'Start level 1'), h('button.btn.ghost', { type: 'button', onclick: () => close('workbench') }, 'Open the workbench')]),
+      h('div.row', null, [h('button.btn', { type: 'button', onclick: () => close('campaign') }, 'Open the campaign map')]),
     ])]);
     dlg.addEventListener('cancel', () => { S.intro = 1; save(); });
     document.body.append(dlg); dlg.showModal();
   }
 
+  function syncLevelTitle() {
+    const title = $('#level-title');
+    const view = $('#experiment-view');
+    if (!title || !view) return;
+    const mapping = S.mode === 'campaign' && mapOpen;
+    const custom = customActive();
+    view.hidden = mapping || custom;
+    const lv = S.mode === 'campaign' ? C.levels.find((l) => l.id === S.level) : null;
+    const shown = lv && !mapping && !custom;
+    title.replaceChildren(shown ? lv.title : (C.worldNames[S.world] || ''));
+    if (shown) title.append(h('span.about-hint', { text: 'About this level' }));
+    if (!title.dataset.about) {
+      title.dataset.about = '1';
+      title.tabIndex = 0;
+      title.setAttribute('role', 'button');
+      const openAbout = () => {
+        const button = document.querySelector('[data-lesson-help]');
+        if (button) button.click();
+      };
+      title.addEventListener('click', openAbout);
+      title.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        openAbout();
+      });
+    }
+    if (shown) title.setAttribute('aria-label', lv.title + '. About this level');
+    else title.removeAttribute('aria-label');
+  }
   // ---------------------------------------------------------------- top level
   function render() {
+    const lessonOpen = $('#lesson-drawer') && $('#lesson-drawer').open;
+    if (window.BBPLAYER) window.BBPLAYER.closePrediction(false);
+    $$('#stage-card .prediction-launch').forEach((el) => el.remove());
     const oldStrip = document.getElementById('campaign-strip');
     if (oldStrip) oldStrip.remove();
     const oldBackup = document.getElementById('reward-backup');
     if (oldBackup) oldBackup.remove();
-    $$('#tabs button').forEach((b) => b.setAttribute('aria-selected', b.dataset.mode === S.mode ? 'true' : 'false'));
+    $$('#tabs button[data-mode]').forEach((b) => b.setAttribute('aria-selected', b.dataset.mode === S.mode ? 'true' : 'false'));
+    const more = $('#more-tools');
+    if (more) {
+      const inside = more.querySelector('[aria-selected="true"]');
+      more.querySelector('summary').textContent = inside ? inside.textContent : 'More';
+    }
     mounts = mounts.filter((m) => m.permanent);
     comparisonReplay.park();
     if (!customActive() || mapOpen) { customScene = null; pauseScene(); }
-    const pane = $('#mode-pane'); pane.replaceChildren();
+    const pane = $('#mode-pane');
+    document.querySelector('main.layout').append(pane);
+    pane.replaceChildren();
     S.afterRun = null; S.onPartsChange = null;
     if (!goalExecutionActive() || S.level !== 'hindsight') BBHINDSIGHT.cancel();
     if (!goalExecutionActive() || S.level !== 'hierarchy') BBHIERARCHY.cancel();
@@ -3164,7 +3450,7 @@
     const campaign = S.mode === 'campaign' && !mapping;
     const layout = document.querySelector('main.layout');
     layout.classList.toggle('lesson-shell', campaign);
-    $('#run-btn').classList.toggle('ghost', campaign);
+    if ($('#run-btn')) $('#run-btn').classList.remove('ghost');
     // DOM, visual and keyboard order agree: map, measured scene, teaching step, Notebook.
     if (campaign) layout.insertBefore(customActive() ? $('#vpo-lab') : $('#lab'), pane);
     else layout.prepend(pane);
@@ -3175,8 +3461,9 @@
         customShell.notebook(name).replaceChildren(h('p.small', { text: name === 'notes' ? 'Lesson notes appear here.' : 'Run the lesson to inspect its ' + name + '.' }));
       }
     }
-    $('#notebook').classList.toggle('supporting-lab', !campaign);
-    if (!campaign) {
+    const workspace = !mapping && !customActive() && ['campaign', 'workbench', 'saboteur'].includes(S.mode);
+    $('#notebook').classList.toggle('supporting-lab', !campaign && !workspace);
+    if (!campaign && !workspace) {
       $('#notebook').open = true;
       $$('#notebook [data-notebook-panel]').forEach(panel => { panel.hidden = false; });
       $('#lab').prepend($('#game-rules'));
@@ -3184,19 +3471,59 @@
     if (S.mode === 'campaign' && !mapping) document.querySelector('main.layout').prepend(campaignMap.strip());
     if (customActive() && !mapping) customShell.objective(C.levels.find(l => l.id === S.level).goal.text);
     MODES[S.mode](pane);
+    layout.classList.toggle('drawer-workspace', workspace);
+    $('#algorithm-workspace').hidden = !workspace;
+    $('#lesson-drawer').hidden = !workspace;
+    if (workspace) {
+      const anchor = $('#experiment-view');
+      if (anchor && anchor.parentElement === layout) layout.insertBefore($('#lab'), anchor);
+      else layout.insertBefore($('#lab'), $('#algorithm-workspace'));
+      $('#lesson-drawer').append(pane);
+      if (lessonOpen) $('#lesson-drawer').open = true;
+      $('#notebook').classList.remove('supporting-lab');
+      if (!layout.dataset.workspaceKey || layout.dataset.workspaceKey !== key) $('#notebook').open = false;
+      layout.dataset.workspaceKey = key;
+      $('#notebook-rule').prepend($('#game-rules'));
+    }
+    syncLevelTitle();
+    if (!S.running && !S.results.length && !customActive()) showEmptyCharts();
+    placeEditor();
+    if (typeof syncRunGate === 'function') syncRunGate();
+    const stageEl = $('#stage');
+    const stageBox = stageEl.getBoundingClientRect();
+    const stageWidth = Math.round(stageBox.width), stageHeight = Math.round(stageBox.height);
+    const stageVisible = stageWidth > 1 && stageHeight > 1 && !stageEl.closest('[hidden]');
+    if (stageVisible && !S.running && (stageNeedsPaint || stageWidth !== stageW || stageHeight !== stageH)) {
+      stageW = stageWidth; stageH = stageHeight;
+      stageNeedsPaint = false;
+      renderStage();
+    }
     refreshSentences();
     if (!customActive()) renderRules();
     updateScore();
   }
-  $$('#tabs button').forEach((b) => b.addEventListener('click', () => {
+  $$('#tabs button[data-mode]').forEach((b) => b.addEventListener('click', () => {
     S.mode = b.dataset.mode; save();
+    const more = $('#more-tools');
+    if (more) more.open = false;
     if (S.mode === 'campaign' && !mapOpen) enterLevel(C.levels.find((l) => l.id === S.level));
     render();
   }));
+  const moreMenu = $('#more-tools');
+  if (moreMenu) {
+    moreMenu.addEventListener('click', (event) => {
+      if (event.target.closest('button')) moreMenu.open = false;
+    });
+    document.addEventListener('click', (event) => {
+      if (moreMenu.open && !moreMenu.contains(event.target)) moreMenu.open = false;
+    });
+  }
   // The header uses the same Rover+ as the simulations, without an animation clock.
   const logoCanvas = $('#logo-robot'), logoContext = logoCanvas.getContext('2d');
   logoContext.scale(2, 2);
   BB.scenes.robot(logoContext, 24, 44, 39, { noShadow: true });
+  const chatBtn = $('#chat-btn');
+  if (chatBtn) chatBtn.addEventListener('click', () => { S.mode = 'chat'; mapOpen = false; save(); render(); });
   $('#campaign-logo').addEventListener('click', (event) => {
     event.preventDefault();
     showMap();
@@ -3220,8 +3547,9 @@
   });
   $('#copy-page-btn').addEventListener('click', copyPage);
   // redraw on a real width change only: phones fire resize when the address bar hides, and a redraw restarts the replay
-  let stageW = 0;
+  let stageW = 0, stageH = 0, stageNeedsPaint = false;
   window.addEventListener('resize', () => {
+    placeEditor();
     const w = Math.round($('#stage').getBoundingClientRect().width);
     if (w === stageW) return;
     stageW = w;
@@ -3229,20 +3557,314 @@
     renderStage();
   });
 
-  // the lab's own sentence (always present)
-  $('#rule').append(mountSentence({ getParts: () => S.parts, setPart: setMainPart, world: () => S.world, focus: () => (S.mode === 'campaign' ? S.focus || [] : []), withName: true, permanent: true, preset: true }));
+  // the lab's own sentence (always present). Equations sit in the reserved slot under that sentence.
+  $('#rule').append(mountSentence({ getParts: () => S.parts, setPart: setMainPart, world: () => S.world, focus: () => (S.mode === 'campaign' ? S.focus || [] : []), withName: true, permanent: true, preset: true, compact: true }));
+  algorithmMath = window.ALGO_MATH.mount({ id: 'algorithm-math-panel', getParts: () => S.parts, world: () => S.world, hyper: () => hyperNow() });
+  $('#algorithm-math-slot').append(algorithmMath.el);
   $('#replay-lab').append(replayView());
   $('#grid-lab').append(gridView());
   $('#grid-card').addEventListener('toggle', () => { if ($('#grid-card').open) drawGrid(); });
   $('#run-mode').value = 'fast'; // A fresh-Live override lasts only for this page visit.
   for (const sel of ['#seeds', '#budget', '#run-mode']) $(sel).addEventListener('change', () => { cancelRun(); if (!G.running) drawGrid(); });
-  document.addEventListener('change', () => { markRunStale(); if (activeRun && runIdentity() !== activeRun.identity) cancelRun(); });
+  document.addEventListener('change', () => { markRunStale(); if (typeof syncRunGate === 'function') syncRunGate(); if (activeRun && runIdentity() !== activeRun.identity) cancelRun(); });
+  document.addEventListener('click', (event) => {
+    const button = event.target && event.target.closest ? event.target.closest('button') : null;
+    if (!button || button.disabled || !simulationRunButton(button)) return;
+    if (unansweredPrediction()) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (typeof presentPrediction === 'function') presentPrediction(true);
+      return;
+    }
+    predictionClickReady = true;
+    setTimeout(() => { predictionClickReady = false; if (typeof syncRunGate === 'function') syncRunGate(); }, 0);
+    if (button.id === 'run-btn') {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      run();
+    }
+  }, true);
 
+  function adopt(parent, node) {
+    if (parent && node && node.parentElement !== parent) parent.append(node);
+  }
+  function syncPhoneDots() {
+    const deck = $('#phone-deck');
+    if (!deck) return;
+    const slides = [...deck.querySelectorAll('.phone-slide')].filter((slide) => !slide.hidden);
+    let best = slides[0];
+    let bestDistance = Infinity;
+    for (const slide of slides) {
+      const distance = Math.abs(slide.offsetLeft - deck.scrollLeft);
+      if (distance < bestDistance) { best = slide; bestDistance = distance; }
+    }
+    const id = best && best.dataset.panel;
+    $$('#phone-dots .phone-dot').forEach((button) => {
+      button.hidden = false;
+      button.setAttribute('aria-selected', button.dataset.panel === id ? 'true' : 'false');
+    });
+  }
+  function syncPhonePanels() {
+    const curve = $('#phone-curve');
+    const has = !!($('#charts') && $('#charts').childElementCount) || !!($('#training-metric') && $('#training-metric').childElementCount);
+    const monitor = $('#learning-monitor');
+    if (monitor && monitor.hidden !== !has) monitor.hidden = !has;
+    if (curve) {
+      curve.hidden = false;
+      let note = curve.querySelector('.curve-empty');
+      if (!note) {
+        note = document.createElement('p');
+        note.className = 'curve-empty';
+        curve.prepend(note);
+      }
+      if (!has) note.textContent = 'No pulls yet.';
+      note.hidden = has;
+    }
+    syncPhoneDots();
+  }
+  let predictionDismissedFor = null;
+  function predictionReopen() {
+    let button = $('#prediction-reopen');
+    if (!button) {
+      button = document.createElement('button');
+      button.type = 'button';
+      button.id = 'prediction-reopen';
+      button.className = 'btn ghost';
+      button.hidden = true;
+      button.textContent = 'Show the prediction';
+      button.addEventListener('click', () => presentPrediction(true));
+    }
+    return button;
+  }
+  function lessonPredictionVisible() {
+    if (typeof customActive !== 'function' || !customActive()) return false;
+    const pane = document.querySelector('#mode-pane');
+    if (!pane) return false;
+    return [...pane.querySelectorAll('button.opt')].some((el) => {
+      for (let node = el; node; node = node.parentElement) {
+        if (node.hidden) return false;
+        const style = getComputedStyle(node);
+        if (style.display === 'none' || style.visibility === 'hidden') return false;
+      }
+      const box = el.getBoundingClientRect();
+      return box.width > 0 && box.height > 0;
+    });
+  }
+  function ensurePredictNode(q) {
+    const existing = document.querySelector('.predict-live[data-prediction="' + q.id + '"]');
+    if (existing) return existing;
+    return predictionMount(q, () => {
+      if (typeof syncRunGate === 'function') syncRunGate();
+    }, 'Predict before you run', true, 'predict');
+  }
+  function presentPrediction(force) {
+    const pending = typeof unansweredPrediction === 'function' ? unansweredPrediction() : null;
+    const button = predictionReopen();
+    if (!pending) { predictionDismissedFor = null; button.hidden = true; return; }
+    if (typeof mapOpen !== 'undefined' && mapOpen) { button.hidden = true; return; }
+    const lessonStep = (S.lstep && S.lstep[S.level]) || 0;
+    const inlineQuestion = typeof lessonPredictionVisible === 'function' && lessonPredictionVisible();
+    const customRun = [...document.querySelectorAll('button')].find((el) => simulationRunButton(el) && el.id !== 'run-btn');
+    const customReady = typeof customActive === 'function' && customActive() && !!customRun;
+    const showReopen = !inlineQuestion && (offerRunControl() || customReady);
+    if (!force && lessonStep > 0) { button.hidden = !showReopen; return; }
+    if (!force && predictionGrant && predictionGrant.id === pending.id) {
+      button.hidden = !showReopen;
+      return;
+    }
+    if (!force && lessonPredictionVisible()) { button.hidden = true; return; }
+    if (!force && predictionDismissedFor === pending.id) {
+      const stray = document.querySelector('#mode-pane .predict-live');
+      if (stray) {
+        document.querySelectorAll('.predict-live').forEach((el) => { if (el !== stray) el.remove(); });
+        let park = document.getElementById('prediction-park');
+        if (!park) {
+          park = document.createElement('div');
+          park.id = 'prediction-park';
+          park.hidden = true;
+          document.body.append(park);
+        }
+        park.append(stray);
+      }
+      button.hidden = false;
+      return;
+    }
+    if (!force && document.querySelector('dialog.lesson-help[open]')) { button.hidden = true; return; }
+    if (document.querySelector('#prediction-pop[open]')) { button.hidden = true; return; }
+    let node = document.querySelector('#mode-pane .predict-live') || document.querySelector('#prediction-park .predict-live') || document.querySelector('.predict-live');
+    if (!node) node = ensurePredictNode(pending);
+    if (!node || !window.BBPLAYER || typeof window.BBPLAYER.openPrediction !== 'function') { button.hidden = false; return; }
+    document.querySelectorAll('.predict-live').forEach((el) => { if (el !== node) el.remove(); });
+    window.BBPLAYER.openPrediction({ title: 'Predict before you run', node, anchor: document.body, returnLabel: 'Back to the experiment' });
+    predictionDismissedFor = null;
+    button.hidden = true;
+  }
+  function fitPhoneDeck() {
+    const deck = $('#phone-deck');
+    if (!deck) return;
+    const phone = window.matchMedia('(max-width: 700px)').matches && !deck.hidden;
+    if (!phone) { deck.style.height = ''; return; }
+    const slides = [...deck.querySelectorAll('.phone-slide')].filter((slide) => !slide.hidden);
+    let best = slides[0];
+    let bestDistance = Infinity;
+    for (const slide of slides) {
+      const distance = Math.abs(slide.offsetLeft - deck.scrollLeft);
+      if (distance < bestDistance) { best = slide; bestDistance = distance; }
+    }
+    if (!best) return;
+    const height = best.scrollHeight;
+    if (!(height > 0)) return;
+    const next = height + 'px';
+    if (deck.style.height !== next) deck.style.height = next;
+  }
+  function placeRunOnSim() {
+    const bar = $('#stage-run');
+    const stage = $('#stage');
+    const card = $('#stage-card');
+    if (!bar || !stage || !card) return;
+    bar.style.top = '';
+    bar.style.right = '';
+    bar.style.left = '';
+    if (bar.parentElement !== card) stage.before(bar);
+    else if (bar.nextElementSibling !== stage) stage.before(bar);
+    fitPhoneDeck();
+  }
+  function placeEditor() {
+    const pair = $('#experiment-pair');
+    const card = $('#stage-card');
+    const view = $('#experiment-view');
+    if (!pair || !card || !view) return;
+    card.append($('#stage-caption'), $('#scene-controls'));
+    let bar = $('#stage-run');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'stage-run';
+    }
+    const stage = $('#stage');
+    if (stage && bar.nextElementSibling !== stage) stage.before(bar);
+    const runBtn = $('#run-btn');
+    const result = $('#run-result');
+    const progress = document.querySelector('#run-settings .progress');
+    if (progress) card.append(progress);
+    $('#editor-run').append($('#run-settings'));
+    const deck = $('#phone-deck');
+    const phone = window.matchMedia('(max-width: 700px)').matches && !view.hidden;
+    const workspace = $('#algorithm-workspace');
+    const mathSlot = $('#algorithm-math-slot');
+    if (phone && deck) {
+      adopt($('#phone-world'), card);
+      adopt($('#phone-curve'), $('#learning-monitor'));
+      adopt($('#phone-math'), mathSlot);
+      const dots = $('#phone-dots');
+      if (workspace && dots) dots.after(workspace);
+      if (result) bar.append(result);
+      if (runBtn) bar.append(runBtn);
+      const reopen = predictionReopen();
+      if (reopen.parentElement === bar) reopen.remove();
+      deck.hidden = false;
+      if ($('#phone-dots')) $('#phone-dots').hidden = false;
+      pair.hidden = true;
+    } else {
+      if (result) bar.append(result);
+      if (runBtn) bar.append(runBtn);
+      const reopen = predictionReopen();
+      if (reopen.parentElement !== card) card.append(reopen);
+      adopt(pair, card);
+      adopt(pair, $('#learning-monitor'));
+      if (workspace && mathSlot && mathSlot.parentElement !== workspace) {
+        const rule = $('#rule');
+        if (rule) rule.after(mathSlot); else workspace.prepend(mathSlot);
+      }
+      const layout = document.querySelector('main.layout');
+      if (layout && workspace && workspace.parentElement !== layout) layout.insertBefore(workspace, $('#lesson-drawer'));
+      pair.hidden = false;
+      if (deck) deck.hidden = true;
+      if ($('#phone-dots')) $('#phone-dots').hidden = true;
+    }
+    const pendingPredict = typeof unansweredPrediction === 'function' && unansweredPrediction();
+    if (!pendingPredict) document.querySelectorAll('.predict-live').forEach((node) => node.remove());
+    const title = $('#level-title');
+    const dots = $('#phone-dots');
+    const verdict = $('#verdict-card');
+    if (phone && deck && bar && view) {
+      if (title && title.parentElement === view) title.after(deck);
+      const reopen = predictionReopen();
+      deck.after(reopen);
+      if (dots) reopen.after(dots);
+      const anchor = dots && dots.parentElement === view ? dots : bar;
+      if (verdict) anchor.after(verdict);
+      const after = (verdict && verdict.parentElement === view) ? verdict : anchor;
+      if (workspace && after.parentElement === view) after.after(workspace);
+      const drawer = $('#lesson-drawer');
+      const lessonStep = (S.lstep && S.lstep[S.level]) || 0;
+      if (pendingPredict && lessonStep === 0 && drawer) drawer.open = false;
+    } else if (verdict && card) card.append(verdict);
+    syncPhonePanels();
+    placeRunOnSim();
+    requestAnimationFrame(() => {
+      placeRunOnSim();
+      requestAnimationFrame(() => presentPrediction(false));
+    });
+  }
+  document.addEventListener('bb-help-closed', () => presentPrediction(false));
+  document.addEventListener('bb-prediction-closed', () => {
+    const pending = typeof unansweredPrediction === 'function' ? unansweredPrediction() : null;
+    if (pending) predictionDismissedFor = pending.id;
+    const button = $('#prediction-reopen');
+    if (button) button.hidden = !pending;
+  });
+  $$('#phone-dots .phone-dot').forEach((button) => {
+    button.addEventListener('click', () => {
+      const slide = document.getElementById('phone-' + button.dataset.panel);
+      if (slide && !slide.hidden) slide.scrollIntoView({ inline: 'start', block: 'nearest', behavior: 'smooth' });
+    });
+  });
+  if ($('#phone-deck')) $('#phone-deck').addEventListener('scroll', () => { syncPhoneDots(); placeRunOnSim(); }, { passive: true });
+  const referenceNames = { rule: 'Rules', curve: 'Sources', autopsy: 'Autopsy', notes: 'Notes' };
+  function openReference(name) {
+    const dlg = $('#reference-dialog');
+    if (!dlg || typeof dlg.showModal !== 'function') return;
+    $('#reference-title').textContent = referenceNames[name] || 'Notes';
+    $('#reference-host').append($('#notebook'));
+    $('#notebook').hidden = false;
+    shell.open(name);
+    if (name === 'autopsy') {
+      const watch = $('#replay-lab') && $('#replay-lab').closest('details');
+      if (watch) watch.open = true;
+    }
+    if (!dlg.open) dlg.showModal();
+  }
+  function closeReferenceDialog() {
+    if ($('#reference-dialog').open) $('#reference-dialog').close();
+  }
+  $$('#reference-bar [data-reference]').forEach((button) => {
+    button.addEventListener('click', () => openReference(button.dataset.reference));
+  });
+  $('#reference-close').addEventListener('click', closeReferenceDialog);
+  $('#reference-dialog').addEventListener('close', () => {
+    $('#notebook').open = false;
+    document.querySelector('main.layout').append($('#notebook'));
+  });
+  const sources = $('#open-sources');
+  if (sources) sources.addEventListener('click', () => openReference('rule'));
+  $('#simulation-btn').addEventListener('click', () => openSimulation());
+  $('#run-simulation-close').addEventListener('click', () => {
+    if (!$('#run-simulation').open) return;
+    // The dialog's close event is queued, so the curve has to move before close() returns.
+    settleEditor();
+    $('#run-simulation').close();
+  });
+  $('#run-simulation').addEventListener('close', () => {
+    settleEditor();
+    if ($('#run-btn')) $('#run-btn').focus();
+  });
+  placeEditor();
   budgetOptions();
   if (S.mode === 'campaign' && !mapOpen) enterLevel(C.levels.find((l) => l.id === S.level));
   else setWorld(S.world);
   renderStage(); drawCompare();
   render();
+  [typeof BBREPLAN !== 'undefined' && BBREPLAN, typeof BBENSEMBLE_LEVEL !== 'undefined' && BBENSEMBLE_LEVEL, typeof BBMETARL !== 'undefined' && BBMETARL, typeof BBSKEW !== 'undefined' && BBSKEW, typeof BBSKILLS_LEVEL !== 'undefined' && BBSKILLS_LEVEL, typeof BBHINDSIGHT !== 'undefined' && BBHINDSIGHT, typeof BBHIERARCHY !== 'undefined' && BBHIERARCHY, typeof BBELBO_LEVEL !== 'undefined' && BBELBO_LEVEL, typeof BBMESSAGES_LEVEL !== 'undefined' && BBMESSAGES_LEVEL, typeof BBRARELESSON !== 'undefined' && BBRARELESSON, typeof BBGOALS_LEVEL !== 'undefined' && BBGOALS_LEVEL, typeof BBREWARDFIT !== 'undefined' && BBREWARDFIT, typeof BBTHAW !== 'undefined' && BBTHAW, typeof BBSUPERMIMIC !== 'undefined' && BBSUPERMIMIC, typeof BBVPO !== 'undefined' && BBVPO].forEach(guardRun);
   // Algorithm-name reminders: enhance the whole page once, then keep up with every surface that
   // renders a name (prose, questions, method labels, Codex and the family tree) as it appears.
   if (window.ALGO_HELP) {
@@ -3258,5 +3880,17 @@
     };
     window.ALGO_HELP.installAuto(document.body);
   }
-  if (!S.intro && !mapOpen) showIntro();
+  let stageFitting = false;
+  if (window.ResizeObserver) new ResizeObserver(() => {
+    if (stageFitting) return;
+    const cv = $('#stage');
+    if (!cv || cv.closest('[hidden]')) return;
+    const rect = cv.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) return;
+    const dpr = window.devicePixelRatio || 1;
+    if (Math.abs(cv.width - Math.round(rect.width * dpr)) < 2 && Math.abs(cv.height - Math.round(rect.height * dpr)) < 2) return;
+    stageFitting = true;
+    try { if (!S.running) renderStage(); } finally { stageFitting = false; fitPhoneDeck(); }
+  }).observe($('#stage'));
+  if (!S.intro && S.mode === 'campaign') showIntro();
 })();

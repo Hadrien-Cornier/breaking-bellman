@@ -13,7 +13,8 @@
   const goalText = 'Fit the anchor visits, refuse the unsmoothed inverse, then sample add-one weights on one shared budget and leave the sealed room unentered.';
   const lesson = {
     id: 'skew', custom: true, phase: 10.5, world: 'skew', title: 'Rare goals need support', focus: [],
-    intro: 'Three rooms. The notes record 8 visits in A and none in B or C. Inverse-density goal weights are undefined on a room with count zero. Add-one smoothing gives those rooms a prior, not a visit. A sealed door still does not open.',
+    intro: 'The notes record visits to room A, but none to B or C. Can changing goal weights help with an unvisited room or a sealed door?',
+    introMore: 'Three rooms. The notes record 8 visits in A and none in B or C. Inverse-density goal weights are undefined on a room with count zero. Add-one smoothing gives those rooms a prior, not a visit. A sealed door still does not open.',
     goal: { text: goalText },
   };
   const skillsAt = C.levels.findIndex((l) => l.id === 'skills');
@@ -84,7 +85,7 @@
   K.state = () => ({ world: 'skew', sentenceName: 'Goal requests on three rooms', mode: 'campaign', level: lesson.title,
     knobs: clone(state.controls), lastRun: state.record ? { steps: state.record.data.fresh.steps, summary: state.record.metrics } : null });
   K.run = async function () {
-    if (!mounted) return null;
+    if (!mounted || state.pred == null) return null;
     stop(); const token = ++generation; state.busy = true; state.error = ''; redraw?.();
     try {
       const record = await K.records.create(clone(state.controls));
@@ -162,7 +163,7 @@
     function answer(q, key, next) { return choice(h, q, state[key], i => { state[key] = i; api.recordAnswer?.(q.id, i, !!q.options[i].correct); if (next != null) advance(next); else redraw(); }); }
     function setControls(values) { state.controls = { ...clone(state.controls), ...clone(values) }; change(); }
     function runButton(id = 'skew-run', label = 'Run') {
-      return h('button.btn', { id, type: 'button', disabled: state.busy, onclick: () => K.run() }, state.busy ? 'Running…' : label);
+      return h('button.btn', { id, type: 'button', disabled: state.busy || state.pred == null, onclick: () => K.run() }, state.busy ? 'Running…' : label);
     }
     function number(key, label, min, max) {
       const value = K.ROOMS.includes(key) ? state.controls.visits[key] : state.controls[key];
@@ -240,7 +241,7 @@
         }
       };
       const cards = [h('div.eyebrow', { text: 'Three rooms · Step ' + (Math.min(state.step, 4) + 1) + ' of 5' }), h('h2', { text: lesson.title })];
-      if (state.step === 0) cards.push(h('p', { text: lesson.intro }),
+      if (state.step === 0) cards.push(h('p', { text: lesson.intro }), h('details', null, [h('summary', { text: 'Rules and method' }), h('p', { text: lesson.introMore })]),
         h('p', { text: 'Compare Inverse density, which favors low positive counts; Uniform names, which asks for each room equally; and Follow density, which favors high counts.' }), answer(PREDICT, 'pred', 1));
       else if (state.step === 1) cards.push(h('h3', { text: 'Run the request experiment' }),
         h('p', { text: 'First try no smoothing: the inverse must refuse to draw. Then add one pseudo-count per room and run again. A pseudo-count defines a weight; it is not a visit.' }),

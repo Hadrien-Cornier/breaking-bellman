@@ -45,6 +45,7 @@
   R.cancel = () => { clearInterval(timer); timer = null; };
   R.unmount = () => { R.cancel(); state.mounted = false; state.record = null; state.t = 0; state.stale = false; };
   R.run = async () => {
+    if (state.mounted && state.picks[QUESTIONS.predict.id] == null) return null;
     R.cancel();
     state.record = BBReplanRecord.create(state.schedule);
     state.open = state.record.comparison.open;
@@ -212,7 +213,7 @@
         visual, h('p.small', { text: 'Rover+ with O or R: measured cell. Dashed square: first plan under the mean model, assuming zero disturbance.' }),
         h('label', null, ['Change disturbance ', select]),
         h('p', { id: 'replan-clock', role: 'status' }),
-        h('div.row', null, [h('button.btn', { id: 'replan-run', type: 'button', style: 'min-height:44px', onclick: () => R.run() }, state.stale ? 'Run again' : 'Run both controllers'),
+        h('div.row', null, [h('button.btn', { id: 'replan-run', type: 'button', style: 'min-height:44px', disabled: state.picks[QUESTIONS.predict.id] == null, onclick: () => R.run() }, state.stale ? 'Run again' : 'Run both controllers'),
           control('replan-watch', 'Watch', () => {
             if (timer) R.cancel(); else if (!matchMedia('(prefers-reduced-motion: reduce)').matches) { if (state.t === 4) state.t = 0; timer = setInterval(() => { state.t++; if (state.t >= 4) R.cancel(); updateClock(); }, matchMedia('(prefers-reduced-motion: reduce)').matches ? 1200 : 700); } updateClock();
           }),

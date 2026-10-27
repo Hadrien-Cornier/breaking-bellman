@@ -11,7 +11,8 @@
         const active = tab.dataset.notebookTab === name;
         tab.setAttribute('aria-selected', String(active)); tab.tabIndex = active ? 0 : -1;
       });
-      panels.forEach(panel => { panel.hidden = panel.dataset.notebookPanel !== name; });
+      const stacked = !!root.closest('#reference-dialog');
+      panels.forEach(panel => { panel.hidden = stacked ? false : panel.dataset.notebookPanel !== name; });
       changed(name);
     };
     tabs.forEach((tab, index) => {

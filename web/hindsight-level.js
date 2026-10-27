@@ -5,7 +5,8 @@
   C.worldNames.hindsight = 'Fork of goals';
   const lesson = {
     id: 'hindsight', custom: true, phase: 9, world: 'hindsight', title: 'A miss is a hit for another goal', focus: [],
-    intro: 'Four cells, and a goal called Far that the agent never reaches. One episode stops at West. The other stops at East. The same four steps can teach West and East if the reward is recomputed for the cell where the episode actually ended.',
+    intro: 'The agent never reaches Far. Can its walks to West and East still teach it how to reach those rooms?',
+    introMore: 'Four cells, and a goal called Far that the agent never reaches. One episode stops at West. The other stops at East. The same four steps can teach West and East if the reward is recomputed for the cell where the episode actually ended.',
     goal: { text: 'Solve West and East from the same four steps by recomputing the reward for the final cell, and leave Far unsolved.' },
   };
   const sm = C.levels.findIndex((l) => l.id === 'supermimic');
@@ -93,6 +94,7 @@
     let sweeps = playback?.setting || '2';
     const advance = n => api.markStep?.(n);
     H.run = () => {
+      if (state.pred == null) return null;
       state.report = H.compare({ sweeps: Number(sweeps) });
       const record = BB.goalExecution.record('hindsight', { sweeps: Number(sweeps) }, state.report);
       view.accept(record); advance(2); redraw(); return record;
@@ -100,7 +102,7 @@
     view = BB.goalExecution.mount(lab, api, {
       id: 'hindsight', sceneTitle: 'Replay a missed goal', sceneLabel: 'Start connects to Mid, then West or East. Far has no cell.',
       before: 'The stored actions aimed at Far. Far has no reachable cell. Run to replay the recorded failures and the learned goal requests.',
-      value: sweeps, settingLabel: 'Replay sweeps', choices: [['2', 'Two sweeps'], ['1', 'One sweep']], change: value => { sweeps = value; redraw(); }, run: H.run,
+      value: sweeps, settingLabel: 'Replay sweeps', choices: [['2', 'Two sweeps'], ['1', 'One sweep']], change: value => { sweeps = value; redraw(); }, ready: () => state.pred != null, run: H.run,
       metric: m => m.solved + ' of 2 held-out goals solved; Far ' + (m.far ? 'solved' : 'unsolved') + '; ' + m.updates + ' Q updates; ' + m.evaluationSteps + ' check steps',
       accounting: r => 'Earlier data: ' + r.data.prior.steps + ' stored steps in ' + r.data.prior.attempts + ' episodes, shared by all methods. No fresh training interactions. Evaluation: ' + r.data.fresh.steps + ' actual moves in ' + r.data.fresh.attempts + ' goal checks across the five methods. Rewriting a goal adds Q updates, not environment steps.',
     });
@@ -113,7 +115,7 @@
       const r = H.record(), report = r?.report, stale = H.replay().stale;
       const explain = report ? explainQuestion(report) : null;
       const step = api.step?.() || 0;
-      const children = [h('h2', { text: lesson.title }), h('p', { text: lesson.intro }), h('p.small', null, [h('a', { href: 'https://rail.eecs.berkeley.edu/deeprlcourse/static/slides/lec-24.pdf', target: '_blank', rel: 'noopener', text: 'Idea adapted from Berkeley CS 285' })])];
+      const children = [h('h2', { text: lesson.title }), h('p', { text: lesson.intro }), h('details', null, [h('summary', { text: 'Rules and method' }), h('p', { text: lesson.introMore })]), h('p.small', null, [h('a', { href: 'https://rail.eecs.berkeley.edu/deeprlcourse/static/slides/lec-24.pdf', target: '_blank', rel: 'noopener', text: 'Idea adapted from Berkeley CS 285' })])];
       if (!report) {
         children.push(h('p', { text: 'Original goals only keeps Far. New goal, old reward changes the label alone. Recompute, no goal input removes the goal from the table. The two remaining methods recompute rewards and keep the goal input, using one sweep or the selected sweep count.' }), h('h3', { text: '1. Predict' }), choice(h, PREDICT, state.pred, i => { state.pred = i; api.recordAnswer?.(PREDICT.id, i, !!PREDICT.options[i].correct); advance(1); redraw(); }),
           h('p', { text: 'Use Run above to build the tuples and compare all five replay rules. Then select Stored failed episodes or a named method and use Watch or Step.' }));
@@ -129,9 +131,10 @@
       if (api.done?.() && api.next?.()) children.push(h('button.btn', { type: 'button', onclick: api.openNext }, 'Next level: ' + api.next().title));
       body.replaceChildren(...children);
       if (api.shell) {
-        api.shell.notebook('notes').replaceChildren(h('p', { text: lesson.intro }), h('p', { text: 'Prediction: ' + PREDICT.prompt }), h('p', { text: 'Diagnosis: ' + DIAGNOSE.prompt }));
+        api.shell.notebook('notes').replaceChildren(h('p', { text: lesson.intro }), h('details', null, [h('summary', { text: 'Rules and method' }), h('p', { text: lesson.introMore })]), h('p', { text: 'Prediction: ' + PREDICT.prompt }), h('p', { text: 'Diagnosis: ' + DIAGNOSE.prompt }));
         api.shell.notebook('autopsy').replaceChildren(...(report ? [h('h3', { text: 'Stored and relabeled transitions' }), ...report.original.map(tr => h('p.small', { text: tupleText(tr) })), ...report.rewritten.map(tr => h('p.small', { text: tupleText(tr) }))] : [h('p', { text: 'Run to inspect the measured transitions.' })]));
       }
+      view.gate();
     };
     if (retained) view.accept(retained, playback);
     redraw();

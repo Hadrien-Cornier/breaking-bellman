@@ -9,16 +9,17 @@
 <header class="top">
   <div class="top-row">
     <a class="brand" id="campaign-logo" href="#mode-pane" aria-label="Breaking Bellman, campaign map"><canvas id="logo-robot" width="96" height="96" aria-hidden="true"></canvas></a>
-    <div class="top-right"><div class="score" id="score" aria-live="polite"></div><button class="btn ghost tiny" id="copy-page-btn" type="button" aria-label="Copy this page as Markdown, to paste into an AI chat" title="Copies everything on this page as Markdown: the text, your answers, the sentence and the numbers behind each chart. Paste it into any AI chat and ask about it."><svg class="ico" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M11 3.5V3a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span class="wide-only"> Copy page</span></button><button class="btn ghost tiny" id="settings-btn" type="button" aria-label="Settings: AI tutor and learning log">⚙<span class="wide-only"> Settings</span></button></div>
+    <div class="top-right"><div class="score" id="score" aria-live="polite"></div><button class="btn ghost tiny" id="chat-btn" type="button">Chat</button><button class="btn ghost tiny" id="settings-btn" type="button" aria-label="Settings: AI tutor and learning log">⚙<span class="wide-only"> Settings</span></button></div>
   </div>
   <div class="xpbar" aria-hidden="true"><i id="xp"></i></div>
   <nav class="tabs" role="tablist" id="tabs">
-    <button role="tab" data-mode="campaign" aria-selected="true">Campaign</button>
-    <button role="tab" data-mode="workbench" aria-selected="false">Workbench</button>
+    <details class="more-tabs" id="more-tools"><summary>More</summary><div>
     <button role="tab" data-mode="saboteur" aria-selected="false">Saboteur</button>
     <button role="tab" data-mode="review" aria-selected="false">Review</button>
     <button role="tab" data-mode="codex" aria-selected="false">Codex</button>
     <button role="tab" data-mode="chat" aria-selected="false">Chat</button>
+    <button class="btn ghost tiny" id="copy-page-btn" type="button" aria-label="Copy this page as Markdown, to paste into an AI chat">Copy page</button>
+    </div></details>
   </nav>
 </header>
 
@@ -26,7 +27,7 @@
   <section class="pane" id="mode-pane" aria-live="polite"></section>
   <aside class="pane lab" id="lab" aria-label="Lab">
 
-    <div class="card">
+    <div class="card" id="stage-card">
       <div class="row" style="justify-content: space-between">
         <div class="eyebrow" id="lab-world">World</div>
         <span class="tag sim" title="Every curve comes from the game's simulation engine">Simulation</span>
@@ -46,21 +47,43 @@
     <div class="card" id="run-settings">
       <div class="row">
         <button class="btn" id="run-btn">Run</button>
-        <label class="small" for="seeds">Seeds</label>
-        <select id="seeds"><option>1</option><option selected>3</option><option>5</option></select>
-        <label class="small" for="budget">Steps</label>
-        <select id="budget"></select>
-        <label class="small" for="run-mode">Run mode</label>
-        <select id="run-mode"><option value="fast" selected>Fast (reuse exact results)</option><option value="live">Live (train fresh)</option></select>
+        <button class="btn ghost" id="simulation-btn" type="button">Simulation</button>
       </div>
-      <p class="small muted" id="run-source" aria-live="polite">Live simulation: trains in this page.</p>
+      <div class="run-advanced" hidden>
+        <label class="small" for="seeds">Seeds</label>
+        <select id="seeds" tabindex="-1"><option>1</option><option selected>3</option><option>5</option></select>
+        <label class="small" for="budget">Steps</label>
+        <select id="budget" tabindex="-1"></select>
+        <label class="small" for="run-mode">Run mode</label>
+        <select id="run-mode" tabindex="-1"><option value="fast" selected>Fast (reuse exact results)</option><option value="live">Live (train fresh)</option></select>
+      </div>
+      <p class="small muted" id="run-source" aria-live="polite">Run uses the lesson defaults and reuses an exact stored result when one exists.</p>
       <div class="progress"><i id="prog"></i></div>
       <p class="small" id="run-result" aria-live="polite"></p>
+      <div id="verdict-card" hidden role="status"></div>
     </div>
+    <section class="card" id="learning-monitor" aria-label="Learning curves"><div id="training-metric"></div><div id="charts"></div></section>
   </aside>
+  <section id="experiment-view">
+    <h1 id="level-title"></h1>
+    <div id="phone-deck" aria-label="Swipe between the world, the curve, and the math">
+      <div class="phone-slide" id="phone-world" data-panel="world" role="tabpanel" aria-label="World"></div>
+      <div class="phone-slide" id="phone-curve" data-panel="curve" role="tabpanel" aria-label="Curve"></div>
+      <div class="phone-slide" id="phone-math" data-panel="math" role="tabpanel" aria-label="Math"></div>
+    </div>
+    <div id="phone-dots" role="tablist" aria-label="World, curve, and math">
+      <button type="button" class="phone-dot" data-panel="world" role="tab">World</button>
+      <button type="button" class="phone-dot" data-panel="curve" role="tab">Curve</button>
+      <button type="button" class="phone-dot" data-panel="math" role="tab">Math</button>
+    </div>
+    <div id="experiment-pair"></div>
+    <button type="button" class="btn ghost tiny" id="open-sources">Sources and notes</button>
+  </section>
+  <section class="card" id="algorithm-workspace" aria-label="Editable algorithm"><div class="eyebrow">The update rule: tap a word to change it</div><div id="rule"></div><div id="algorithm-math-slot"></div><div id="editor-run"></div><div id="editor-result"></div><div id="editor-curve"><p class="eyebrow">Last learning curve</p></div><div class="reference-bar" id="reference-bar"><button type="button" class="btn ghost" data-reference="rule">Rules</button><button type="button" class="btn ghost" data-reference="curve">Sources</button><button type="button" class="btn ghost" data-reference="autopsy">Autopsy</button><button type="button" class="btn ghost" data-reference="notes">Notes</button></div></section>
+  <details id="lesson-drawer" class="workspace-drawer"><summary>Lesson and questions</summary></details>
   <aside class="pane lab" id="vpo-lab" aria-label="Comparison lesson lab" hidden></aside>
   <details class="notebook" id="notebook">
-    <summary>Notebook</summary>
+    <summary>Rules, sources and Notebook</summary>
     <div class="notebook-tabs" role="tablist" aria-label="Notebook sections">
       <button type="button" role="tab" id="notebook-tab-rule" data-notebook-tab="rule" aria-controls="notebook-rule" aria-selected="true">Rule</button>
       <button type="button" role="tab" id="notebook-tab-curve" data-notebook-tab="curve" aria-controls="notebook-curve" aria-selected="false" tabindex="-1">Curve</button>
@@ -69,14 +92,12 @@
     </div>
     <section class="notebook-panel" role="tabpanel" tabindex="0" id="notebook-rule" data-notebook-panel="rule" aria-labelledby="notebook-tab-rule">
       <section class="game-rules" id="game-rules" aria-label="Game rules"></section>
-      <div class="eyebrow">The update rule: tap a word to change it</div>
-      <div id="rule"></div>
       <details class="card-details" id="grid-card"><summary>Try every combination</summary><div id="grid-lab"></div></details>
     </section>
     <section class="notebook-panel" role="tabpanel" tabindex="0" id="notebook-curve" data-notebook-panel="curve" aria-labelledby="notebook-tab-curve" hidden>
       <div class="stack" id="compare"></div>
       <div class="card wonder" id="wonder" hidden></div>
-      <div class="card measured-charts" id="charts"></div>
+      <p class="small">The live learning curves stay beside the world. Additional comparisons appear here.</p>
     </section>
     <section class="notebook-panel" role="tabpanel" tabindex="0" id="notebook-autopsy" data-notebook-panel="autopsy" aria-labelledby="notebook-tab-autopsy" hidden>
       <div class="symptoms" id="symptoms"><p class="small">No run yet.</p></div>
@@ -88,6 +109,18 @@
     </section>
   </details>
 </main>
+<dialog id="run-simulation" aria-labelledby="level-title">
+  <button class="btn ghost" id="run-simulation-close" type="button">Close</button>
+  <div id="run-simulation-body"></div>
+</dialog>
+<dialog id="reference-dialog" aria-labelledby="reference-title">
+  <div class="reference-head">
+    <h2 id="reference-title">Rules</h2>
+    <button class="btn ghost" id="reference-close" type="button">Close</button>
+  </div>
+  <div id="reference-host"></div>
+</dialog>
+<div id="reference-park" hidden></div>
 <div class="toast" id="toast" hidden></div>
 
 <script id="engine-src">

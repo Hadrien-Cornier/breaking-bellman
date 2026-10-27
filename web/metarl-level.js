@@ -7,7 +7,8 @@
   const lesson = {
     id: 'metarl', custom: true, phase: 9, world: 'metarl', focus: [],
     title: 'The second episode reads the first',
-    intro: 'Two doors, two episodes per task. Open one door to earn 1 if it pays, or 0 otherwise. The paying door stays fixed within a task. The first episode always probes left. After a reset, the second choice can use that reward.',
+    intro: 'Find the paying door. It stays the same for two episodes: can the second attempt use what the first one found?',
+    introMore: 'Two doors, two episodes per task. Open one door to earn 1 if it pays, or 0 otherwise. The paying door stays fixed within a task. The first episode always probes left. After a reset, the second choice can use that reward.',
     goal: { text: 'Use the first episode’s reward to choose the second door on two new tasks.' },
   };
   const after = C.levels.findIndex(l => l.id === 'hindsight');
@@ -102,6 +103,7 @@
   M.replay = () => ({ time, watching: timer != null, stale, world: view?.isConnected ? 'metarl' : null, length: length(record) });
   M.state = () => ({ world: 'metarl', level: lesson.title, sentenceName: 'Tabular cross-task adaptation', mode: 'campaign', knobs: { ...settings }, lastRun: record ? { steps: record.data.fresh.steps, summary: record.metrics } : null });
   M.run = () => {
+    if (redraw && answers[0] == null) return null;
     stop(); record = M.runRecord(settings); stale = false; time = 0; repaired = false;
     stage = answers[1] == null ? 2 : 3; ctx?.markStep?.(2); redraw?.(); sync(); return record;
   };
@@ -150,7 +152,7 @@
     const body = h('section.card.stack.teaching-card', { id: 'metarl-lesson' }); pane.append(body);
     const rule = h('div.stack', null, [
       h('h3', { text: 'Rules · Probe doors' }),
-      h('p', { text: lesson.intro }),
+      h('p', { text: lesson.intro }), h('details', null, [h('summary', { text: 'Rules and method' }), h('p', { text: lesson.introMore })]),
       h('p', { text: 'History-conditioned count: learn second-door success rates separately for each first reward. Memoryless count: pool first rewards. Deleted counts: remove that evidence, leaving the second action unknown. A missing count is unknown; tied rates choose neither door.' }),
       h('p', { text: 'A success rate is the number of rewards equal to 1 divided by the number of openings for that second action. Counts begin at zero, with no added guesses.' }),
       h('p', { text: 'Training opens left first, then follows a fixed second-door collection schedule. Each door opening ends its episode. An episode reset keeps the first reward for episode 2. A new task clears it. No new-task rewards update training counts.' }),
@@ -174,7 +176,7 @@
         ]), h('p.small', { text: 'Earlier data: 0 openings. Fresh training: 12 openings, 6 second-episode updates per fitted count. New-task evaluation: ' + (record.data.fresh.steps - 12) + ' openings across comparisons, 0 updates. Each opening is one episode. Deleted counts apply 0 updates.' }));
         autopsy.replaceChildren(h('h3', { text: 'Fitted training counts' }), ...record.policies.flatMap(p => record.counts[p.name].map(row => h('p.small', { text: p.label + ' · ' + (row.history === '*' ? 'all first rewards pooled' : row.history) + ': ' + row.actions.map(a => door(a.action) + ' ' + a.s + '/' + a.n + (a.n ? ' successes/openings' : ' (unknown)')).join('; ') + '. Second choice: ' + door(row.decision.action) + '.' }))), h('p.small', { text: 'Terminal reasons: ' + record.policies.map(p => p.label + ': ' + record.terminal[p.name].map(e => e.task + ' ' + e.reason).join(', ')).join('; ') + '.' }));
       }
-      const kids = [h('div.eyebrow', { text: 'Probe doors' }), h('h2', { text: lesson.title }), h('p', { text: lesson.intro })];
+      const kids = [h('div.eyebrow', { text: 'Probe doors' }), h('h2', { text: lesson.title }), h('p', { text: lesson.intro }), h('details', null, [h('summary', { text: 'Rules and method' }), h('p', { text: lesson.introMore })])];
       if (stage === 0) kids.push(h('p', { text: 'History-conditioned count separates first rewards. Memoryless count pools them. Deleted counts removes the training evidence.' }));
       if (stage === 0 || stage === 2 || stage >= 4) {
         const qi = stage === 0 ? 0 : stage === 2 ? 1 : 2, q = questions[qi];

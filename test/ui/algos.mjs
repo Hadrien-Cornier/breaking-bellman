@@ -1,6 +1,8 @@
-// UI algorithm-name reminder test: the name itself is the trigger and it must work on mouse hover,
-// keyboard focus and tap, dismiss reliably with accessible semantics, and never nest a control in a
-// control (button, select, option, disabled control and tree node get an accessible equivalent).
+// UI algorithm-name reminder test: the name itself is the trigger and it must open only on a
+// deliberate action (click, tap or keyboard activation), never on mouse hover or keyboard focus
+// alone, keep a visible focus indicator, dismiss reliably with accessible semantics, and never
+// nest a control in a control (button, select, option, disabled control and tree node get an
+// accessible equivalent).
 // Runs against the real built game. Run: node build.mjs && node test/ui/algos.mjs [screenshot dir]
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -67,8 +69,27 @@ await session(1280, 800, 'desktop', {}, async (page) => {
   check(counts.question >= 1, 'a question prompt gets a name trigger (' + counts.question + ')');
   check(counts.label === 1, 'a method label is one trigger (' + counts.label + ')');
 
-  // hover (mouse pointer) opens the reminder
+  // hover and keyboard focus alone never open the reminder (click-only contract)
   await page.hover('#a-prose .algo-name');
+  await page.waitForTimeout(120);
+  check(await page.evaluate(() => (document.getElementById('algo-rem-popover')?.hidden ?? true)),
+    'mouse hover alone does not open the reminder');
+  await page.focus('#a-prose .algo-name');
+  await page.waitForTimeout(120);
+  check(await page.evaluate(() => (document.getElementById('algo-rem-popover')?.hidden ?? true)),
+    'keyboard focus alone does not open the reminder');
+  // the trigger keeps a visible focus indicator
+  const ring = await page.evaluate(() => {
+    const b = document.querySelector('#a-prose .algo-name');
+    b.focus({ focusVisible: true });
+    const s = getComputedStyle(b);
+    return { visible: b.matches(':focus-visible'), outline: s.outlineStyle, width: s.outlineWidth };
+  });
+  check(ring.visible && ring.outline !== 'none' && parseFloat(ring.width) > 0,
+    'the trigger shows a visible focus indicator: ' + JSON.stringify(ring));
+
+  // click opens the reminder
+  await page.click('#a-prose .algo-name');
   await page.waitForTimeout(120);
   let pop = await page.evaluate(() => {
     const p = document.getElementById('algo-rem-popover');
@@ -76,45 +97,46 @@ await session(1280, 800, 'desktop', {}, async (page) => {
       idea: p.querySelector('.algo-idea').textContent, math: p.querySelector('.algo-math').textContent,
       symbols: p.querySelector('.algo-symbols').textContent, expanded: document.querySelector('#a-prose .algo-name').getAttribute('aria-expanded') };
   });
-  check(pop.open, 'mouse hover opens the reminder');
+  check(pop.open, 'click opens the reminder');
   check(/Deep deterministic policy gradient/.test(pop.title), 'the reminder title is the expanded name: ' + pop.title);
   check(pop.idea.length > 10, 'the reminder has a general idea');
   check(/y = r \+ gamma/.test(pop.math), 'the reminder has the defining math: ' + pop.math);
   check(/mu\(s\)/.test(pop.symbols), 'the reminder explains its symbols: ' + pop.symbols.slice(0, 60));
   check(pop.expanded === 'true', 'the trigger sets aria-expanded while open');
 
-  // keyboard focus opens it; Escape dismisses and returns focus to the trigger.
-  // The pointer stays on the trigger: Escape must still stick (no hover re-entry reopens it).
-  await page.evaluate(() => window.ALGO_HELP.closeReminder());
-  await page.waitForTimeout(220);           // let the hover-close settle
-  await page.hover('#a-question .algo-name');  // pointer ON the trigger and stays there
-  await page.focus('#a-question .algo-name');
-  await page.waitForTimeout(120);
-  pop = await page.evaluate(() => ({ open: !document.getElementById('algo-rem-popover').hidden,
-    active: document.activeElement.className }));
-  check(pop.open, 'keyboard focus opens the reminder');
-  check(/algo-name/.test(pop.active), 'focus is on the name trigger');
+  // Escape dismisses and returns focus to the trigger
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(320);           // longer than any hover re-entry under the parked pointer
+  await page.waitForTimeout(160);
   const dismissed = await page.evaluate(() => ({ hidden: document.getElementById('algo-rem-popover').hidden,
     back: document.activeElement.className }));
-  check(dismissed.hidden, 'Escape stays dismissed with the pointer on the trigger');
+  check(dismissed.hidden, 'Escape dismisses the reminder');
   check(/algo-name/.test(dismissed.back), 'Escape returns focus to the name trigger');
+  // keyboard activation (Enter, then Space) opens it
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(120);
+  check(await page.evaluate(() => !(document.getElementById('algo-rem-popover')?.hidden ?? true)), 'Enter opens the reminder');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(120);
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(120);
+  check(await page.evaluate(() => !(document.getElementById('algo-rem-popover')?.hidden ?? true)), 'Space opens the reminder');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(120);
 
   // tap / click opens and pins; a click outside dismisses
   await page.click('#a-label .algo-name');
   await page.waitForTimeout(120);
-  check(await page.evaluate(() => !document.getElementById('algo-rem-popover').hidden), 'tap/click opens the reminder');
+  check(await page.evaluate(() => !(document.getElementById('algo-rem-popover')?.hidden ?? true)), 'tap/click opens the reminder');
   await page.mouse.click(4, 4);
   await page.waitForTimeout(120);
-  check(await page.evaluate(() => document.getElementById('algo-rem-popover').hidden), 'a click outside dismisses the reminder');
+  check(await page.evaluate(() => (document.getElementById('algo-rem-popover')?.hidden ?? true)), 'a click outside dismisses the reminder');
 
   // close button dismisses too
   await page.click('#a-label .algo-name');
   await page.waitForTimeout(80);
   await page.click(POP + ' .metric-help-close');
   await page.waitForTimeout(80);
-  check(await page.evaluate(() => document.getElementById('algo-rem-popover').hidden), 'the close button dismisses the reminder');
+  check(await page.evaluate(() => (document.getElementById('algo-rem-popover')?.hidden ?? true)), 'the close button dismisses the reminder');
 
   // nested / select / option / disabled / tree: no nested control, an accessible equivalent instead
   const a11y = await page.evaluate(() => {
@@ -148,11 +170,15 @@ await session(1280, 800, 'game', {}, async (page) => {
   check(found.length >= 1, 'the real level renders name triggers (' + found.join(', ') + ')');
   check(found.some((n) => /Q-learning/.test(n)), 'Q-learning in the level prose is a trigger');
 
-  await page.hover('.algo-name');
+  await page.hover('.lesson-help .algo-name');
+  await page.waitForTimeout(120);
+  check(await page.evaluate(() => (document.getElementById('algo-rem-popover')?.hidden ?? true)),
+    'hover alone does not open a reminder in the real game');
+  await page.click('.lesson-help .algo-name');
   await page.waitForTimeout(120);
   const pop = await page.evaluate(() => { const p = document.getElementById('algo-rem-popover');
     return { open: p && !p.hidden, title: p.querySelector('.metric-help-title').textContent }; });
-  check(pop.open, 'hover opens a reminder in the real game');
+  check(pop.open, 'click opens a reminder in the real game');
   check(/Q-learning/.test(pop.title), 'the real reminder expands the name: ' + pop.title);
   await page.screenshot({ path: out + '/game-algo.png' });
 });
@@ -171,6 +197,8 @@ await session(1280, 900, 'offline', {}, async (page) => {
   await page.evaluate(() => window.bellman.level('offline'));
   await page.waitForTimeout(500);
 
+  if (await page.locator('.lesson-help[open]').count()) await page.getByRole('button', { name: 'Back to the experiment', exact: true }).click();
+
   // 175: only unlocked (learned) methods are offered; unlearned ones are not listed.
   const opts = await page.evaluate(() => Array.from(document.querySelector('.preset select').options).map((o) => ({ t: o.textContent, disabled: o.disabled })));
   check(opts.some((o) => /TD3/.test(o.t)), 'TD3 is offered once learned');
@@ -184,7 +212,7 @@ await session(1280, 900, 'offline', {}, async (page) => {
   const before = await page.evaluate(() => window.bellman.state().words);
   const td3Val = await page.evaluate(() => Array.from(document.querySelector('.preset select').options).find((o) => /TD3/.test(o.textContent)).value);
   if (await page.locator('#notebook').count()) {
-    if (!await page.locator('#notebook').evaluate((node) => node.open)) await page.locator('#notebook > summary').click();
+    if (!await page.locator('#notebook').evaluate((node) => node.open)) await page.locator('#notebook').evaluate((node) => { node.open = true; });
     await page.locator('#notebook-tab-rule').click();
   }
   check(await page.locator('.preset select').isVisible(), 'learned preset selector is visible in Notebook Rule');
@@ -270,7 +298,7 @@ await session(390, 844, 'phone', { hasTouch: true }, async (page) => {
   await page.waitForTimeout(500);
   const has = await page.evaluate(() => document.querySelectorAll('.algo-name').length);
   check(has >= 1, 'the phone layout renders name triggers (' + has + ')');
-  await page.locator('.algo-name').first().tap();
+  await page.locator('.lesson-help .algo-name').first().tap();
   await page.waitForTimeout(150);
   const p = await page.evaluate(() => {
     const el = document.getElementById('algo-rem-popover');
@@ -281,6 +309,33 @@ await session(390, 844, 'phone', { hasTouch: true }, async (page) => {
   check(p.fits, 'the open reminder fits the 390px viewport');
   await page.screenshot({ path: out + '/phone-algo.png' });
 });
+
+// Regression: a body-level reminder used to open behind the modal briefing and stay inert.
+for (const [w, h] of [[1348, 898], [1186, 835], [390, 844]]) {
+  await session(w, h, 'briefing-' + w, {}, async page => {
+    await page.locator('#campaign-logo').click();
+    await page.locator('[data-map-level="slots"]').click();
+    const trigger = page.locator('.map-methods .algo-name').first();
+    await trigger.hover();
+    await trigger.focus();
+    check(await trigger.getAttribute('aria-expanded') === 'false', 'briefing hover/focus does not open a reminder at ' + w);
+    await page.keyboard.press('Enter');
+    const visible = await page.locator(POP).evaluate(el => {
+      const r = el.getBoundingClientRect();
+      return el.matches(':popover-open') && !!el.closest('dialog[open]') &&
+        el.contains(document.elementFromPoint(r.left + 20, r.top + 20)) &&
+        r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight;
+    });
+    check(visible, 'briefing reminder is visible, interactive and within the viewport at ' + w);
+    await page.keyboard.press('Escape');
+    check(await page.locator('.map-brief[open]').count() === 1 && await trigger.evaluate(el => el === document.activeElement), 'Escape keeps the briefing open and restores trigger focus at ' + w);
+    await page.keyboard.press('Space');
+    await page.getByRole('button', { name: 'Close reminder', exact: true }).click();
+    await trigger.click();
+    check(await page.locator(POP).isVisible(), 'briefing click opens the reminder at ' + w);
+    await page.screenshot({ path: out + '/briefing-' + w + '.png' });
+  });
+}
 
 console.log(errors.length ? 'console errors:\n' + errors.join('\n') : 'no console errors');
 await browser.close();

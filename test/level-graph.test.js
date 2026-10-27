@@ -22,7 +22,7 @@ function content(beforeGraph) {
   return context.window.CONTENT;
 }
 const plain = value => JSON.parse(JSON.stringify(value));
-const ids = ["goals", "slots", "cliff", "careful", "cells", "explode", "mirage", "credit", "bigsteps", "passfail", "continuous", "explore", "elbo", "messages", "offline", "mixed", "thaw", "rewardfit", "rare", "twoways", "pick", "residual", "fetch", "vpo", "skills", "skew", "hindsight", "metarl", "hierarchy", "supermimic", "ensemble", "replan"];
+const ids = ["slots", "cliff", "careful", "cells", "explode", "mirage", "credit", "bigsteps", "passfail", "continuous", "explore", "elbo", "messages", "offline", "mixed", "thaw", "rewardfit", "rare", "twoways", "pick", "residual", "fetch", "vpo", "skills", "skew", "hindsight", "metarl", "hierarchy", "supermimic", "ensemble", "replan"];
 
 test('build attaches the six campaign worlds and approved metadata to the registered levels', () => {
   const C = content();
@@ -30,7 +30,8 @@ test('build attaches the six campaign worlds and approved metadata to the regist
   assert.deepEqual(worlds.map(w => [w.id, w.name]), approved.worlds);
   assert.deepEqual(edges.map(e => [e.from, e.to, e.label]), approved.edges);
   assert.equal(edges.length, 30);
-  assert.equal(C.graph.activeEdges.length, 30);
+  assert.equal(C.graph.activeEdges.length, 26);
+  assert.equal(C.levels.some(l => l.id === 'goals'), false);
   for (const level of C.levels) {
     const projected = C.graph.levels.find(l => l.id === level.id);
     assert.equal(level.campaignWorld, (['skew', 'metarl', 'ensemble'].includes(level.id) ? 'w6' : approved.levelWorlds[level.id]), level.id);
@@ -57,7 +58,7 @@ test('dormant parents do not lock roots or require unknown saved ids', () => {
 
 test('both endpoints must be registered; returning a parent or child wakes only its settled links', () => {
   const C = content(), before = plain(edges);
-  const withGoals = create(C.levels);
+  const withGoals = create([...C.levels, { id: 'goals', phase: 0 }]);
   assert.deepEqual(withGoals.parents('twoways'), ['goals']);
   assert.equal(withGoals.status('twoways', []), 'locked');
   assert.equal(withGoals.status('twoways', ['goals']), 'open');
@@ -85,8 +86,9 @@ test('every registered parent must be cleared, and advisory completion wins over
 
 test('next uses course order, skips locked levels, and disappears when all levels are cleared', () => {
   const { graph } = content();
-  assert.equal(graph.next([]), 'goals');
+  assert.equal(graph.next([]), 'slots');
   assert.equal(graph.next(['goals']), 'slots');
+  assert.equal(graph.next(['slots']), 'cliff');
   assert.equal(graph.next(['goals', 'slots']), 'cliff');
   assert.equal(graph.next(['goals', 'slots', 'cliff']), 'careful');
   // Unknown saved ids do not compete for next.
@@ -115,7 +117,8 @@ test('states are derived afresh from done without mutating progress or creating 
     }
   }
   const immutable = Object.freeze(snapshot);
-  assert.equal(graph.status('goals', immutable), 'next');
+  assert.equal(graph.status('slots', immutable), 'next');
+  assert.equal(graph.status('goals', immutable), null);
   assert.equal(graph.status('cliff', immutable), 'locked');
   assert.deepEqual(immutable, ['future']);
   assert.deepEqual(plain(graph.levels.map(l => l.id)), ids);

@@ -45,7 +45,12 @@ a { color: var(--accent); }
 .brand { display: grid; place-items: center; width: 48px; height: 48px; flex: 0 0 48px; border-radius: 8px; }
 .brand canvas { display: block; width: 48px; height: 48px; }
 .score { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
-.tabs { display: flex; gap: 4px; margin-top: 10px; overflow-x: auto; scrollbar-width: none; }
+.tabs { display: flex; gap: 4px; margin-top: 10px; overflow: visible; scrollbar-width: none; align-items: center; justify-content: flex-end; }
+.more-tabs { position: relative; }
+.more-tabs > summary { list-style: none; cursor: pointer; border: 1px solid var(--line); background: var(--surface); padding: 6px 12px; border-radius: 999px; white-space: nowrap; font-size: 0.9rem; }
+.more-tabs > summary::-webkit-details-marker { display: none; }
+.more-tabs > div { position: absolute; z-index: 30; right: 0; display: grid; gap: 4px; min-width: 180px; margin-top: 6px; padding: 8px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 40px rgb(0 0 0 / 0.28); }
+.more-tabs button { text-align: left; }
 .tabs button { border: 1px solid var(--line); background: var(--surface); padding: 6px 12px; border-radius: 999px; white-space: nowrap; font-size: 0.9rem; }
 .tabs button[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 
@@ -330,14 +335,20 @@ ol.steps .num { display: grid; place-items: center; width: 30px; height: 30px; b
 .metric-help-body p { margin: 0; }
 .metric-help-anchor { font-family: var(--font-mono); font-size: 0.82em; color: var(--muted); background: var(--sunk); padding: 6px 8px; border-radius: 6px; }
 
-/* Algorithm-name reminders: the name itself is the trigger (hover, focus, tap). One shared popover. */
+/* Algorithm-name reminders: the name itself is the trigger (click, tap, Enter or Space only). One shared popover. */
 .algo-name {
   font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0;
-  border-bottom: 1px dotted var(--accent); cursor: help; text-align: inherit;
+  border-bottom: 1px dotted var(--accent); cursor: pointer; text-align: inherit;
 }
 .algo-name:hover, .algo-name[aria-expanded="true"] { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .algo-name:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 3px; }
 .algo-rem-pop .algo-idea { margin: 0; }
+.lesson-help { width: min(540px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; padding: 24px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); color: var(--ink); }
+.lesson-help::backdrop { background: rgb(0 0 0 / .5); }
+.lesson-help > * + * { margin-top: 16px; }
+.algo-rem-pop { margin: 0; inset: auto; max-height: calc(100dvh - 16px); overflow-y: auto; }
+.algo-rem-pop .metric-help-title { min-height: 40px; padding-right: 52px; display: flex; align-items: center; }
+.algo-rem-pop .metric-help-close { width: 44px; height: 44px; }
 .algo-rem-pop .algo-math {
   font-family: var(--font-mono); font-size: 0.8em; color: var(--ink); background: var(--sunk);
   padding: 6px 8px; border-radius: 6px; overflow-wrap: anywhere; white-space: pre-wrap;
@@ -350,9 +361,11 @@ ol.steps .num { display: grid; place-items: center; width: 30px; height: 30px; b
   clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
 
 /* discovery celebration: a short burst + name reveal (??? -> name) when a card is found */
-.dc { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px;
-  background: color-mix(in srgb, var(--ink) 22%, transparent); cursor: pointer; }
+.dc { position: fixed; left: 12px; right: auto; top: auto; bottom: 12px; z-index: 60;
+  width: min(420px, calc(100vw - 24px)); padding: 0; margin: 0;
+  background: transparent; cursor: pointer; }
 .dc-burst { position: absolute; width: min(72vw, 520px); aspect-ratio: 1; border-radius: 50%; pointer-events: none;
+  display: none;
   background: radial-gradient(circle, color-mix(in srgb, var(--accent) 45%, transparent) 0%, transparent 62%);
   animation: dcBurst 0.9s ease-out forwards; }
 .dc-card { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r);
@@ -407,6 +420,7 @@ ol.steps .num { display: grid; place-items: center; width: 30px; height: 30px; b
 .vpo-table th, .vpo-table td { padding: .5rem .35rem; text-align: left; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
 #vpo-lesson, #vpo-lab { min-width: 0; }
 #vpo-lab svg { display: block; width: 100%; max-width: 350px; margin: auto; }
+#vpo-lab .algorithm-math-panel svg { width: auto; max-width: 100%; height: auto; margin: 0; }
 #vpo-lesson .field { min-width: 0; }
 #vpo-lesson h4 { margin-top: .7rem; }
 [hidden] { display: none !important; }
@@ -468,6 +482,7 @@ ul.preset-diff li { margin: 2px 0; }
 .campaign-strip { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
 .campaign-strip span { flex: 1; min-width: 160px; font-size: .85rem; }
 .campaign-strip button, .campaign-map button, .map-brief button { min-height: 44px; min-width: 44px; touch-action: manipulation; }
+button.algo-name { min-height: 0; min-width: 0; height: auto; padding: 0; display: inline; line-height: 1; vertical-align: baseline; border-bottom: 1px dotted var(--accent); }
 .layout.mapping { grid-template-columns: minmax(0, 1fr); }
 .layout.mapping > [hidden] { display: none; }
 .campaign-map { width: 100%; max-width: 820px; min-width: 0; margin: auto; }
@@ -491,8 +506,12 @@ ul.preset-diff li { margin: 2px 0; }
 .map-node.next .map-coin { outline: 3px solid var(--world-color); outline-offset: 6px; }
 .map-node.next > small { color: var(--accent); font-weight: 700; }
 .map-rover { position: absolute; width: 60px; height: 60px; top: -12px; left: calc(50% - 100px); pointer-events: none; }
-.map-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
-.map-node .chip { font-size: .72rem; padding: 3px 6px; }
+.map-chips { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; }
+.map-chips > .chip { display: inline-flex; align-items: center; justify-content: center; min-height: 32px; padding: 6px 10px; line-height: 1.2; white-space: nowrap; }
+.map-methods { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: 0.85rem; color: var(--muted); }
+.map-methods b { color: var(--ink); font-weight: 600; }
+.map-node .chip { font-size: .72rem; padding: 6px 8px; }
+.map-brief .map-chips button.algo-name, .map-node .map-chips button.algo-name { min-height: 0; min-width: 0; padding: 0; line-height: inherit; }
 .map-failure { border-style: dashed; }
 .map-edge-label { background: var(--bg); padding: 2px 4px; border-radius: 4px; }
 .map-edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
@@ -508,7 +527,8 @@ ul.preset-diff li { margin: 2px 0; }
 .map-world:nth-child(odd) .map-medal { transform: translateX(-20px); }
 .map-playdock { position: sticky; bottom: 0; z-index: 3; display: flex; justify-content: center; padding: 18px 4px; background: linear-gradient(transparent, var(--bg) 45%); }
 .campaign-map .savebar { justify-content: center; padding: 14px 0; }
-.map-brief { position: fixed; inset: 0 0 0 auto; margin: 0; width: min(480px, 100%); max-width: 100%; height: 100dvh; max-height: 100dvh; padding: 22px; border: 1px solid var(--line); border-radius: 20px 0 0 20px; background: var(--surface); color: var(--ink); overflow-y: auto; }
+.map-brief { position: fixed; inset: 0; margin: 0; width: 100%; max-width: 100%; height: 100%; max-height: none; padding: 28px 22px; border: 0; border-radius: 0; background: var(--bg); color: var(--ink); overflow-y: auto; }
+.map-brief > * { max-width: 720px; margin-left: auto; margin-right: auto; }
 .map-brief::backdrop { background: rgb(0 0 0 / .5); }
 .map-brief-head { display: flex; align-items: start; gap: 12px; justify-content: space-between; margin-bottom: 20px; }
 .map-brief-body { display: grid; gap: 14px; }
@@ -526,7 +546,7 @@ ul.preset-diff li { margin: 2px 0; }
   .map-rover { left: calc(50% - 96px); }
   .map-world:nth-child(n) .map-medal { transform: none; gap: 18px; padding: 8px; }
   .map-disc { flex-basis: 80px; height: 80px; }
-  .map-brief { inset: auto 0 0; width: 100%; height: auto; max-height: 85dvh; border-radius: 20px 20px 0 0; padding: 20px 16px max(20px, env(safe-area-inset-bottom)); }
+  .map-brief { inset: 0; width: 100%; height: 100%; max-height: none; border: 0; border-radius: 0; padding: 28px 16px max(20px, env(safe-area-inset-bottom)); }
 }
 .map-disc { border-color: transparent; background: linear-gradient(var(--world-color), var(--world-color)) padding-box, conic-gradient(var(--accent) var(--progress), var(--line) 0) border-box; }
 
@@ -562,6 +582,10 @@ ul.preset-diff li { margin: 2px 0; }
 .concept-sketch text { fill: var(--ink); font-family: 'Segoe Print', 'Bradley Hand', cursive; font-size: 13px; }
 .concept-sketch figcaption { color: var(--muted); font-size: .82rem; }
 .notebook :is(button, select, summary), .lesson-shell :is(button, select, summary), .lesson-shell input[type='range'] { min-height: 44px; min-width: 44px; }
+.lesson-shell button.algo-name, .notebook button.algo-name, .prediction-pop button.algo-name, dialog button.algo-name {
+  min-height: 0; min-width: 0; height: auto; width: auto; padding: 0;
+  display: inline; line-height: 1; vertical-align: baseline;
+}
 @media (min-width: 960px) {
   .lesson-shell > #lab, .lesson-shell > #vpo-lab { grid-column: 1; grid-row: 2; }
   .lesson-shell > #mode-pane { grid-column: 2; grid-row: 2; }
@@ -572,13 +596,316 @@ ul.preset-diff li { margin: 2px 0; }
 .layout:not(.lesson-shell) > .lab { position: static; max-height: none; overflow: visible; }
 .supporting-lab > .notebook-panel[hidden] { display: grid !important; }
 .supporting-lab { display: grid; gap: 16px; }
-@media (max-width: 600px) { .lesson-shell .stage { aspect-ratio: 16 / 9; } }
+@media (max-width: 600px) {
+  .lesson-shell .stage { aspect-ratio: 16 / 9; }
+  .drawer-workspace #algorithm-workspace { padding: 8px; }
+}
 /* Rare's measured hall stays readable without horizontal scrolling. */
 #rare-stage { display: block; width: 100%; height: auto; border-radius: 8px; }
 #rare-experiment, #rare-lesson { min-width: 0; }
+#rare-experiment .rare-math-slot { min-width: 0; }
+#stage-card { position: relative; }
+.run-advanced[hidden] { display: none !important; }
+.prediction-pop {
+  position: fixed; inset: 0; width: 100%; height: 100%; max-width: 100%; max-height: none;
+  margin: 0; overflow: auto; z-index: 80; border: 0; border-radius: 0; padding: 28px 20px;
+  background: var(--bg); color: var(--ink);
+}
+.prediction-pop::backdrop { background: rgb(0 0 0 / 0.45); }
+.prediction-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; max-width: 720px; margin: 0 auto; }
+.prediction-head h3 { margin: 0; font-family: var(--font-display); font-size: 1.8rem; line-height: 1.15; }
+.prediction-body { display: grid; gap: 12px; margin: 16px auto 0; max-width: 720px; }
+.prediction-pop .predict-title { display: none; }
+.prediction-pop .opt { min-height: 48px; }
+.prediction-world { width: 100%; height: auto; max-height: 96px; object-fit: contain; border-radius: 8px; background: #14110e; }
+.opt-row { display: grid; gap: 4px; }
+.why-fold summary { cursor: pointer; color: var(--accent); }
+.prediction-launch { margin-top: 8px; }
+.chart-empty { min-height: 72px; margin: 0; }
+.dc-plain { margin: 0; font-size: 0.95rem; color: var(--ink); max-width: 46ch; }
+@media (min-width: 960px) {
+  .lesson-shell:has(#rare-experiment) > #vpo-lab { grid-column: 1 / -1; }
+  .lesson-shell:has(#rare-experiment) > #mode-pane { grid-column: 1 / -1; grid-row: 3; }
+  #rare-experiment { display: grid; grid-template-columns: minmax(280px, .9fr) minmax(340px, 1.15fr); column-gap: 16px; align-items: start; }
+  #rare-experiment > h2,
+  #rare-experiment > p:first-of-type,
+  #rare-experiment > #rare-clock,
+  #rare-experiment > #rare-event,
+  #rare-experiment > p.small:last-of-type { grid-column: 1 / -1; }
+  #rare-experiment > .rare-math-slot { grid-column: 2; grid-row: 3 / span 5; }
+}
 #rare-experiment select, #rare-experiment button, #rare-lesson button { min-height: 44px; min-width: 44px; max-width: 100%; }
 #rare-experiment .field { min-width: 0; max-width: 100%; }
 .rare-counts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .rare-count { display: grid; font-size: 12px; gap: 4px; }
 .rare-count meter { width: 100%; }
 @media (max-width: 500px) { .rare-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Variant C: an uninterrupted experiment, with deliberate lesson drawers. */
+#algorithm-workspace, #lesson-drawer { min-width: 0; }
+.workspace-drawer { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); padding: 10px 14px; }
+.workspace-drawer > summary, #optional-run-settings > summary, .more-curves > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; }
+.workspace-drawer[open] > summary { margin-bottom: 12px; }
+.drawer-workspace #replay-drawer[open] > summary { margin-bottom: 4px; }
+.drawer-workspace #scene-policy { display: none; }
+.drawer-workspace #replay-drawer .replay-controls { flex-wrap: nowrap; gap: 6px; margin-top: 4px; }
+.drawer-workspace #replay-drawer #stage-caption,
+.drawer-workspace #replay-drawer #run-source { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; }
+.drawer-workspace { gap: 12px; }
+.drawer-workspace #lab { gap: 10px; }
+.drawer-workspace #lab > .card { padding: 10px 12px; gap: 6px; }
+.drawer-workspace #algorithm-workspace { gap: 8px; }
+.drawer-workspace #notebook { grid-column: 1 / -1; }
+.drawer-workspace #lesson-drawer { grid-column: 1 / -1; }
+.drawer-workspace .stage, .drawer-workspace.lesson-shell .stage { width: min(100%, calc(220px * 640 / 280)); max-width: 100%; height: auto; max-height: 220px; aspect-ratio: 640 / 280; }
+.drawer-workspace .chart { height: 130px; }
+@media (max-height: 860px) {
+  .drawer-workspace .chart { height: 84px; }
+  .drawer-workspace .more-curves > summary { min-height: 28px; }
+  .drawer-workspace #replay-drawer { padding: 6px 10px; }
+}
+.drawer-workspace #learning-monitor { gap: 8px; }
+.drawer-workspace .chart-title { font-size: .76rem; }
+.drawer-workspace #charts > .eyebrow { font-size: .65rem; }
+.drawer-workspace .sentence { font-size: .9rem; }
+.drawer-workspace .sentence .sl { margin-bottom: 6px; }
+.drawer-workspace .sentence .gloss { font-size: .75rem; }
+.drawer-workspace #run-source, .drawer-workspace #stage-caption { font-size: .74rem; }
+.drawer-workspace #run-result:empty { display: none; }
+.drawer-workspace #optional-run-settings .row { padding-block: 8px; }
+@media (min-width: 960px) {
+  .drawer-workspace { grid-template-columns: minmax(320px, .85fr) minmax(0, 1.15fr); align-items: start; }
+  .drawer-workspace > #lab { grid-column: 1; grid-row: 2; position: static; }
+  .drawer-workspace > #algorithm-workspace { grid-column: 2; grid-row: 2; }
+  .drawer-workspace > #lesson-drawer { grid-column: 1 / -1; grid-row: 3; }
+  .drawer-workspace > #notebook { grid-column: 1 / -1; grid-row: 4; }
+  .drawer-workspace #learning-monitor { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .drawer-workspace #training-metric:has(> p) { grid-column: 1 / -1; }
+  .drawer-workspace #training-metric:has(> p) + #charts { grid-column: 1 / -1; }
+  .drawer-workspace #charts { min-width: 0; }
+}
+@media (max-width: 959px) {
+  .drawer-workspace { display: flex; flex-direction: column; }
+  .drawer-workspace > * { width: 100%; }
+  .drawer-workspace #lab { order: 1; }
+  .drawer-workspace #algorithm-workspace { order: 2; }
+  .drawer-workspace #lesson-drawer { order: 3; }
+  .drawer-workspace #notebook { order: 4; }
+  .drawer-workspace #campaign-strip { order: 0; }
+  .drawer-workspace #learning-monitor { display: none; }
+  .drawer-workspace:has(#algorithm-workspace) #lab { display: contents; }
+  .drawer-workspace #lab > .card { order: 1; }
+  .drawer-workspace #lab > #learning-monitor { display: grid; order: 3; }
+  .drawer-workspace #lesson-drawer { order: 4; }
+  .drawer-workspace #notebook { order: 5; }
+}
+@media (min-width: 960px) {
+  .drawer-workspace { grid-template-columns: minmax(320px, .7fr) minmax(0, 1.3fr); }
+  .drawer-workspace #algorithm-workspace .w { min-height: 30px; padding: 1px 5px; }
+  .drawer-workspace #algorithm-workspace .sl { font-size: .84rem; line-height: 1.45; margin: 0; }
+  .drawer-workspace #algorithm-workspace .compound { padding: 2px 8px; }
+  .drawer-workspace #algorithm-workspace .compound .big { font-size: 1rem; }
+  .drawer-workspace #algorithm-workspace .preset { font-size: .78rem; }
+  .drawer-workspace #algorithm-workspace select { min-height: 34px; max-width: 100%; }
+}
+
+@media (min-width: 960px) {
+  body:has(.drawer-workspace) .top { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "brand tabs" "xp xp"; align-items: center; column-gap: 12px; padding-block: 2px 4px; }
+  body:has(.drawer-workspace) .top-row { grid-area: brand; }
+  body:has(.drawer-workspace) .brand, body:has(.drawer-workspace) .brand canvas { width: 36px; height: 36px; flex-basis: 36px; }
+  body:has(.drawer-workspace) .tabs { grid-area: tabs; margin-top: 0; justify-content: flex-end; }
+  body:has(.drawer-workspace) .xpbar { grid-area: xp; margin-top: 2px; }
+  body:has(.drawer-workspace) main.layout { margin-top: 8px; }
+  .drawer-workspace .campaign-strip { padding-block: 2px; }
+  .drawer-workspace #algorithm-workspace { padding: 8px 10px; }
+  .drawer-workspace #algorithm-workspace .preset-wrap { margin-block: 2px; }
+}
+@media (max-width: 959px) {
+  .drawer-workspace #replay-drawer { order: 4; }
+  .drawer-workspace #lesson-drawer { order: 5; }
+  .drawer-workspace #notebook { order: 6; }
+}
+.sentence-explanation > summary { cursor: pointer; font-size: .78rem; min-height: 30px; }
+.drawer-workspace #training-metric:empty { display: none; }
+.drawer-workspace #training-metric:empty + #charts { grid-column: 1 / -1; }
+
+/* Editor: sentence and equations. The world appears only after Run. */
+#notebook { display: none; }
+#notebook > summary { display: none; }
+#reference-dialog .notebook-tabs,
+#reference-dialog #notebook > summary { display: none; }
+#reference-dialog #notebook { display: block; border: 0; background: transparent; padding: 0; }
+.drawer-workspace > #lab { display: none; }
+.drawer-workspace > #algorithm-workspace { grid-column: 1 / -1; }
+.drawer-workspace #algorithm-workspace {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 12px 16px; align-items: start;
+}
+.drawer-workspace #algorithm-workspace > .eyebrow,
+.drawer-workspace #editor-run,
+.drawer-workspace #editor-result,
+.drawer-workspace #editor-curve,
+.drawer-workspace #reference-bar { grid-column: 1 / -1; }
+.drawer-workspace #algorithm-workspace #rule { grid-column: 1; }
+.drawer-workspace #algorithm-workspace #algorithm-math-slot { grid-column: 2; }
+.drawer-workspace #editor-run #run-settings { padding: 0; background: transparent; border: 0; box-shadow: none; }
+.reference-bar { display: flex; flex-wrap: wrap; gap: 8px; }
+#run-simulation, #reference-dialog {
+  width: min(960px, calc(100vw - 32px)); max-height: min(920px, calc(100vh - 32px));
+  margin: auto; border: 1px solid var(--line); border-radius: 12px; padding: 16px;
+  background: var(--surface); color: var(--ink);
+}
+#run-simulation::backdrop, #reference-dialog::backdrop { background: rgb(0 0 0 / 0.55); }
+.run-simulation-head, .reference-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+#run-simulation .stage { width: min(100%, 720px); max-width: 100%; max-height: none; height: auto; aspect-ratio: 640 / 280; }
+#run-simulation-close {
+  position: absolute; top: 8px; right: 8px; z-index: 2;
+}
+.drawer-workspace > #campaign-strip { grid-column: 1 / -1; grid-row: 1; }
+.drawer-workspace > #experiment-view { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; min-width: 0; }
+.drawer-workspace > #algorithm-workspace { grid-column: 1 / -1; grid-row: 3; }
+.drawer-workspace > #lesson-drawer { grid-column: 1 / -1; grid-row: 4; }
+#experiment-view[hidden] { display: none; }
+#level-title { margin: 0; font-size: 1.35rem; line-height: 1.2; grid-column: 1; grid-row: 1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+#level-title[role="button"] { cursor: pointer; text-align: left; }
+#level-title .about-hint { font-size: 0.78rem; font-weight: 600; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+#experiment-pair { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: minmax(280px, 560px) minmax(260px, 1fr); gap: 12px; align-items: start; min-width: 0; }
+#experiment-view:has(> #stage-run) > #experiment-pair { grid-row: 3; }
+#experiment-view > #stage-run { grid-column: 1 / -1; grid-row: 2; }
+.predict-live { margin: 0; padding: 10px 12px; border: 2px solid var(--accent); border-radius: 14px; background: var(--surface); }
+.predict-live .predict-title { margin: 0 0 4px; font-family: var(--font-display); font-size: 1.15rem; font-weight: 800; }
+.predict-live .mc > p { margin: 0 0 8px; }
+.predict-live .opt { min-height: 44px; text-align: left; }
+#verdict-card { margin: 0; padding: 14px 16px 12px; border-radius: 16px; border: 3px solid var(--line); background: var(--surface); color: var(--ink); }
+#verdict-card[hidden] { display: none; }
+#verdict-card.right { border-color: var(--good); background: color-mix(in srgb, var(--good) 16%, var(--surface)); }
+#verdict-card.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, var(--surface)); }
+#verdict-card .verdict-mark { margin: 0 0 6px; font-family: var(--font-display); font-size: 1.7rem; font-weight: 800; line-height: 1.1; }
+#verdict-card.right .verdict-mark { color: var(--good); }
+#verdict-card.wrong .verdict-mark { color: var(--bad); }
+#verdict-card p { margin: 0 0 4px; font-size: 1.05rem; line-height: 1.3; }
+#verdict-card .verdict-scale { position: relative; height: 10px; margin: 16px 8px 18px; background: var(--sunk); border-radius: 99px; }
+#verdict-card .verdict-scale i { position: absolute; top: -7px; width: 4px; height: 24px; border-radius: 2px; }
+#verdict-card .verdict-scale i.you { background: var(--ink); }
+#verdict-card .verdict-scale i.measured { background: var(--warn); }
+#verdict-card .verdict-key, #verdict-card .verdict-next { font-size: 0.95rem; }
+#verdict-card .verdict-next { margin-top: 6px; font-weight: 700; }
+#run-result.quiet { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+#experiment-pair:has(#learning-monitor[hidden]) { grid-template-columns: minmax(280px, 560px); }
+#experiment-pair .stage { display: block; width: 100%; max-width: none; max-height: none; height: auto; aspect-ratio: 640 / 280; }
+#experiment-pair #learning-monitor { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+#experiment-pair #charts { min-height: 220px; }
+#experiment-pair .chart { width: 100%; height: 220px; }
+@media (min-width: 960px) {
+  body:has(.drawer-workspace) .layout { gap: 8px; margin-top: 4px; }
+  #experiment-pair #charts { min-height: 176px; }
+  #experiment-pair .chart { height: 176px; }
+  #learning-monitor:has(.predict-live) #charts,
+  #learning-monitor:has(.predict-live) #training-metric { display: none; }
+  .predict-live .mc { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+  .predict-live .mc > p { flex: 1 0 100%; }
+  .predict-live .opt-row { flex: 1 1 180px; }
+  #stage-card > #verdict-card:not([hidden]) {
+    position: absolute; left: 10px; right: 150px; bottom: 10px; z-index: 4;
+    max-height: none; overflow: visible; box-shadow: 0 10px 28px rgb(0 0 0 / .2);
+  }
+}
+#stage-card { position: relative; }
+#stage-card > #prediction-reopen { position: relative; z-index: 5; display: inline-block; margin: 8px 0 0; }
+#stage-card > .row:has(#lab-world) { display: none; }
+#stage-run { position: static; display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin: 0 0 8px; }
+#stage-card > #stage-run {
+  position: static; top: auto; right: auto; z-index: 1; margin: 0 0 8px; padding: 0;
+  border-radius: 0; background: transparent;
+}
+#stage-run #run-btn { min-width: 128px; min-height: 44px; flex: none; white-space: nowrap; }
+#stage-run #run-result { flex: 0 1 auto; min-width: 0; margin: 0; text-align: right; }
+#lesson-drawer .row:has([data-campaign-run]) {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+#stage-card > #scene-controls,
+#stage-card > #stage-caption,
+#run-source,
+#reference-bar,
+#simulation-btn,
+#editor-run,
+#editor-result,
+#editor-curve,
+#replay-drawer,
+#stage-card .tag.sim { display: none; }
+#stage-card #run-result { margin: 8px 0 0; font-size: 1rem; line-height: 1.35; }
+#open-sources { grid-column: 2; grid-row: 1; justify-self: end; align-self: center; }
+#notebook { display: none; }
+#notebook[open],
+#reference-dialog #notebook { display: block; }
+dialog.lesson-help {
+  position: fixed; inset: 0; width: 100%; height: 100%; max-width: 100%; max-height: none; margin: 0;
+  overflow: auto; border: 0; border-radius: 0; padding: 28px 22px;
+  background: var(--bg); color: var(--ink); z-index: 90;
+}
+dialog.lesson-help::backdrop { background: rgb(0 0 0 / 0.45); }
+dialog.lesson-help > * { max-width: 720px; margin-left: auto; margin-right: auto; }
+dialog.lesson-help .help-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+dialog.lesson-help .help-head h2 { margin: 0; font-family: var(--font-display); font-size: 2rem; line-height: 1.15; }
+dialog.lesson-help .help-head button { margin-left: auto; }
+.reference-head { position: relative; }
+#reference-close { margin-left: auto; }
+@media (max-width: 959px) {
+  #experiment-pair { grid-template-columns: 1fr; }
+  #experiment-pair .chart { height: 200px; }
+}
+.curve-empty { margin: 12px; padding: 14px; border: 1px dashed var(--line); border-radius: 12px; color: var(--ink); }
+#phone-deck, #phone-dots { display: none; }
+@media (max-width: 700px) {
+  .prediction-pop {
+    inset: 0; width: 100%; max-width: 100%; height: 100%; max-height: none;
+    margin: 0; border: 0; border-radius: 0;
+    padding: 20px 16px max(20px, env(safe-area-inset-bottom));
+  }
+  body:has(main.layout.lesson-shell) { height: 100dvh; overflow: hidden; display: flex; flex-direction: column; }
+  body:has(main.layout.lesson-shell) > header.top { flex: none; }
+  main.layout.lesson-shell { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+  main.layout.lesson-shell > #campaign-strip { flex: none; }
+  main.layout.lesson-shell > #experiment-view { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; }
+  main.layout.lesson-shell > #lesson-drawer { flex: 0 0 auto; max-height: 16dvh; overflow: auto; }
+  .drawer-workspace > #experiment-view, #experiment-view { position: relative; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+  #stage-card > #stage-run { width: 100%; max-width: none; pointer-events: auto; }
+  #prediction-reopen { align-self: center; }
+  #experiment-view #stage-run:has(#run-result:not(:empty):not(.quiet)) { justify-content: space-between; }
+  #experiment-view > .predict-live { flex: none; max-height: 200px; overflow: auto; }
+  #experiment-view > #verdict-card:not([hidden]) { flex: none; max-height: none; overflow: visible; }
+  #experiment-view #stage-run #run-result { flex: 1 1 auto; min-width: 0; margin: 0; font-size: 0.95rem; line-height: 1.3; text-align: left; }
+  #phone-world { display: flex; flex-direction: column; justify-content: flex-start; }
+  #phone-world .stage { width: 100%; max-width: none; max-height: none; height: auto; aspect-ratio: 640 / 280; }
+  #experiment-view > #algorithm-workspace { display: block; flex: 0 0 auto; min-height: 0; max-height: none; overflow: visible; }
+  #algorithm-workspace .sentence .sl { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; line-height: 1.35; overflow: visible; }
+  #phone-curve .chart { height: 180px; }
+  #phone-curve > *, #phone-math > * { max-height: none; overflow: visible; }
+  #phone-deck {
+    display: flex; width: 100%; flex: 0 0 auto; min-height: 0; height: auto; align-items: flex-start;
+    overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y;
+  }
+  #phone-deck[hidden] { display: none; }
+  .phone-slide {
+    flex: 0 0 100%; width: 100%; height: auto; min-width: 100%; align-self: flex-start;
+    overflow-x: clip; overflow-y: visible; scroll-snap-align: start; scroll-snap-stop: always;
+  }
+  .phone-slide[hidden] { display: none; }
+  #phone-dots { display: flex; justify-content: center; gap: 6px; }
+  #phone-dots[hidden] { display: none; }
+  #phone-dots .phone-dot {
+    min-height: 32px; min-width: 0; padding: 4px 12px; border: 0; border-radius: 999px;
+    background: transparent; color: var(--muted); font-size: 0.82rem;
+  }
+  #phone-dots .phone-dot[aria-selected="true"] { background: var(--ink); color: var(--bg); }
+  #experiment-pair { display: none; }
+  .drawer-workspace #algorithm-workspace { grid-template-columns: 1fr; }
+}
+#run-simulation #learning-monitor { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 959px) {
+  .drawer-workspace #algorithm-workspace { grid-template-columns: 1fr; }
+  .drawer-workspace #algorithm-workspace #rule,
+  .drawer-workspace #algorithm-workspace #algorithm-math-slot { grid-column: 1; }
+  .drawer-workspace #learning-monitor, #run-simulation #learning-monitor { display: grid; grid-template-columns: 1fr; }
+}

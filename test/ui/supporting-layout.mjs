@@ -29,7 +29,7 @@ for (const width of [1280, 390]) for (const theme of ['light', 'dark']) {
   // Mobile emulation may reload the page, so establish an actual run in each case.
   evaluate(() => { localStorage.setItem('breaking-bellman-v1', JSON.stringify({ intro: 1, level: 'cliff' })); return true; });
   cli('open', url);
-  click('#tabs [data-mode="workbench"]');
+  evaluate(() => { bellman.mode('workbench'); return true; });
   evaluate(() => {
     bellman.world('mirage');
     bellman.words({ store: 'net', data: 'latest', picker: 'live', scorer: 'live', nstep: 4, eps: false, step: 'avg' });
@@ -38,7 +38,10 @@ for (const width of [1280, 390]) for (const theme of ['light', 'dark']) {
   });
   click('#run-btn');
   const began = Date.now(), timeout = Number(process.env.BB_UI_RUN_TIMEOUT_MS) || 3600000;
-  while (!evaluate(() => !!bellman.record() && !document.querySelector('#run-btn').disabled)) {
+  while (!evaluate(() => {
+    const text = document.querySelector('#run-result')?.textContent.trim() || '';
+    return !!bellman.record() && text && text !== 'New run in progress…';
+  })) {
     if (Date.now() - began > timeout) throw Error('Mirage measured run timed out');
     cli('wait', '1000');
   }

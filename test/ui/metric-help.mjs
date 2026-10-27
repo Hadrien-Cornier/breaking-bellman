@@ -18,7 +18,12 @@ fs.copyFileSync(new URL('../../dist/breaking-bellman.html', import.meta.url), ou
 const browser = await chromium.launch({ executablePath: fs.existsSync(exe) ? exe : undefined });
 const errors = [], fails = [];
 const check = (cond, msg) => { if (!cond) fails.push(msg); console.log((cond ? 'ok   ' : 'FAIL ') + msg); };
-const runDone = (page) => page.waitForFunction(() => !document.querySelector('#run-btn').disabled && document.querySelector('#run-result').textContent.length > 0, null, { timeout: 300000 });
+const runDone = (page) => page.waitForFunction(() => {
+  const result = document.querySelector('#run-result');
+  const text = result ? result.textContent.trim() : '';
+  const prog = document.querySelector('#prog');
+  return text.length > 0 && text !== 'New run in progress…' && prog && (prog.style.width === '100%' || prog.style.width === '0%');
+}, null, { timeout: 300000 });
 const pickBudget = (page, near) => page.evaluate((near) => {
   const opts = Array.from(document.querySelector('#budget').options).map((o) => +o.value);
   opts.sort((a, b) => Math.abs(a - near) - Math.abs(b - near));
@@ -142,7 +147,7 @@ await session(1280, 800, 'desktop-pg', async (page) => {
   check(a.n >= 1, 'the real autopsy prints help triggers (' + a.n + ')');
   check(a.hasKl, 'the real big-steps autopsy card carries a trigger');
   check(a.klVal && new RegExp('like a 50/50 choice becoming').test(a.anchor || '') && (a.anchor || '').indexOf('KL ' + a.klVal) === 0, 'the real KL card (' + a.klVal + ') opens a scale anchor: ' + a.anchor);
-  check(a.runTriggers >= 1, 'the run headline carries a trigger: "' + a.runResult.trim().slice(0, 60) + '"');
+  check(a.runTriggers === 0 && a.runResult.trim().length > 0, 'the compact result is readable without a help button: "' + a.runResult.trim().slice(0, 80) + '"');
   await page.screenshot({ path: out + '/desktop-autopsy.png' });
 
   // chart titles: the KL and entropy charts get the shared trigger
@@ -245,11 +250,13 @@ await session(1280, 800, 'desktop-pg', async (page) => {
 await session(390, 844, 'phone-campaign', async (page) => {
   await page.evaluate(() => window.bellman.level('slots'));
   check(await page.locator('#mode-pane').innerText().then((text) => /Ten slot machines/.test(text)), 'phone campaign metric flow opens the intended slot-machine lesson');
-  await page.locator('.mc .opt').nth(1).click();
-  await page.getByText('Run the starting sentence').click();
+  const help = page.locator('dialog.lesson-help[open]');
+  if (await help.count()) await help.getByRole('button', { name: 'Back to the experiment' }).click();
+  await page.locator('#prediction-pop .opt, .mc .opt').nth(1).click();
+  await page.locator('[data-campaign-run]').evaluate((button) => button.click());
   await runDone(page);
   await page.waitForTimeout(400);
-  await page.locator('#notebook > summary').click();
+  await page.locator('#open-sources').click();
   await page.locator('#notebook-tab-autopsy').click();
   await page.locator('#symptoms .metric-help-btn').first().click();
   const p = await page.evaluate(() => {

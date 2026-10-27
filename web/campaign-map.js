@@ -27,9 +27,15 @@
     const state = id => graph.status(id, S.done);
     const button = (text, fn, cls = 'btn ghost', attrs = {}) => h('button.' + cls.replaceAll(' ', '.'), { type: 'button', onclick: fn, ...attrs }, text);
     const chips = id => h('div.map-chips', null, (METHODS[id] || []).map(text => h('span.chip', { text })));
+    // a short plain line per method name where it appears ("You will build"), so no name is bare
+    const plainOf = label => { for (const id in C.cards) { const c = C.cards[id]; if (c.plain && (c.short === label || c.name === label)) return c.plain; } return null; };
+    const methodLines = id => {
+      const rows = (METHODS[id] || []).map(label => [label, plainOf(label)]).filter(([, plain]) => plain);
+      return rows.length ? h('ul.map-methods', null, rows.map(([label, plain]) => h('li', null, [h('b', { text: label + ': ' }), plain]))) : null;
+    };
     function playNext() {
       const id = graph.next(S.done);
-      return button(id ? 'Play next: ' + levels[id].title : 'Every level cleared', () => brief(id), 'btn', { disabled: !id, 'data-play-next': id });
+      return button(id ? 'Play next: ' + levels[id].title : 'Every level cleared', () => { if (id) choose(id); }, 'btn', { disabled: !id, 'data-play-next': id });
     }
     function strip() {
       const lv = levels[S.level], w = worldOf(lv.id);
@@ -48,21 +54,11 @@
       if (!sheet) returnFocus = document.activeElement;
       else { sheet.close(); sheet.remove(); }
       const lv = levels[id], w = worldOf(id), st = state(id), missing = graph.missing(id, S.done);
-      const parents = graph.activeEdges.filter(e => e.to === id), children = graph.activeEdges.filter(e => e.from === id);
-      const relation = other => button('', () => brief(other), 'map-relation', { 'data-related-level': other });
-      const relationRows = (edges, parent) => h('div.map-relations', null, edges.map(e => {
-        const other = parent ? e.from : e.to, b = relation(other);
-        b.append(h('b', { text: levels[other].title }), h('span.small', { text: e.label + ' · ' + WORDS[state(other)] }));
-        return b;
-      }));
       const content = h('div.map-brief-body', null, [
         h('p.eyebrow', { text: 'World ' + (graph.worlds.indexOf(w) + 1) + ' · ' + w.name }),
         h('p.map-state', { text: WORDS[st] }),
-        h('h3', { text: 'You will build' }), chips(id),
-        h('h3', { text: parents.length ? 'Builds on' : 'A starting point' }),
-        parents.length ? relationRows(parents, true) : h('p', { text: 'Nothing comes before this level. It is open from the start.' }),
-        children.length ? h('h3', { text: 'Opens the way to' }) : null,
-        children.length ? relationRows(children, false) : null,
+        h('p.map-learning-intro', { html: lv.intro + ' ' + C.learningPurpose[id] }),
+        h('h3', { text: 'You will build' }), chips(id), methodLines(id),
         st === 'locked' ? h('div.map-lock', null, [
           h('b', { text: 'Not ready yet' }),
           h('p', { text: 'It builds on ' + missing.map(p => levels[p].title).join(' and ') + ', not cleared yet. Clear ' + (missing.length > 1 ? 'them' : 'it') + ' first, or open this level anyway: locks only suggest an order.' }),
@@ -97,7 +93,7 @@
       for (const z of ZOOMS) controls.append(button(z[0].toUpperCase() + z.slice(1), () => setZoom(z), 'btn ghost', { 'data-zoom': z }));
       map.append(h('div.map-heading', null, [h('h1', { tabindex: '-1', text: 'Campaign map' }),
         h('p', { text: C.levels.filter(l => S.done.includes(l.id)).length + ' of ' + C.levels.length + ' levels cleared' }), controls,
-        h('p.small', { text: 'Follow the paths or choose any level. Locks only suggest an order.' }),
+        h('p.small', { text: 'Start with Ten slot machines. Follow the paths or choose any level. Locks only suggest an order.' }),
       ]), path, dock, saveActions());
       pane.append(map);
       const rows = {};

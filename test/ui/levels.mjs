@@ -72,46 +72,54 @@ async function replayContract(page, proof, verify) {
   verify(first.policy.length > 0 && first.seed.length > 0, 'method and replay seed have text labels independent of color');
   const exactBefore = await page.evaluate(() => RLA.exact.stringify(bellman.record()));
   fs.writeFileSync(path.join(out, proof.name + '-run.json.gz'), gzipSync(exactBefore));
-  if (!await page.locator('#notebook').evaluate(e => e.open)) await page.locator('#notebook > summary').click();
+  if (!await page.locator('#notebook').evaluate(e => e.open)) await page.locator('#notebook').evaluate((e) => { e.open = true; });
   await page.locator('#notebook-tab-rule').click();
-  const dimensions = await page.locator('#scene-controls button, #scene-seed, #run-btn, #seeds, #budget, #run-mode, #rule .w').evaluateAll(es => es.map(e => ({ id: e.id, w: e.getBoundingClientRect().width, h: e.getBoundingClientRect().height })));
-  verify(dimensions.every(d => d.w >= 44 && d.h >= 44), 'Run, replay and result settings have 44px touch targets');
-  await page.locator('#notebook > summary').click();
-  await page.locator('#scene-replay').click();
+  const dimensions = await page.locator('#rule .w').evaluateAll(es => es.map(e => ({ id: e.id, w: e.getBoundingClientRect().width, h: e.getBoundingClientRect().height })));
+  verify(dimensions.length > 0 && dimensions.every(d => d.w >= 44 && d.h >= 44), 'the sentence words have 44px touch targets');
+  verify(await page.locator('#run-btn').evaluate((el) => el.hidden), 'Run stays hidden while the measured result shows');
+  const replayShown = await page.locator('#scene-controls').evaluate((el) => el.getClientRects().length > 0 && getComputedStyle(el).display !== 'none');
+  verify(!replayShown, 'seed and replay controls stay off the experiment');
+  await page.locator('#notebook').evaluate((e) => { e.open = false; });
+  const clickReplay = (sel) => page.locator(sel).evaluate((el) => el.click());
+  await clickReplay('#scene-replay');
   const zero = await frame();
-  await page.locator('#scene-step').click();
+  await clickReplay('#scene-step');
   const one = await frame();
   verify((await status()).state.time === 1, 'Step advances one replay frame');
-  await page.locator('#scene-watch').click();
+  await clickReplay('#scene-watch');
   await page.waitForFunction(() => bellman.replay().time >= Math.min(4, bellman.replay().length - 1));
-  if ((await status()).state.watching) await page.locator('#scene-watch').click();
+  if ((await status()).state.watching) await clickReplay('#scene-watch');
   const paused = await status(); const pausedFrame = await frame();
   await page.waitForTimeout(150);
   verify(!(await status()).state.watching && await frame() === pausedFrame, 'Pause keeps the measured scene still');
-  await page.locator('#scene-replay').click();
+  await clickReplay('#scene-replay');
   verify(await frame() === zero, 'Replay returns to exactly the same starting frame');
-  await page.locator('#scene-step').click();
+  await clickReplay('#scene-step');
   verify(await frame() === one, 'the same record and replay time draw exactly the same frame');
   verify(await page.evaluate(() => RLA.exact.stringify(bellman.record())) === exactBefore, 'drawing never changes the record');
   proof.frames = { zero, one, paused: pausedFrame, time: paused.state.time };
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.locator('#scene-watch').click();
+  await clickReplay('#scene-watch');
   const reduced = await frame();
   await page.waitForTimeout(150);
   verify(!(await status()).state.watching && await frame() === reduced, 'reduced motion does not autoplay');
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   const nextSeeds = await page.locator('#seeds').evaluate(e => [...e.options].find(o => o.value !== e.value).value);
-  await page.locator('#seeds').selectOption(nextSeeds);
+  await page.locator('#seeds').evaluate((el, value) => { el.value = value; el.dispatchEvent(new Event('change', { bubbles: true })); }, nextSeeds);
   const stale = await status();
   verify(stale.id === first.id && stale.state.stale && stale.linked, 'changed settings retain and mark the previous record stale on every surface');
   verify(await page.locator('#run-stale').isVisible() && await page.locator('#run-btn').isEnabled(), 'stale notice explains rerun and Run is enabled');
   proof.staleWording = await page.locator('#run-stale').innerText();
   await page.screenshot({ path: path.join(out, proof.name + '-stale.png'), fullPage: true });
   await page.locator('#run-btn').click();
-  await page.waitForFunction(() => bellman.record() && !document.querySelector('#run-btn').disabled, null, { timeout: runTimeout });
+  await page.waitForFunction((oldId) => {
+    const rec = bellman.record();
+    const text = document.querySelector('#run-result')?.textContent.trim() || '';
+    return rec && rec.id !== oldId && text && text !== 'New run in progress…';
+  }, first.id, { timeout: runTimeout });
   const fresh = await status(); proof.rerun = fresh;
   verify(fresh.id !== first.id && !fresh.state.stale && fresh.linked, 'rerun replaces stale measurements everywhere with the new settings');
-  await page.locator('#notebook > summary').click();
+  await page.locator('#notebook').evaluate((e) => { e.open = true; });
   await page.locator('#notebook-tab-curve').click();
   verify((await status()).linked, 'opening Curve redraws the same measured record with its stale state');
   proof.rendered = await page.locator('#lab').innerText() + '\n' + await page.locator('#notebook').innerText();
@@ -230,7 +238,7 @@ try {
         const verify = (ok, text) => { record.checks.push({ text, passed: !!ok }); check(ok, name + ': ' + text); };
         try {
           await seed(page, progress === 'newer' ? fixture : null);
-          if (await page.locator('dialog.intro').count()) await page.locator('dialog.intro button', { hasText: 'Start level 1' }).click();
+          if (await page.locator('dialog.intro').count()) await page.locator('dialog.intro button', { hasText: 'Open the campaign map' }).click();
           // Public API selects by stable id; it uses the same save/enter/render path as the map.
           await page.evaluate(id => bellman.level(id), id);
           const precedence = await page.evaluate(() => {
@@ -323,7 +331,10 @@ try {
             record.result = await page.locator('#supermimic-gradients').innerText();
             verify(await page.locator('#supermimic-rollout table').count() > 0, 'baseline rollout and gradient tables exist');
           } else {
-            await page.waitForFunction(() => !document.querySelector('#run-btn').disabled && document.querySelector('#run-result').textContent.trim().length > 0, null, { timeout: runTimeout });
+            await page.waitForFunction(() => {
+              const text = document.querySelector('#run-result')?.textContent.trim() || '';
+              return !!bellman.record() && text && text !== 'New run in progress…';
+            }, null, { timeout: runTimeout });
             record.result = await page.locator('#run-result').innerText();
             record.source = await page.locator('#run-source').innerText();
             verify(await page.locator('#charts canvas').count() > 0, 'record charts appear');

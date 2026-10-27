@@ -1,0 +1,158 @@
+/* Breaking Bellman: styles for the reusable algorithm equation panel (#algorithm-math-panel).
+   Every selector is scoped under .algorithm-math-panel so a layout variant can drop the panel in
+   without its own rules leaking out, and without the panel leaking into the rest of the page.
+   Compact but legible: every equation is always visible (no collapsing, no reduced zoom). */
+.algorithm-math-panel {
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px;
+  margin-top: 4px;
+  background: var(--sunk, #f6f7f9);
+  border: 1px solid var(--line, #e2e5ea);
+  border-radius: 8px;
+  min-width: 0;
+  color: var(--ink, #1b1f24);
+}
+.algorithm-math-panel .math-title {
+  margin: 0;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted, #6b7280);
+}
+.algorithm-math-panel .math-group {
+  margin: 3px 0 0;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted, #6b7280);
+}
+.algorithm-math-panel .mrow {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 6px;
+  align-items: baseline;
+  min-width: 0;
+  padding: 1px 2px;
+  border-radius: 4px;
+}
+.algorithm-math-panel .mrow .ml {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.6rem;
+  color: var(--muted, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.algorithm-math-panel .mrow .tex,
+.algorithm-math-panel .mrow .eq {
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+/* MathJax display mode adds 1em margins per line; inside the panel the rows already space out.
+   Wide formulas keep their natural size and scroll sideways. Do not scale the SVG. */
+.algorithm-math-panel .tex mjx-container[jax][display="true"] {
+  margin: 0 !important;
+}
+.algorithm-math-panel .tex-src {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.72rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--muted, #6b7280);
+}
+/* the brief highlight of the line(s) whose math actually changed */
+.algorithm-math-panel .mrow.math-changed {
+  background: color-mix(in srgb, var(--warn) 28%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--warn);
+}
+@media (prefers-reduced-motion: reduce) {
+  .algorithm-math-panel .mrow.math-changed { background: transparent; box-shadow: none; }
+}
+.algorithm-math-panel .math-explain {
+  margin-top: 2px;
+  padding: 5px 7px;
+  background: var(--sunk);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.algorithm-math-panel .math-explain-title {
+  margin: 0 0 2px;
+  font-weight: 600;
+  font-size: 0.74rem;
+  color: var(--ink);
+}
+.algorithm-math-panel .math-explain-line {
+  margin: 1px 0;
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+.algorithm-math-panel .math-idle {
+  margin: 0;
+  padding-left: 16px;
+}
+.algorithm-math-panel .math-idle li {
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+.algorithm-math-panel .math-legend {
+  margin: 0;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: var(--muted, #6b7280);
+}
+.algorithm-math-panel .math-defs summary {
+  cursor: pointer;
+  display: inline;
+  width: auto;
+  min-height: 0;
+  min-width: 0;
+  padding: 0;
+  font-size: 0.78rem;
+  line-height: 1.3;
+  color: var(--muted, #6b7280);
+}
+.algorithm-math-panel .math-defs summary::-webkit-details-marker { display: none; }
+.algorithm-math-panel .gloss-math { display: inline; }
+.algorithm-math-panel .gloss-math svg { vertical-align: -0.15em; }
+.algorithm-math-panel .math-gloss {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 1px 10px;
+  margin: 2px 0 0;
+  font-size: 0.72rem;
+}
+.algorithm-math-panel .math-gloss dt {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--ink, #1b1f24);
+  white-space: nowrap;
+}
+.algorithm-math-panel .math-gloss dd {
+  margin: 0;
+  color: var(--muted, #6b7280);
+  line-height: 1.35;
+}
+/* r, b, Score, Q and y stay visually distinct wherever they appear */
+.algorithm-math-panel .sym-r { color: #0b7a3e; font-weight: 600; }
+.algorithm-math-panel .sym-b { color: #a2560a; font-weight: 600; }
+.algorithm-math-panel .sym-score { color: #2456c4; font-weight: 600; }
+.algorithm-math-panel .sym-q { color: inherit; font-weight: 600; }
+.algorithm-math-panel .sym-y { color: #b3261e; font-weight: 700; }
+@media (prefers-color-scheme: dark) {
+  .algorithm-math-panel .sym-r { color: #5fd39b; }
+  .algorithm-math-panel .sym-b { color: #ffb86b; }
+  .algorithm-math-panel .sym-score { color: #8ab4ff; }
+  .algorithm-math-panel .sym-y { color: #ff9c94; }
+}
+@media (max-width: 520px) {
+  .algorithm-math-panel .mrow { grid-template-columns: 56px minmax(0, 1fr); }
+  .algorithm-math-panel .mrow .tex,
+  .algorithm-math-panel .mrow .eq { font-size: 0.72rem; }
+  .algorithm-math-panel .math-gloss { grid-template-columns: minmax(0, 1fr); }
+  .algorithm-math-panel .math-gloss dt { margin-top: 2px; }
+}

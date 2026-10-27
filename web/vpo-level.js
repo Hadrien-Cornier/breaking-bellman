@@ -20,7 +20,7 @@
     lastRun: state.result ? { seeds: 1, steps: state.result.generations * 12, symptoms: [], summary: Object.fromEntries(state.result.arms.map(a => [a.arm, a.evaluation.curve])) } : null,
     comparison: state.result, version: window.BB_VPO_VERSION });
   V.run = async () => {
-    if (state.busy) return null;
+    if (state.busy || !state.answer) return null;
     const ticket = { worker: null, resolve: null }; currentRun = ticket;
     if (replay) replay.clear(); record = null;
     state.busy = true; state.error = null; state.result = null; state.inspected = false; state.edits = null; state.answer = ''; if (redraw) redraw();
@@ -76,7 +76,7 @@
         h('p.small', { text:'Both learners start with the same uniform policy and sample 12 routes per generation. Later VPO choices see which reward categories earlier alternatives covered. Repeats are allowed. Neither policy sees the sampled weights. This toy trains probabilities over a finite route menu, not individual navigation actions or a language model.' }),
         h('div.row', null, [select('vpo-seed','Run seed',[[101,'101'],[202,'202'],[303,'303'],[404,'404'],[505,'505']],state.seed,v=>{state.seed=v;}),
           select('vpo-generations','Training generations',[[120,'120'],[240,'240'],[480,'480']],state.generations,v=>{state.generations=v;}),
-          h('button.btn', { id:'vpo-run', type:'button', disabled:state.busy, onclick:()=>V.run().catch(e=>{state.error=e.message;redraw();}) }, state.busy?'Training both learners…':'Run GRPO and VPO')]),
+          h('button.btn', { id:'vpo-run', type:'button', disabled:state.busy || !state.answer, onclick:()=>V.run().catch(e=>{state.error=e.message;redraw();}) }, state.busy?'Training both learners…':'Run GRPO and VPO')]),
         h('p.small', { id:'vpo-source', role:'status', text:state.error || (state.result ? 'Live simulation completed in this page. Seed '+state.result.seed+'. '+state.result.arms[0].candidates+' sampled training routes and '+state.result.arms[0].updates+' optimizer passes per learner. '+state.result.milliseconds+' ms.' : 'Live simulation. Fast stored results belong to the other lessons. No winner is required here.') }),
         h('a', { href:'#vpo-lab', text:'Jump to route map and rules' }),
         h('h3', { text:'2. Inspect alternatives and preferences' }),

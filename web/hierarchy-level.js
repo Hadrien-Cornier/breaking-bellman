@@ -7,7 +7,8 @@
   C.worldNames.hierarchy = 'Two rooms';
   const lesson = {
     id: 'hierarchy', custom: true, phase: 9, world: 'hierarchy', title: 'Call the short skill again', focus: [],
-    intro: 'Six cells sit in a line: Start, Hall, Door, Right hall, Prize, and Far. The Door is two steps from Start. The Prize is two steps past the Door. A table trains only on the Door. A given sequence then calls that same table for the Door and for the Prize.',
+    intro: 'Reach the Prize using a skill trained only to reach the Door. What happens when you ask that same skill to go farther?',
+    introMore: 'Six cells sit in a line: Start, Hall, Door, Right hall, Prize, and Far. The Door is two steps from Start. The Prize is two steps past the Door. A table trains only on the Door. A given sequence then calls that same table for the Door and for the Prize.',
     goal: { text: 'Train the low-level table on the Door inside the budget, call it for the given sequence, and match the flat budget to S plus H. Then change the room, the coordinates, or the farther goal and watch the second call miss.' },
   };
   const hindsightAt = C.levels.findIndex((l) => l.id === 'hindsight');
@@ -119,6 +120,7 @@
     const advance = n => api.markStep?.(n);
     const variants = { lesson: {}, pit: { dynamics: 'pit' }, absolute: { representation: 'absolute' }, far: { subgoals: [H.DOOR, H.FAR] }, short: { budget: 4 }, long: { budget: 24 }, extra: { pretrain: 6 } };
     H.run = () => {
+      if (state.pred == null) return null;
       const report = H.compare(variants[variant]);
       const r = BB.goalExecution.record('hierarchy', { variant, ...report.opts }, report);
       view.accept(r); state.ran = true; advance(2);
@@ -130,7 +132,7 @@
     view = BB.goalExecution.mount(lab, api, {
       id: 'hierarchy', sceneTitle: 'Call Door, then Prize', sceneLabel: 'Six cells from Start through Door to Prize and Far.',
       before: 'The robot starts at Start. Train a table to reach Door, then call the same table with the next subgoal. Calls and resets will appear as separate measured events.',
-      value: variant, settingLabel: 'Room and training setup', choices: [['lesson', 'Repeated rooms'], ['pit', 'Pit after Door'], ['absolute', 'Absolute cells'], ['far', 'Farther goal'], ['short', 'Budget 4'], ['long', 'Budget 24'], ['extra', '6 earlier interactions']], change: value => { variant = value; redraw(); }, run: H.run,
+      value: variant, settingLabel: 'Room and training setup', choices: [['lesson', 'Repeated rooms'], ['pit', 'Pit after Door'], ['absolute', 'Absolute cells'], ['far', 'Farther goal'], ['short', 'Budget 4'], ['long', 'Budget 24'], ['extra', '6 earlier interactions']], change: value => { variant = value; redraw(); }, ready: () => state.pred != null, run: H.run,
       metric: m => (m.reached ? 'Final goal reached' : 'Final goal missed') + '; ' + (m.trainingSteps || 0) + ' training moves; ' + (m.resets || 0) + ' resets; ' + m.evaluationSteps + ' execution/check moves; ' + m.calls + ' option calls',
       accounting: r => 'Earlier Door practice: ' + r.data.prior.steps + ' moves and ' + r.data.prior.resets + ' resets. Fresh across all five measured methods: ' + r.data.fresh.steps + ' moves and ' + r.data.fresh.resets + ' resets, with ' + r.data.optionCalls + ' option calls counted separately. S = ' + r.report.S + ' training interactions. H = ' + r.report.H + ' primitive moves plus calls. Each flat table receives S + H = ' + r.report.total + ' training interactions. Greedy check moves are additional evaluation, not training. No high-level updates.',
     });
@@ -142,7 +144,7 @@
       const r = H.record(), report = r?.report, stale = H.replay().stale;
       const diagnosis = baseline ? diagnoseQuestion(baseline) : null;
       const explanation = baseline && longer ? explainQuestion(baseline, longer) : null;
-      const kids = [h('h2', { text: lesson.title }), h('p', { text: lesson.intro }), h('p.small', null, [h('a', { href: 'https://rail.eecs.berkeley.edu/deeprlcourse/static/slides/lec-24.pdf', target: '_blank', rel: 'noopener', text: 'Idea adapted from Berkeley CS 285' })])];
+      const kids = [h('h2', { text: lesson.title }), h('p', { text: lesson.intro }), h('details', null, [h('summary', { text: 'Rules and method' }), h('p', { text: lesson.introMore })]), h('p.small', null, [h('a', { href: 'https://rail.eecs.berkeley.edu/deeprlcourse/static/slides/lec-24.pdf', target: '_blank', rel: 'noopener', text: 'Idea adapted from Berkeley CS 285' })])];
       if (!report) kids.push(h('p', { text: 'Door skill learns the short goal, then follows the given sequence. Flat learner trains directly on the final goal; Flat learner with Door bonus also gets reward for entering Door. Empty table has never learned. Wiped table has its learned entries deleted before the same calls.' }), h('h3', { text: '1. Predict' }), choice(h, PREDICT, state.pred, i => { state.pred = i; api.recordAnswer?.(PREDICT.id, i, !!PREDICT.options[i].correct); advance(1); redraw(); }), h('p', { text: 'Use Run above, then Watch the training resets and each Door and Prize call. Select Flat learner to compare its own training and greedy check.' }));
       else if (stale) kids.push(h('p', { text: 'The setup changed. Run again to measure it.' }));
       else if ((state.diag == null || (api.step?.() || 0) < 3) && diagnosis && r.settings.variant === 'lesson') kids.push(h('h3', { text: '3. Diagnose' }), choice(h, diagnosis, state.diag, i => { state.diag = i; api.recordAnswer?.(diagnosis.id, i, !!diagnosis.options[i].correct); redraw(); }), h('button.btn', { id: 'hierarchy-continue', type: 'button', disabled: state.diag == null, onclick: () => { advance(3); redraw(); } }, 'Continue'));
@@ -154,9 +156,10 @@
       if (api.done?.() && api.next?.()) kids.push(h('button.btn', { type: 'button', onclick: api.openNext }, 'Next level: ' + api.next().title));
       body.replaceChildren(...kids);
       if (api.shell) {
-        api.shell.notebook('notes').replaceChildren(h('p', { text: lesson.intro }), h('p', { text: PREDICT.prompt }));
+        api.shell.notebook('notes').replaceChildren(h('p', { text: lesson.intro }), h('details', null, [h('summary', { text: 'Rules and method' }), h('p', { text: lesson.introMore })]), h('p', { text: PREDICT.prompt }));
         api.shell.notebook('autopsy').replaceChildren(...(report ? [h('p.small', { text: measureText(report) }), h('p.small', { text: qLines(report.skill.q) }), ...report.execution.options.map((op, i) => h('p.small', { text: 'Call ' + (i + 1) + ', goal ' + name(op.goal) + ': ' + op.moves.map(moveText).join(' ') }))] : [h('p', { text: 'Run to inspect the table and option calls.' })]));
       }
+      view.gate();
     };
     if (retained) view.accept(retained, playback);
     redraw();
