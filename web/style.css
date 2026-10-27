@@ -810,7 +810,7 @@ button.algo-name { min-height: 0; min-width: 0; height: auto; padding: 0; displa
   }
 }
 #stage-card { position: relative; }
-#stage-card > #prediction-reopen { position: static; display: inline-block; margin: 8px 0 0; }
+#stage-card > #prediction-reopen { position: relative; z-index: 5; display: inline-block; margin: 8px 0 0; }
 #stage-card > .row:has(#lab-world) { display: none; }
 #stage-run { position: static; display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin: 0 0 8px; }
 #stage-card > #stage-run {

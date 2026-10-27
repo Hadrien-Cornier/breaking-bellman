@@ -132,7 +132,15 @@
     return dlg;
   }
 
-  const api = { mapOnEntry, aspectRatio, stageBitmap, emptyCurves, claimPrediction, openPrediction, closePrediction };
+  // A saved or already used choice does not authorize another simulation.
+  // Playback never calls this: Watch, Step, and Replay are not fresh runs.
+  function blocksFreshRun(questionId, grant, signature) {
+    if (!questionId) return false;
+    if (!grant || grant.used || grant.id !== questionId || grant.signature !== signature) return true;
+    return false;
+  }
+
+  const api = { mapOnEntry, aspectRatio, stageBitmap, emptyCurves, claimPrediction, openPrediction, closePrediction, blocksFreshRun };
   const root = typeof window !== 'undefined' ? window : globalThis;
   root.BBPLAYER = api;
   if (typeof module === 'object' && module.exports) module.exports = api;

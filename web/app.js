@@ -105,6 +105,7 @@
     return p.label + ', ' + (AI.model || p.defaultModel);
   }
   function recordAnswer(qid, choice, correct) {
+    armPrediction(qid);
     if (S.answers[qid]) return; // first attempt only
     S.answers[qid] = { choice, correct, ts: new Date().toISOString() };
     save(); updateScore();
@@ -277,7 +278,7 @@
     ]);
   }
   function setMainPart(key, v) { S.parts[key] = v; onPartsChanged(); }
-  function onPartsChanged() { cancelRun(); markRunStale(); refreshSentences(); drawCompare(); drawGrid(); if (S.onPartsChange) S.onPartsChange(); }
+  function onPartsChanged() { cancelRun(); markRunStale(); refreshSentences(); drawCompare(); drawGrid(); if (S.onPartsChange) S.onPartsChange(); if (typeof syncRunGate === 'function') syncRunGate(); }
   const mainSentence = (extra) => mountSentence(Object.assign({ getParts: () => S.parts, setPart: setMainPart, world: () => S.world, preset: true }, extra || {}));
 
   // ---------------------------------------------------------------- unlocked-technique preset loader (scope 175)
@@ -698,7 +699,7 @@
   }
   function renderStage() {
     const stageEl = $('#stage');
-    if (stageEl) stageEl.dataset.predictFirst = (typeof customActive !== 'function' || !customActive()) && typeof unansweredPrediction === 'function' && unansweredPrediction() ? '1' : '';
+    if (stageEl) stageEl.dataset.predictFirst = typeof unansweredPrediction === 'function' && unansweredPrediction() ? '1' : '';
     markRunStale(); pauseScene();
     if (customActive() && customScene) {
       adapter = BB.customScenes.create(S.world, scenePolicy, customScene.host);
@@ -1056,12 +1057,81 @@
     if (runState.record && !S.running && !watching) { playRecorded = true; watchScene(); }
   }
   function settleEditor() { placeEditor(); }
-  function unansweredPrediction() {
+  let predictionGrant = null;
+  let predictionClickReady = false;
+  function predictQuestion() {
     if (S.mode !== 'campaign') return null;
     const lv = C.levels.find((l) => l.id === S.level);
     const q = lv && lv.predict;
-    if (!q || !q.id || !S.answers || S.answers[q.id]) return null;
+    if (!q || !q.id) return null;
     return q;
+  }
+  function liveSettingSignature() {
+    if (typeof customActive !== 'function' || !customActive()) return '';
+    const root = document.getElementById('vpo-lab');
+    if (!root) return '';
+    return [...root.querySelectorAll('select, input')].filter((el) => {
+      if (!el.id || el.type === 'range' || el.type === 'hidden') return false;
+      if (/policy|scrub/.test(el.id)) return false;
+      return true;
+    }).map((el) => el.id + '=' + el.value).join('&');
+  }
+  function experimentSignature() {
+    return RLA.exact.stringify({ mode: S.mode, level: S.level, world: S.world, parts: S.parts, knobs: S.knobs, hyper: hyperNow() }) + '\n' + liveSettingSignature();
+  }
+  function unansweredPrediction() {
+    const q = predictQuestion();
+    if (!q || !window.BBPLAYER || typeof window.BBPLAYER.blocksFreshRun !== 'function') return null;
+    return window.BBPLAYER.blocksFreshRun(q.id, predictionGrant, experimentSignature()) ? q : null;
+  }
+  function armPrediction(qid) {
+    const q = predictQuestion();
+    if (!q || q.id !== qid) return;
+    predictionGrant = { id: qid, signature: experimentSignature(), used: false };
+  }
+  function consumePrediction() {
+    const q = predictQuestion();
+    if (!predictionGrant || !q || predictionGrant.id !== q.id) return;
+    predictionGrant = { id: predictionGrant.id, signature: predictionGrant.signature, used: true };
+  }
+  function guardRun(api) {
+    if (!api || typeof api.run !== 'function' || api.run.guarded) return;
+    const inner = api.run;
+    function wrapped(...args) {
+      if (predictionClickReady) {
+        predictionClickReady = false;
+        if (!unansweredPrediction()) consumePrediction();
+        if (typeof syncRunGate === 'function') syncRunGate();
+        return inner.apply(this, args);
+      }
+      if (unansweredPrediction()) {
+        if (typeof presentPrediction === 'function') presentPrediction(true);
+        return null;
+      }
+      consumePrediction();
+      if (typeof syncRunGate === 'function') syncRunGate();
+      return inner.apply(this, args);
+    }
+    wrapped.guarded = true;
+    wrapped.inner = inner;
+    api.run = wrapped;
+  }
+  function simulationRunButton(button) {
+    if (!button || button.tagName !== 'BUTTON') return false;
+    if (button.id === 'run-btn' || button.hasAttribute('data-campaign-run') || /-run$/.test(button.id)) return true;
+    return (button.textContent || '').trim() === 'Run this sentence';
+  }
+  function lockSimulationButtons(pending) {
+    $$('button').forEach((button) => {
+      if (!simulationRunButton(button) || button.id === 'run-btn') return;
+      if (pending) {
+        if (!button.disabled) button.dataset.predictLock = '1';
+        button.disabled = true;
+      } else if (button.dataset.predictLock) {
+        button.disabled = false;
+        delete button.dataset.predictLock;
+      }
+    });
   }
   function textOf(el) {
     return el && typeof el.textContent === 'string' ? el.textContent.trim() : '';
@@ -1086,9 +1156,18 @@
   function syncRunGate() {
     const btn = $('#run-btn');
     if (!btn) return;
-    const pending = (typeof customActive !== 'function' || !customActive()) && !!unansweredPrediction();
+    const pending = !!unansweredPrediction();
     const stage = $('#stage');
     if (stage) stage.dataset.predictFirst = pending ? '1' : '';
+    lockSimulationButtons(pending);
+    const reopen = typeof predictionReopen === 'function' ? predictionReopen() : null;
+    if (reopen) {
+      const customRun = [...document.querySelectorAll('button')].find((button) => simulationRunButton(button) && button.id !== 'run-btn');
+      if (typeof customActive === 'function' && customActive() && customRun && customRun.parentElement && reopen.parentElement !== customRun.parentElement) customRun.before(reopen);
+      const inline = typeof lessonPredictionVisible === 'function' && lessonPredictionVisible();
+      const customReady = typeof customActive === 'function' && customActive() && !!customRun;
+      reopen.hidden = !pending || !!document.querySelector('#prediction-pop[open]') || inline || (!offerRunControl() && !customReady);
+    }
     const show = offerRunControl();
     btn.hidden = !show;
     const bar = $('#stage-run');
@@ -1107,12 +1186,18 @@
     if (typeof fitPhoneDeck === 'function') fitPhoneDeck();
   }
   async function run() {
-    if (customActive()) return customApi().run();
-    const pending = unansweredPrediction();
-    if (pending) {
-      const launch = document.querySelector('[data-prediction="' + pending.id + '"]');
-      if (launch) launch.click();
+    if (predictionClickReady) {
+      predictionClickReady = false;
+      if (!unansweredPrediction()) consumePrediction();
+    } else if (unansweredPrediction()) {
+      if (typeof presentPrediction === 'function') presentPrediction(true);
       return null;
+    } else consumePrediction();
+    if (typeof syncRunGate === 'function') syncRunGate();
+    if (customActive()) {
+      const api = customApi();
+      const inner = api.run && api.run.inner ? api.run.inner : api.run;
+      return inner.call(api);
     }
     if (S.running) return null;
     S.running = true; if (typeof syncRunGate === 'function') syncRunGate(); else $('#run-btn').disabled = true;
@@ -1192,6 +1277,7 @@
       }
       return null;
     } finally {
+      if (!completed && predictionGrant && predictionGrant.used) predictionGrant = { id: predictionGrant.id, signature: predictionGrant.signature, used: false };
       if (activeRun === ticket) { activeRun = null; S.running = false; if (typeof syncRunGate === 'function') syncRunGate(); else $('#run-btn').disabled = false; prog.style.width = completed ? '100%' : '0%'; }
     }
   }
@@ -2036,6 +2122,7 @@
     }
     function choose(i) {
       if (!S.answers[q.id]) recordAnswer(q.id, i, !!q.options[i].correct);
+      else if (typeof armPrediction === 'function') armPrediction(q.id);
       show(i, true);
       if (onAnswer) onAnswer(i);
     }
@@ -3479,7 +3566,24 @@
   $('#grid-card').addEventListener('toggle', () => { if ($('#grid-card').open) drawGrid(); });
   $('#run-mode').value = 'fast'; // A fresh-Live override lasts only for this page visit.
   for (const sel of ['#seeds', '#budget', '#run-mode']) $(sel).addEventListener('change', () => { cancelRun(); if (!G.running) drawGrid(); });
-  document.addEventListener('change', () => { markRunStale(); if (activeRun && runIdentity() !== activeRun.identity) cancelRun(); });
+  document.addEventListener('change', () => { markRunStale(); if (typeof syncRunGate === 'function') syncRunGate(); if (activeRun && runIdentity() !== activeRun.identity) cancelRun(); });
+  document.addEventListener('click', (event) => {
+    const button = event.target && event.target.closest ? event.target.closest('button') : null;
+    if (!button || button.disabled || !simulationRunButton(button)) return;
+    if (unansweredPrediction()) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (typeof presentPrediction === 'function') presentPrediction(true);
+      return;
+    }
+    predictionClickReady = true;
+    setTimeout(() => { predictionClickReady = false; if (typeof syncRunGate === 'function') syncRunGate(); }, 0);
+    if (button.id === 'run-btn') {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      run();
+    }
+  }, true);
 
   function adopt(parent, node) {
     if (parent && node && node.parentElement !== parent) parent.append(node);
@@ -3532,10 +3636,43 @@
     }
     return button;
   }
+  function lessonPredictionVisible() {
+    if (typeof customActive !== 'function' || !customActive()) return false;
+    const pane = document.querySelector('#mode-pane');
+    if (!pane) return false;
+    return [...pane.querySelectorAll('button.opt')].some((el) => {
+      for (let node = el; node; node = node.parentElement) {
+        if (node.hidden) return false;
+        const style = getComputedStyle(node);
+        if (style.display === 'none' || style.visibility === 'hidden') return false;
+      }
+      const box = el.getBoundingClientRect();
+      return box.width > 0 && box.height > 0;
+    });
+  }
+  function ensurePredictNode(q) {
+    const existing = document.querySelector('.predict-live[data-prediction="' + q.id + '"]');
+    if (existing) return existing;
+    return predictionMount(q, () => {
+      if (typeof syncRunGate === 'function') syncRunGate();
+    }, 'Predict before you run', true, 'predict');
+  }
   function presentPrediction(force) {
-    const pending = (typeof customActive !== 'function' || !customActive()) && typeof unansweredPrediction === 'function' ? unansweredPrediction() : null;
+    const pending = typeof unansweredPrediction === 'function' ? unansweredPrediction() : null;
     const button = predictionReopen();
     if (!pending) { predictionDismissedFor = null; button.hidden = true; return; }
+    if (typeof mapOpen !== 'undefined' && mapOpen) { button.hidden = true; return; }
+    const lessonStep = (S.lstep && S.lstep[S.level]) || 0;
+    const inlineQuestion = typeof lessonPredictionVisible === 'function' && lessonPredictionVisible();
+    const customRun = [...document.querySelectorAll('button')].find((el) => simulationRunButton(el) && el.id !== 'run-btn');
+    const customReady = typeof customActive === 'function' && customActive() && !!customRun;
+    const showReopen = !inlineQuestion && (offerRunControl() || customReady);
+    if (!force && lessonStep > 0) { button.hidden = !showReopen; return; }
+    if (!force && predictionGrant && predictionGrant.id === pending.id) {
+      button.hidden = !showReopen;
+      return;
+    }
+    if (!force && lessonPredictionVisible()) { button.hidden = true; return; }
     if (!force && predictionDismissedFor === pending.id) {
       const stray = document.querySelector('#mode-pane .predict-live');
       if (stray) {
@@ -3554,7 +3691,8 @@
     }
     if (!force && document.querySelector('dialog.lesson-help[open]')) { button.hidden = true; return; }
     if (document.querySelector('#prediction-pop[open]')) { button.hidden = true; return; }
-    const node = document.querySelector('#mode-pane .predict-live') || document.querySelector('#prediction-park .predict-live') || document.querySelector('.predict-live');
+    let node = document.querySelector('#mode-pane .predict-live') || document.querySelector('#prediction-park .predict-live') || document.querySelector('.predict-live');
+    if (!node) node = ensurePredictNode(pending);
     if (!node || !window.BBPLAYER || typeof window.BBPLAYER.openPrediction !== 'function') { button.hidden = false; return; }
     document.querySelectorAll('.predict-live').forEach((el) => { if (el !== node) el.remove(); });
     window.BBPLAYER.openPrediction({ title: 'Predict before you run', node, anchor: document.body, returnLabel: 'Back to the experiment' });
@@ -3643,7 +3781,7 @@
       if (deck) deck.hidden = true;
       if ($('#phone-dots')) $('#phone-dots').hidden = true;
     }
-    const pendingPredict = (typeof customActive !== 'function' || !customActive()) && typeof unansweredPrediction === 'function' && unansweredPrediction();
+    const pendingPredict = typeof unansweredPrediction === 'function' && unansweredPrediction();
     if (!pendingPredict) document.querySelectorAll('.predict-live').forEach((node) => node.remove());
     const title = $('#level-title');
     const dots = $('#phone-dots');
@@ -3658,7 +3796,8 @@
       const after = (verdict && verdict.parentElement === view) ? verdict : anchor;
       if (workspace && after.parentElement === view) after.after(workspace);
       const drawer = $('#lesson-drawer');
-      if (pendingPredict && drawer) drawer.open = false;
+      const lessonStep = (S.lstep && S.lstep[S.level]) || 0;
+      if (pendingPredict && lessonStep === 0 && drawer) drawer.open = false;
     } else if (verdict && card) card.append(verdict);
     syncPhonePanels();
     placeRunOnSim();
@@ -3669,7 +3808,7 @@
   }
   document.addEventListener('bb-help-closed', () => presentPrediction(false));
   document.addEventListener('bb-prediction-closed', () => {
-    const pending = (typeof customActive !== 'function' || !customActive()) && typeof unansweredPrediction === 'function' ? unansweredPrediction() : null;
+    const pending = typeof unansweredPrediction === 'function' ? unansweredPrediction() : null;
     if (pending) predictionDismissedFor = pending.id;
     const button = $('#prediction-reopen');
     if (button) button.hidden = !pending;
@@ -3725,6 +3864,7 @@
   else setWorld(S.world);
   renderStage(); drawCompare();
   render();
+  [typeof BBREPLAN !== 'undefined' && BBREPLAN, typeof BBENSEMBLE_LEVEL !== 'undefined' && BBENSEMBLE_LEVEL, typeof BBMETARL !== 'undefined' && BBMETARL, typeof BBSKEW !== 'undefined' && BBSKEW, typeof BBSKILLS_LEVEL !== 'undefined' && BBSKILLS_LEVEL, typeof BBHINDSIGHT !== 'undefined' && BBHINDSIGHT, typeof BBHIERARCHY !== 'undefined' && BBHIERARCHY, typeof BBELBO_LEVEL !== 'undefined' && BBELBO_LEVEL, typeof BBMESSAGES_LEVEL !== 'undefined' && BBMESSAGES_LEVEL, typeof BBRARELESSON !== 'undefined' && BBRARELESSON, typeof BBGOALS_LEVEL !== 'undefined' && BBGOALS_LEVEL, typeof BBREWARDFIT !== 'undefined' && BBREWARDFIT, typeof BBTHAW !== 'undefined' && BBTHAW, typeof BBSUPERMIMIC !== 'undefined' && BBSUPERMIMIC, typeof BBVPO !== 'undefined' && BBVPO].forEach(guardRun);
   // Algorithm-name reminders: enhance the whole page once, then keep up with every surface that
   // renders a name (prose, questions, method labels, Codex and the family tree) as it appears.
   if (window.ALGO_HELP) {

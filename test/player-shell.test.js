@@ -30,6 +30,17 @@ test('empty curves name the real measure and do not call the score a loss', () =
   for (const row of rows) assert.equal(row.status.includes('\u2014'), false);
 });
 
+test('a fresh run needs a choice for this experiment', () => {
+  const question = 'slots-p';
+  const signature = 'level-1|greedy';
+  const changed = 'level-1|random';
+  assert.equal(shell.blocksFreshRun(question, null, signature), true);
+  assert.equal(shell.blocksFreshRun(question, { id: question, signature, used: false }, signature), false);
+  assert.equal(shell.blocksFreshRun(question, { id: question, signature, used: true }, signature), true);
+  assert.equal(shell.blocksFreshRun(question, { id: question, signature, used: false }, changed), true);
+  assert.equal(shell.blocksFreshRun(null, null, signature), false);
+});
+
 test('a prediction opens once until the player asks again', () => {
   assert.equal(shell.claimPrediction('slots-p'), true);
   assert.equal(shell.claimPrediction('slots-p'), false);

@@ -7,22 +7,23 @@ const require = createRequire(import.meta.url);
 const load = (m) => { try { return require(m); } catch (e) { return null; } };
 const pw = (process.env.PW_CORE && load(process.env.PW_CORE)) || load('playwright') || load('playwright-core');
 if (!pw) { console.error('Playwright not found. Run: npm i -D playwright && npx playwright install chromium'); process.exit(2); }
-const { chromium } = pw;
+const browserName = process.env.BB_SMOKE_BROWSER === 'webkit' ? 'webkit' : 'chromium';
+const engine = pw[browserName];
 const fs = await import('fs');
 const os = await import('os');
 const zlib = await import('zlib');
 // Portable Chromium selection: PW_CHROMIUM wins, then a playwright-installed browser,
 // then common system installs (GitHub Actions ubuntu runners ship Google Chrome, macOS ships it in /Applications).
 const candidates = [process.env.PW_CHROMIUM];
-try { if (chromium.executablePath) candidates.push(chromium.executablePath()); } catch {}
+try { if (browserName === 'chromium' && typeof engine.executablePath === 'function') candidates.push(engine.executablePath()); } catch {}
 candidates.push('/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser',
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome');
-const exe = candidates.filter(Boolean).find((p) => fs.existsSync(p));
-console.log('Chromium:', exe || 'playwright default');
+const exe = browserName === 'chromium' ? candidates.filter(Boolean).find((p) => fs.existsSync(p)) : '';
+console.log(browserName + ':', browserName === 'webkit' ? 'playwright webkit' : (exe || 'playwright default'));
 const out = process.argv[2] || (os.tmpdir() + '/breaking-bellman-shots');
 fs.mkdirSync(out, { recursive: true });
 fs.copyFileSync(new URL('../../dist/breaking-bellman.html', import.meta.url), out + '/page.html');
-const browser = await chromium.launch({ executablePath: exe || undefined });
+const browser = await engine.launch(browserName === 'chromium' ? { executablePath: exe || undefined } : {});
 const errors = [];
 const fails = [];
 const check = (cond, msg) => { if (!cond) fails.push(msg); console.log((cond ? 'ok   ' : 'FAIL ') + msg); };
@@ -39,6 +40,29 @@ async function clickReplay(page, pattern) {
 }
 async function clickCampaignRun(page) {
   await page.locator('[data-campaign-run]').evaluate((button) => button.click());
+}
+async function ensurePrediction(page) {
+  const locked = await page.locator('#run-btn').evaluate((el) => {
+    const visible = (node) => {
+      for (let n = node; n; n = n.parentElement) {
+        if (n.hidden) return false;
+        const style = getComputedStyle(n);
+        if (style.display === 'none' || style.visibility === 'hidden') return false;
+      }
+      const box = node.getBoundingClientRect();
+      return box.width > 0 && box.height > 0;
+    };
+    return visible(el) && (el.disabled || el.textContent.trim() === 'Predict first');
+  }).catch(() => false);
+  if (locked) await answerChoice(page, 0);
+}
+async function clickPredictedRun(page) {
+  await ensurePrediction(page);
+  await page.click('#run-btn');
+}
+async function clickRepairRun(page) {
+  await ensurePrediction(page);
+  await page.getByText('Run this sentence').click();
 }
 async function closePrediction(page) {
   const pop = page.locator('#prediction-pop');
@@ -74,7 +98,10 @@ async function preloadFastRecord(page, key) {
 const onlySession = process.env.BB_SMOKE_SESSION;
 async function session(w, h, name, fn) {
   if (onlySession && onlySession !== name) return;
-  const page = await browser.newPage({ viewport: { width: w, height: h } });
+  const gate = name === 'prediction-gate';
+  const page = await browser.newPage(gate
+    ? { viewport: { width: w, height: h }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }
+    : { viewport: { width: w, height: h } });
   page.on('console', (m) => { if (m.type() === 'error') errors.push(name + ': ' + m.text()); });
   page.on('pageerror', (e) => errors.push(name + ' pageerror: ' + e.message));
   await page.goto('file://' + out + '/page.html');
@@ -170,6 +197,7 @@ async function openNotebook(page, section) {
 // Closing the simulation does not cancel a run; the word change does.
 async function returnToEditor(page) {
   await dismissLessonHelp(page);
+  await closePrediction(page);
   await dismissDialog(page, '#reference-dialog', '#reference-close');
   await dismissDialog(page, '#run-simulation', '#run-simulation-close');
 }
@@ -305,11 +333,11 @@ await session(375, 812, 'phone', async (page) => {
   console.log('L1 replay, last stage:', (await page.locator('#replay-lab .rp-stage').innerText()).slice(0, 200));
   await answerChoice(page, 1);
   await setWord(page, '#mode-pane', 'eps', 'sometimes at random');
-  check(await page.locator('#run-btn').evaluate((el) => !el.hidden && !el.disabled && el.textContent === 'Run'), 'an edit brings Run back');
+  check(await page.locator('#run-btn').evaluate((el) => !el.hidden && el.disabled && el.textContent === 'Predict first'), 'an edit asks for a new prediction before Run');
   const mjx = await page.locator('#mode-pane .algorithm-math-panel mjx-container').count();
   console.log('MathJax containers in the repair step:', mjx);
   await page.screenshot({ path: out + '/phone-repair.png', fullPage: false });
-  await page.getByText('Run this sentence').click();
+  await clickRepairRun(page);
   await runDone(page);
   console.log('L1 repair run:', await page.locator('#run-result').innerText());
   check(await page.locator('#verdict-card').isHidden(), 'a repair shows the new measurement without the old prediction card');
@@ -369,7 +397,7 @@ await session(1280, 900, 'desktop', async (page) => {
   check(tex.unique > 100 && !tex.bad.length, 'the TeX of all ' + tex.combos + ' word combinations typesets (' + tex.unique + ' unique lines)' + (tex.bad.length ? ': ' + tex.bad.slice(0, 3).join(' | ') : ''));
   await chooseHidden(page, '#seeds', '1'); await chooseHidden(page, '#budget', '10000');
   const t0 = Date.now();
-  await page.click('#run-btn');
+  await clickPredictedRun(page);
   await runDone(page);
   console.log('DQN 10k 1 seed in', ((Date.now() - t0) / 1000).toFixed(1), 's:', await page.locator('#run-result').innerText());
   // The expert card lives in Autopsy. Opening that dialog is how a player reads it; the run still has to leave the card open.
@@ -414,7 +442,7 @@ await session(1280, 900, 'desktop', async (page) => {
   await setWord(page, '#mode-pane', 'scorer', 'the live estimate');
   await setWord(page, '#mode-pane', 'data', 'the move just made');
   console.log('compare:', (await page.locator('#compare').innerText()).replace(/\n/g, ' | '));
-  await page.click('#run-btn');
+  await clickPredictedRun(page);
   await runDone(page);
   console.log('naive net run:', await page.locator('#run-result').innerText());
   await clickReplay(page, /Watch one update|Start again/);
@@ -426,7 +454,7 @@ await session(1280, 900, 'desktop', async (page) => {
   await page.waitForTimeout(300);
   // The campaign opens on Q-learning. That run chases the left door, and the wonder card belongs to it.
   // Changing the reward count first removes the surprise, so the card never opens.
-  await page.click('#run-btn');
+  await clickPredictedRun(page);
   await runDone(page);
   console.log('mirage run:', await page.locator('#run-result').innerText());
   await page.screenshot({ path: out + '/desktop-mirage.png' });
@@ -512,7 +540,7 @@ await session(1280, 900, 'phases', async (page) => {
   await setWord(page, '#mode-pane', 'scale', 'yes, by the standard deviation');
   await page.waitForSelector('#mode-pane .algorithm-math-panel mjx-container', { timeout: 15000 }).catch(() => {});
   check(await page.locator('#mode-pane .algorithm-math-panel mjx-container').count() > 0, 'policy-gradient sentence renders its math');
-  await page.getByText('Run this sentence').click();
+  await clickRepairRun(page);
   await runDone(page);
   console.log('credit repair run:', await page.locator('#run-result').innerText());
   await page.waitForSelector('text=Explain why it works', { timeout: 10000 });
@@ -525,7 +553,7 @@ await session(1280, 900, 'phases', async (page) => {
   await openCampaignLevel(page, 'continuous');
   await chooseHidden(page, '#seeds', '1'); await chooseHidden(page, '#budget', '6000');
   let t0 = Date.now();
-  await page.click('#run-btn');
+  await clickPredictedRun(page);
   await runDone(page);
   console.log('SAC pendulum 6k 1 seed in', ((Date.now() - t0) / 1000).toFixed(1), 's:', await page.locator('#run-result').innerText());
   check(await page.locator('#charts canvas, #charts svg').count() >= 3, 'actor-critic charts drawn');
@@ -541,7 +569,7 @@ await session(1280, 900, 'phases', async (page) => {
   await setWord(page, '#mode-pane', 'head', 'noise turned into an action');
   await chooseHidden(page, '#seeds', '1'); await chooseHidden(page, '#budget', '4000');
   t0 = Date.now();
-  await page.click('#run-btn');
+  await clickPredictedRun(page);
   await runDone(page);
   console.log('flow BC fork 4k in', ((Date.now() - t0) / 1000).toFixed(1), 's:', await page.locator('#run-result').innerText());
   console.log('name box:', (await page.locator('#rule .compound').innerText()).replace(/\n/g, ' | '));
@@ -576,7 +604,7 @@ await session(1280, 900, 'twoways', async (page) => {
   await answerChoice(page, 0);
   await setWord(page, '#mode-pane', 'head', 'noise turned into an action');
   t0 = Date.now();
-  await page.getByText('Run this sentence').click();
+  await clickRepairRun(page);
   await runDone(page);
   console.log('twoways flow run in', ((Date.now() - t0) / 1000).toFixed(0), 's:', await page.locator('#run-result').innerText());
   const ok = await page.waitForSelector('text=Explain why it works', { timeout: 10000 }).then(() => true, () => false);
@@ -601,7 +629,7 @@ await session(375, 812, 'phone-frontier', async (page) => {
   const best8MemoryKey = hash(exact.stringify(exact.resolve({ world: requested.world, knobs: requested.knobs,
     parts: requested.words, hyper: { ...C.hyperOf(requested.words, requested.world), ...lv.hyper }, steps: requested.steps }, requested.seeds, source().versions, C)));
   check(await preloadFastRecord(page, best8MemoryKey), 'the exact best-of-8 memory result is available to the browser regression');
-  await page.click('#run-btn');
+  await clickPredictedRun(page);
   await runDone(page);
   const storedBest8 = {
     source: await page.locator('#run-source').evaluate((el) => el.textContent),
@@ -613,7 +641,7 @@ await session(375, 812, 'phone-frontier', async (page) => {
   check(/Saved in this browser/.test(storedBest8.source) && showsHundredPercent(storedBest8.result) &&
     storedBest8.charts >= 4, 'best-of-8 with the memory action reuses its exact 100% result');
   await setWord(page, '#rule', 'next', "the policy's next action");
-  await page.click('#run-btn');
+  await clickPredictedRun(page);
   await page.waitForFunction(() => /Live simulation: training/.test(document.querySelector('#run-source').textContent));
   const pending = await page.evaluate(() => ({
     result: document.querySelector('#run-result').textContent,
@@ -644,6 +672,7 @@ await session(375, 812, 'phone-frontier', async (page) => {
   });
   await chooseHidden(page, '#run-mode', 'live');
   const frontierRun = page.locator('[data-campaign-run="pick"]');
+  await ensurePrediction(page);
   await frontierRun.evaluate((button) => button.click());
   check(await frontierRun.isDisabled(), 'mud level disables its campaign run button as training starts');
   const frontierText = await frontierRun.evaluate((button) => button.textContent + ' ' + button.parentElement.textContent);
@@ -666,8 +695,16 @@ await session(375, 812, 'phone-frontier', async (page) => {
     const status = document.querySelector('[data-campaign-run-status="pick"]');
     return button && !button.disabled && /Run the starting sentence/.test(button.textContent) && /did not finish/.test(status.textContent);
   });
-  check(!await page.locator('#run-btn').isDisabled() && /forced startup failure/.test(await page.locator('#run-source').evaluate((el) => el.textContent)),
-    'a failed startup restores both campaign and Lab controls');
+  const labRun = () => page.locator('#run-btn').evaluate((el) => ({
+    disabled: el.disabled,
+    text: (el.textContent || '').trim(),
+  }));
+  check(/forced startup failure/.test(await page.locator('#run-source').innerText()), 'a failed startup keeps the worker error');
+  check((await labRun()).disabled && (await labRun()).text === 'Predict first', 'a changed sentence after the failed start asks again');
+  await answerChoice(page, 0);
+  const campaignReady = await frontierRun.evaluate((button) => !button.disabled && /Run the starting sentence/.test(button.textContent));
+  check(campaignReady && !(await labRun()).disabled && (await labRun()).text === 'Run',
+    'a fresh choice after a failed startup restores both campaign and Lab controls');
   await page.screenshot({ path: out + '/phone-mud.png', fullPage: true });
   await closePrediction(page);
   await dismissLessonHelp(page);
@@ -721,7 +758,7 @@ await session(375, 812, 'expert', async (page) => {
   await setWord(page, '#mode-pane', 'nstep', '1 real reward');
   await setWord(page, '#mode-pane', 'agg', 'the worst next action');
   await chooseHidden(page, '#seeds', '5');
-  await page.click('#run-btn');
+  await clickPredictedRun(page);
   await runDone(page);
   console.log('cliff worst next action:', await page.locator('#run-result').innerText());
   const ex = await page.locator('#expert').innerText();
@@ -762,7 +799,7 @@ await session(390, 844, 'pendulum', async (page) => {
   const pred = page.locator('#prediction-pop');
   if (await pred.count() && await pred.evaluate((el) => el.open).catch(() => false)) await pred.locator('button.opt').first().click();
   else if (await page.locator('#run-btn').evaluate((el) => el.textContent === 'Predict first').catch(() => false)) await page.locator('.predict-live .opt').first().click();
-  await page.click('#run-btn');
+  await clickPredictedRun(page);
   await runDone(page);
   await page.locator('#stage').scrollIntoViewIfNeeded();
   await page.locator('#scene-replay').evaluate((el) => el.click());
@@ -960,6 +997,100 @@ await backupPage1280.keyboard.press('Enter');
 check(await backupPage1280.locator('#rb-round-value').innerText() === '1', 'backup: 390 Next round responds to Enter');
 await backupPage1280.screenshot({ path: out + '/reward-backup-390.png' });
 await backupPage1280.close();
+
+await session(430, 739, 'prediction-gate', async (page) => {
+  const runState = () => page.locator('#run-btn').evaluate((el) => ({
+    text: (el.textContent || '').trim(),
+    disabled: el.disabled,
+    hidden: el.hidden,
+  }));
+  const resultText = () => page.locator('#run-result').evaluate((el) => (el.textContent || '').trim());
+  check((await runState()).text === 'Predict first' && (await runState()).disabled, 'gate: level 1 starts as Predict first');
+  const playbackHidden = await page.locator('#scene-watch, #scene-step, #scene-replay').evaluateAll((els) => els.every((el) => {
+    for (let node = el; node; node = node.parentElement) {
+      if (node.hidden) return true;
+      const style = getComputedStyle(node);
+      if (style.display === 'none' || style.visibility === 'hidden') return true;
+    }
+    const box = el.getBoundingClientRect();
+    return box.width === 0 || box.height === 0;
+  }));
+  check(playbackHidden && (await resultText()) === '', 'gate: Watch, Step, and Replay are not a fresh run');
+  await page.locator('#prediction-pop').getByRole('button', { name: 'Back to the experiment' }).click();
+  check((await runState()).disabled && (await runState()).text === 'Predict first', 'gate: Back to the experiment does not authorize a run');
+  await page.locator('#prediction-reopen').click();
+  check(await page.locator('#prediction-pop').evaluate((el) => el.open) && (await runState()).disabled, 'gate: Show the prediction does not authorize a run');
+  await page.locator('#prediction-pop').getByRole('button', { name: 'Back to the experiment' }).click();
+  await answerChoice(page, 0);
+  check((await runState()).text === 'Run' && !(await runState()).disabled, 'gate: a choice enables the predicted experiment');
+  await dismissLessonHelp(page);
+  const before = (await page.locator('#rule .w[data-key="ucb"]').innerText()).trim();
+  await page.locator('#rule .w[data-key="ucb"]').click();
+  const alternate = (await page.locator('.chooser .choice[aria-pressed="false"]').first().innerText()).trim();
+  await page.locator('.chooser .choice[aria-pressed="false"]').first().click();
+  const changed = (await page.locator('#rule .w[data-key="ucb"]').innerText()).trim();
+  check(changed !== before && alternate.length > 0, 'gate: the method word changed (' + before + ' → ' + changed + ')');
+  check((await runState()).disabled && (await runState()).text === 'Predict first', 'gate: a method change asks again');
+  await page.screenshot({ path: out + '/gate-method-locked.png' });
+  if ((await runState()).disabled) {
+    await page.locator('#run-btn').click({ force: true });
+    await page.waitForTimeout(300);
+    check(!/Live simulation|Measured|late pulls/.test(await resultText()), 'gate: the locked method change does not start training');
+    await closePrediction(page);
+  }
+  await page.locator('#rule .w[data-key="ucb"]').click();
+  await page.locator('.chooser .choice', { hasText: before }).first().click();
+  check((await page.locator('#rule .w[data-key="ucb"]').innerText()).trim() === before, 'gate: the original method word is restored');
+  check((await runState()).text === 'Run' && !(await runState()).disabled, 'gate: the predicted experiment stays authorized');
+  await clickPredictedRun(page);
+  await runDone(page);
+  check(/You predicted|Measured|late pulls/.test(await page.locator('#verdict-card').innerText() + '\n' + await page.locator('#run-result').innerText()), 'gate: the authorized run finishes');
+  check(await page.locator('#run-btn').evaluate((el) => el.hidden), 'gate: Run hides when that result is showing');
+  await dismissLessonHelp(page);
+  await setWord(page, '#mode-pane', 'eps', 'sometimes at random');
+  check((await runState()).disabled && (await runState()).text === 'Predict first' && (await resultText()).length > 0, 'gate: a second run after completion asks again');
+  await page.reload();
+  await enterSavedLesson(page);
+  await page.waitForTimeout(400);
+  check((await runState()).disabled && (await runState()).text === 'Predict first', 'gate: a reload asks again');
+  await page.screenshot({ path: out + '/gate-reload-locked.png' });
+  if ((await runState()).disabled) {
+    await page.locator('#run-btn').click({ force: true });
+    await page.waitForTimeout(400);
+    check(!/Live simulation/.test(await page.locator('#run-source').innerText()), 'gate: a reload does not start training');
+  }
+  await closePrediction(page);
+  await page.locator('#campaign-logo').click();
+  await page.locator('[data-map-level="cliff"]').click();
+  if (await page.locator('[data-open-level="cliff"]').count()) await page.locator('[data-open-level="cliff"]').click();
+  await dismissLessonHelp(page);
+  check((await runState()).disabled && (await runState()).text === 'Predict first', 'gate: a later level asks before its first run');
+  await closePrediction(page);
+  await page.locator('#campaign-logo').click();
+  await page.locator('[data-map-level="thaw"]').click();
+  if (await page.locator('[data-open-level="thaw"]').count()) await page.locator('[data-open-level="thaw"]').click();
+  await dismissLessonHelp(page);
+  const thawRun = page.locator('#thaw-run');
+  check(await thawRun.isDisabled(), 'gate: thaw stays locked before a choice');
+  check(await page.locator('#thaw-watch').isDisabled(), 'gate: thaw playback waits for a recorded run');
+  await page.locator('#mode-pane button.opt').first().click();
+  check(!(await thawRun.isDisabled()), 'gate: a thaw choice enables its run');
+  const nextInertia = await page.locator('#thaw-inertia').evaluate((el) => [...el.options].map((option) => option.value).find((value) => value !== el.value));
+  check(!!nextInertia, 'gate: thaw has another inertia setting');
+  await page.locator('#thaw-inertia').selectOption(nextInertia);
+  check(await thawRun.isDisabled(), 'gate: a thaw setting change asks again');
+  await page.screenshot({ path: out + '/gate-thaw-locked.png' });
+  if (await thawRun.isDisabled()) {
+    const reopen = page.locator('#prediction-reopen');
+    if (await reopen.count() && await reopen.isVisible()) await reopen.click();
+    const opt = page.locator('#prediction-pop[open] button.opt').first();
+    const found = await opt.waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false);
+    if (found) await opt.click();
+    check(found && !(await thawRun.isDisabled()), 'gate: a new thaw choice enables the changed experiment');
+  }
+  await closePrediction(page);
+  await page.locator('#campaign-logo').click();
+});
 
 console.log('errors:', errors.length ? errors.join('\n') : 'none');
 if (errors.length) fails.push('page errors');
